@@ -1,0 +1,36 @@
+{
+  "name": "Navix",
+
+  // GitHub Codespaces standart obrazi. Unda Node.js, Docker va Git bor.
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+
+  /*
+   * MUHIM: 3000-portni MAJBURIY ravishda tashqariga chiqaramiz.
+   *
+   * Nima uchun kerak: Codespaces portlarni odatda AVTOMATIK aniqlaydi —
+   * lekin buni brauzerdagi muharrir bajaradi. Agar faqat SSH orqali
+   * (masalan telefondagi Termux'dan) ishlansa, port ro'yxatga olinmaydi va
+   * `...-3000.app.github.dev` manzili 404 qaytaradi.
+   *
+   * Bu yerda ko'rsatilgan portlar Codespace ishga tushishi bilan
+   * ro'yxatga olinadi — muharrir ochilgan-ochilmaganidan qat'i nazar.
+   */
+  "forwardPorts": [3000],
+
+  "portsAttributes": {
+    "3000": {
+      "label": "Navix ilovasi",
+      "onAutoForward": "notify"
+    }
+  },
+
+  // Codespace birinchi marta yaratilganda bog'liqliklar o'rnatiladi.
+  // `postinstall` esa Prisma klientini o'zi yaratadi.
+  "postCreateCommand": "npm install",
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode", "Prisma.prisma"]
+    }
+  }
+}

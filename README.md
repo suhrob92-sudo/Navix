@@ -147,33 +147,27 @@ demak server ishlayapti, lekin **GitHub portni tashqariga chiqarmagan**.
 Codespaces portni avtomatik ochadi, ammo server o'chirib-yoqilganda
 bu bog'lanish uzilib qolishi mumkin.
 
-**Yechim — port ko'prigi.** Termux'da YANGI sessiya oching (SSH ichida emas,
-telefonning o'zida) va yozing:
+**Sabab.** Codespaces portlarni brauzerdagi muharrir orqali ro'yxatga oladi.
+Faqat SSH (Termux) ishlatilganda ro'yxat bo'sh qoladi.
 
-```bash
-gh codespace ports forward 3000:3000
-```
+**Doimiy yechim — `.devcontainer/devcontainer.json`.** Loyihada shu fayl bor
+va unda `forwardPorts: [3000]` ko'rsatilgan. U Codespace ISHGA TUSHISHI bilan
+portni ro'yxatga oladi, muharrir ochilgan-ochilmaganidan qat'i nazar.
 
-Bu oyna **ochiq tursin** — u ko'prik vazifasini bajaradi. Brauzerda oching:
+Mavjud Codespace'da kuchga kirishi uchun uni qayta qurish kerak:
+`github.com/codespaces` → Codespace yonidagi **⋯** → **Rebuild container**.
+Yoki oddiygina yangi Codespace yarating.
 
-**http://localhost:3000** (`github.dev` emas!)
+**Tezkor yechim.** Codespace'ni brauzerda BIR MARTA oching
+(`github.com/codespaces`) — muharrir yuklanishi bilan port ro'yxatga olinadi.
+Keyin brauzerni yopib, Termux'da ishlashda davom etsangiz bo'ladi.
 
-Nima uchun ishlaydi: Termux ham, brauzer ham bitta telefonda. Buyruq
-Codespaces'dagi portni to'g'ridan-to'g'ri telefonga ulaydi — GitHub'ning
-port tizimi umuman ishtirok etmaydi.
+**Ishlamaydigan yo'llar** (vaqt sarflamang):
 
-> **Eslatma:** `gh codespace ports visibility 3000:public` ko'p hollarda
-> ishlamaydi va `404 Not Found` qaytaradi. Sababi: u faqat ALLAQACHON
-> ro'yxatga olingan portni o'zgartira oladi. Codespaces portlarni brauzerdagi
-> muharrir orqali ro'yxatga oladi, faqat SSH ishlatilganda esa ro'yxat bo'sh
-> qoladi.
-
-**Ikki oynali tartib.** Ko'prik bitta sessiyani band qiladi, shuning uchun:
-
-| Oyna   | Vazifasi                                               |
-| ------ | ------------------------------------------------------ |
-| 1-oyna | `gh codespace ports forward 3000:3000` — doim ochiq    |
-| 2-oyna | `gh codespace ssh` → buyruqlar (`npm run otp` va h.k.) |
+| Buyruq                                      | Nima bo'ladi                                               |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| `gh codespace ports visibility 3000:public` | `404 Not Found` — ro'yxatda yo'q portni o'zgartira olmaydi |
+| `gh codespace ports forward 3000:3000`      | `ssh: unexpected packet` — Termux'da SSH kanali ochilmaydi |
 
 ### Aloqa uzilib qolsa
 
