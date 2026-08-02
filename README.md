@@ -64,23 +64,86 @@ Brauzerda oching: **http://localhost:3000**
 
 ## Foydali buyruqlar
 
-| Buyruq                | Nima qiladi                                           |
-| --------------------- | ----------------------------------------------------- |
-| `npm run dev`         | Ishlab chiqish serverini ishga tushiradi              |
-| `npm run build`       | Production uchun yig'adi                              |
-| `npm run start`       | Yig'ilgan ilovani ishga tushiradi                     |
-| `npm run verify`      | Turlar + lint + testlar — hammasini birdan tekshiradi |
-| `npm run typecheck`   | TypeScript xatolarini tekshiradi                      |
-| `npm run lint`        | Kod uslubini tekshiradi                               |
-| `npm run test`        | Testlarni bir marta ishga tushiradi                   |
-| `npm run test:watch`  | Testlarni kuzatuv rejimida ishlatadi                  |
-| `npm run format`      | Kodni avtomatik formatlaydi                           |
-| `npm run db:generate` | Prisma klientini sxemadan yaratadi                    |
-| `npm run db:studio`   | Bazani brauzerda ko'rish oynasini ochadi              |
-| `npm run db:migrate`  | Yangi migratsiya yaratadi va qo'llaydi                |
-| `npm run db:seed`     | Boshlang'ich ma'lumotlarni yozadi                     |
-| `npm run docker:up`   | PostgreSQL va Redis'ni ko'taradi                      |
-| `npm run docker:down` | Konteynerlarni to'xtatadi                             |
+| Buyruq                | Nima qiladi                                            |
+| --------------------- | ------------------------------------------------------ |
+| `npm run dev`         | Ishlab chiqish serverini ishga tushiradi               |
+| `npm run dev:bg`      | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi) |
+| `npm run dev:stop`    | Fondagi serverni toʻxtatadi                            |
+| `npm run dev:log`     | Server logini jonli koʻrsatadi                         |
+| `npm run url`         | Ilova ochiladigan toʻliq havolani chiqaradi            |
+| `npm run otp`         | Oxirgi SMS tasdiqlash kodini topib beradi              |
+| `npm run build`       | Production uchun yig'adi                               |
+| `npm run start`       | Yig'ilgan ilovani ishga tushiradi                      |
+| `npm run verify`      | Turlar + lint + testlar — hammasini birdan tekshiradi  |
+| `npm run typecheck`   | TypeScript xatolarini tekshiradi                       |
+| `npm run lint`        | Kod uslubini tekshiradi                                |
+| `npm run test`        | Testlarni bir marta ishga tushiradi                    |
+| `npm run test:watch`  | Testlarni kuzatuv rejimida ishlatadi                   |
+| `npm run format`      | Kodni avtomatik formatlaydi                            |
+| `npm run db:generate` | Prisma klientini sxemadan yaratadi                     |
+| `npm run db:studio`   | Bazani brauzerda ko'rish oynasini ochadi               |
+| `npm run db:migrate`  | Yangi migratsiya yaratadi va qo'llaydi                 |
+| `npm run db:seed`     | Boshlang'ich ma'lumotlarni yozadi                      |
+| `npm run docker:up`   | PostgreSQL va Redis'ni ko'taradi                       |
+| `npm run docker:down` | Konteynerlarni to'xtatadi                              |
+
+---
+
+## Telefondan ishlash (Codespaces + Termux)
+
+Kompyuter yo'q bo'lsa, loyihani telefondan boshqarish mumkin:
+**terminal telefonda** (Termux — tez), **og'ir dasturlar bulutda** (Codespaces).
+
+### Nima uchun bunday?
+
+Brauzerdagi Codespaces muharriri telefonda og'ir ishlaydi. Termux esa
+Androidning o'z terminali — yengil va tez. Termux'ga Node yoki PostgreSQL
+o'rnatish shart emas: u faqat ulanish vositasi.
+
+### Bir martalik sozlash
+
+```bash
+# Termux'da (telefonda)
+pkg install gh openssh -y
+gh auth login                                  # brauzer orqali kirish
+gh auth refresh -h github.com -s codespace     # Codespaces ruxsati
+```
+
+### Har safar ishlash tartibi
+
+```bash
+gh codespace ssh          # Codespaces'ga ulanish
+cd /workspaces/Navix
+npm run docker:up         # baza va Redis
+npm run dev:bg            # server FONDA ishga tushadi + havola chiqadi
+```
+
+`dev:bg` terminalni band qilmaydi — havolani ko'chirib brauzerda ochasiz.
+
+### SMS kodni olish
+
+Ishlab chiqish rejimida haqiqiy SMS yuborilmaydi. Kodni olish uchun:
+
+```bash
+npm run otp
+```
+
+```
+📩 Oxirgi tasdiqlash kodi:
+
+   781769
+```
+
+### Foydali
+
+```bash
+npm run url        # havolani qayta chiqarish
+npm run dev:log    # log'ni jonli kuzatish (chiqish: Ctrl+C)
+npm run dev:stop   # serverni to'xtatish
+```
+
+> **Eslatma:** `npm run dev` (fonsiz) terminalni to'liq band qiladi va
+> telefonda noqulay. Telefondan ishlaganda doim `npm run dev:bg` ishlating.
 
 ---
 
@@ -125,6 +188,7 @@ Navix/
 │       ├── redis.ts         # Kesh klienti
 │       ├── logger.ts        # Jurnal yozuvchi
 │       └── utils.ts         # Yordamchi funksiyalar
+├── scripts/                 # Yordamchi skriptlar (url, otp, dev:stop)
 ├── docker-compose.yml       # Lokal PostgreSQL + Redis
 ├── Dockerfile               # Production image
 └── next.config.ts           # Next.js va xavfsizlik sozlamalari

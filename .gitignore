@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Prisma tomonidan generatsiya qilinadigan klient
 /src/generated
+
+# Fonda ishlayotgan server log fayli
+dev.log

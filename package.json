@@ -5,6 +5,11 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
+    "dev:bg": "nohup next dev > dev.log 2>&1 & sleep 4 && npm run url",
+    "dev:stop": "node scripts/dev-stop.mjs",
+    "dev:log": "tail -f dev.log",
+    "url": "node scripts/url.mjs",
+    "otp": "node scripts/otp.mjs",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
