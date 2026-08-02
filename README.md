@@ -147,29 +147,33 @@ demak server ishlayapti, lekin **GitHub portni tashqariga chiqarmagan**.
 Codespaces portni avtomatik ochadi, ammo server o'chirib-yoqilganda
 bu bog'lanish uzilib qolishi mumkin.
 
-**Yechim.** Termux'da YANGI sessiya oching (SSH ichida emas, telefonning
-o'zida) va portni ochiq qiling:
-
-```bash
-gh codespace ports visibility 3000:public
-```
-
-Keyin brauzerda sahifani yangilang.
-
-> **Xavfsizlik:** `public` — havolani bilgan har kim ochadi. Bu ishlab
-> chiqish serveri, sinov ma'lumotlari bilan. Ishni tugatgach yopib qo'ying:
-> `gh codespace ports visibility 3000:private`
-
-**Zaxira yo'l.** Agar yuqoridagisi ishlamasa, portni to'g'ridan-to'g'ri
-telefonga ulang:
+**Yechim — port ko'prigi.** Termux'da YANGI sessiya oching (SSH ichida emas,
+telefonning o'zida) va yozing:
 
 ```bash
 gh codespace ports forward 3000:3000
 ```
 
-Bu buyruq ishlab tursin (sessiyani yopmang) va brauzerda oching:
-**http://localhost:3000** — telefon va Termux bitta qurilmada bo'lgani uchun
-bu ishlaydi va GitHub hisobiga kirish talab qilinmaydi.
+Bu oyna **ochiq tursin** — u ko'prik vazifasini bajaradi. Brauzerda oching:
+
+**http://localhost:3000** (`github.dev` emas!)
+
+Nima uchun ishlaydi: Termux ham, brauzer ham bitta telefonda. Buyruq
+Codespaces'dagi portni to'g'ridan-to'g'ri telefonga ulaydi — GitHub'ning
+port tizimi umuman ishtirok etmaydi.
+
+> **Eslatma:** `gh codespace ports visibility 3000:public` ko'p hollarda
+> ishlamaydi va `404 Not Found` qaytaradi. Sababi: u faqat ALLAQACHON
+> ro'yxatga olingan portni o'zgartira oladi. Codespaces portlarni brauzerdagi
+> muharrir orqali ro'yxatga oladi, faqat SSH ishlatilganda esa ro'yxat bo'sh
+> qoladi.
+
+**Ikki oynali tartib.** Ko'prik bitta sessiyani band qiladi, shuning uchun:
+
+| Oyna   | Vazifasi                                               |
+| ------ | ------------------------------------------------------ |
+| 1-oyna | `gh codespace ports forward 3000:3000` — doim ochiq    |
+| 2-oyna | `gh codespace ssh` → buyruqlar (`npm run otp` va h.k.) |
 
 ### Aloqa uzilib qolsa
 
