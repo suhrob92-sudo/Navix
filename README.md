@@ -140,6 +140,37 @@ npm run status
 
 Biror joyda ❌ bo'lsa — `npm run go` hammasini qayta ko'taradi.
 
+### Brauzerda 404 chiqsa
+
+`npm run status` hammasi ✅ ko'rsatsa-yu, brauzer baribir 404 bersa —
+demak server ishlayapti, lekin **GitHub portni tashqariga chiqarmagan**.
+Codespaces portni avtomatik ochadi, ammo server o'chirib-yoqilganda
+bu bog'lanish uzilib qolishi mumkin.
+
+**Yechim.** Termux'da YANGI sessiya oching (SSH ichida emas, telefonning
+o'zida) va portni ochiq qiling:
+
+```bash
+gh codespace ports visibility 3000:public
+```
+
+Keyin brauzerda sahifani yangilang.
+
+> **Xavfsizlik:** `public` — havolani bilgan har kim ochadi. Bu ishlab
+> chiqish serveri, sinov ma'lumotlari bilan. Ishni tugatgach yopib qo'ying:
+> `gh codespace ports visibility 3000:private`
+
+**Zaxira yo'l.** Agar yuqoridagisi ishlamasa, portni to'g'ridan-to'g'ri
+telefonga ulang:
+
+```bash
+gh codespace ports forward 3000:3000
+```
+
+Bu buyruq ishlab tursin (sessiyani yopmang) va brauzerda oching:
+**http://localhost:3000** — telefon va Termux bitta qurilmada bo'lgani uchun
+bu ishlaydi va GitHub hisobiga kirish talab qilinmaydi.
+
 ### Aloqa uzilib qolsa
 
 Mobil internetda SSH aloqasi uzilishi normal holat:
