@@ -4,7 +4,8 @@ import { Bell, CheckCheck, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { PageHeader } from '@/components/shared/page-header';
+import { AppHeader } from '@/components/app/app-header';
+import { PageIntro } from '@/components/app/page-intro';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -95,141 +96,147 @@ export function NotificationsContent() {
 
   return (
     <>
-      <PageHeader
-        title="Bildirishnomalar"
-        description="Barcha modullardan kelgan xabarlar bir joyda."
-        action={
-          unreadCount > 0 ? (
-            <Button variant="outline" onClick={markAllAsRead} isLoading={isMarkingAll}>
-              <CheckCheck aria-hidden="true" />
-              Barchasini o&apos;qildi
-            </Button>
-          ) : undefined
-        }
-      />
+      <AppHeader title="Bildirishnomalar" showBack backHref="/profile" />
 
-      {actionError && (
-        <Alert variant="error" className="mb-4">
-          {actionError}
-        </Alert>
-      )}
+      <div className="px-4 pt-4">
+        <PageIntro
+          description="Barcha modullardan kelgan xabarlar bir joyda."
+          action={
+            unreadCount > 0 ? (
+              <Button variant="outline" size="sm" onClick={markAllAsRead} isLoading={isMarkingAll}>
+                <CheckCheck aria-hidden="true" />
+                Barchasini o&apos;qildi
+              </Button>
+            ) : undefined
+          }
+        />
 
-      {isLoading && (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }, (_, index) => (
-            <Skeleton key={index} className="h-24 rounded-xl" />
-          ))}
-        </div>
-      )}
+        {actionError && (
+          <Alert variant="error" className="mb-4">
+            {actionError}
+          </Alert>
+        )}
 
-      {!isLoading && error && (
-        <Alert variant="error" title="Bildirishnomalarni yuklab bo'lmadi">
-          {error}
-        </Alert>
-      )}
-
-      {!isLoading && !error && notifications.length === 0 && (
-        <Card variant="glass" padding="none" className="animate-fade-up">
-          <EmptyState
-            icon={Bell}
-            title="Bildirishnomalar yo'q"
-            description="Buyurtma holati, to'lovlar va aksiyalar haqidagi xabarlar shu yerda ko'rinadi."
-          />
-        </Card>
-      )}
-
-      {!isLoading && !error && notifications.length > 0 && (
-        <>
-          <ul className="space-y-3">
-            {notifications.map((notification, index) => {
-              const sourceModule = getModuleById(notification.sourceModule);
-              const isUnread = notification.readAt === null;
-
-              const content = (
-                <Card
-                  variant="glass"
-                  padding="sm"
-                  className={cn('animate-fade-up transition-colors', isUnread && 'border-primary/30 bg-primary/5')}
-                  style={{ animationDelay: `${Math.min(index, 10) * 50}ms` }}
-                >
-                  <div className="flex items-start gap-3">
-                    {/* O'qilmagan xabar belgisi */}
-                    <span
-                      className={cn(
-                        'mt-2 size-2 shrink-0 rounded-full',
-                        isUnread ? 'bg-primary' : 'bg-transparent',
-                      )}
-                      aria-hidden="true"
-                    />
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className={cn('text-sm', isUnread ? 'font-semibold' : 'font-medium')}>
-                          {notification.title}
-                        </p>
-                        {sourceModule && <Badge variant="secondary">{sourceModule.name}</Badge>}
-                      </div>
-
-                      <p className="text-muted-foreground mt-1 text-sm leading-relaxed">{notification.body}</p>
-                      <p className="text-muted-foreground mt-1.5 text-xs">
-                        {formatRelativeTime(notification.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
-              );
-
-              return (
-                <li key={notification.id}>
-                  {notification.actionUrl ? (
-                    <Link
-                      href={notification.actionUrl}
-                      onClick={() => void markOneAsRead(notification)}
-                      className="block rounded-xl focus-visible:outline-offset-4"
-                    >
-                      {content}
-                    </Link>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void markOneAsRead(notification)}
-                      disabled={!isUnread}
-                      className="block w-full rounded-xl text-left focus-visible:outline-offset-4 disabled:cursor-default"
-                    >
-                      {content}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-
-          {/* Sahifalash */}
-          <div className="mt-6 flex items-center justify-between gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-              disabled={page === 1}
-            >
-              <ChevronLeft aria-hidden="true" />
-              Oldingi
-            </Button>
-
-            <span className="text-muted-foreground text-sm tabular-nums">{page}-sahifa</span>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((current) => current + 1)}
-              disabled={notifications.length < PAGE_SIZE}
-            >
-              Keyingi
-              <ChevronRight aria-hidden="true" />
-            </Button>
+        {isLoading && (
+          <div className="space-y-3">
+            {Array.from({ length: 4 }, (_, index) => (
+              <Skeleton key={index} className="h-24 rounded-xl" />
+            ))}
           </div>
-        </>
-      )}
+        )}
+
+        {!isLoading && error && (
+          <Alert variant="error" title="Bildirishnomalarni yuklab bo'lmadi">
+            {error}
+          </Alert>
+        )}
+
+        {!isLoading && !error && notifications.length === 0 && (
+          <Card variant="glass" padding="none" className="animate-fade-up">
+            <EmptyState
+              icon={Bell}
+              title="Bildirishnomalar yo'q"
+              description="Buyurtma holati, to'lovlar va aksiyalar haqidagi xabarlar shu yerda ko'rinadi."
+            />
+          </Card>
+        )}
+
+        {!isLoading && !error && notifications.length > 0 && (
+          <>
+            <ul className="space-y-3">
+              {notifications.map((notification, index) => {
+                const sourceModule = getModuleById(notification.sourceModule);
+                const isUnread = notification.readAt === null;
+
+                const content = (
+                  <Card
+                    variant="glass"
+                    padding="sm"
+                    className={cn(
+                      'animate-fade-up transition-colors',
+                      isUnread && 'border-primary/30 bg-primary/5',
+                    )}
+                    style={{ animationDelay: `${Math.min(index, 10) * 50}ms` }}
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* O'qilmagan xabar belgisi */}
+                      <span
+                        className={cn(
+                          'mt-2 size-2 shrink-0 rounded-full',
+                          isUnread ? 'bg-primary' : 'bg-transparent',
+                        )}
+                        aria-hidden="true"
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className={cn('text-sm', isUnread ? 'font-semibold' : 'font-medium')}>
+                            {notification.title}
+                          </p>
+                          {sourceModule && <Badge variant="secondary">{sourceModule.name}</Badge>}
+                        </div>
+
+                        <p className="text-muted-foreground mt-1 text-sm leading-relaxed">{notification.body}</p>
+                        <p className="text-muted-foreground mt-1.5 text-xs">
+                          {formatRelativeTime(notification.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                );
+
+                return (
+                  <li key={notification.id}>
+                    {notification.actionUrl ? (
+                      <Link
+                        href={notification.actionUrl}
+                        onClick={() => void markOneAsRead(notification)}
+                        className="block rounded-xl focus-visible:outline-offset-4"
+                      >
+                        {content}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => void markOneAsRead(notification)}
+                        disabled={!isUnread}
+                        className="block w-full rounded-xl text-left focus-visible:outline-offset-4 disabled:cursor-default"
+                      >
+                        {content}
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Sahifalash */}
+            <div className="mt-6 flex items-center justify-between gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((current) => Math.max(1, current - 1))}
+                disabled={page === 1}
+              >
+                <ChevronLeft aria-hidden="true" />
+                Oldingi
+              </Button>
+
+              <span className="text-muted-foreground text-sm tabular-nums">{page}-sahifa</span>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((current) => current + 1)}
+                disabled={notifications.length < PAGE_SIZE}
+              >
+                Keyingi
+                <ChevronRight aria-hidden="true" />
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
     </>
   );
 }

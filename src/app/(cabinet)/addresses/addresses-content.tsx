@@ -4,7 +4,8 @@ import { Briefcase, House, MapPin, Pencil, Plus, Star, Trash2 } from 'lucide-rea
 import { useState } from 'react';
 
 import { AddressForm } from '@/app/(cabinet)/addresses/address-form';
-import { PageHeader } from '@/components/shared/page-header';
+import { AppHeader } from '@/components/app/app-header';
+import { PageIntro } from '@/components/app/page-intro';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -114,14 +115,15 @@ export function AddressesContent() {
   if (isFormOpen) {
     return (
       <>
-        <PageHeader
-          title={editing ? 'Manzilni tahrirlash' : "Yangi manzil qo'shish"}
-          description="Bu manzil taksi, ovqat yetkazish va kuryer xizmatlarida ishlatiladi."
-        />
+        <AppHeader title={editing ? 'Manzilni tahrirlash' : 'Yangi manzil'} showBack onBack={closeForm} />
 
-        <Card variant="glass" className="animate-fade-up">
-          <AddressForm address={editing} onSaved={handleSaved} onCancel={closeForm} />
-        </Card>
+        <div className="px-4 pt-4">
+          <PageIntro description="Bu manzil taksi, ovqat yetkazish va kuryer xizmatlarida ishlatiladi." />
+
+          <Card variant="glass" className="animate-fade-up">
+            <AddressForm address={editing} onSaved={handleSaved} onCancel={closeForm} />
+          </Card>
+        </div>
       </>
     );
   }
@@ -129,136 +131,139 @@ export function AddressesContent() {
   // --- Ro'yxat rejimi ---
   return (
     <>
-      <PageHeader
-        title="Manzillarim"
-        description="Saqlangan manzillar buyurtma berishda bir bosishda tanlanadi."
-        action={
-          <Button onClick={openCreateForm}>
-            <Plus aria-hidden="true" />
-            Qo&apos;shish
-          </Button>
-        }
-      />
+      <AppHeader title="Manzillarim" showBack backHref="/profile" />
 
-      {actionError && (
-        <Alert variant="error" className="mb-4">
-          {actionError}
-        </Alert>
-      )}
+      <div className="px-4 pt-4">
+        <PageIntro
+          description="Saqlangan manzillar buyurtma berishda bir bosishda tanlanadi."
+          action={
+            <Button size="sm" onClick={openCreateForm}>
+              <Plus aria-hidden="true" />
+              Qo&apos;shish
+            </Button>
+          }
+        />
 
-      {isLoading && (
-        <div className="space-y-3">
-          {Array.from({ length: 3 }, (_, index) => (
-            <Skeleton key={index} className="h-28 rounded-xl" />
-          ))}
-        </div>
-      )}
+        {actionError && (
+          <Alert variant="error" className="mb-4">
+            {actionError}
+          </Alert>
+        )}
 
-      {!isLoading && error && (
-        <Alert variant="error" title="Manzillarni yuklab bo'lmadi">
-          {error}
-        </Alert>
-      )}
+        {isLoading && (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <Skeleton key={index} className="h-28 rounded-xl" />
+            ))}
+          </div>
+        )}
 
-      {!isLoading && !error && addresses.length === 0 && (
-        <Card variant="glass" padding="none" className="animate-fade-up">
-          <EmptyState
-            icon={MapPin}
-            title="Hali manzil qo'shilmagan"
-            description="Birinchi manzilingizni qo'shing — keyin taksi chaqirish yoki ovqat buyurtma qilish bir necha soniya vaqt oladi."
-            action={
-              <Button onClick={openCreateForm}>
-                <Plus aria-hidden="true" />
-                Manzil qo&apos;shish
-              </Button>
-            }
-          />
-        </Card>
-      )}
+        {!isLoading && error && (
+          <Alert variant="error" title="Manzillarni yuklab bo'lmadi">
+            {error}
+          </Alert>
+        )}
 
-      {!isLoading && !error && addresses.length > 0 && (
-        <ul className="space-y-3">
-          {addresses.map((address, index) => {
-            const Icon = TYPE_ICONS[address.type as keyof typeof TYPE_ICONS] ?? MapPin;
+        {!isLoading && !error && addresses.length === 0 && (
+          <Card variant="glass" padding="none" className="animate-fade-up">
+            <EmptyState
+              icon={MapPin}
+              title="Hali manzil qo'shilmagan"
+              description="Birinchi manzilingizni qo'shing — keyin taksi chaqirish yoki ovqat buyurtma qilish bir necha soniya vaqt oladi."
+              action={
+                <Button onClick={openCreateForm}>
+                  <Plus aria-hidden="true" />
+                  Manzil qo&apos;shish
+                </Button>
+              }
+            />
+          </Card>
+        )}
 
-            return (
-              <li key={address.id}>
-                <Card
-                  variant="glass"
-                  padding="sm"
-                  className="animate-fade-up"
-                  style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
-                      <Icon className="size-4.5" aria-hidden="true" />
-                    </span>
+        {!isLoading && !error && addresses.length > 0 && (
+          <ul className="space-y-3">
+            {addresses.map((address, index) => {
+              const Icon = TYPE_ICONS[address.type as keyof typeof TYPE_ICONS] ?? MapPin;
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <CardTitle className="text-base">{address.label}</CardTitle>
-                        {address.isDefault && (
-                          <Badge variant="success">
-                            <Star className="size-3" aria-hidden="true" />
-                            Standart
-                          </Badge>
+              return (
+                <li key={address.id}>
+                  <Card
+                    variant="glass"
+                    padding="sm"
+                    className="animate-fade-up"
+                    style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
+                        <Icon className="size-4.5" aria-hidden="true" />
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <CardTitle className="text-base">{address.label}</CardTitle>
+                          {address.isDefault && (
+                            <Badge variant="success">
+                              <Star className="size-3" aria-hidden="true" />
+                              Standart
+                            </Badge>
+                          )}
+                        </div>
+
+                        <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                          {formatAddressLine(address)}
+                        </p>
+
+                        {address.notes && (
+                          <p className="text-muted-foreground mt-1 text-xs italic">{address.notes}</p>
                         )}
                       </div>
-
-                      <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-                        {formatAddressLine(address)}
-                      </p>
-
-                      {address.notes && (
-                        <p className="text-muted-foreground mt-1 text-xs italic">{address.notes}</p>
-                      )}
                     </div>
-                  </div>
 
-                  <div className="border-border/60 mt-3 flex flex-wrap gap-1 border-t pt-3">
-                    {!address.isDefault && (
-                      <Button variant="ghost" size="sm" onClick={() => makeDefault(address)}>
-                        <Star aria-hidden="true" />
-                        Standart qilish
+                    <div className="border-border/60 mt-3 flex flex-wrap gap-1 border-t pt-3">
+                      {!address.isDefault && (
+                        <Button variant="ghost" size="sm" onClick={() => makeDefault(address)}>
+                          <Star aria-hidden="true" />
+                          Standart qilish
+                        </Button>
+                      )}
+
+                      <Button variant="ghost" size="sm" onClick={() => openEditForm(address)}>
+                        <Pencil aria-hidden="true" />
+                        Tahrirlash
                       </Button>
-                    )}
 
-                    <Button variant="ghost" size="sm" onClick={() => openEditForm(address)}>
-                      <Pencil aria-hidden="true" />
-                      Tahrirlash
-                    </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10"
+                        onClick={() => setDeleteTarget(address)}
+                      >
+                        <Trash2 aria-hidden="true" />
+                        O&apos;chirish
+                      </Button>
+                    </div>
+                  </Card>
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-destructive hover:bg-destructive/10"
-                      onClick={() => setDeleteTarget(address)}
-                    >
-                      <Trash2 aria-hidden="true" />
-                      O&apos;chirish
-                    </Button>
-                  </div>
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        title="Manzilni o'chirasizmi?"
-        description={
-          deleteTarget
-            ? `"${deleteTarget.label}" manzili o'chiriladi. Eski buyurtmalaringizda u ko'rinib turaveradi.`
-            : ''
-        }
-        confirmLabel="O'chirish"
-        isDestructive
-        isLoading={isDeleting}
-        onConfirm={confirmDelete}
-        onCancel={() => setDeleteTarget(null)}
-      />
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          title="Manzilni o'chirasizmi?"
+          description={
+            deleteTarget
+              ? `"${deleteTarget.label}" manzili o'chiriladi. Eski buyurtmalaringizda u ko'rinib turaveradi.`
+              : ''
+          }
+          confirmLabel="O'chirish"
+          isDestructive
+          isLoading={isDeleting}
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      </div>
     </>
   );
 }

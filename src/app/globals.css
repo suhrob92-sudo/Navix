@@ -18,9 +18,9 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  /* Asosiy fon va matn */
-  --background: oklch(0.99 0.002 250);
-  --foreground: oklch(0.18 0.01 260);
+  /* Asosiy fon va matn. Fon oq emas, sal kulrang — kartochkalar ajralib tursin. */
+  --background: oklch(0.975 0.003 262);
+  --foreground: oklch(0.17 0.012 265);
 
   /* Kartochka va qalqib chiquvchi oynalar */
   --card: oklch(1 0 0);
@@ -28,9 +28,9 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.18 0.01 260);
 
-  /* Brend rangi — Navix ko'ki */
-  --primary: oklch(0.55 0.21 265);
-  --primary-foreground: oklch(0.99 0.005 265);
+  /* Brend rangi — to'yingan indigo (maketdagi asosiy rang) */
+  --primary: oklch(0.52 0.25 268);
+  --primary-foreground: oklch(0.99 0.005 268);
 
   /* Ikkilamchi va sokin elementlar */
   --secondary: oklch(0.96 0.008 260);
@@ -53,7 +53,7 @@
   /* Chegara, ajratuvchi va fokus halqasi */
   --border: oklch(0.91 0.006 260);
   --input: oklch(0.91 0.006 260);
-  --ring: oklch(0.55 0.21 265);
+  --ring: oklch(0.52 0.25 268);
 
   /* Glassmorphism (shisha effekti) uchun qatlamlar */
   --glass-bg: oklch(1 0 0 / 0.65);
@@ -62,7 +62,7 @@
 
   /* Yuqori panel va pastki menyu uchun — ular ustidan kontent suriladi,
      shuning uchun ancha qalinroq bo'lishi kerak (matn "sizib chiqmasligi" uchun) */
-  --glass-chrome-bg: oklch(0.99 0.002 250 / 0.92);
+  --glass-chrome-bg: oklch(0.995 0.002 262);
 
   /* Burchak radiusi — barcha komponentlar shundan hisoblanadi */
   --radius: 0.875rem;
@@ -77,8 +77,8 @@
   --popover: oklch(0.19 0.014 265);
   --popover-foreground: oklch(0.96 0.004 260);
 
-  --primary: oklch(0.68 0.18 265);
-  --primary-foreground: oklch(0.15 0.015 265);
+  --primary: oklch(0.66 0.21 268);
+  --primary-foreground: oklch(0.14 0.015 268);
 
   --secondary: oklch(0.25 0.016 265);
   --secondary-foreground: oklch(0.94 0.005 260);
@@ -97,12 +97,12 @@
 
   --border: oklch(0.3 0.014 265);
   --input: oklch(0.3 0.014 265);
-  --ring: oklch(0.68 0.18 265);
+  --ring: oklch(0.66 0.21 268);
 
   --glass-bg: oklch(0.22 0.016 265 / 0.6);
   --glass-border: oklch(1 0 0 / 0.08);
   --glass-shadow: 0 8px 32px oklch(0 0 0 / 0.35);
-  --glass-chrome-bg: oklch(0.17 0.014 265 / 0.94);
+  --glass-chrome-bg: oklch(0.175 0.014 265);
 }
 
 /* Tailwind'ga tokenlarimizni tanishtiramiz.
@@ -259,19 +259,19 @@
   }
 
   /*
-   * Yopishib turadigan panellar uchun kuchaytirilgan shisha:
-   * yuqori panel (header) va pastki menyu (tab bar).
+   * Yopishib turadigan panellar: yuqori panel (header) va pastki menyu.
    *
-   * Nima uchun alohida: ular ustidan sahifa kontenti suriladi. Oddiy `.glass`
-   * juda shaffof bo'lgani uchun orqadagi matn "sizib" chiqadi va o'qish qiyin
-   * bo'ladi. Bu yerda fon ancha qalinroq.
+   * Nima uchun ular `.glass` emas: sahifa kontenti aynan ular ostidan suriladi.
+   * Shaffof fon bilan orqadagi matn "sizib" chiqadi va menyu o'qilmay qoladi.
+   * Shuning uchun fon butunlay xira (opaque) — hech qanday sizish yo'q.
+   *
+   * Qo'shimcha foyda: `backdrop-filter` ishlatilmagani uchun arzon telefonlarda
+   * ham sekinlashish bo'lmaydi (u har bir kadrda GPU'da qayta hisoblanadi).
    */
   .glass-chrome {
     background-color: var(--glass-chrome-bg);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
   }
 
   /*
@@ -280,8 +280,7 @@
    * to'g'ridan-to'g'ri ko'rinib qoladi.
    */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .glass,
-    .glass-chrome {
+    .glass {
       background-color: var(--card);
     }
   }

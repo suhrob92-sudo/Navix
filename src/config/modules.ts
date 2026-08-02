@@ -58,6 +58,23 @@ export const ModuleCategory = {
 
 export type ModuleCategoryValue = (typeof ModuleCategory)[keyof typeof ModuleCategory];
 
+/**
+ * Xizmat ikonkalari uchun rang nomlari.
+ * Ro'yxat qisqa va aniq — har bir yangi modul shulardan birini tanlaydi.
+ */
+export type ServiceColor =
+  | 'amber'
+  | 'rose'
+  | 'blue'
+  | 'orange'
+  | 'green'
+  | 'pink'
+  | 'teal'
+  | 'violet'
+  | 'sky'
+  | 'indigo'
+  | 'slate';
+
 export interface AppModule {
   /** Barqaror identifikator — baza va ruxsatlar tizimida ishlatiladi. */
   id: string;
@@ -70,6 +87,17 @@ export interface AppModule {
   icon: LucideIcon;
   category: ModuleCategoryValue;
   status: ModuleStatusValue;
+  /**
+   * Ikonka rangi. Maketdagi kabi har bir xizmat o'z rangiga ega —
+   * foydalanuvchi ularni matnni o'qimasdan, rang bo'yicha tanib oladi.
+   * Aniq CSS class'lari `src/components/app/service-icon.tsx` da.
+   */
+  color: ServiceColor;
+  /**
+   * Bosh sahifadagi "Tezkor xizmatlar" to'rida ko'rinadimi.
+   * Tartib raqami — kichikroq son oldinroq turadi.
+   */
+  quickOrder?: number;
   /**
    * AI Assistant uchun kalit iboralar. Foydalanuvchi shulardan birini
    * aytsa — shu modul ishga tushadi.
@@ -109,6 +137,8 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Car,
     category: ModuleCategory.MOBILITY,
     status: ModuleStatus.PLANNED,
+    color: 'amber',
+    quickOrder: 1,
     aiIntents: ['taxi chaqir', 'mashina chaqir', 'taksi buyurtma', 'meni olib ket'],
   },
   {
@@ -119,6 +149,8 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Package,
     category: ModuleCategory.MOBILITY,
     status: ModuleStatus.PLANNED,
+    color: 'indigo',
+    quickOrder: 10,
     aiIntents: ['kuryer chaqir', 'pochta yubor', 'buyum yetkaz'],
   },
   {
@@ -129,6 +161,8 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Bus,
     category: ModuleCategory.MOBILITY,
     status: ModuleStatus.PLANNED,
+    color: 'pink',
+    quickOrder: 6,
     aiIntents: ["yuk jo'nat", 'posilka yubor', 'yetkazib berish'],
   },
   {
@@ -139,6 +173,8 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: UtensilsCrossed,
     category: ModuleCategory.COMMERCE,
     status: ModuleStatus.PLANNED,
+    color: 'rose',
+    quickOrder: 2,
     aiIntents: ['ovqat buyurtma qil', 'pizza buyurtma qil', 'ovqat yetkaz', 'och qoldim'],
   },
   {
@@ -149,6 +185,8 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Store,
     category: ModuleCategory.COMMERCE,
     status: ModuleStatus.PLANNED,
+    color: 'blue',
+    quickOrder: 3,
     aiIntents: ['mahsulot qidir', 'marketplace och', 'sotib olmoqchiman'],
   },
   {
@@ -159,6 +197,7 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: ShoppingBag,
     category: ModuleCategory.COMMERCE,
     status: ModuleStatus.PLANNED,
+    color: 'blue',
     aiIntents: ["do'kon och", "mahsulot qo'sh", "do'konim"],
   },
   {
@@ -169,6 +208,8 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Megaphone,
     category: ModuleCategory.COMMERCE,
     status: ModuleStatus.PLANNED,
+    color: 'teal',
+    quickOrder: 7,
     aiIntents: ["e'lon ber", "e'lon joyla", 'uy sotaman', 'mashina sotaman'],
   },
   {
@@ -179,6 +220,8 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: CreditCard,
     category: ModuleCategory.FINANCE,
     status: ModuleStatus.PLANNED,
+    color: 'orange',
+    quickOrder: 4,
     aiIntents: ["kommunal to'la", "to'lov qil", "internet to'la", "telefon to'ldir"],
   },
   {
@@ -189,6 +232,7 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Wallet,
     category: ModuleCategory.FINANCE,
     status: ModuleStatus.PLANNED,
+    color: 'green',
     aiIntents: ['balansim qancha', "pul o'tkaz", 'hamyon och'],
   },
   {
@@ -199,6 +243,8 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Briefcase,
     category: ModuleCategory.WORK,
     status: ModuleStatus.PLANNED,
+    color: 'green',
+    quickOrder: 5,
     aiIntents: ['ish top', 'vakansiya qidir', 'ishga joylash', 'rezyume'],
   },
   {
@@ -209,6 +255,7 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Building2,
     category: ModuleCategory.WORK,
     status: ModuleStatus.PLANNED,
+    color: 'slate',
     aiIntents: ['biznes kabinet', 'savdolarim', "hisobot ko'r"],
   },
   {
@@ -219,6 +266,8 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Hotel,
     category: ModuleCategory.TRAVEL,
     status: ModuleStatus.PLANNED,
+    color: 'violet',
+    quickOrder: 8,
     aiIntents: ['mehmonxona band qil', 'xona top', 'nomer band qil'],
   },
   {
@@ -229,6 +278,8 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Plane,
     category: ModuleCategory.TRAVEL,
     status: ModuleStatus.PLANNED,
+    color: 'sky',
+    quickOrder: 9,
     aiIntents: ['chipta ol', 'sayohat rejalashtir', 'aviachipta', 'poyezd chiptasi'],
   },
   {
@@ -239,6 +290,7 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Bot,
     category: ModuleCategory.PLATFORM,
     status: ModuleStatus.PLANNED,
+    color: 'indigo',
     aiIntents: ['yordam ber', 'assistant', 'nima qila olasan'],
   },
   {
@@ -249,6 +301,7 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Map,
     category: ModuleCategory.PLATFORM,
     status: ModuleStatus.PLANNED,
+    color: 'teal',
     aiIntents: ['xarita och', 'manzil top', "yo'l ko'rsat"],
   },
   {
@@ -259,6 +312,7 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: MessageCircle,
     category: ModuleCategory.PLATFORM,
     status: ModuleStatus.PLANNED,
+    color: 'sky',
     aiIntents: ['chat och', 'xabar yoz', "operator bilan bog'la"],
   },
   {
@@ -269,6 +323,7 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: PackageSearch,
     category: ModuleCategory.PLATFORM,
     status: ModuleStatus.PLANNED,
+    color: 'violet',
     aiIntents: ['buyurtmalarim', 'buyurtma holati', "tarix ko'rsat"],
   },
   {
@@ -279,6 +334,7 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: Banknote,
     category: ModuleCategory.FINANCE,
     status: ModuleStatus.PLANNED,
+    color: 'amber',
     aiIntents: ['xarajatlarim', 'moliyaviy hisobot', 'qancha sarfladim'],
   },
   {
@@ -289,6 +345,7 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: LayoutDashboard,
     category: ModuleCategory.PLATFORM,
     status: ModuleStatus.PLANNED,
+    color: 'slate',
     aiIntents: ['admin panel', 'boshqaruv paneli'],
   },
   {
@@ -299,9 +356,21 @@ export const APP_MODULES: readonly AppModule[] = [
     icon: ShieldCheck,
     category: ModuleCategory.PLATFORM,
     status: ModuleStatus.PLANNED,
+    color: 'rose',
     aiIntents: ['xavfsizlik', "parolni o'zgartir", 'qurilmalarim'],
   },
 ] as const;
+
+
+/**
+ * Bosh sahifadagi "Tezkor xizmatlar" to'ri uchun modullar.
+ * `quickOrder` belgilanganlari, tartib bo'yicha.
+ */
+export function getQuickServices(): AppModule[] {
+  return APP_MODULES.filter((module) => module.quickOrder !== undefined).sort(
+    (a, b) => (a.quickOrder ?? 0) - (b.quickOrder ?? 0),
+  );
+}
 
 /** Berilgan `id` bo'yicha modulni topadi. */
 export function getModuleById(id: string): AppModule | undefined {

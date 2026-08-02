@@ -3,7 +3,8 @@
 import { LogOut, Monitor, Smartphone } from 'lucide-react';
 import { useState } from 'react';
 
-import { PageHeader } from '@/components/shared/page-header';
+import { AppHeader } from '@/components/app/app-header';
+import { PageIntro } from '@/components/app/page-intro';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -101,114 +102,117 @@ export function DevicesContent() {
 
   return (
     <>
-      <PageHeader
-        title="Qurilmalarim"
-        description="Hisobingizga kirgan qurilmalar. Notanish qurilmani ko'rsangiz — darhol chiqaring."
-        action={
-          otherSessionsCount > 0 ? (
-            <Button variant="outline" onClick={revokeAllOthers} isLoading={isRevokingAll}>
-              <LogOut aria-hidden="true" />
-              Boshqalarni chiqarish
-            </Button>
-          ) : undefined
-        }
-      />
+      <AppHeader title="Qurilmalarim" showBack backHref="/profile" />
 
-      {actionError && (
-        <Alert variant="error" className="mb-4">
-          {actionError}
-        </Alert>
-      )}
-      {notice && (
-        <Alert variant="success" className="mb-4">
-          {notice}
-        </Alert>
-      )}
+      <div className="px-4 pt-4">
+        <PageIntro
+          description="Hisobingizga kirgan qurilmalar. Notanish qurilmani ko'rsangiz — darhol chiqaring."
+          action={
+            otherSessionsCount > 0 ? (
+              <Button variant="outline" size="sm" onClick={revokeAllOthers} isLoading={isRevokingAll}>
+                <LogOut aria-hidden="true" />
+                Boshqalarni chiqarish
+              </Button>
+            ) : undefined
+          }
+        />
 
-      {isLoading && (
-        <div className="space-y-3">
-          {Array.from({ length: 2 }, (_, index) => (
-            <Skeleton key={index} className="h-24 rounded-xl" />
-          ))}
-        </div>
-      )}
+        {actionError && (
+          <Alert variant="error" className="mb-4">
+            {actionError}
+          </Alert>
+        )}
+        {notice && (
+          <Alert variant="success" className="mb-4">
+            {notice}
+          </Alert>
+        )}
 
-      {!isLoading && error && (
-        <Alert variant="error" title="Qurilmalarni yuklab bo'lmadi">
-          {error}
-        </Alert>
-      )}
+        {isLoading && (
+          <div className="space-y-3">
+            {Array.from({ length: 2 }, (_, index) => (
+              <Skeleton key={index} className="h-24 rounded-xl" />
+            ))}
+          </div>
+        )}
 
-      {!isLoading && !error && (
-        <ul className="space-y-3">
-          {sessions.map((session, index) => {
-            const Icon = getDeviceIcon(session.deviceLabel);
+        {!isLoading && error && (
+          <Alert variant="error" title="Qurilmalarni yuklab bo'lmadi">
+            {error}
+          </Alert>
+        )}
 
-            return (
-              <li key={session.id}>
-                <Card
-                  variant="glass"
-                  padding="sm"
-                  className="animate-fade-up"
-                  style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
-                      <Icon className="size-4.5" aria-hidden="true" />
-                    </span>
+        {!isLoading && !error && (
+          <ul className="space-y-3">
+            {sessions.map((session, index) => {
+              const Icon = getDeviceIcon(session.deviceLabel);
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <CardTitle className="text-base">{session.deviceLabel ?? "Noma'lum qurilma"}</CardTitle>
-                        {session.isCurrent && <Badge variant="success">Joriy qurilma</Badge>}
+              return (
+                <li key={session.id}>
+                  <Card
+                    variant="glass"
+                    padding="sm"
+                    className="animate-fade-up"
+                    style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
+                        <Icon className="size-4.5" aria-hidden="true" />
+                      </span>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <CardTitle className="text-base">{session.deviceLabel ?? "Noma'lum qurilma"}</CardTitle>
+                          {session.isCurrent && <Badge variant="success">Joriy qurilma</Badge>}
+                        </div>
+
+                        <dl className="text-muted-foreground mt-1.5 space-y-0.5 text-xs">
+                          <div className="flex gap-1.5">
+                            <dt>Oxirgi faollik:</dt>
+                            <dd>{formatRelativeTime(session.lastUsedAt)}</dd>
+                          </div>
+                          {session.ipAddress && (
+                            <div className="flex gap-1.5">
+                              <dt>IP manzil:</dt>
+                              <dd className="font-mono">{session.ipAddress}</dd>
+                            </div>
+                          )}
+                        </dl>
                       </div>
 
-                      <dl className="text-muted-foreground mt-1.5 space-y-0.5 text-xs">
-                        <div className="flex gap-1.5">
-                          <dt>Oxirgi faollik:</dt>
-                          <dd>{formatRelativeTime(session.lastUsedAt)}</dd>
-                        </div>
-                        {session.ipAddress && (
-                          <div className="flex gap-1.5">
-                            <dt>IP manzil:</dt>
-                            <dd className="font-mono">{session.ipAddress}</dd>
-                          </div>
-                        )}
-                      </dl>
+                      {!session.isCurrent && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10 shrink-0"
+                          onClick={() => setRevokeTarget(session)}
+                        >
+                          Chiqarish
+                        </Button>
+                      )}
                     </div>
+                  </Card>
+                </li>
+              );
+            })}
+          </ul>
+        )}
 
-                    {!session.isCurrent && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/10 shrink-0"
-                        onClick={() => setRevokeTarget(session)}
-                      >
-                        Chiqarish
-                      </Button>
-                    )}
-                  </div>
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <ConfirmDialog
-        open={revokeTarget !== null}
-        title="Qurilmani chiqarasizmi?"
-        description={
-          revokeTarget
-            ? `"${revokeTarget.deviceLabel ?? 'Qurilma'}" hisobingizdan chiqariladi va qaytadan kirish uchun parol talab qilinadi.`
-            : ''
-        }
-        confirmLabel="Chiqarish"
-        isDestructive
-        isLoading={isRevoking}
-        onConfirm={revokeOne}
-        onCancel={() => setRevokeTarget(null)}
-      />
+        <ConfirmDialog
+          open={revokeTarget !== null}
+          title="Qurilmani chiqarasizmi?"
+          description={
+            revokeTarget
+              ? `"${revokeTarget.deviceLabel ?? 'Qurilma'}" hisobingizdan chiqariladi va qaytadan kirish uchun parol talab qilinadi.`
+              : ''
+          }
+          confirmLabel="Chiqarish"
+          isDestructive
+          isLoading={isRevoking}
+          onConfirm={revokeOne}
+          onCancel={() => setRevokeTarget(null)}
+        />
+      </div>
     </>
   );
 }

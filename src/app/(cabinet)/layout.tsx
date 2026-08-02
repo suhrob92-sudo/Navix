@@ -1,31 +1,27 @@
-import { CabinetSidebar, CabinetTabBar } from '@/components/layout/cabinet-nav';
-import { SiteHeader } from '@/components/layout/site-header';
-import { Container } from '@/components/ui/container';
+import { AppTabBar } from '@/components/app/app-tab-bar';
 import { RequireAuth } from '@/modules/auth/require-auth';
 
 /**
- * Shaxsiy kabinet qolipi.
+ * Ilova qolipi — kirgan foydalanuvchi ko'radigan barcha sahifalar uchun.
  *
  * `(cabinet)` — Next.js "route group": qavs ichidagi nom MANZILGA TUSHMAYDI.
- * Ya'ni `/dashboard` manzili o'zgarmaydi, lekin barcha kabinet sahifalari
- * shu qolipni va himoyani baham ko'radi.
+ * Ya'ni `/dashboard` manzili o'zgarmaydi, lekin barcha sahifalar shu
+ * qolipni va himoyani baham ko'radi.
+ *
+ * Kenglik `max-w-lg` bilan cheklangan: ilova telefon uchun mo'ljallangan,
+ * kompyuterda esa markazda, telefon kengligida ochiladi.
  */
-export default function CabinetLayout({ children }: { children: React.ReactNode }) {
+export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <RequireAuth>
-      <SiteHeader />
+      {/*
+        pb-28 — pastki menyu kontentni to'sib qolmasligi uchun.
+        Menyuning o'zi ~64px, markazdagi AI tugmasi esa undan ~20px yuqoriga
+        chiqib turadi. Shuning uchun bo'sh joy menyudan kattaroq olingan.
+      */}
+      <div className="mx-auto w-full max-w-lg flex-1 pb-28">{children}</div>
 
-      <Container className="flex-1 pt-6 pb-28 lg:pb-16">
-        <div className="lg:grid lg:grid-cols-[16rem_1fr] lg:gap-8">
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-            <CabinetSidebar />
-          </aside>
-
-          <main className="min-w-0">{children}</main>
-        </div>
-      </Container>
-
-      <CabinetTabBar />
+      <AppTabBar />
     </RequireAuth>
   );
 }
