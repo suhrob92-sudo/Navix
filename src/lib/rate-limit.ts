@@ -1,0 +1,125 @@
+import { RateLimitError } from '@/lib/api/errors';
+import { logger } from '@/lib/logger';
+import { cacheKey, getRedis } from '@/lib/redis';
+
+/**
+ * So'rovlar sonini cheklash (rate limiting).
+ *
+ * Oddiy tilda: bir odam bir daqiqada 1000 marta parol taxmin qila olmasligi kerak.
+ * Bu himoya "brute-force" (parolni taxmin qilib topish) hujumlarini to'xtatadi.
+ *
+ * Ishlash prinsipi — "sanovchi oyna" (fixed window):
+ *  1. Redis'da hisoblagich yaratiladi va unga muddat (TTL) beriladi;
+ *  2. Har so'rovda hisoblagich bittaga oshadi;
+ *  3. Chegaradan oshsa — 429 xatolik qaytadi;
+ *  4. Muddat tugagach hisoblagich o'zi o'chadi.
+ */
+
+export interface RateLimitRule {
+  /** Chegara ichida ruxsat etilgan so'rovlar soni. */
+  limit: number;
+  /** Oyna uzunligi (soniyalarda). */
+  windowSeconds: number;
+}
+
+export interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  retryAfterSeconds: number;
+}
+
+/**
+ * Autentifikatsiya uchun standart cheklovlar.
+ * Qiymatlar xavfsizlik va qulaylik o'rtasidagi muvozanatga qarab tanlangan.
+ */
+export const AUTH_RATE_LIMITS = {
+  /** Ro'yxatdan o'tish: bir IP'dan soatiga 5 marta. */
+  register: { limit: 5, windowSeconds: 60 * 60 },
+  /** Kirish: bir raqam uchun 15 daqiqada 10 marta. */
+  login: { limit: 10, windowSeconds: 60 * 15 },
+  /** SMS kod yuborish: bir raqamga soatiga 5 marta. */
+  otpSend: { limit: 5, windowSeconds: 60 * 60 },
+  /** Kodni tekshirish: bir raqam uchun 15 daqiqada 10 marta. */
+  otpVerify: { limit: 10, windowSeconds: 60 * 15 },
+  /** Parolni tiklash so'rovi: bir raqam uchun soatiga 3 marta. */
+  passwordReset: { limit: 3, windowSeconds: 60 * 60 },
+} as const satisfies Record<string, RateLimitRule>;
+
+export type AuthRateLimitScope = keyof typeof AUTH_RATE_LIMITS;
+
+/**
+ * Hisoblagichni oshiradi va chegaraga yetgan-yetmaganini qaytaradi.
+ *
+ * @param scope cheklov turi (masalan `login`)
+ * @param identifier kim uchun hisoblanadi (telefon raqami yoki IP)
+ * @param rule chegara qoidasi
+ */
+export async function consumeRateLimit(
+  scope: string,
+  identifier: string,
+  rule: RateLimitRule,
+): Promise<RateLimitResult> {
+  const key = cacheKey.rateLimit(scope, identifier);
+
+  try {
+    const redis = getRedis();
+
+    // Ikkala buyruq bitta so'rovda yuboriladi — tarmoq kechikishi ikki barobar kamayadi.
+    const results = await redis
+      .multi()
+      .incr(key)
+      .expire(key, rule.windowSeconds, 'NX') // TTL faqat birinchi so'rovda o'rnatiladi
+      .exec();
+
+    // `exec()` tranzaksiya bekor qilinganda `null` qaytaradi — bu holatda
+    // hisoblagichga ishonib bo'lmaydi, so'rovni o'tkazib yuboramiz.
+    const incrementResult = results?.[0];
+    if (!incrementResult) {
+      return { allowed: true, remaining: rule.limit, retryAfterSeconds: 0 };
+    }
+
+    const current = Number(incrementResult[1] ?? 0);
+    const remaining = Math.max(0, rule.limit - current);
+
+    if (current > rule.limit) {
+      const ttl = await redis.ttl(key);
+      return { allowed: false, remaining: 0, retryAfterSeconds: ttl > 0 ? ttl : rule.windowSeconds };
+    }
+
+    return { allowed: true, remaining, retryAfterSeconds: 0 };
+  } catch (error) {
+    // Redis ishlamay qolsa foydalanuvchini bloklamaymiz — xizmat to'xtab qolmasligi kerak.
+    // Lekin bu holat log'ga yoziladi, chunki himoya vaqtincha o'chgan bo'ladi.
+    logger.error({ err: error, scope, identifier }, 'Rate limit tekshiruvi bajarilmadi');
+    return { allowed: true, remaining: rule.limit, retryAfterSeconds: 0 };
+  }
+}
+
+/**
+ * Chegaradan oshsa darhol `RateLimitError` tashlaydi.
+ * API route'larida shu funksiya ishlatiladi.
+ */
+export async function enforceRateLimit(
+  scope: AuthRateLimitScope,
+  identifier: string,
+  message?: string,
+): Promise<void> {
+  const result = await consumeRateLimit(scope, identifier, AUTH_RATE_LIMITS[scope]);
+
+  if (!result.allowed) {
+    const minutes = Math.ceil(result.retryAfterSeconds / 60);
+    throw new RateLimitError(
+      result.retryAfterSeconds,
+      message ?? `Juda ko'p urinish. ${minutes} daqiqadan so'ng qayta urinib ko'ring.`,
+    );
+  }
+}
+
+/** Hisoblagichni nolga qaytaradi (masalan muvaffaqiyatli kirishdan keyin). */
+export async function resetRateLimit(scope: string, identifier: string): Promise<void> {
+  try {
+    await getRedis().del(cacheKey.rateLimit(scope, identifier));
+  } catch (error) {
+    logger.warn({ err: error, scope, identifier }, "Rate limit hisoblagichini tozalab bo'lmadi");
+  }
+}

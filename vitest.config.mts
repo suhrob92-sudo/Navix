@@ -4,8 +4,15 @@ import { defineConfig } from 'vitest/config';
 /**
  * Testlar sozlamasi.
  *
- * `resolve.tsconfigPaths` — testlarda ham `@/lib/...` kabi qisqa importlar ishlashi uchun.
- * `jsdom` — React komponentlarini brauzersiz sinash imkonini beradi.
+ * Standart muhit — `node`, chunki testlarning aksariyati server kodini
+ * (xizmatlar, sxemalar, yordamchi funksiyalar) tekshiradi. Server kodi
+ * brauzer muhitida ataylab ishlamaydi: `serverEnv()` `window` mavjud bo'lsa
+ * xatolik beradi — bu maxfiy kalitlar brauzerga tushib qolmasligi uchun himoya.
+ *
+ * React komponentini sinash kerak bo'lsa, test faylining eng boshiga
+ * quyidagi qatorni yozing:
+ *
+ *   // @vitest-environment jsdom
  */
 export default defineConfig({
   plugins: [react()],
@@ -13,14 +20,14 @@ export default defineConfig({
     tsconfigPaths: true,
   },
   test: {
-    environment: 'jsdom',
+    environment: 'node',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],
-      include: ['src/lib/**', 'src/config/**', 'src/components/**'],
+      include: ['src/lib/**', 'src/config/**', 'src/modules/**', 'src/components/**'],
       exclude: ['src/generated/**', '**/*.test.{ts,tsx}'],
     },
   },

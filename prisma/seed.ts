@@ -1,3 +1,7 @@
+// ".env" faylini o'qiydi — bu skript Next.js'dan tashqarida ishlaydi,
+// shuning uchun muhit o'zgaruvchilarini o'zi yuklashi kerak.
+import 'dotenv/config';
+
 import { PrismaPg } from '@prisma/adapter-pg';
 
 import { PrismaClient, RoleName } from '../src/generated/prisma/client';

@@ -5,6 +5,7 @@ import './globals.css';
 
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { siteConfig } from '@/config/site';
+import { AuthProvider } from '@/modules/auth/auth-context';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -63,7 +64,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     // suppressHydrationWarning — mavzu klassi brauzerda qo'yilgani uchun kerak.
     <html lang="uz" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full`}>
       <body className="scrollbar-slim flex min-h-full flex-col">
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

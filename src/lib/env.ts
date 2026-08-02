@@ -52,8 +52,64 @@ const serverSchema = z.object({
     .positive()
     .default(60 * 60 * 24 * 30),
 
-  /** Log darajasi. */
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  /** Log darajasi. `silent` — log umuman yozilmaydi (testlar uchun). */
+  LOG_LEVEL: z.enum(['silent', 'fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+
+  // --- SMS va tasdiqlash kodi (OTP) ---------------------------------------
+
+  /**
+   * SMS yuborish provayderi.
+   *  - `console` — kod terminalga chiqadi (faqat ishlab chiqish uchun);
+   *  - `eskiz`   — Eskiz.uz xizmati orqali haqiqiy SMS yuboriladi.
+   */
+  SMS_PROVIDER: z.enum(['console', 'eskiz']).default('console'),
+
+  /** Eskiz.uz hisobiga kirish uchun email. `SMS_PROVIDER=eskiz` bo'lsa majburiy. */
+  ESKIZ_EMAIL: z.string().email().optional(),
+  /** Eskiz.uz API paroli. */
+  ESKIZ_SECRET: z.string().min(1).optional(),
+  /** Eskiz.uz API manzili. */
+  ESKIZ_BASE_URL: z.string().url().default('https://notify.eskiz.uz/api'),
+  /** SMS'da ko'rinadigan jo'natuvchi nomi. */
+  ESKIZ_SENDER: z.string().min(1).default('4546'),
+
+  /** Tasdiqlash kodi amal qilish muddati (soniyalarda). Default: 5 daqiqa. */
+  OTP_TTL: z.coerce
+    .number()
+    .int()
+    .positive()
+    .default(60 * 5),
+
+  /** Kodni qayta yuborishdan oldin kutish vaqti (soniyalarda). Default: 60 soniya. */
+  OTP_RESEND_COOLDOWN: z.coerce.number().int().positive().default(60),
+
+  /** Bitta kodni necha marta noto'g'ri kiritish mumkin. */
+  OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+});
+
+/**
+ * Qo'shimcha tekshiruv: agar haqiqiy SMS provayderi tanlangan bo'lsa,
+ * uning kalitlari ham berilgan bo'lishi shart. Aks holda foydalanuvchi
+ * ro'yxatdan o'ta olmay qoladi va sababi noma'lum bo'lardi.
+ */
+const refinedServerSchema = serverSchema.superRefine((env, ctx) => {
+  if (env.SMS_PROVIDER !== 'eskiz') return;
+
+  if (!env.ESKIZ_EMAIL) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['ESKIZ_EMAIL'],
+      message: "SMS_PROVIDER=eskiz bo'lganda ESKIZ_EMAIL majburiy",
+    });
+  }
+
+  if (!env.ESKIZ_SECRET) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['ESKIZ_SECRET'],
+      message: "SMS_PROVIDER=eskiz bo'lganda ESKIZ_SECRET majburiy",
+    });
+  }
 });
 
 const clientSchema = z.object({
@@ -108,7 +164,7 @@ export function serverEnv(): ServerEnv {
     return cachedServerEnv;
   }
 
-  const parsed = serverSchema.safeParse(process.env);
+  const parsed = refinedServerSchema.safeParse(process.env);
 
   if (!parsed.success) {
     throw new Error(`Server environment xato. ".env" faylini tekshiring:\n${formatIssues(parsed.error)}`);

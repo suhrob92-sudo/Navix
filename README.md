@@ -3,9 +3,9 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 1-bosqich yakunlandi — loyiha poydevori (arxitektura, baza, dizayn
-> tizimi, API qatlami, Docker, testlar) tayyor. Modullar keyingi bosqichlarda
-> birma-bir ishga tushiriladi.
+> **Holat:** 2-bosqich yakunlandi — poydevor va to'liq autentifikatsiya tizimi
+> (ro'yxatdan o'tish, SMS tasdiqlash, kirish, sessiyalar, parolni tiklash) tayyor.
+> Xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
 ---
 
@@ -177,10 +177,88 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 
 ### Mavjud endpointlar
 
+**Tizim**
+
 | Metod | Manzil         | Tavsif                                    |
 | ----- | -------------- | ----------------------------------------- |
 | GET   | `/api/health`  | Baza va Redis holatini tekshiradi         |
 | GET   | `/api/openapi` | API hujjatini JSON ko'rinishida qaytaradi |
+
+**Autentifikatsiya** (`/api/v1/auth/...`)
+
+| Metod  | Manzil             | Tavsif                                | Token kerakmi |
+| ------ | ------------------ | ------------------------------------- | ------------- |
+| POST   | `/register`        | Hisob yaratish + SMS kod yuborish     | Yo'q          |
+| POST   | `/verify-otp`      | Kodni tasdiqlash, hisobni faollashtir | Yo'q          |
+| POST   | `/resend-otp`      | Kodni qayta yuborish                  | Yo'q          |
+| POST   | `/login`           | Telefon + parol bilan kirish          | Yo'q          |
+| POST   | `/refresh`         | Access token yangilash                | Cookie        |
+| POST   | `/logout`          | Joriy sessiyadan chiqish              | Ixtiyoriy     |
+| GET    | `/me`              | Joriy foydalanuvchi va ruxsatlari     | Ha            |
+| POST   | `/password/forgot` | Parolni tiklash uchun kod so'rash     | Yo'q          |
+| POST   | `/password/reset`  | Yangi parol o'rnatish                 | Yo'q          |
+| GET    | `/sessions`        | Faol qurilmalar ro'yxati              | Ha            |
+| DELETE | `/sessions`        | Boshqa qurilmalardan chiqish          | Ha            |
+
+---
+
+## Autentifikatsiya qanday ishlaydi
+
+### Ro'yxatdan o'tish oqimi
+
+```
+1. Foydalanuvchi telefon + parol + ism kiritadi
+2. Hisob PENDING_VERIFICATION holatida yaratiladi
+3. Raqamga 6 xonali kod yuboriladi (5 daqiqa amal qiladi)
+4. Kod tasdiqlanadi  →  hisob ACTIVE bo'ladi
+                      →  CUSTOMER roli beriladi
+                      →  hamyon ochiladi
+5. Access + refresh token beriladi
+```
+
+### Ikki xil token
+
+| Token       | Muddati   | Qayerda saqlanadi      | Nima uchun                     |
+| ----------- | --------- | ---------------------- | ------------------------------ |
+| **Access**  | 15 daqiqa | Brauzer xotirasi (RAM) | Har so'rovda yuboriladi        |
+| **Refresh** | 30 kun    | `httpOnly` cookie      | Yangi access token olish uchun |
+
+Access token `localStorage` da saqlanmaydi — JavaScript o'qiy oladigan joyda
+token saqlash XSS hujumida uni o'g'irlanishiga olib keladi. Refresh token esa
+`httpOnly` cookie'da — unga JavaScript umuman kira olmaydi.
+
+### Token rotation (almashtirish)
+
+Har safar `/refresh` chaqirilganda refresh token ham yangisiga almashtiriladi.
+Agar eski token qayta ishlatilsa — bu o'g'irlik belgisi, shuning uchun sessiya
+darhol bekor qilinadi.
+
+### Himoya choralari
+
+| Chora                     | Qanday ishlaydi                                         |
+| ------------------------- | ------------------------------------------------------- |
+| Parol hash'i              | bcrypt, 12 rounds — ochiq parol hech qachon saqlanmaydi |
+| Timing attack himoyasi    | Foydalanuvchi topilmasa ham bcrypt chaqiriladi          |
+| User enumeration himoyasi | Mavjud/mavjud emas raqamga bir xil javob                |
+| Rate limiting             | Kirish: 15 daq/10 marta, SMS: soatiga 5 marta           |
+| OTP urinishlari           | 5 marta xato → kod bekor qilinadi                       |
+| Refresh token saqlash     | Bazada faqat SHA-256 hash                               |
+| Parol o'zgarganda         | Barcha qurilmalardagi sessiyalar bekor qilinadi         |
+| Audit jurnali             | Har bir kirish, chiqish va parol o'zgarishi yoziladi    |
+
+### SMS xizmati
+
+Ishlab chiqishda `SMS_PROVIDER=console` — kod terminalga chiqadi, SMS
+yuborilmaydi va pul sarflanmaydi:
+
+```
+┌───────────────── SMS (ishlab chiqish rejimi) ─────────────────
+│ Kimga: +998901234567
+│ Matn:  Navix: tasdiqlash kodi 123456. Kod 5 daqiqa amal qiladi.
+└───────────────────────────────────────────────────────────────
+```
+
+Production'da `SMS_PROVIDER=eskiz` qo'yiladi va Eskiz.uz kalitlari beriladi.
 
 ---
 
@@ -217,7 +295,7 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 ## Yo'l xaritasi
 
 - [x] **1-bosqich** — Poydevor: arxitektura, baza sxemasi, dizayn tizimi, API qatlami, Docker, testlar
-- [ ] **2-bosqich** — Autentifikatsiya: ro'yxatdan o'tish, kirish, SMS tasdiqlash, sessiyalar
+- [x] **2-bosqich** — Autentifikatsiya: ro'yxatdan o'tish, SMS tasdiqlash, kirish, sessiyalar, parolni tiklash
 - [ ] **3-bosqich** — Foydalanuvchi kabineti va profil
 - [ ] **4-bosqich** — Hamyon va to'lovlar
 - [ ] **5-bosqich** — Birinchi modul (taksi yoki ovqat yetkazish)

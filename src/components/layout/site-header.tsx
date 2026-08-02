@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { Logo } from '@/components/layout/logo';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { UserMenu } from '@/components/layout/user-menu';
 import { Button } from '@/components/ui/button';
 import { Container } from '@/components/ui/container';
 import { mainNavigation } from '@/config/site';
@@ -43,9 +44,9 @@ export function SiteHeader() {
           <div className="flex items-center gap-1">
             <ThemeToggle />
 
-            <Button variant="primary" size="sm" className="hidden sm:inline-flex" asChild>
-              <Link href="/auth/register">Boshlash</Link>
-            </Button>
+            <div className="hidden sm:block">
+              <UserMenu />
+            </div>
 
             {/* Telefon uchun menyu tugmasi */}
             <Button
@@ -79,11 +80,9 @@ export function SiteHeader() {
                 {item.label}
               </Link>
             ))}
-            <Button variant="primary" fullWidth className="mt-2" asChild>
-              <Link href="/auth/register" onClick={closeMenu}>
-                Boshlash
-              </Link>
-            </Button>
+            <div className="border-border/60 mt-2 border-t pt-3 sm:hidden">
+              <UserMenu onNavigate={closeMenu} />
+            </div>
           </nav>
         )}
       </Container>
