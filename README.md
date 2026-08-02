@@ -9,56 +9,46 @@ kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada
 
 ---
 
-## Ishga tushirish (5 qadam)
+## Ishga tushirish
 
-### 1-qadam. Bog'liqliklarni o'rnatish
+### Uchta buyruq
 
 ```bash
-npm install
+npm install     # bogʻliqliklar (Prisma klientini ham oʻzi yaratadi)
+npm run setup   # .env + baza + Redis + jadvallar + rollar
+npm run go      # ilovani ishga tushiradi va havolani chiqaradi
 ```
 
-### 2-qadam. Muhit faylini yaratish
+Tayyor. Havolani brauzerda oching.
+
+> **Talab:** Docker ishlab turishi kerak (`docker ps` bilan tekshiring).
+> Codespaces'da u avtomatik mavjud.
+
+### `npm run setup` nima qiladi?
+
+1. `.env` faylini `.env.example` dan yaratadi (agar yoʻq boʻlsa)
+2. PostgreSQL va Redis konteynerlarini koʻtaradi
+3. Baza javob berishini kutadi (konteyner darhol tayyor boʻlmaydi)
+4. Jadvallarni yaratadi (migratsiya)
+5. Rollar va ruxsatlarni yozadi (seed)
+
+Skript bir necha marta ishga tushirilsa ham zarari yoʻq.
+
+> **Production uchun:** `.env` dagi `JWT_ACCESS_SECRET` va
+> `JWT_REFRESH_SECRET` ni albatta almashtiring:
+> `openssl rand -base64 48`
+
+### Qoʻlda bajarish
+
+Agar bosqichlarni alohida koʻrmoqchi boʻlsangiz:
 
 ```bash
 cp .env.example .env
-```
-
-`.env` faylini oching va JWT kalitlarini almashtiring. Yangi kalit yaratish:
-
-```bash
-openssl rand -base64 48
-```
-
-### 3-qadam. Baza va Redis'ni ko'tarish
-
-```bash
 npm run docker:up
-```
-
-Bu buyruq PostgreSQL (5432-port) va Redis (6379-port) konteynerlarini ishga tushiradi.
-
-### 4-qadam. Bazani tayyorlash
-
-```bash
-npm run db:generate   # Prisma klientini yaratadi
-npm run db:migrate    # jadvallarni yaratadi
-npm run db:seed       # rollar va ruxsatlarni yozadi
-```
-
-> **Eslatma:** `src/generated/` papkasi Git'ga yuklanmaydi — u Prisma
-> tomonidan sxemadan avtomatik yaratiladi. `npm install` buni o'zi bajaradi
-> (`postinstall`), lekin qo'lda ham chaqirish mumkin.
-
-### 5-qadam. Ilovani ishga tushirish
-
-```bash
+npm run db:migrate:deploy
+npm run db:seed
 npm run dev
 ```
-
-Brauzerda oching: **http://localhost:3000**
-
-> **Qisqa yo'l:** yuqoridagi 1, 3, 4-qadamlarni bitta buyruq bajaradi —
-> `npm run setup` (avval `.env` faylini yaratib oling).
 
 ---
 
