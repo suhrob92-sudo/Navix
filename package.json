@@ -5,10 +5,11 @@
   "scripts": {
     "postinstall": "prisma generate",
     "dev": "next dev",
-    "dev:bg": "nohup next dev > dev.log 2>&1 & sleep 4 && npm run url",
+    "dev:bg": "nohup next dev > dev.log 2>&1 & npm run share",
     "dev:stop": "node scripts/dev-stop.mjs",
     "dev:log": "tail -f dev.log",
     "go": "npm run docker:up && npm run dev:stop && npm run dev:bg",
+    "share": "node scripts/share.mjs",
     "status": "node scripts/status.mjs",
     "url": "node scripts/url.mjs",
     "otp": "node scripts/otp.mjs",

@@ -62,6 +62,7 @@ npm run dev
 | `npm run dev:bg`      | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi) |
 | `npm run dev:stop`    | Fondagi serverni toʻxtatadi                            |
 | `npm run dev:log`     | Server logini jonli koʻrsatadi                         |
+| `npm run share`       | Portni ochadi (public) va havolani chiqaradi           |
 | `npm run url`         | Ilova ochiladigan toʻliq havolani chiqaradi            |
 | `npm run otp`         | Oxirgi SMS tasdiqlash kodini topib beradi              |
 | `npm run build`       | Production uchun yig'adi                               |
@@ -132,30 +133,45 @@ Biror joyda ❌ bo'lsa — `npm run go` hammasini qayta ko'taradi.
 
 ### Brauzerda 404 chiqsa
 
-`npm run status` hammasi ✅ ko'rsatsa-yu, brauzer baribir 404 bersa —
-demak server ishlayapti, lekin **GitHub portni tashqariga chiqarmagan**.
-Codespaces portni avtomatik ochadi, ammo server o'chirib-yoqilganda
-bu bog'lanish uzilib qolishi mumkin.
+`HTTP ERROR 404` — sahifa yo'q degani EMAS. U **port tashqariga
+ochilmagan** degani. Ikki sabab bo'lishi mumkin:
 
-**Sabab.** Codespaces portlarni brauzerdagi muharrir orqali ro'yxatga oladi.
-Faqat SSH (Termux) ishlatilganda ro'yxat bo'sh qoladi.
+1. Server umuman ishlamayapti (codespace uxlab qolgan bo'lsa shunday bo'ladi);
+2. Server ishlayapti, lekin port `private` — tashqaridan kirib bo'lmaydi.
 
-**Ishlaydigan yechim.** Birinchi ishga tushirishni BRAUZERDA bajaring:
+**Yechim — bitta buyruq.** U ikkala sababni ham tekshirib, o'zi tuzatadi:
 
-1. `github.com/codespaces` → Codespace'ni oching
-2. Terminalda: `npm run go`
-3. Port ro'yxatga olinadi va havola ishlay boshlaydi
+```bash
+npm run share
+```
 
-Shundan keyin brauzerni yopib, Termux'da ishlashda davom etsangiz bo'ladi —
-havola ishlab turaveradi.
+Nima qiladi:
 
-Ya'ni: **birinchi ishga tushirish brauzerda, keyingi hammasi Termux'da.**
+- serverni kutadi (40 soniyagacha) va ishlayotganini tekshiradi;
+- portni `public` qiladi;
+- tayyor havolani chiqaradi.
+
+`npm run go` oxirida buni avtomatik chaqiradi — ya'ni odatda alohida
+yozish shart emas.
+
+**Agar `npm run share` ruxsat yetmasligini aytsa:**
+
+```bash
+gh auth refresh -h github.com -s codespace
+npm run share
+```
+
+**Eng oxirgi chora — qo'lda ochish** (bir marta qilinsa yetarli):
+
+1. `github.com/codespaces` → shu codespace'ni brauzerda oching
+2. Pastdagi **PORTS** bo'limiga o'ting
+3. `3000`-port ustiga bosib turing → **Port Visibility** → **Public**
 
 **Ishlamaydigan yo'llar** (vaqt sarflamang, sinalgan):
 
 | Yo'l                                               | Nima bo'ladi                                                                                                                                                                                                                                                               |
 | -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `gh codespace ports visibility 3000:public`        | `404 Not Found` — ro'yxatda yo'q portni o'zgartira olmaydi                                                                                                                                                                                                                 |
+| `gh codespace ports visibility 3000:public`        | `404 Not Found` — `--codespace` nomi berilmasa va server ishlamasa xato beradi. `npm run share` ikkalasini ham to'g'ri bajaradi                                                                                                                                            |
 | `gh codespace ports forward 3000:3000`             | `ssh: unexpected packet` — Termux'da SSH kanali ochilmaydi                                                                                                                                                                                                                 |
 | `.devcontainer/devcontainer.json` + `forwardPorts` | **Codespace umuman ishga tushmay qoladi.** GitHub standart sozlamasida Docker allaqachon bor; o'z faylimizda `docker-in-docker` qo'shilsa ikkalasi to'qnashadi va `failed to start vs code remote server` xatosi chiqadi. Shu sababli loyihada devcontainer fayli **yo'q** |
 
