@@ -40,9 +40,14 @@ Bu buyruq PostgreSQL (5432-port) va Redis (6379-port) konteynerlarini ishga tush
 ### 4-qadam. Bazani tayyorlash
 
 ```bash
+npm run db:generate   # Prisma klientini yaratadi
 npm run db:migrate    # jadvallarni yaratadi
 npm run db:seed       # rollar va ruxsatlarni yozadi
 ```
+
+> **Eslatma:** `src/generated/` papkasi Git'ga yuklanmaydi — u Prisma
+> tomonidan sxemadan avtomatik yaratiladi. `npm install` buni o'zi bajaradi
+> (`postinstall`), lekin qo'lda ham chaqirish mumkin.
 
 ### 5-qadam. Ilovani ishga tushirish
 
@@ -70,6 +75,7 @@ Brauzerda oching: **http://localhost:3000**
 | `npm run test`        | Testlarni bir marta ishga tushiradi                   |
 | `npm run test:watch`  | Testlarni kuzatuv rejimida ishlatadi                  |
 | `npm run format`      | Kodni avtomatik formatlaydi                           |
+| `npm run db:generate` | Prisma klientini sxemadan yaratadi                    |
 | `npm run db:studio`   | Bazani brauzerda ko'rish oynasini ochadi              |
 | `npm run db:migrate`  | Yangi migratsiya yaratadi va qo'llaydi                |
 | `npm run db:seed`     | Boshlang'ich ma'lumotlarni yozadi                     |
@@ -110,7 +116,7 @@ Navix/
 │   │   ├── cabinet-nav.ts   # Kabinet navigatsiyasi
 │   │   └── site.ts          # Brend sozlamalari
 │   ├── hooks/               # Qayta ishlatiladigan React hook'lar
-│   ├── middleware.ts        # Sahifalarni tez filtrlash
+│   ├── proxy.ts             # Sahifalarni tez filtrlash (Next.js 16)
 │   └── lib/
 │       ├── api/             # API javob formati, xatoliklar, handler
 │       ├── openapi/         # OpenAPI spetsifikatsiyasi
@@ -253,7 +259,7 @@ kompyuterda esa chap tomonda yon menyu ko'rinishida.
 
 ### Sahifalar himoyasi — uch qatlam
 
-1. **Middleware** (`src/middleware.ts`) — cookie yo'q bo'lsa sahifani yuklamasdan
+1. **Proxy** (`src/proxy.ts`) — cookie yo'q bo'lsa sahifani yuklamasdan
    darhol kirish sahifasiga yo'naltiradi. Bu faqat tezlik uchun, himoya emas.
 2. **`<RequireAuth>`** — brauzerda sessiyani tekshiradi va yo'naltiradi.
 3. **`requireAuth()` API'da** — HAQIQIY himoya. Token to'liq tekshiriladi.

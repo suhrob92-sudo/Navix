@@ -5,9 +5,12 @@ import { REFRESH_COOKIE_NAME } from '@/modules/auth/auth.cookies';
 /**
  * Sahifalarni tez filtrlash (soft gate).
  *
- * MUHIM: bu HIMOYA EMAS, balki QULAYLIK. Middleware faqat refresh cookie
- * bor-yo'qligini ko'radi — cookie'ning haqiqiyligini tekshirmaydi (buning
- * uchun bazaga murojaat kerak, middleware esa har so'rovda ishlaydi va tez
+ * Next.js 16'dan boshlab bu fayl `middleware.ts` emas, `proxy.ts` deb ataladi
+ * va funksiya `export default` bilan chiqariladi.
+ *
+ * MUHIM: bu HIMOYA EMAS, balki QULAYLIK. Bu yerda faqat refresh cookie
+ * bor-yo'qligi ko'riladi — cookie'ning haqiqiyligi tekshirilmaydi (buning
+ * uchun bazaga murojaat kerak, bu fayl esa har so'rovda ishlaydi va tez
  * bo'lishi shart).
  *
  * Haqiqiy himoya ikki joyda:
@@ -25,7 +28,7 @@ const PROTECTED_PREFIXES = ['/dashboard', '/profile', '/addresses', '/devices', 
 /** Kirgan foydalanuvchiga keraksiz sahifalar (kirish, ro'yxatdan o'tish). */
 const GUEST_ONLY_PATHS = ['/auth/login', '/auth/register'];
 
-export function middleware(request: NextRequest) {
+export default function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const hasSessionCookie = request.cookies.has(REFRESH_COOKIE_NAME);
 
@@ -45,7 +48,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   /**
-   * Middleware statik fayllar va API uchun ishlamaydi —
+   * Statik fayllar va API uchun ishlamaydi —
    * ular o'z himoyasiga ega va har bir rasm uchun tekshiruv keraksiz.
    */
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
