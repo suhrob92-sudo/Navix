@@ -29,7 +29,7 @@ export function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   /** Kirgandan keyin qaysi sahifaga o'tish kerak. */
-  const redirectTo = searchParams.get('next') ?? '/';
+  const redirectTo = searchParams.get('next') ?? '/dashboard';
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

@@ -3,8 +3,8 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 2-bosqich yakunlandi — poydevor va to'liq autentifikatsiya tizimi
-> (ro'yxatdan o'tish, SMS tasdiqlash, kirish, sessiyalar, parolni tiklash) tayyor.
+> **Holat:** 3-bosqich yakunlandi — poydevor, autentifikatsiya va shaxsiy kabinet
+> (profil, manzillar, qurilmalar, bildirishnomalar, xavfsizlik) tayyor.
 > Xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
 ---
@@ -99,11 +99,18 @@ Navix/
 │   │   ├── layout/          # Header, Footer, Logo, mavzu tugmasi
 │   │   ├── shared/          # Modullar aro qayta ishlatiladigan bloklar
 │   │   └── providers/       # React kontekst provayderlari
+│   ├── modules/             # BIZNES MODULLARI
+│   │   ├── auth/            # Autentifikatsiya (JWT, OTP, sessiyalar)
+│   │   ├── profile/         # Profil va sozlamalar
+│   │   ├── address/         # Manzillar (umumiy — barcha xizmatlar uchun)
+│   │   └── notification/    # Bildirishnomalar
 │   ├── config/
 │   │   ├── modules.ts       # SUPER APP MODULLAR REYESTRI
 │   │   ├── rbac.ts          # Rollar va ruxsatlar
+│   │   ├── cabinet-nav.ts   # Kabinet navigatsiyasi
 │   │   └── site.ts          # Brend sozlamalari
 │   ├── hooks/               # Qayta ishlatiladigan React hook'lar
+│   ├── middleware.ts        # Sahifalarni tez filtrlash
 │   └── lib/
 │       ├── api/             # API javob formati, xatoliklar, handler
 │       ├── openapi/         # OpenAPI spetsifikatsiyasi
@@ -199,6 +206,76 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 | POST   | `/password/reset`  | Yangi parol o'rnatish                 | Yo'q          |
 | GET    | `/sessions`        | Faol qurilmalar ro'yxati              | Ha            |
 | DELETE | `/sessions`        | Boshqa qurilmalardan chiqish          | Ha            |
+
+**Profil** (`/api/v1/profile`)
+
+| Metod | Manzil      | Tavsif                    |
+| ----- | ----------- | ------------------------- |
+| GET   | `/`         | Profil ma'lumotlari       |
+| PATCH | `/`         | Profilni qisman yangilash |
+| POST  | `/password` | Parolni o'zgartirish      |
+
+**Manzillar** (`/api/v1/addresses`) — taksi, ovqat va kuryer modullari uchun umumiy
+
+| Metod  | Manzil  | Tavsif              |
+| ------ | ------- | ------------------- |
+| GET    | `/`     | Saqlangan manzillar |
+| POST   | `/`     | Manzil qo'shish     |
+| GET    | `/{id}` | Bitta manzil        |
+| PATCH  | `/{id}` | Manzilni tahrirlash |
+| DELETE | `/{id}` | Manzilni o'chirish  |
+
+**Bildirishnomalar** (`/api/v1/notifications`)
+
+| Metod | Manzil  | Tavsif                              |
+| ----- | ------- | ----------------------------------- |
+| GET   | `/`     | Ro'yxat (sahifalab) + o'qilmaganlar |
+| PATCH | `/`     | Barchasini o'qilgan deb belgilash   |
+| PATCH | `/{id}` | Bittasini o'qilgan deb belgilash    |
+
+---
+
+## Shaxsiy kabinet
+
+Kirgan foydalanuvchi `/dashboard` sahifasiga tushadi. Kabinet sahifalari:
+
+| Sahifa           | Nima qiladi                                            |
+| ---------------- | ------------------------------------------------------ |
+| `/dashboard`     | Qisqacha ma'lumot va barcha xizmatlar ro'yxati         |
+| `/profile`       | Ism, rasm, til, mavzu, vaqt zonasi sozlamalari         |
+| `/addresses`     | Uy va ish manzillari (koordinatalari bilan)            |
+| `/notifications` | Barcha modullardan kelgan xabarlar                     |
+| `/devices`       | Kirgan qurilmalar — bittasini yoki hammasini chiqarish |
+| `/security`      | Parolni o'zgartirish va himoya holati                  |
+
+Telefonda navigatsiya pastki panelda (barmoq bilan yetib borish oson),
+kompyuterda esa chap tomonda yon menyu ko'rinishida.
+
+### Sahifalar himoyasi — uch qatlam
+
+1. **Middleware** (`src/middleware.ts`) — cookie yo'q bo'lsa sahifani yuklamasdan
+   darhol kirish sahifasiga yo'naltiradi. Bu faqat tezlik uchun, himoya emas.
+2. **`<RequireAuth>`** — brauzerda sessiyani tekshiradi va yo'naltiradi.
+3. **`requireAuth()` API'da** — HAQIQIY himoya. Token to'liq tekshiriladi.
+   Birinchi ikki qatlamni chetlab o'tish mumkin, lekin bu hech narsa bermaydi:
+   ma'lumot baribir serverdan token bilan so'raladi.
+
+### Manzillar nima uchun alohida modul?
+
+Taksi chaqirganda ham, ovqat buyurtma qilganda ham, kuryer chaqirganda ham
+bir xil savol beriladi: "qayerga?". Agar har bir modul o'z manzil tizimini
+yozsa — foydalanuvchi uy manzilini uch marta kiritishga majbur bo'lardi.
+
+Shuning uchun manzillar `src/modules/address` da umumiy modul sifatida yozilgan.
+Har bir manzilda koordinatalar ham saqlanadi — haydovchi va kuryer aniq joyni
+topishi uchun.
+
+Qoidalar:
+
+- Bir vaqtda faqat **bitta standart manzil** bo'ladi;
+- Birinchi qo'shilgan manzil avtomatik standart bo'ladi;
+- O'chirish **yumshoq** (soft delete) — eski buyurtmalarda manzil ko'rinib turadi;
+- Standart manzil o'chirilsa, eng yangi qolgan manzil standart bo'ladi.
 
 ---
 
@@ -296,7 +373,7 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 
 - [x] **1-bosqich** — Poydevor: arxitektura, baza sxemasi, dizayn tizimi, API qatlami, Docker, testlar
 - [x] **2-bosqich** — Autentifikatsiya: ro'yxatdan o'tish, SMS tasdiqlash, kirish, sessiyalar, parolni tiklash
-- [ ] **3-bosqich** — Foydalanuvchi kabineti va profil
+- [x] **3-bosqich** — Kabinet: profil, manzillar, qurilmalar, bildirishnomalar, xavfsizlik
 - [ ] **4-bosqich** — Hamyon va to'lovlar
 - [ ] **5-bosqich** — Birinchi modul (taksi yoki ovqat yetkazish)
 - [ ] **6-bosqich** — AI yordamchi

@@ -65,7 +65,7 @@ export function VerifyForm() {
       });
 
       setSession(session);
-      router.push('/');
+      router.push('/dashboard');
     } catch (caught) {
       setError(toUserMessage(caught));
       setCode('');

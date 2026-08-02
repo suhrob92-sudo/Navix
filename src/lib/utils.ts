@@ -9,13 +9,18 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
-/** Raqamni O'zbekiston so'mi formatida chiqaradi. Masalan: 25 000 so'm */
+/**
+ * Raqamni O'zbekiston so'mi formatida chiqaradi. Masalan: 25 000 so'm
+ *
+ * Valyuta belgisi qo'lda qo'shiladi, `style: 'currency'` ishlatilmaydi:
+ * brauzer va server turli natija berardi ("UZS 0" va "0 soʻm"), bu esa
+ * React'da "hydration mismatch" ogohlantirishiga olib kelardi.
+ */
 export function formatUZS(amount: number): string {
-  return new Intl.NumberFormat('uz-UZ', {
-    style: 'currency',
-    currency: 'UZS',
-    maximumFractionDigits: 0,
-  }).format(amount);
+  const formatted = new Intl.NumberFormat('uz-UZ', { maximumFractionDigits: 0 }).format(amount);
+
+  // Ingichka bo'linmas probel — raqam va "so'm" bir qatorda qoladi.
+  return `${formatted} so'm`;
 }
 
 /** Sanani o'zbekcha, qisqa ko'rinishda chiqaradi. Masalan: 2-avg, 2026 */

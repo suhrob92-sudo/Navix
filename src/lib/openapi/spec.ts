@@ -27,6 +27,9 @@ export const openApiSpec = {
   tags: [
     { name: 'System', description: "Tizim holati va xizmat ko'rsatuvchi endpointlar" },
     { name: 'Auth', description: "Ro'yxatdan o'tish, kirish va sessiyalar" },
+    { name: 'Profile', description: 'Profil va sozlamalar' },
+    { name: 'Addresses', description: 'Saqlangan manzillar (barcha modullar uchun umumiy)' },
+    { name: 'Notifications', description: 'Bildirishnomalar' },
   ],
   components: {
     securitySchemes: {
@@ -179,6 +182,95 @@ export const openApiSpec = {
           createdAt: { type: 'string', format: 'date-time' },
           expiresAt: { type: 'string', format: 'date-time' },
           isCurrent: { type: 'boolean', description: 'Foydalanuvchi hozir shu qurilmadan kirgan' },
+        },
+      },
+
+      // --- Profil ---------------------------------------------------------
+      ProfilePreferences: {
+        type: 'object',
+        required: ['language', 'theme', 'timezone', 'marketingOptIn'],
+        properties: {
+          dateOfBirth: { type: ['string', 'null'], format: 'date-time' },
+          language: { type: 'string', enum: ['UZ', 'RU', 'EN'] },
+          theme: { type: 'string', enum: ['LIGHT', 'DARK', 'SYSTEM'] },
+          timezone: { type: 'string', examples: ['Asia/Tashkent'] },
+          marketingOptIn: { type: 'boolean', description: 'Aksiya xabarlariga rozilik' },
+        },
+      },
+      Profile: {
+        type: 'object',
+        required: ['id', 'phone', 'status', 'roles', 'preferences'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          phone: { type: 'string' },
+          email: { type: ['string', 'null'] },
+          firstName: { type: ['string', 'null'] },
+          lastName: { type: ['string', 'null'] },
+          avatarUrl: { type: ['string', 'null'] },
+          status: { type: 'string' },
+          phoneVerified: { type: ['string', 'null'], format: 'date-time' },
+          createdAt: { type: 'string', format: 'date-time' },
+          roles: { type: 'array', items: { type: 'string' } },
+          preferences: { $ref: '#/components/schemas/ProfilePreferences' },
+        },
+      },
+
+      // --- Manzillar ------------------------------------------------------
+      Address: {
+        type: 'object',
+        required: ['id', 'type', 'label', 'city', 'street', 'latitude', 'longitude', 'isDefault'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          type: { type: 'string', enum: ['HOME', 'WORK', 'OTHER'] },
+          label: { type: 'string', examples: ['Uyim'] },
+          country: { type: 'string', examples: ['UZ'] },
+          city: { type: 'string', examples: ['Toshkent'] },
+          district: { type: ['string', 'null'] },
+          street: { type: 'string' },
+          building: { type: ['string', 'null'] },
+          apartment: { type: ['string', 'null'] },
+          postalCode: { type: ['string', 'null'] },
+          latitude: { type: 'number', examples: [41.2995] },
+          longitude: { type: 'number', examples: [69.2401] },
+          notes: { type: ['string', 'null'], description: "Domofon kodi, mo'ljal" },
+          isDefault: { type: 'boolean' },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      AddressInput: {
+        type: 'object',
+        required: ['label', 'city', 'street', 'latitude', 'longitude'],
+        properties: {
+          type: { type: 'string', enum: ['HOME', 'WORK', 'OTHER'], default: 'OTHER' },
+          label: { type: 'string', minLength: 2, maxLength: 60 },
+          city: { type: 'string', minLength: 2, maxLength: 100 },
+          district: { type: ['string', 'null'], maxLength: 100 },
+          street: { type: 'string', minLength: 2, maxLength: 200 },
+          building: { type: ['string', 'null'], maxLength: 50 },
+          apartment: { type: ['string', 'null'], maxLength: 50 },
+          postalCode: { type: ['string', 'null'], maxLength: 20 },
+          latitude: { type: 'number', minimum: -90, maximum: 90 },
+          longitude: { type: 'number', minimum: -180, maximum: 180 },
+          notes: { type: ['string', 'null'], maxLength: 255 },
+          isDefault: { type: 'boolean', default: false },
+        },
+      },
+
+      // --- Bildirishnomalar -----------------------------------------------
+      Notification: {
+        type: 'object',
+        required: ['id', 'title', 'body', 'sourceModule', 'createdAt'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          channel: { type: 'string', enum: ['IN_APP', 'PUSH', 'SMS', 'EMAIL'] },
+          status: { type: 'string', enum: ['QUEUED', 'SENT', 'READ', 'FAILED'] },
+          title: { type: 'string' },
+          body: { type: 'string' },
+          actionUrl: { type: ['string', 'null'] },
+          sourceModule: { type: 'string', description: 'Xabarni yuborgan modul', examples: ['taxi'] },
+          createdAt: { type: 'string', format: 'date-time' },
+          readAt: { type: ['string', 'null'], format: 'date-time' },
         },
       },
     },
@@ -570,6 +662,317 @@ export const openApiSpec = {
           },
           '401': {
             description: 'Avtorizatsiya talab qilinadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
+
+    '/api/v1/auth/sessions/{id}': {
+      delete: {
+        tags: ['Auth'],
+        summary: 'Bitta qurilmani chiqarish',
+        description:
+          "Yo'qolgan telefondagi sessiyani yopish uchun. Joriy qurilmani bu yerdan yopib bo'lmaydi — buning uchun `/logout` ishlatiladi.",
+        operationId: 'revokeSession',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '200': {
+            description: 'Qurilma chiqarildi',
+            content: {
+              'application/json': { schema: { type: 'object', properties: { revoked: { type: 'boolean' } } } },
+            },
+          },
+          '400': {
+            description: 'Joriy qurilmani chiqarishga urinildi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+          '404': {
+            description: 'Qurilma topilmadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
+
+    // --- Profil -----------------------------------------------------------
+    '/api/v1/profile': {
+      get: {
+        tags: ['Profile'],
+        summary: "Profil ma'lumotlari",
+        operationId: 'getProfile',
+        responses: {
+          '200': {
+            description: 'Profil',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Profile' } } },
+          },
+          '401': {
+            description: 'Avtorizatsiya talab qilinadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+      patch: {
+        tags: ['Profile'],
+        summary: 'Profilni yangilash',
+        description:
+          "Faqat yuborilgan maydonlar o'zgaradi. `null` yuborilsa maydon tozalanadi, yuborilmasa tegilmaydi.",
+        operationId: 'updateProfile',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                minProperties: 1,
+                properties: {
+                  firstName: { type: 'string', minLength: 2, maxLength: 100 },
+                  lastName: { type: ['string', 'null'], minLength: 2, maxLength: 100 },
+                  avatarUrl: { type: ['string', 'null'], format: 'uri' },
+                  dateOfBirth: { type: ['string', 'null'], examples: ['1995-06-15'] },
+                  language: { type: 'string', enum: ['UZ', 'RU', 'EN'] },
+                  theme: { type: 'string', enum: ['LIGHT', 'DARK', 'SYSTEM'] },
+                  timezone: { type: 'string', examples: ['Asia/Tashkent'] },
+                  marketingOptIn: { type: 'boolean' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Yangilangan profil',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Profile' } } },
+          },
+          '400': {
+            description: "Ma'lumot noto'g'ri",
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
+
+    '/api/v1/profile/password': {
+      post: {
+        tags: ['Profile'],
+        summary: "Parolni o'zgartirish",
+        description:
+          "Joriy parol talab qilinadi. Parol o'zgargach joriy qurilmadan tashqari barcha sessiyalar yopiladi.",
+        operationId: 'changePassword',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['currentPassword', 'newPassword'],
+                properties: {
+                  currentPassword: { type: 'string' },
+                  newPassword: { type: 'string', minLength: 8 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Parol yangilandi',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    passwordChanged: { type: 'boolean' },
+                    revokedSessions: { type: 'integer' },
+                    message: { type: 'string' },
+                  },
+                },
+              },
+            },
+          },
+          '400': {
+            description: "Joriy parol noto'g'ri yoki yangi parol talabga javob bermaydi",
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
+
+    // --- Manzillar --------------------------------------------------------
+    '/api/v1/addresses': {
+      get: {
+        tags: ['Addresses'],
+        summary: 'Saqlangan manzillar',
+        description: "Standart manzil ro'yxatda birinchi turadi.",
+        operationId: 'listAddresses',
+        responses: {
+          '200': {
+            description: 'Manzillar',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    addresses: { type: 'array', items: { $ref: '#/components/schemas/Address' } },
+                  },
+                },
+              },
+            },
+          },
+          '401': {
+            description: 'Avtorizatsiya talab qilinadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+      post: {
+        tags: ['Addresses'],
+        summary: "Manzil qo'shish",
+        description: "Birinchi manzil avtomatik standart bo'ladi. Ko'pi bilan 20 ta manzil saqlanadi.",
+        operationId: 'createAddress',
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/AddressInput' } } },
+        },
+        responses: {
+          '201': {
+            description: "Manzil qo'shildi",
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Address' } } },
+          },
+          '409': {
+            description: "Manzillar chegarasi to'ldi",
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
+
+    '/api/v1/addresses/{id}': {
+      get: {
+        tags: ['Addresses'],
+        summary: 'Bitta manzil',
+        operationId: 'getAddress',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '200': {
+            description: 'Manzil',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Address' } } },
+          },
+          '404': {
+            description: 'Manzil topilmadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+      patch: {
+        tags: ['Addresses'],
+        summary: 'Manzilni tahrirlash',
+        operationId: 'updateAddress',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { allOf: [{ $ref: '#/components/schemas/AddressInput' }], minProperties: 1 },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Yangilangan manzil',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Address' } } },
+          },
+          '404': {
+            description: 'Manzil topilmadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+      delete: {
+        tags: ['Addresses'],
+        summary: "Manzilni o'chirish",
+        description:
+          "Yumshoq o'chirish — eski buyurtmalarda manzil ko'rinib turadi. Standart manzil o'chirilsa, eng yangi qolgan manzil standart bo'ladi.",
+        operationId: 'deleteAddress',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '200': {
+            description: "Manzil o'chirildi",
+            content: {
+              'application/json': { schema: { type: 'object', properties: { deleted: { type: 'boolean' } } } },
+            },
+          },
+          '404': {
+            description: 'Manzil topilmadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
+
+    // --- Bildirishnomalar -------------------------------------------------
+    '/api/v1/notifications': {
+      get: {
+        tags: ['Notifications'],
+        summary: 'Bildirishnomalar',
+        operationId: 'listNotifications',
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
+          { name: 'pageSize', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 } },
+          { name: 'order', in: 'query', schema: { type: 'string', enum: ['asc', 'desc'], default: 'desc' } },
+          { name: 'unreadOnly', in: 'query', schema: { type: 'string', enum: ['true', 'false'] } },
+        ],
+        responses: {
+          '200': {
+            description: "Bildirishnomalar va o'qilmaganlar soni",
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    notifications: { type: 'array', items: { $ref: '#/components/schemas/Notification' } },
+                    unreadCount: { type: 'integer' },
+                  },
+                },
+              },
+            },
+          },
+          '401': {
+            description: 'Avtorizatsiya talab qilinadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+      patch: {
+        tags: ['Notifications'],
+        summary: "Barchasini o'qilgan deb belgilash",
+        operationId: 'markAllNotificationsRead',
+        responses: {
+          '200': {
+            description: 'Belgilandi',
+            content: {
+              'application/json': {
+                schema: { type: 'object', properties: { markedCount: { type: 'integer' } } },
+              },
+            },
+          },
+        },
+      },
+    },
+
+    '/api/v1/notifications/{id}': {
+      patch: {
+        tags: ['Notifications'],
+        summary: "Bitta bildirishnomani o'qilgan deb belgilash",
+        operationId: 'markNotificationRead',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '200': {
+            description: 'Bildirishnoma',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/Notification' } } },
+          },
+          '404': {
+            description: 'Bildirishnoma topilmadi',
             content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
           },
         },

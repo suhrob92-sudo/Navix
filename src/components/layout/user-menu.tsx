@@ -1,6 +1,6 @@
 'use client';
 
-import { LogOut, User } from 'lucide-react';
+import { LayoutGrid, LogOut, MapPin, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -8,6 +8,13 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/modules/auth/auth-context';
+
+/** Menyudagi havolalar. */
+const MENU_LINKS = [
+  { href: '/dashboard', label: 'Kabinet', icon: LayoutGrid },
+  { href: '/profile', label: 'Profilim', icon: User },
+  { href: '/addresses', label: 'Manzillarim', icon: MapPin },
+] as const;
 
 /**
  * Yuqori paneldagi foydalanuvchi menyusi.
@@ -103,18 +110,27 @@ export function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
             <p className="text-muted-foreground truncate text-xs">{user.phone}</p>
           </div>
 
-          <Link
-            href="/profile"
-            role="menuitem"
-            onClick={() => {
-              setIsOpen(false);
-              onNavigate?.();
-            }}
-            className="hover:bg-secondary/60 mt-1.5 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors"
-          >
-            <User className="size-4" aria-hidden="true" />
-            Profilim
-          </Link>
+          <div className="mt-1.5 space-y-0.5">
+            {MENU_LINKS.map((link) => {
+              const Icon = link.icon;
+
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  role="menuitem"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onNavigate?.();
+                  }}
+                  className="hover:bg-secondary/60 flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors"
+                >
+                  <Icon className="size-4" aria-hidden="true" />
+                  {link.label}
+                </Link>
+              );
+            })}
+          </div>
 
           <button
             type="button"

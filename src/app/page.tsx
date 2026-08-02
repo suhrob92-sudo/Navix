@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { SiteHeader } from '@/components/layout/site-header';
 import { AuroraBackground } from '@/components/shared/aurora-background';
+import { HeroActions } from '@/components/shared/hero-actions';
 import { ModuleCard } from '@/components/shared/module-card';
 import { SectionHeading } from '@/components/shared/section-heading';
 import { Badge } from '@/components/ui/badge';
@@ -79,19 +80,8 @@ export default function HomePage() {
                 rejalashtiring. AI yordamchi esa bularning barchasini siz uchun bir jumla bilan bajaradi.
               </p>
 
-              <div
-                className="animate-fade-up mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row"
-                style={{ animationDelay: '240ms' }}
-              >
-                <Button size="lg" asChild>
-                  <Link href="/auth/register">
-                    Bepul boshlash
-                    <ArrowRight aria-hidden="true" />
-                  </Link>
-                </Button>
-                <Button size="lg" variant="glass" asChild>
-                  <Link href="#modullar">Xizmatlarni ko&apos;rish</Link>
-                </Button>
+              <div className="animate-fade-up mt-9" style={{ animationDelay: '240ms' }}>
+                <HeroActions />
               </div>
 
               {/* Statistika */}
