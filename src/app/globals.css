@@ -60,6 +60,10 @@
   --glass-border: oklch(1 0 0 / 0.5);
   --glass-shadow: 0 8px 32px oklch(0.3 0.05 265 / 0.08);
 
+  /* Yuqori panel va pastki menyu uchun — ular ustidan kontent suriladi,
+     shuning uchun ancha qalinroq bo'lishi kerak (matn "sizib chiqmasligi" uchun) */
+  --glass-chrome-bg: oklch(0.99 0.002 250 / 0.92);
+
   /* Burchak radiusi — barcha komponentlar shundan hisoblanadi */
   --radius: 0.875rem;
 }
@@ -98,6 +102,7 @@
   --glass-bg: oklch(0.22 0.016 265 / 0.6);
   --glass-border: oklch(1 0 0 / 0.08);
   --glass-shadow: 0 8px 32px oklch(0 0 0 / 0.35);
+  --glass-chrome-bg: oklch(0.17 0.014 265 / 0.94);
 }
 
 /* Tailwind'ga tokenlarimizni tanishtiramiz.
@@ -251,6 +256,34 @@
     box-shadow: var(--glass-shadow);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
+  }
+
+  /*
+   * Yopishib turadigan panellar uchun kuchaytirilgan shisha:
+   * yuqori panel (header) va pastki menyu (tab bar).
+   *
+   * Nima uchun alohida: ular ustidan sahifa kontenti suriladi. Oddiy `.glass`
+   * juda shaffof bo'lgani uchun orqadagi matn "sizib" chiqadi va o'qish qiyin
+   * bo'ladi. Bu yerda fon ancha qalinroq.
+   */
+  .glass-chrome {
+    background-color: var(--glass-chrome-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+  }
+
+  /*
+   * Brauzer `backdrop-filter` ni qo'llab-quvvatlamasa (eski Android
+   * brauzerlari) fonni to'liq qorong'i/oq qilamiz — aks holda kontent
+   * to'g'ridan-to'g'ri ko'rinib qoladi.
+   */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass,
+    .glass-chrome {
+      background-color: var(--card);
+    }
   }
 
   /* Brend gradienti bilan bo'yalgan matn */

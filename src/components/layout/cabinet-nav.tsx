@@ -61,7 +61,7 @@ export function CabinetTabBar() {
 
   return (
     <nav
-      className="glass fixed inset-x-0 bottom-0 z-40 lg:hidden"
+      className="glass-chrome fixed inset-x-0 bottom-0 z-40 lg:hidden"
       aria-label="Kabinet navigatsiyasi"
       // iPhone'dagi pastki "chiziq" ustiga tushib qolmasligi uchun.
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}

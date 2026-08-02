@@ -28,6 +28,15 @@ const nextConfig: NextConfig = {
 
   reactStrictMode: true,
 
+  /**
+   * Ishlab chiqish rejimidagi Next.js belgisi (kichik "N" doirasi) o'chirilgan.
+   *
+   * Nima uchun: u ekranning pastki burchagida turadi va telefonda pastki
+   * menyu tugmalarini to'sib qo'yadi. Loyiha asosan telefondan sinaladi,
+   * shuning uchun menyu muhimroq. Bu belgi production'da baribir ko'rinmaydi.
+   */
+  devIndicators: false,
+
   // Build vaqtida TypeScript xatolarini yashirmaymiz — sifat nazorati.
   typescript: { ignoreBuildErrors: false },
 
