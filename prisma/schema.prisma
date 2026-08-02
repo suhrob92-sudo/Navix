@@ -1,0 +1,411 @@
+// Navix — Markaziy Osiyo uchun AI Super App
+// Prisma sxemasi: 1-bosqich (yadro — identifikatsiya, ruxsatlar, hamyon, audit).
+//
+// Prinsiplar:
+//  - Normalizatsiya: har bir ma'lumot faqat bitta joyda saqlanadi;
+//  - Har bir modul o'z prefiksiga ega jadvallardan foydalanadi (microservice'ga
+//    ajratish oson bo'lishi uchun);
+//  - Pul qiymatlari HECH QACHON float bo'lmaydi — faqat butun "tiyin" (BigInt);
+//  - Barcha o'chirishlar "soft delete" (deletedAt) orqali — moliyaviy tarix yo'qolmaydi.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// ENUM'lar
+// ---------------------------------------------------------------------------
+
+enum UserStatus {
+  /// Ro'yxatdan o'tgan, lekin telefon/email tasdiqlanmagan.
+  PENDING_VERIFICATION
+  /// To'liq faol foydalanuvchi.
+  ACTIVE
+  /// Vaqtincha bloklangan (qoidabuzarlik, xavfsizlik).
+  SUSPENDED
+  /// Foydalanuvchi o'zi hisobni yopgan.
+  DEACTIVATED
+}
+
+enum RoleName {
+  CUSTOMER
+  DRIVER
+  COURIER
+  MERCHANT
+  SUPPORT
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum Language {
+  UZ
+  RU
+  EN
+}
+
+enum ThemePreference {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+enum WalletStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum TransactionType {
+  /// Hamyonga pul kiritish.
+  TOP_UP
+  /// Hamyondan yechish.
+  WITHDRAWAL
+  /// Xizmat uchun to'lov.
+  PAYMENT
+  /// To'lovni qaytarish.
+  REFUND
+  /// Foydalanuvchidan foydalanuvchiga o'tkazma.
+  TRANSFER
+  /// Bonus / cashback.
+  BONUS
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum AddressType {
+  HOME
+  WORK
+  OTHER
+}
+
+enum NotificationChannel {
+  IN_APP
+  PUSH
+  SMS
+  EMAIL
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  READ
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// Identifikatsiya (Identity)
+// ---------------------------------------------------------------------------
+
+/// Platformaning markaziy foydalanuvchi jadvali.
+/// Barcha modullar (taksi, savdo, ish) shu bitta hisobdan foydalanadi.
+model User {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// E.164 formatidagi telefon raqami (+998901234567) — asosiy identifikator.
+  phone         String     @unique @db.VarChar(20)
+  phoneVerified DateTime?
+  email         String?    @unique @db.VarChar(255)
+  emailVerified DateTime?
+  /// Argon2/bcrypt hash. Ochiq parol hech qachon saqlanmaydi.
+  passwordHash  String?    @db.VarChar(255)
+  status        UserStatus @default(PENDING_VERIFICATION)
+
+  firstName String? @db.VarChar(100)
+  lastName  String? @db.VarChar(100)
+  avatarUrl String? @db.VarChar(500)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  profile       UserProfile?
+  roles         UserRoleAssignment[]
+  sessions      Session[]
+  wallet        Wallet?
+  addresses     Address[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("users")
+}
+
+/// Foydalanuvchining qo'shimcha ma'lumotlari.
+/// Alohida jadval — `users` jadvali yengil qolishi va tez o'qilishi uchun.
+model UserProfile {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+
+  dateOfBirth DateTime?
+  language    Language        @default(UZ)
+  theme       ThemePreference @default(SYSTEM)
+  /// IANA vaqt zonasi, masalan "Asia/Tashkent".
+  timezone    String          @default("Asia/Tashkent") @db.VarChar(64)
+  /// Marketing xabarnomalariga rozilik.
+  marketingOptIn Boolean      @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+/// Rollar ma'lumotnomasi. `RoleName` enum'i bilan bir xil qiymatlarni saqlaydi,
+/// lekin tavsif va ruxsatlarni bazada boshqarish imkonini beradi.
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        RoleName @unique
+  description String   @db.VarChar(255)
+  /// Tizim roli — o'chirib bo'lmaydi.
+  isSystem    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments UserRoleAssignment[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+/// Ruxsatlar ma'lumotnomasi. Nomi `modul:resurs:amal` formatida.
+model Permission {
+  id          String @id @default(uuid()) @db.Uuid
+  key         String @unique @db.VarChar(120)
+  description String @db.VarChar(255)
+  /// Qaysi modulga tegishli (taxi, wallet, commerce...).
+  module      String @db.VarChar(50)
+
+  createdAt DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@index([module])
+  @@map("permissions")
+}
+
+/// Rol ↔ Ruxsat bog'lovchi jadvali (many-to-many).
+model RolePermission {
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  assignedAt DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+/// Foydalanuvchi ↔ Rol bog'lovchi jadvali.
+/// Bitta foydalanuvchi bir vaqtda mijoz ham, haydovchi ham bo'lishi mumkin.
+model UserRoleAssignment {
+  userId String @db.Uuid
+  roleId String @db.Uuid
+
+  assignedAt DateTime  @default(now())
+  /// Vaqtinchalik rol uchun tugash sanasi (masalan sinov davri).
+  expiresAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+  @@map("user_role_assignments")
+}
+
+/// Faol sessiya (qurilma). Refresh token'ning faqat hash'i saqlanadi —
+/// baza sizib chiqsa ham token'lardan foydalanib bo'lmaydi.
+model Session {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+
+  refreshTokenHash String    @unique @db.VarChar(255)
+  userAgent        String?   @db.VarChar(400)
+  ipAddress        String?   @db.VarChar(45)
+  /// Qurilma nomi ("iPhone 15", "Chrome / Windows").
+  deviceLabel      String?   @db.VarChar(120)
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  lastUsedAt       DateTime  @default(now())
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ---------------------------------------------------------------------------
+// Moliya (Wallet)
+// ---------------------------------------------------------------------------
+
+/// Foydalanuvchi hamyoni. Balans BigInt tiyinlarda saqlanadi
+/// (1 so'm = 100 tiyin) — kasr xatoliklarining oldini olish uchun.
+model Wallet {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+
+  /// Joriy balans, tiyinlarda. Manfiy bo'lishi mumkin emas.
+  balance  BigInt       @default(0)
+  /// Buyurtma uchun band qilingan (hold) summa, tiyinlarda.
+  reserved BigInt       @default(0)
+  currency String       @default("UZS") @db.VarChar(3)
+  status   WalletStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+/// Hamyondagi har bir pul harakati. Bu jadval — o'zgarmas (immutable)
+/// buxgalteriya daftari: yozuv o'chirilmaydi, faqat qarama-qarshi yozuv qo'shiladi.
+model WalletTransaction {
+  id       String @id @default(uuid()) @db.Uuid
+  walletId String @db.Uuid
+
+  type        TransactionType
+  status      TransactionStatus @default(PENDING)
+  /// Summa tiyinlarda. Har doim musbat; yo'nalishni `type` belgilaydi.
+  amount      BigInt
+  /// Amaldan keyingi balans — tekshiruv (reconciliation) uchun.
+  balanceAfter BigInt
+  currency    String            @default("UZS") @db.VarChar(3)
+  description String?           @db.VarChar(255)
+
+  /// Tashqi tizim (Payme, Click, Uzum) tranzaksiya raqami.
+  externalReference String? @db.VarChar(120)
+  /// Takroriy so'rovlarni bloklash uchun kalit (idempotency).
+  idempotencyKey    String  @unique @db.VarChar(120)
+
+  /// Qaysi modul yaratgan: "taxi", "food", "payments"...
+  sourceModule String  @db.VarChar(50)
+  /// Shu moduldagi obyekt ID'si (buyurtma, safar).
+  sourceId     String? @db.VarChar(64)
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Restrict)
+
+  @@index([walletId, createdAt])
+  @@index([status])
+  @@index([sourceModule, sourceId])
+  @@map("wallet_transactions")
+}
+
+// ---------------------------------------------------------------------------
+// Umumiy (Shared)
+// ---------------------------------------------------------------------------
+
+/// Saqlangan manzillar. Taksi, ovqat va yetkazib berish modullari birgalikda ishlatadi.
+model Address {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+
+  type       AddressType @default(OTHER)
+  label      String      @db.VarChar(60)
+  country    String      @default("UZ") @db.VarChar(2)
+  city       String      @db.VarChar(100)
+  district   String?     @db.VarChar(100)
+  street     String      @db.VarChar(200)
+  building   String?     @db.VarChar(50)
+  apartment  String?     @db.VarChar(50)
+  postalCode String?     @db.VarChar(20)
+  /// Geografik koordinatalar — xarita va masofani hisoblash uchun.
+  latitude   Decimal     @db.Decimal(10, 7)
+  longitude  Decimal     @db.Decimal(10, 7)
+  notes      String?     @db.VarChar(255)
+  isDefault  Boolean     @default(false)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([city])
+  @@map("addresses")
+}
+
+/// Barcha modullardan keladigan bildirishnomalar.
+model Notification {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+
+  channel NotificationChannel @default(IN_APP)
+  status  NotificationStatus  @default(QUEUED)
+  title   String              @db.VarChar(150)
+  body    String              @db.VarChar(1000)
+  /// Bosilganda ochiladigan manzil.
+  actionUrl String?           @db.VarChar(500)
+  /// Qaysi modul yubordi.
+  sourceModule String         @db.VarChar(50)
+  /// Qo'shimcha strukturasiz ma'lumot (buyurtma ID, narx...).
+  payload   Json?
+
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+  readAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+/// Audit jurnali — kim, qachon, nima qildi.
+/// Xavfsizlik tekshiruvi va nizolarni hal qilish uchun majburiy.
+model AuditLog {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Amalni bajargan foydalanuvchi. Tizim amallarida bo'sh bo'lishi mumkin.
+  actorId String? @db.Uuid
+
+  /// Bajarilgan amal, masalan "user.login", "wallet.transfer".
+  action       String  @db.VarChar(120)
+  /// Ta'sir ko'rsatilgan obyekt turi ("User", "Wallet").
+  resourceType String  @db.VarChar(60)
+  resourceId   String? @db.VarChar(64)
+  module       String  @db.VarChar(50)
+
+  ipAddress String? @db.VarChar(45)
+  userAgent String? @db.VarChar(400)
+  /// So'rov ID'si — log fayllari bilan solishtirish uchun.
+  requestId String? @db.VarChar(64)
+  /// O'zgarish tafsilotlari (oldingi va yangi qiymatlar).
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([action])
+  @@map("audit_logs")
+}

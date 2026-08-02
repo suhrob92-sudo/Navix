@@ -1,0 +1,50 @@
+# Navix — lokal ishlab chiqish infratuzilmasi.
+#
+# Ishga tushirish:  docker compose up -d
+# To'xtatish:       docker compose down
+# Ma'lumot bilan o'chirish: docker compose down -v
+#
+# Bu fayl faqat BAZA va REDIS ni ko'taradi. Next.js ilovasini `npm run dev`
+# bilan ishga tushirasiz — shunda kod o'zgarishi darhol ko'rinadi.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: navix-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: navix
+      POSTGRES_PASSWORD: navix
+      POSTGRES_DB: navix
+      # Alifbo tartibi va indekslar barqaror bo'lishi uchun.
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    ports:
+      - '5432:5432'
+    volumes:
+      - navix-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U navix -d navix']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    container_name: navix-redis
+    restart: unless-stopped
+    # appendonly — Redis ma'lumotini diskka yozadi, qayta ishga tushganda yo'qolmaydi.
+    command: ['redis-server', '--appendonly', 'yes', '--maxmemory-policy', 'noeviction']
+    ports:
+      - '6379:6379'
+    volumes:
+      - navix-redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  navix-postgres-data:
+  navix-redis-data:
