@@ -8,6 +8,8 @@
     "dev:bg": "nohup next dev > dev.log 2>&1 & sleep 4 && npm run url",
     "dev:stop": "node scripts/dev-stop.mjs",
     "dev:log": "tail -f dev.log",
+    "go": "npm run docker:up && npm run dev:stop && npm run dev:bg",
+    "status": "node scripts/status.mjs",
     "url": "node scripts/url.mjs",
     "otp": "node scripts/otp.mjs",
     "build": "prisma generate && next build",

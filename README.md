@@ -67,6 +67,8 @@ Brauzerda oching: **http://localhost:3000**
 | Buyruq                | Nima qiladi                                            |
 | --------------------- | ------------------------------------------------------ |
 | `npm run dev`         | Ishlab chiqish serverini ishga tushiradi               |
+| `npm run go`          | Baza + Redis + serverni birdan ishga tushiradi         |
+| `npm run status`      | Server, baza va Redis ishlayaptimi — tekshiradi        |
 | `npm run dev:bg`      | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi) |
 | `npm run dev:stop`    | Fondagi serverni toʻxtatadi                            |
 | `npm run dev:log`     | Server logini jonli koʻrsatadi                         |
@@ -111,14 +113,32 @@ gh auth refresh -h github.com -s codespace     # Codespaces ruxsati
 
 ### Har safar ishlash tartibi
 
+Ikki buyruq — tamom:
+
 ```bash
-gh codespace ssh          # Codespaces'ga ulanish
-cd /workspaces/Navix
-npm run docker:up         # baza va Redis
-npm run dev:bg            # server FONDA ishga tushadi + havola chiqadi
+gh codespace ssh     # Codespaces'ga ulanish
+npm run go           # baza + Redis + server, oxirida havola chiqadi
 ```
 
-`dev:bg` terminalni band qilmaydi — havolani ko'chirib brauzerda ochasiz.
+`npm run go` terminalni band qilmaydi — havolani ko'chirib brauzerda ochasiz.
+
+### Ishlayaptimi yoki yo'qmi?
+
+Brauzerda **404** chiqsa yoki sahifa ochilmasa, avval holatni tekshiring:
+
+```bash
+npm run status
+```
+
+```
+📊 Tizim holati
+
+   ✅ Server        — ishlayapti (3000-port)
+   ✅ Baza          — ulangan
+   ✅ Redis         — ulangan
+```
+
+Biror joyda ❌ bo'lsa — `npm run go` hammasini qayta ko'taradi.
 
 ### Aloqa uzilib qolsa
 
