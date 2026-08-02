@@ -120,6 +120,42 @@ npm run dev:bg            # server FONDA ishga tushadi + havola chiqadi
 
 `dev:bg` terminalni band qilmaydi — havolani ko'chirib brauzerda ochasiz.
 
+### Aloqa uzilib qolsa
+
+Mobil internetda SSH aloqasi uzilishi normal holat:
+
+```
+Connection to localhost closed by remote host.
+shell closed: exit status 255
+```
+
+Bunda siz **telefonning o'z terminaliga** qaytasiz. Qaysi joydaligingizni
+buyruq satridan bilib olasiz:
+
+| Satr                                            | Qayerdasiz         |
+| ----------------------------------------------- | ------------------ |
+| `@foydalanuvchi ➜ /workspaces/Navix (branch) $` | Codespaces ichida  |
+| `~ $` yoki `~/downloads $`                      | Telefonning o'zida |
+
+Qayta ulanish uchun shunchaki:
+
+```bash
+gh codespace ssh
+```
+
+**Muhim:** server `dev:bg` bilan ishga tushirilgan bo'lsa, aloqa uzilganda ham
+**to'xtamaydi** (`nohup` tufayli). Qayta ulangach `npm run url` bilan havolani
+olib, ishni davom ettiraverasiz.
+
+### Uzilishlarni kamaytirish
+
+Termux'da bir marta bajaring — SSH har 30 soniyada "tirikman" signali yuboradi:
+
+```bash
+mkdir -p ~/.ssh
+printf 'Host *\n  ServerAliveInterval 30\n  ServerAliveCountMax 6\n' >> ~/.ssh/config
+```
+
 ### SMS kodni olish
 
 Ishlab chiqish rejimida haqiqiy SMS yuborilmaydi. Kodni olish uchun:
