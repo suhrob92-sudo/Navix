@@ -140,24 +140,24 @@ bu bog'lanish uzilib qolishi mumkin.
 **Sabab.** Codespaces portlarni brauzerdagi muharrir orqali ro'yxatga oladi.
 Faqat SSH (Termux) ishlatilganda ro'yxat bo'sh qoladi.
 
-**Doimiy yechim — `.devcontainer/devcontainer.json`.** Loyihada shu fayl bor
-va unda `forwardPorts: [3000]` ko'rsatilgan. U Codespace ISHGA TUSHISHI bilan
-portni ro'yxatga oladi, muharrir ochilgan-ochilmaganidan qat'i nazar.
+**Ishlaydigan yechim.** Birinchi ishga tushirishni BRAUZERDA bajaring:
 
-Mavjud Codespace'da kuchga kirishi uchun uni qayta qurish kerak:
-`github.com/codespaces` → Codespace yonidagi **⋯** → **Rebuild container**.
-Yoki oddiygina yangi Codespace yarating.
+1. `github.com/codespaces` → Codespace'ni oching
+2. Terminalda: `npm run go`
+3. Port ro'yxatga olinadi va havola ishlay boshlaydi
 
-**Tezkor yechim.** Codespace'ni brauzerda BIR MARTA oching
-(`github.com/codespaces`) — muharrir yuklanishi bilan port ro'yxatga olinadi.
-Keyin brauzerni yopib, Termux'da ishlashda davom etsangiz bo'ladi.
+Shundan keyin brauzerni yopib, Termux'da ishlashda davom etsangiz bo'ladi —
+havola ishlab turaveradi.
 
-**Ishlamaydigan yo'llar** (vaqt sarflamang):
+Ya'ni: **birinchi ishga tushirish brauzerda, keyingi hammasi Termux'da.**
 
-| Buyruq                                      | Nima bo'ladi                                               |
-| ------------------------------------------- | ---------------------------------------------------------- |
-| `gh codespace ports visibility 3000:public` | `404 Not Found` — ro'yxatda yo'q portni o'zgartira olmaydi |
-| `gh codespace ports forward 3000:3000`      | `ssh: unexpected packet` — Termux'da SSH kanali ochilmaydi |
+**Ishlamaydigan yo'llar** (vaqt sarflamang, sinalgan):
+
+| Yo'l                                               | Nima bo'ladi                                                                                                                                                                                                                                                               |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gh codespace ports visibility 3000:public`        | `404 Not Found` — ro'yxatda yo'q portni o'zgartira olmaydi                                                                                                                                                                                                                 |
+| `gh codespace ports forward 3000:3000`             | `ssh: unexpected packet` — Termux'da SSH kanali ochilmaydi                                                                                                                                                                                                                 |
+| `.devcontainer/devcontainer.json` + `forwardPorts` | **Codespace umuman ishga tushmay qoladi.** GitHub standart sozlamasida Docker allaqachon bor; o'z faylimizda `docker-in-docker` qo'shilsa ikkalasi to'qnashadi va `failed to start vs code remote server` xatosi chiqadi. Shu sababli loyihada devcontainer fayli **yo'q** |
 
 ### Aloqa uzilib qolsa
 
