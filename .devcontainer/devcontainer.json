@@ -1,8 +1,19 @@
 {
   "name": "Navix",
 
-  // GitHub Codespaces standart obrazi. Unda Node.js, Docker va Git bor.
+  // GitHub Codespaces standart obrazi. Unda Node.js va Git bor.
   "image": "mcr.microsoft.com/devcontainers/universal:2",
+
+  /*
+   * Docker konteyner ICHIDA ishlashi uchun (docker-in-docker).
+   *
+   * Nima uchun majburiy: loyihada PostgreSQL va Redis `docker compose`
+   * orqali ko'tariladi (`npm run docker:up`). O'z devcontainer fayli
+   * ko'rsatilganda Docker avtomatik qo'shilmaydi — uni aniq so'rash kerak.
+   */
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
 
   /*
    * MUHIM: 3000-portni MAJBURIY ravishda tashqariga chiqaramiz.
