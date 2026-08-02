@@ -1,18 +1,22 @@
 /**
- * Ilovani telefon brauzeridan ochish uchun portni OCHIQ (public) qiladi
- * va to'liq havolani chiqaradi.
+ * Ilovani telefon brauzeridan ochish uchun ommaviy havola beradi.
  *
  * ── Muammo nima edi ───────────────────────────────────────────────────
- * GitHub Codespaces'da ishga tushgan server avtomatik ravishda tashqi
- * manzilga ulanmaydi. Port ikki shartni bajarishi kerak:
+ * Codespaces'da ishga tushgan server tashqaridan avtomatik ko'rinmaydi.
+ * Brauzer `HTTP ERROR 404` qaytaradi — sahifa yo'q degani emas, port
+ * ochilmagan degani.
  *
- *   1. Kimdir uni "eshitib" turishi kerak (server ishlayotgan bo'lsin);
- *   2. Ko'rinishi "public" bo'lishi kerak.
+ * ── Ikki yo'l ─────────────────────────────────────────────────────────
+ * 1. GitHub'ning o'z porti (tez, qulay). Lekin u faqat codespace
+ *    BRAUZERDA ochilganda ishlaydi: portni tunnelga ro'yxatdan
+ *    o'tkazuvchi muharrir shunda ishga tushadi. Faqat SSH bilan
+ *    ulanilganda `error getting tunnel port: 404` xatosi chiqadi.
  *
- * Shart bajarilmasa brauzer `HTTP ERROR 404` qaytaradi — sahifa yo'q
- * degani emas, balki port umuman ochilmagan degani.
+ * 2. Cloudflare tunneli — GitHub'ga umuman bog'liq emas. Faqat
+ *    telefondan ishlaganda ham ishlaydi.
  *
- * Bu skript ikkalasini ham tekshiradi va o'zi tuzatadi.
+ * Skript avval birinchisini sinaydi, ishlamasa ikkinchisiga o'tadi.
+ * Ya'ni foydalanuvchi hech narsani tanlashi shart emas.
  *
  * Ishlatish: npm run share
  */
@@ -20,6 +24,8 @@
 import { execFile } from 'node:child_process';
 import net from 'node:net';
 import { promisify } from 'node:util';
+
+import { getRunningTunnelUrl, startTunnel } from './lib/tunnel.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -61,11 +67,43 @@ async function waitForPort(port, timeoutMs = 40_000) {
   return false;
 }
 
+/** Havolani ko'zga tashlanadigan qilib chiqaradi. */
+function printUrl(url, note) {
+  console.info('\n🌐 Ilova manzili (brauzerda oching):\n');
+  console.info(`   ${url}\n`);
+
+  if (note) console.info(`   ${note}\n`);
+}
+
+/**
+ * GitHub'ning o'z portini ochishga urinadi.
+ *
+ * @returns {Promise<string|null>} Havola yoki `null` (ishlamadi)
+ */
+async function tryGithubPort() {
+  if (!codespaceName || !forwardingDomain) return null;
+
+  try {
+    await execFileAsync(
+      'gh',
+      ['codespace', 'ports', 'visibility', `${PORT}:public`, '--codespace', codespaceName],
+      { timeout: 60_000 },
+    );
+
+    return `https://${codespaceName}-${PORT}.${forwardingDomain}`;
+  } catch {
+    // Sababi deyarli har doim bitta: port GitHub tunnelida ro'yxatga
+    // olinmagan. Foydalanuvchini xato matni bilan qo'rqitmaymiz —
+    // pastda ishlaydigan yo'lga o'tamiz.
+    return null;
+  }
+}
+
+// ── Asosiy oqim ────────────────────────────────────────────────────────
+
 console.info('\n⏳ Server tekshirilmoqda...');
 
-const serverIsUp = await waitForPort(PORT);
-
-if (!serverIsUp) {
+if (!(await waitForPort(PORT))) {
   console.info(`\n❌ ${PORT}-portda hech narsa ishlamayapti.\n`);
   console.info('   Avval serverni ishga tushiring:');
   console.info('      npm run go\n');
@@ -76,49 +114,50 @@ if (!serverIsUp) {
 
 console.info(`✅ Server ishlayapti (${PORT}-port)`);
 
-// Codespaces'dan tashqarida (masalan, o'z kompyuteringizda) hech narsa
-// ochishning hojati yo'q — localhost baribir ishlaydi.
-if (!codespaceName || !forwardingDomain) {
-  console.info(`\n🌐 Ilova manzili:\n`);
-  console.info(`   http://localhost:${PORT}\n`);
+// Codespaces'dan tashqarida (o'z kompyuteringizda) hech narsa ochish shart emas.
+if (!codespaceName) {
+  printUrl(`http://localhost:${PORT}`);
   process.exit(0);
 }
 
-const url = `https://${codespaceName}-${PORT}.${forwardingDomain}`;
+// Tunnel allaqachon ishlab tursa — qayta ochmaymiz.
+const activeTunnel = getRunningTunnelUrl();
 
-console.info('⏳ Port ochilmoqda (public)...');
+if (activeTunnel) {
+  console.info('✅ Ommaviy havola allaqachon ochiq');
+  printUrl(activeTunnel, 'Yopish uchun:  npm run dev:stop');
+  process.exit(0);
+}
+
+console.info('⏳ Port ochilmoqda...');
+
+const githubUrl = await tryGithubPort();
+
+if (githubUrl) {
+  console.info('✅ Port ochiq (GitHub)');
+  printUrl(githubUrl);
+  process.exit(0);
+}
+
+console.info("ℹ️  GitHub porti ochilmadi — zaxira yo'lga o'tilmoqda");
 
 try {
-  await execFileAsync('gh', ['codespace', 'ports', 'visibility', `${PORT}:public`, '--codespace', codespaceName], {
-    timeout: 60_000,
-  });
+  const tunnelUrl = await startTunnel(PORT, (message) => console.info(`⏳ ${message}`));
 
-  console.info("✅ Port ochiq — havolani istalgan brauzerda ochsa bo'ladi\n");
-  console.info('🌐 Ilova manzili:\n');
-  console.info(`   ${url}\n`);
+  console.info('✅ Ommaviy havola tayyor');
+  printUrl(tunnelUrl, 'Yopish uchun:  npm run dev:stop');
 } catch (error) {
-  const details = `${error.stderr ?? ''}${error.stdout ?? ''}`.trim();
+  console.info(`\n❌ Havola ochib bo'lmadi: ${error.message}\n`);
+  console.info("   Qo'lda ochish (bir marta qilinsa yetarli):\n");
+  console.info('      1. github.com/codespaces sahifasini oching');
+  console.info("      2. Shu codespace'ni brauzerda oching");
+  console.info('      3. Pastdagi "PORTS" bo\'limiga o\'ting');
+  console.info(`      4. ${PORT}-port ustiga bosib turing → Port Visibility → Public\n`);
 
-  console.info("\n⚠️  Portni avtomatik ochib bo'lmadi.\n");
-
-  if (details) {
-    console.info(`   Sabab: ${details.split('\n')[0]}\n`);
+  if (forwardingDomain) {
+    console.info('   Shundan keyin ishlaydigan havola:\n');
+    console.info(`   https://${codespaceName}-${PORT}.${forwardingDomain}\n`);
   }
 
-  // `gh` ruxsati yetmasa — eng ko'p uchraydigan sabab.
-  if (/scope|auth|permission|HTTP 40[13]/i.test(details)) {
-    console.info("   Ruxsatni yangilang, so'ng qaytadan urinib ko'ring:\n");
-    console.info('      gh auth refresh -h github.com -s codespace');
-    console.info('      npm run share\n');
-  } else {
-    console.info("   Qo'lda ochish (bir marta qilinsa yetarli):\n");
-    console.info('      1. github.com/codespaces sahifasini oching');
-    console.info("      2. Shu codespace'ni brauzerda oching");
-    console.info('      3. Pastdagi "PORTS" bo\'limiga o\'ting');
-    console.info(`      4. ${PORT}-port ustiga bosib turing → Port Visibility → Public\n`);
-  }
-
-  console.info('   Havola (port ochilgach ishlaydi):\n');
-  console.info(`   ${url}\n`);
   process.exit(1);
 }

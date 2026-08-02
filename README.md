@@ -62,8 +62,8 @@ npm run dev
 | `npm run dev:bg`      | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi) |
 | `npm run dev:stop`    | Fondagi serverni toʻxtatadi                            |
 | `npm run dev:log`     | Server logini jonli koʻrsatadi                         |
-| `npm run share`       | Portni ochadi (public) va havolani chiqaradi           |
-| `npm run url`         | Ilova ochiladigan toʻliq havolani chiqaradi            |
+| `npm run share`       | Ommaviy havola ochadi (GitHub yoki Cloudflare tunneli) |
+| `npm run url`         | Ochiq havolani qayta chiqaradi (yangisini ochmaydi)    |
 | `npm run otp`         | Oxirgi SMS tasdiqlash kodini topib beradi              |
 | `npm run build`       | Production uchun yig'adi                               |
 | `npm run start`       | Yig'ilgan ilovani ishga tushiradi                      |
@@ -139,7 +139,7 @@ ochilmagan** degani. Ikki sabab bo'lishi mumkin:
 1. Server umuman ishlamayapti (codespace uxlab qolgan bo'lsa shunday bo'ladi);
 2. Server ishlayapti, lekin port `private` — tashqaridan kirib bo'lmaydi.
 
-**Yechim — bitta buyruq.** U ikkala sababni ham tekshirib, o'zi tuzatadi:
+**Yechim — bitta buyruq:**
 
 ```bash
 npm run share
@@ -147,21 +147,34 @@ npm run share
 
 Nima qiladi:
 
-- serverni kutadi (40 soniyagacha) va ishlayotganini tekshiradi;
-- portni `public` qiladi;
-- tayyor havolani chiqaradi.
+1. serverni kutadi (40 soniyagacha) va ishlayotganini tekshiradi;
+2. GitHub portini `public` qilishga urinadi;
+3. ishlamasa — **Cloudflare tunneli** orqali ommaviy havola ochadi;
+4. tayyor havolani chiqaradi.
 
-`npm run go` oxirida buni avtomatik chaqiradi — ya'ni odatda alohida
-yozish shart emas.
+`npm run go` oxirida buni avtomatik chaqiradi — odatda alohida yozish
+shart emas. `npm run dev:stop` esa havolani ham yopadi.
 
-**Agar `npm run share` ruxsat yetmasligini aytsa:**
+**Nima uchun ikkita yo'l bor.** GitHub portni o'z tunneliga faqat
+codespace **brauzerda** ochilganda ro'yxatdan o'tkazadi — aynan o'shanda
+ishga tushadigan muharrir buni bajaradi. Termux'dan `gh codespace ssh`
+bilan ulanilganda muharrir ishlamaydi va quyidagi xato chiqadi:
 
-```bash
-gh auth refresh -h github.com -s codespace
-npm run share
+```
+error getting tunnel port: ... response: 404 Not Found
 ```
 
-**Eng oxirgi chora — qo'lda ochish** (bir marta qilinsa yetarli):
+Cloudflare tunneli bu zanjirga bog'liq emas: codespace ichidan
+tashqariga ulanadi va o'zi `https://...trycloudflare.com` havolasini
+beradi. Hisob talab qilinmaydi. Fayli birinchi ishlatishda `.cache/`
+papkasiga yuklab olinadi (~40 MB, bir martalik).
+
+> Cloudflare havolasi har qayta ishga tushirilganda **o'zgaradi** —
+> shuning uchun `npm run go` chiqargan havolani ishlating.
+
+**Bir martalik doimiy yechim** (xohlasangiz): codespace'ni brauzerda
+ochib, portni bir marta public qilib qo'ysangiz, GitHub buni eslab
+qoladi va keyin har safar Termux'dan ishlaganda ham ishlaydi:
 
 1. `github.com/codespaces` → shu codespace'ni brauzerda oching
 2. Pastdagi **PORTS** bo'limiga o'ting
@@ -279,7 +292,8 @@ Navix/
 │       ├── redis.ts         # Kesh klienti
 │       ├── logger.ts        # Jurnal yozuvchi
 │       └── utils.ts         # Yordamchi funksiyalar
-├── scripts/                 # Yordamchi skriptlar (url, otp, dev:stop)
+├── scripts/                 # Yordamchi skriptlar (share, url, otp, dev:stop)
+│   └── lib/tunnel.mjs       # Ommaviy havola (Cloudflare tunneli)
 ├── docker-compose.yml       # Lokal PostgreSQL + Redis
 ├── Dockerfile               # Production image
 └── next.config.ts           # Next.js va xavfsizlik sozlamalari

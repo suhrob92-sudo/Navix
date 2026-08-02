@@ -48,3 +48,6 @@ next-env.d.ts
 
 # Fonda ishlayotgan server log fayli
 dev.log
+
+# Yordamchi vositalar keshi (cloudflared, tunnel loglari)
+/.cache

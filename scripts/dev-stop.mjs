@@ -1,7 +1,9 @@
 import { execSync } from 'node:child_process';
 
+import { stopTunnel } from './lib/tunnel.mjs';
+
 /**
- * Fonda ishlayotgan dev serverni to'xtatadi.
+ * Fonda ishlayotgan dev serverni (va ochiq havolani) to'xtatadi.
  *
  * Nima uchun alohida skript, oddiy `pkill` emas:
  * `pkill -f "next dev"` buyrug'ining O'ZI ham "next dev" matnini o'z ichiga
@@ -45,8 +47,13 @@ for (const line of listProcesses()) {
   }
 }
 
+// Server o'chgach ommaviy havola ham keraksiz — uni ochiq qoldirmaymiz.
+const tunnelStopped = stopTunnel();
+
 if (stopped.length > 0) {
-  console.info(`\n⏹  Server toʻxtatildi (${stopped.length} ta jarayon)\n`);
+  console.info(`\n⏹  Server toʻxtatildi (${stopped.length} ta jarayon)`);
 } else {
-  console.info('\nℹ️  Ishlayotgan server topilmadi\n');
+  console.info('\nℹ️  Ishlayotgan server topilmadi');
 }
+
+console.info(tunnelStopped ? '⏹  Ommaviy havola yopildi\n' : '');
