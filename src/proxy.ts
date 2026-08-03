@@ -32,6 +32,15 @@ const PROTECTED_PREFIXES = [
   '/security',
   '/wallet',
   '/payments',
+  /**
+   * Admin panel.
+   *
+   * Bu yerda faqat "kirganmi?" tekshiriladi — ROL tekshiruvi bo'lmaydi,
+   * chunki rol tokenda va uni ochish uchun maxfiy kalit kerak (bu fayl
+   * har so'rovda ishlaydi, tez bo'lishi shart). Haqiqiy himoya
+   * `/api/v1/admin/*` endpointlarida: `requirePermission()`.
+   */
+  '/admin',
 ];
 
 /** Kirgan foydalanuvchiga keraksiz sahifalar (kirish, ro'yxatdan o'tish). */

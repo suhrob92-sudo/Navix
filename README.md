@@ -3,13 +3,15 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 7-bosqich yakunlandi.
+> **Holat:** 8-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
 > internet, mobil aloqa, TV — 14 ta provayder, saqlangan hisoblar, chek),
-> **bildirishnomalar** va **AI Yordamchi** — oddiy tilda yozilgan
-> buyruqni tushunib, to'lov va o'tkazmani bajaradi.
+> **bildirishnomalar**, **AI Yordamchi** — oddiy tilda yozilgan
+> buyruqni tushunib, to'lov va o'tkazmani bajaradi — va **admin panel**:
+> xizmatlarni kodga tegmasdan qo'shish, foydalanuvchilarni boshqarish,
+> tranzaksiyalarni kuzatish.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -71,6 +73,7 @@ npm run dev
 | `npm run share`       | Ommaviy havola ochadi (GitHub yoki Cloudflare tunneli)            |
 | `npm run url`         | Ochiq havolani qayta chiqaradi (yangisini ochmaydi)               |
 | `npm run otp`         | Oxirgi SMS tasdiqlash kodini topib beradi                         |
+| `npm run role:grant`  | Foydalanuvchiga rol beradi (birinchi adminni yaratish uchun)      |
 | `npm run build`       | Production uchun yig'adi                                          |
 | `npm run start`       | Yig'ilgan ilovani ishga tushiradi                                 |
 | `npm run verify`      | Turlar + lint + testlar — hammasini birdan tekshiradi             |
@@ -434,6 +437,96 @@ oqimning qolgan qismi o'zgarmaydi.
 
 ---
 
+## Admin panel
+
+Manzil: `/admin`. Ilova ichida esa **Profil → Admin panel** (havola faqat
+ruxsati borlarga ko'rinadi).
+
+### Nima uchun kerak edi
+
+7-bosqichgacha yangi provayder qo'shish yoki tarifni o'zgartirish uchun
+`src/config/service-providers.ts` faylini tahrirlab, ilovani qayta
+chiqarish kerak edi. Real ishda bu ishlamaydi: "Beeline chegarani
+o'zgartirdi" degan xabar kelganda hech kim dasturchini kutib o'tirmaydi.
+
+### To'rtta bo'lim
+
+| Bo'lim           | Nima qiladi                                                            |
+| ---------------- | ---------------------------------------------------------------------- |
+| Ko'rsatkichlar   | Foydalanuvchilar, hamyonlardagi umumiy qoldiq, kunlik va haftalik hajm |
+| Xizmatlar        | Provayder qo'shish, tahrirlash, o'chirish (yumshoq)                    |
+| Foydalanuvchilar | Qidirish, batafsil ko'rish, bloklash va tiklash                        |
+| Tranzaksiyalar   | Barcha hamyon amallari — faqat o'qish uchun                            |
+
+### Birinchi adminni qanday yaratish
+
+Tovuq va tuxum muammosi: admin panelda rol berish mumkin, lekin panelga
+kirish uchun allaqachon ADMIN roli kerak. Shuning uchun birinchi admin
+terminaldan tayinlanadi:
+
+```bash
+npm run role:grant -- 901234567              # ADMIN qiladi
+npm run role:grant -- 901234567 SUPER_ADMIN  # bosh admin
+npm run role:grant -- 901234567 ADMIN remove # rolni olib tashlaydi
+```
+
+Rol berilgandan keyin **ilovadan chiqib, qaytadan kiring** — rollar kirish
+tokeni (JWT) ichida saqlanadi va eski token hali eski rollarni ko'rsatadi.
+
+### Uchta xavfsizlik qoidasi
+
+**1. Admin pulni qo'lda harakatlantira olmaydi.** Balansni o'zgartirish
+funksiyasi ataylab yozilmagan. Qo'lda o'zgartirilgan balans buxgalteriya
+daftari (`wallet_transactions`) bilan mos kelmay qoladi va hisobni
+tekshirib bo'lmaydi. Pulni qaytarish kerak bo'lsa — alohida REFUND amali
+yoziladi.
+
+**2. Bloklanganda sessiyalar darhol bekor qilinadi.** Bu eng oson
+unutiladigan joy: rollar va kirish huquqi JWT ichida, JWT esa 15 daqiqa
+yashaydi. Sessiya bekor qilinmasa, bloklangan odam yana 15 daqiqa
+ishlayverardi — pul o'tkazishga yetadi.
+
+**3. Admin o'zini ham, boshqa adminni ham bloklay olmaydi.** Birinchisi
+oxirgi adminni tasodifan yo'qotishdan saqlaydi, ikkinchisi ikki admin
+o'rtasidagi "urush"ning oldini oladi. Adminni faqat `SUPER_ADMIN`
+bloklay oladi.
+
+Har bir admin amali audit jurnaliga yoziladi: kim, qachon, nimani
+o'zgartirdi va nima sababdan.
+
+### Hisob raqami naqshi — eng nozik joy
+
+Provayder qo'shishda "tekshirish naqshi" (regex) so'raladi. Bu — admin
+yozadigan, lekin **serverda bajariladigan** satr. Ikkita jiddiy xavf bor:
+
+- **ReDoS.** `^(\d+)+$` kabi naqsh 29 belgilik noto'g'ri satrda **11
+  soniya** ishlaydi (o'lchab ko'rildi) va uzunlik oshgani sari
+  eksponensial o'sadi. Node bir oqimli — bitta bunday so'rov butun
+  serverni to'xtatadi.
+- **Juda keng naqsh.** Langarsiz `\d{10}` naqshi `salom1234567890salom`
+  ni ham qabul qiladi, ya'ni pul mavjud bo'lmagan hisobga ketishi mumkin.
+
+Yechim — `src/modules/admin/account-regex.ts`: faqat sanab o'tilgan
+sintaksisga ruxsat beriladi. Eng muhimi, **qavs `(` `)` umuman
+taqiqlangan** — halokatli qaytish uchun ichida takrorlagichi bor guruh
+kerak, guruh bo'lmasa bunday naqshni yozib bo'lmaydi.
+
+Formada uchta yordam bor: tayyor qoliplar (tugma bosiladi), jonli sinov
+maydoni (namunaviy raqam kiritiladi va darhol ✓/✗ ko'rinadi) va
+xavfsizlik tekshiruvi.
+
+### Kod nima uchun o'zgarmaydi
+
+Provayder kodi (`hududgaz`) yaratilgandan keyin tahrirlanmaydi: u
+`npm run db:seed` uchun kalit. Kod o'zgarsa keyingi seed eski nomdagi
+provayderni qayta yaratardi va ro'yxatda ikkita bir xil xizmat paydo
+bo'lardi.
+
+Xuddi shu sababdan **o'chirish endpointi yo'q** — faqat `isActive: false`.
+Provayder o'chirilsa unga bog'langan to'lovlar tarixi buzilardi.
+
+---
+
 ## Loyiha tuzilishi
 
 ```
@@ -459,10 +552,17 @@ Navix/
 │   │   ├── auth/            # Autentifikatsiya (JWT, OTP, sessiyalar)
 │   │   ├── profile/         # Profil va sozlamalar
 │   │   ├── address/         # Manzillar (umumiy — barcha xizmatlar uchun)
-│   │   └── notification/    # Bildirishnomalar
+│   │   ├── wallet/          # Hamyon: balans, to'ldirish, o'tkazma
+│   │   ├── payment/         # Xizmat to'lovlari (kommunal, internet...)
+│   │   ├── notification/    # Bildirishnomalar
+│   │   ├── assistant/       # AI Yordamchi (niyat tahlili, slot to'ldirish)
+│   │   └── admin/           # Admin panel (xizmatlar, foydalanuvchilar)
 │   ├── config/
 │   │   ├── modules.ts       # SUPER APP MODULLAR REYESTRI
 │   │   ├── rbac.ts          # Rollar va ruxsatlar
+│   │   ├── service-providers.ts # To'lov xizmatlari (seed manbasi)
+│   │   ├── app-nav.ts       # Ilova navigatsiyasi
+│   │   ├── admin-nav.ts     # Admin panel navigatsiyasi
 │   │   ├── cabinet-nav.ts   # Kabinet navigatsiyasi
 │   │   └── site.ts          # Brend sozlamalari
 │   ├── hooks/               # Qayta ishlatiladigan React hook'lar
@@ -476,6 +576,7 @@ Navix/
 │       ├── logger.ts        # Jurnal yozuvchi
 │       └── utils.ts         # Yordamchi funksiyalar
 ├── scripts/                 # Yordamchi skriptlar (share, url, otp, dev:stop)
+│   ├── grant-role.ts        # Foydalanuvchiga rol berish (birinchi admin)
 │   └── lib/tunnel.mjs       # Ommaviy havola (Cloudflare tunneli)
 ├── docker-compose.yml       # Lokal PostgreSQL + Redis
 ├── Dockerfile               # Production image
@@ -590,6 +691,20 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 | GET   | `/`     | Ro'yxat (sahifalab) + o'qilmaganlar |
 | PATCH | `/`     | Barchasini o'qilgan deb belgilash   |
 | PATCH | `/{id}` | Bittasini o'qilgan deb belgilash    |
+
+**Admin** (`/api/v1/admin/...`) — har biri alohida ruxsat talab qiladi
+
+| Metod | Manzil            | Tavsif                              | Kerakli ruxsat              |
+| ----- | ----------------- | ----------------------------------- | --------------------------- |
+| GET   | `/stats`          | Platforma ko'rsatkichlari           | `platform:admin:access`     |
+| GET   | `/providers`      | Barcha xizmatlar (o'chirilgani ham) | `platform:admin:access`     |
+| POST  | `/providers`      | Yangi xizmat qo'shish               | `platform:provider:manage`  |
+| GET   | `/providers/{id}` | Bitta xizmat                        | `platform:admin:access`     |
+| PATCH | `/providers/{id}` | Xizmatni tahrirlash                 | `platform:provider:manage`  |
+| GET   | `/users`          | Foydalanuvchilar ro'yxati           | `platform:user:read`        |
+| GET   | `/users/{id}`     | Foydalanuvchi haqida batafsil       | `platform:user:read`        |
+| PATCH | `/users/{id}`     | Holatni o'zgartirish (bloklash)     | `platform:user:suspend`     |
+| GET   | `/transactions`   | Barcha hamyon amallari              | `platform:transaction:read` |
 
 ---
 
@@ -732,7 +847,10 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **1-bosqich** — Poydevor: arxitektura, baza sxemasi, dizayn tizimi, API qatlami, Docker, testlar
 - [x] **2-bosqich** — Autentifikatsiya: ro'yxatdan o'tish, SMS tasdiqlash, kirish, sessiyalar, parolni tiklash
 - [x] **3-bosqich** — Kabinet: profil, manzillar, qurilmalar, bildirishnomalar, xavfsizlik
-- [ ] **4-bosqich** — Hamyon va to'lovlar
-- [ ] **5-bosqich** — Birinchi modul (taksi yoki ovqat yetkazish)
-- [ ] **6-bosqich** — AI yordamchi
-- [ ] **7-bosqich** — Admin panel
+- [x] **4-bosqich** — Hamyon: balans, to'ldirish, o'tkazma, amallar tarixi
+- [x] **5-bosqich** — To'lovlar: 14 ta provayder, saqlangan hisoblar, cheklar
+- [x] **6-bosqich** — Bildirishnomalar: hodisalar katalogi, o'qilmaganlar
+- [x] **7-bosqich** — AI Yordamchi: niyatni tushunish va buyruq tayyorlash
+- [x] **8-bosqich** — Admin panel: xizmatlar, foydalanuvchilar, tranzaksiyalar, statistika
+- [ ] **9-bosqich** — Birinchi xizmat moduli (taksi yoki ovqat yetkazish)
+- [ ] **10-bosqich** — Real to'lov integratsiyasi (Payme / Click)

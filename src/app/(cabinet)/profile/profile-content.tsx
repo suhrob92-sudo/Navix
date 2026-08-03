@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, LogOut, ShieldCheck, Wallet } from 'lucide-react';
+import { ChevronRight, LayoutGrid, LogOut, ShieldCheck, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -11,6 +11,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PROFILE_MENU } from '@/config/app-nav';
+import { Permission, hasPermission } from '@/config/rbac';
 import { useApiQuery } from '@/hooks/use-api';
 import { formatUzPhone } from '@/lib/phone';
 import { formatTiyin } from '@/lib/money';
@@ -40,7 +41,17 @@ export interface ProfileResponse {
 /** Profil sahifasi — maketdagi kabi menyu ko'rinishida. */
 export function ProfileContent() {
   const router = useRouter();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
+
+  /**
+   * Admin panel havolasi faqat ruxsati borlarga ko'rinadi.
+   *
+   * Rollar kirish tokenidan olinadi, ya'ni qo'shimcha so'rov kerak emas.
+   * Bu — qulaylik: havolani yashirish himoya emas, haqiqiy tekshiruv
+   * serverda (`requirePermission`).
+   */
+  const isAdmin = hasPermission(user?.roles ?? [], Permission.PLATFORM_ADMIN_ACCESS);
+
   const { data, isLoading, error } = useApiQuery<ProfileResponse>('/api/v1/profile');
   const wallet = useApiQuery<WalletSummary>('/api/v1/wallet');
 
@@ -132,6 +143,25 @@ export function ProfileContent() {
 
           <ChevronRight className="text-muted-foreground size-5 shrink-0" aria-hidden="true" />
         </Link>
+
+        {/* Admin panel — faqat ruxsati borlarga */}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className="bg-card border-border flex items-center gap-3 rounded-2xl border p-4 transition-transform active:scale-[0.99]"
+          >
+            <span className="bg-primary/10 text-primary inline-flex size-11 items-center justify-center rounded-xl">
+              <LayoutGrid className="size-5" aria-hidden="true" />
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Admin panel</p>
+              <p className="text-muted-foreground text-xs">Xizmatlar, foydalanuvchilar va statistika</p>
+            </div>
+
+            <ChevronRight className="text-muted-foreground size-5 shrink-0" aria-hidden="true" />
+          </Link>
+        )}
 
         {/* Menyu */}
         <nav className="bg-card border-border divide-border divide-y overflow-hidden rounded-2xl border">

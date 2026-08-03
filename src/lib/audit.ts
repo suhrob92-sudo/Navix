@@ -30,6 +30,17 @@ export const AuditAction = {
   WALLET_TOP_UP: 'wallet.top_up',
   WALLET_TRANSFER: 'wallet.transfer',
   SERVICE_PAYMENT: 'payment.service',
+
+  // Admin amallari.
+  //
+  // Bular MAJBURIY yoziladi: admin butun platformaga ta'sir qiladi,
+  // shuning uchun "kim tarifni o'zgartirdi", "kim foydalanuvchini
+  // blokladi" degan savolga har doim javob bo'lishi kerak.
+  ADMIN_PROVIDER_CREATED: 'admin.provider.created',
+  ADMIN_PROVIDER_UPDATED: 'admin.provider.updated',
+  ADMIN_USER_STATUS_CHANGED: 'admin.user.status_changed',
+  ADMIN_ROLE_GRANTED: 'admin.role.granted',
+  ADMIN_ROLE_REVOKED: 'admin.role.revoked',
 } as const;
 
 export type AuditActionValue = (typeof AuditAction)[keyof typeof AuditAction];

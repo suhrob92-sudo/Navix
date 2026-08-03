@@ -81,6 +81,26 @@ export function formatUzDateTime(value: Date | string, style: 'long' | 'short' =
   return `${formatUzDate(value, style)}, ${formatUzTime(value)}`;
 }
 
+/**
+ * Toshkent bo'yicha kun boshini (soat 00:00) qaytaradi.
+ *
+ * Statistika uchun zarur: "bugun nechta to'lov bo'ldi?" degan savolga
+ * javob serverning vaqt mintaqasiga bog'liq bo'lmasligi kerak. Server
+ * Frankfurtda tursa ham "bugun" — Toshkentdagi bugun.
+ */
+export function startOfTashkentDay(value: Date = new Date()): Date {
+  const shifted = toTashkent(value);
+  const localMidnight = Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate());
+
+  // Toshkent yarim tunini haqiqiy UTC vaqtiga qaytaramiz.
+  return new Date(localMidnight - TASHKENT_OFFSET_MINUTES * 60_000);
+}
+
+/** Toshkent bo'yicha `days` kun oldingi kun boshi. */
+export function startOfTashkentDaysAgo(days: number, value: Date = new Date()): Date {
+  return new Date(startOfTashkentDay(value).getTime() - days * 24 * 60 * 60_000);
+}
+
 /** Ikki sana Toshkent bo'yicha bir kunga to'g'ri keladimi. */
 function isSameTashkentDay(a: Date, b: Date): boolean {
   return (

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatRelativeUz, formatUzDate, formatUzDateTime, formatUzTime } from '@/lib/date';
+import {
+  formatRelativeUz,
+  formatUzDate,
+  formatUzDateTime,
+  formatUzTime,
+  startOfTashkentDay,
+  startOfTashkentDaysAgo,
+} from '@/lib/date';
 
 /**
  * Barcha kutilgan natijalar ANIQ yozilgan.
@@ -102,5 +109,63 @@ describe('formatRelativeUz', () => {
   it("kun chegarasini Toshkent bo'yicha hisoblaydi", () => {
     // 2-avgust 20:00 UTC = 3-avgust 01:00 Toshkentda, ya'ni BUGUN.
     expect(formatRelativeUz('2026-08-02T20:00:00.000Z', now)).toBe('Bugun, 01:00');
+  });
+});
+
+/**
+ * Kun chegarasi — admin statistikasining poydevori.
+ *
+ * "Bugun nechta to'lov bo'ldi?" degan savolga javob server qayerda
+ * turgani bilan o'zgarmasligi kerak. Toshkentda soat 01:00 bo'lganda
+ * UTC'da hali kecha — agar UTC ishlatilsa, tunda qilingan to'lovlar
+ * "kechagi" bo'lib qolardi.
+ */
+describe('startOfTashkentDay', () => {
+  it("Toshkentdagi yarim tunni UTC'da to'g'ri belgilaydi", () => {
+    // 3-avgust 11:03 Toshkentda → kun boshi 3-avgust 00:00 Toshkentda
+    // → UTC'da 2-avgust 19:00.
+    const result = startOfTashkentDay(new Date('2026-08-03T06:03:00.000Z'));
+
+    expect(result.toISOString()).toBe('2026-08-02T19:00:00.000Z');
+  });
+
+  it("UTC bo'yicha hali kecha bo'lgan payt ham BUGUNGA kiradi", () => {
+    // 2-avgust 20:00 UTC = 3-avgust 01:00 Toshkentda.
+    const result = startOfTashkentDay(new Date('2026-08-02T20:00:00.000Z'));
+
+    expect(result.toISOString()).toBe('2026-08-02T19:00:00.000Z');
+  });
+
+  it("Toshkent yarim tunining o'zi yangi kunga tegishli", () => {
+    const result = startOfTashkentDay(new Date('2026-08-02T19:00:00.000Z'));
+
+    expect(result.toISOString()).toBe('2026-08-02T19:00:00.000Z');
+  });
+
+  it('bir soniya oldin — hali eski kun', () => {
+    const result = startOfTashkentDay(new Date('2026-08-02T18:59:59.999Z'));
+
+    expect(result.toISOString()).toBe('2026-08-01T19:00:00.000Z');
+  });
+
+  it('oy chegarasidan oshib ketmaydi', () => {
+    // 1-avgust 02:00 Toshkentda → kun boshi 31-iyul 19:00 UTC.
+    const result = startOfTashkentDay(new Date('2026-07-31T21:00:00.000Z'));
+
+    expect(result.toISOString()).toBe('2026-07-31T19:00:00.000Z');
+  });
+});
+
+describe('startOfTashkentDaysAgo', () => {
+  it('aniq shuncha kun orqaga suradi', () => {
+    const result = startOfTashkentDaysAgo(7, new Date('2026-08-03T06:03:00.000Z'));
+
+    expect(result.toISOString()).toBe('2026-07-26T19:00:00.000Z');
+  });
+
+  it('nol kun — bugungi kun boshi', () => {
+    const now = new Date('2026-08-03T06:03:00.000Z');
+
+    expect(startOfTashkentDaysAgo(0, now).toISOString()).toBe(startOfTashkentDay(now).toISOString());
   });
 });

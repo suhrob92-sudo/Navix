@@ -16,6 +16,17 @@ export const Permission = {
   PLATFORM_USER_UPDATE: 'platform:user:update',
   PLATFORM_USER_SUSPEND: 'platform:user:suspend',
   PLATFORM_AUDIT_READ: 'platform:audit:read',
+  /** Xizmat provayderlarini qo'shish va tahrirlash. */
+  PLATFORM_PROVIDER_MANAGE: 'platform:provider:manage',
+  /** Barcha foydalanuvchilarning tranzaksiyalarini ko'rish. */
+  PLATFORM_TRANSACTION_READ: 'platform:transaction:read',
+  /**
+   * Foydalanuvchiga rol berish va olib tashlash.
+   *
+   * Ataylab FAQAT `SUPER_ADMIN` da: bu ruxsatga ega odam o'ziga
+   * istalgan huquqni bera oladi, ya'ni u butun tizimning kaliti.
+   */
+  PLATFORM_ROLE_MANAGE: 'platform:role:manage',
 
   // Profil (har bir foydalanuvchi o'zi uchun)
   PROFILE_READ: 'profile:self:read',
@@ -97,9 +108,15 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
     Permission.MERCHANT_STAFF_MANAGE,
   ],
 
+  /**
+   * Qo'llab-quvvatlash xodimi admin panelga kiradi, lekin faqat
+   * KO'RISH uchun: provayder tahrirlash va bloklash unda yo'q.
+   */
   [Role.SUPPORT]: [
     ...CUSTOMER_PERMISSIONS,
+    Permission.PLATFORM_ADMIN_ACCESS,
     Permission.PLATFORM_USER_READ,
+    Permission.PLATFORM_TRANSACTION_READ,
     Permission.PAYMENT_REFUND,
     Permission.ORDER_MANAGE,
   ],
@@ -111,6 +128,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
     Permission.PLATFORM_USER_UPDATE,
     Permission.PLATFORM_USER_SUSPEND,
     Permission.PLATFORM_AUDIT_READ,
+    Permission.PLATFORM_PROVIDER_MANAGE,
+    Permission.PLATFORM_TRANSACTION_READ,
     Permission.PAYMENT_REFUND,
     Permission.CATALOG_PRODUCT_MANAGE,
     Permission.ORDER_MANAGE,

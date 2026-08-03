@@ -1,0 +1,150 @@
+import { z } from 'zod';
+
+import { paginationQuerySchema } from '@/lib/api/pagination';
+import { MAX_ACCOUNT_REGEX_LENGTH, validateAccountRegex } from '@/modules/admin/account-regex';
+
+/**
+ * Admin panel uchun validatsiya.
+ *
+ * MUHIM: bu sxemalar admin YOZADIGAN ma'lumot uchun. Admin ishonchli
+ * odam bo'lsa ham, xato yozishi mumkin — masalan chegarani teskari
+ * kiritishi yoki naqshni buzib yozishi. Bunday xato butun provayderni
+ * ishdan chiqaradi, shuning uchun tekshiruv oddiy foydalanuvchinikidan
+ * ham qattiqroq.
+ */
+
+const CATEGORIES = ['UTILITY', 'INTERNET', 'MOBILE', 'TV'] as const;
+
+const COLORS = [
+  'amber',
+  'rose',
+  'blue',
+  'orange',
+  'green',
+  'pink',
+  'teal',
+  'violet',
+  'sky',
+  'indigo',
+  'slate',
+] as const;
+
+/**
+ * Provayder kodi — barqaror identifikator.
+ *
+ * Faqat kichik harf, raqam va chiziqcha: `hududgaz`, `hududiy-elektr`.
+ * Bu kod `npm run db:seed` uchun kalit va `ProviderIcon` da ikonka
+ * tanlashda ishlatiladi, shuning uchun shakli qat'iy.
+ */
+const providerCodeSchema = z
+  .string()
+  .trim()
+  .min(3, 'Kod kamida 3 ta belgi')
+  .max(50, 'Kod 50 ta belgidan uzun')
+  .regex(/^[a-z0-9-]+$/, "Kodda faqat kichik harf, raqam va '-' bo'lishi mumkin");
+
+/** Naqsh — xavfsizlik tekshiruvidan o'tishi shart. */
+const accountRegexSchema = z
+  .string()
+  .trim()
+  .max(MAX_ACCOUNT_REGEX_LENGTH, `Naqsh ${MAX_ACCOUNT_REGEX_LENGTH} belgidan uzun`)
+  .superRefine((value, ctx) => {
+    for (const message of validateAccountRegex(value)) {
+      ctx.addIssue({ code: 'custom', message });
+    }
+  });
+
+/** Summa SO'MDA — bazada tiyinga o'giriladi. */
+const amountSomSchema = z
+  .number({ message: 'Summani kiriting' })
+  .int("Summa butun so'mda bo'lishi kerak")
+  .min(100, "Eng kami 100 so'm")
+  .max(1_000_000_000, "1 mlrd so'mdan oshmasligi kerak");
+
+/** Provayder maydonlari — yaratishda ham, tahrirlashda ham bir xil. */
+const providerFieldsSchema = z.object({
+  name: z.string().trim().min(2, 'Nomi kamida 2 ta belgi').max(120, 'Nomi juda uzun'),
+  category: z.enum(CATEGORIES, { message: "Toifa noto'g'ri" }),
+  description: z.string().trim().max(255, 'Izoh juda uzun').nullable().default(null),
+  accountLabel: z.string().trim().min(3, 'Maydon nomi kamida 3 ta belgi').max(60, 'Juda uzun'),
+  accountHint: z.string().trim().min(3, 'Namuna kamida 3 ta belgi').max(60, 'Juda uzun'),
+  accountRegex: accountRegexSchema,
+  minAmountSom: amountSomSchema,
+  maxAmountSom: amountSomSchema,
+  color: z.enum(COLORS, { message: "Rang noto'g'ri" }),
+  sortOrder: z.number().int().min(0).max(9_999).default(100),
+  isActive: z.boolean().default(true),
+});
+
+/**
+ * POST /api/v1/admin/providers
+ *
+ * Chegaralar solishtiriladi: eng kichik summa eng kattasidan katta
+ * bo'lib qolsa, provayderga umuman to'lab bo'lmaydi.
+ */
+export const createProviderSchema = providerFieldsSchema
+  .extend({ code: providerCodeSchema })
+  .superRefine((value, ctx) => {
+    if (value.minAmountSom > value.maxAmountSom) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['minAmountSom'],
+        message: 'Eng kichik summa eng kattasidan oshmasligi kerak',
+      });
+    }
+  });
+
+export type CreateProviderInput = z.infer<typeof createProviderSchema>;
+
+/**
+ * PATCH /api/v1/admin/providers/[id]
+ *
+ * `code` ataylab YO'Q: u seed uchun kalit va eski to'lovlar bilan
+ * bog'langan. O'zgartirilsa `npm run db:seed` dublikat yaratardi.
+ * Chegaralarni solishtirish esa xizmat qatlamida — u yerda eski
+ * qiymatlar ham ma'lum.
+ */
+export const updateProviderSchema = providerFieldsSchema.partial();
+
+export type UpdateProviderInput = z.infer<typeof updateProviderSchema>;
+
+/** GET /api/v1/admin/providers */
+export const adminProviderQuerySchema = z.object({
+  category: z.enum(['ALL', ...CATEGORIES]).default('ALL'),
+  /** Admin uchun o'chirilgan provayderlar ham ko'rinadi. */
+  status: z.enum(['ALL', 'ACTIVE', 'INACTIVE']).default('ALL'),
+  search: z.string().trim().min(1).max(120).optional(),
+});
+
+export type AdminProviderQuery = z.infer<typeof adminProviderQuerySchema>;
+
+/** GET /api/v1/admin/users */
+export const adminUserQuerySchema = paginationQuerySchema.extend({
+  status: z.enum(['ALL', 'PENDING_VERIFICATION', 'ACTIVE', 'SUSPENDED', 'DEACTIVATED']).default('ALL'),
+});
+
+export type AdminUserQuery = z.infer<typeof adminUserQuerySchema>;
+
+/**
+ * PATCH /api/v1/admin/users/[id]
+ *
+ * `PENDING_VERIFICATION` bu yerda yo'q: uni admin qo'lda qo'ya olmaydi,
+ * u faqat ro'yxatdan o'tishda tizim tomonidan beriladi. Orqaga qaytarish
+ * foydalanuvchini telefonini qayta tasdiqlashga majburlardi.
+ */
+export const updateUserStatusSchema = z.object({
+  status: z.enum(['ACTIVE', 'SUSPENDED', 'DEACTIVATED'], { message: "Holat noto'g'ri" }),
+  /** Bloklash sababi — audit jurnaliga yoziladi. */
+  reason: z.string().trim().min(3, 'Sababni yozing').max(255, 'Juda uzun').optional(),
+});
+
+export type UpdateUserStatusInput = z.infer<typeof updateUserStatusSchema>;
+
+/** GET /api/v1/admin/transactions */
+export const adminTransactionQuerySchema = paginationQuerySchema.extend({
+  type: z.enum(['ALL', 'TOP_UP', 'WITHDRAWAL', 'PAYMENT', 'REFUND', 'TRANSFER', 'BONUS']).default('ALL'),
+  direction: z.enum(['ALL', 'IN', 'OUT']).default('ALL'),
+  status: z.enum(['ALL', 'PENDING', 'COMPLETED', 'FAILED', 'REVERSED']).default('ALL'),
+});
+
+export type AdminTransactionQuery = z.infer<typeof adminTransactionQuerySchema>;
