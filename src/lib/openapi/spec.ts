@@ -32,6 +32,7 @@ export const openApiSpec = {
     { name: 'Notifications', description: 'Bildirishnomalar' },
     { name: 'Wallet', description: "Hamyon: balans, to'ldirish va o'tkazmalar" },
     { name: 'Payments', description: "Xizmat to'lovlari: kommunal, internet, mobil aloqa, TV" },
+    { name: 'Assistant', description: 'AI Yordamchi — matndan buyruq tayyorlaydi' },
   ],
   components: {
     securitySchemes: {
@@ -944,6 +945,60 @@ export const openApiSpec = {
     },
 
     // --- Manzillar --------------------------------------------------------
+    '/api/v1/assistant': {
+      post: {
+        tags: ['Assistant'],
+        summary: 'Yordamchiga xabar yuborish',
+        description:
+          "Matndan niyat aniqlanadi va yetishmayotgan ma'lumot so'raladi. Javobdagi `action` `confirm_` bilan boshlansa — bu FAQAT tayyorlangan buyruq, pul hali harakatlanmagan. Foydalanuvchi tasdiqlagach mijoz odatdagi endpointga (`/api/v1/payments`, `/api/v1/wallet/transfer`, `/api/v1/wallet/topup`) murojaat qiladi va barcha tekshiruvlar o'sha yerda ishlaydi.\n\nSuhbat holati (`state`) serverda saqlanmaydi — javob bilan qaytariladi va keyingi so'rovda yuboriladi.",
+        operationId: 'assistantMessage',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['message'],
+                properties: {
+                  message: { type: 'string', minLength: 1, maxLength: 500, examples: ["gazga 50 ming to'la"] },
+                  state: {
+                    type: 'object',
+                    description: "Oldingi javobdan qaytgan holat (ko'p qadamli suhbat uchun).",
+                    properties: {
+                      intent: { type: 'string' },
+                      slots: { type: 'object' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'Yordamchi javobi',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  required: ['text', 'suggestions', 'action', 'state'],
+                  properties: {
+                    text: { type: 'string' },
+                    suggestions: { type: 'array', items: { type: 'string' } },
+                    action: {
+                      type: 'object',
+                      description: 'kind: none | navigate | confirm_topup | confirm_transfer | confirm_payment',
+                      properties: { kind: { type: 'string' } },
+                    },
+                    state: { type: 'object' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     '/api/v1/payments/providers': {
       get: {
         tags: ['Payments'],

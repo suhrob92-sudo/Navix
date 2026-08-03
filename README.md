@@ -3,12 +3,13 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 6-bosqich yakunlandi.
+> **Holat:** 7-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
-> internet, mobil aloqa, TV — 14 ta provayder, saqlangan hisoblar, chek)
-> va **bildirishnomalar** (har amaldan keyin xabar, o'qilmaganlar soni).
+> internet, mobil aloqa, TV — 14 ta provayder, saqlangan hisoblar, chek),
+> **bildirishnomalar** va **AI Yordamchi** — oddiy tilda yozilgan
+> buyruqni tushunib, to'lov va o'tkazmani bajaradi.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -389,6 +390,47 @@ npm run dev:stop   # serverni to'xtatish
 
 > **Eslatma:** `npm run dev` (fonsiz) terminalni to'liq band qiladi va
 > telefonda noqulay. Telefondan ishlaganda doim `npm run dev:bg` ishlating.
+
+---
+
+## AI Yordamchi
+
+Foydalanuvchi oddiy tilda yozadi, yordamchi buyruqni tayyorlaydi:
+
+```
+👤 gazga to'la
+🤖 Hududgaz uchun shaxsiy hisob raqamini yozing (masalan 1234567890).
+👤 1234567890
+🤖 Hududgaz uchun qancha to'laymiz?
+👤 30 ming
+🤖 Hududgaz — 1234567890 hisobiga 30 000 so'm to'laymizmi?   [Tasdiqlash]
+```
+
+Hammasi bitta jumlada ham bo'ladi: `gazga 1234567890 hisobiga 45 ming to'la`.
+
+### Nima uchun til modeli (LLM) emas
+
+LLM kuchli, lekin pul bilan ishlaydigan buyruqda uchta jiddiy kamchiligi
+bor: pullik API kaliti kerak, har javob 1-3 soniya kutadi va eng yomoni —
+ba'zan "o'ylab topadi" (hallucination). Noto'g'ri summa yoki noto'g'ri
+raqam esa qaytarib bo'lmaydigan xato demak.
+
+Shuning uchun `src/modules/assistant/intent.ts` da ANIQ qoidalar
+ishlatiladi: natija har doim bir xil, bepul va internetsiz ham ishlaydi.
+Til modeli keyinchalik FAQAT tushunilmagan matnlar uchun qo'shiladi —
+oqimning qolgan qismi o'zgarmaydi.
+
+### Uchta xavfsizlik qoidasi
+
+1. **Yordamchi pulni o'zi harakatlantirmaydi.** U faqat buyruq tayyorlaydi;
+   foydalanuvchi tugmani bosgach, mijoz odatdagi endpointga murojaat qiladi.
+   Shunda balans, chegara va takroriy so'rov tekshiruvlari o'z joyida
+   ishlaydi va ularni chetlab o'tib bo'lmaydi.
+2. **Tasdiqlashda aniq summa va qabul qiluvchi katta yozilgan** — bosishdan
+   oldin nima bo'layotgani ko'rinib turadi.
+3. **Telefon raqami summa deb o'qilmaydi.** "901234567 ga 50000 yubor"
+   buyrug'ida 901 234 567 so'm o'tkazilishi mumkin edi — raqam summadan
+   oldin ajratiladi va test buni doimiy tekshiradi.
 
 ---
 
