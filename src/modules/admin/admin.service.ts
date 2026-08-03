@@ -1,5 +1,6 @@
 import {
   Prisma,
+  RoleName,
   ServiceCategory,
   ServicePaymentStatus,
   TransactionDirection,
@@ -17,15 +18,21 @@ import { normalizeUzPhone } from '@/lib/phone';
 import { prisma } from '@/lib/prisma';
 import { Role, type RoleValue } from '@/config/rbac';
 import type { ServiceColor } from '@/config/modules';
+import { AUDIT_GROUP_ACTIONS } from '@/modules/admin/audit-actions';
 import type {
+  AdminAuditQuery,
+  AdminPaymentQuery,
   AdminProviderQuery,
   AdminTransactionQuery,
   AdminUserQuery,
   CreateProviderInput,
   UpdateProviderInput,
+  UpdateUserRoleInput,
   UpdateUserStatusInput,
 } from '@/modules/admin/admin.schemas';
 import type {
+  AdminAuditItem,
+  AdminPaymentItem,
   AdminProviderItem,
   AdminStats,
   AdminTopProvider,
@@ -45,11 +52,15 @@ import { revokeAllSessions } from '@/modules/auth/session.service';
  * o'zgartirdi" degan xabar kelganda dasturchi kutib o'tirmaydi.
  *
  * ── Asosiy qoida ──────────────────────────────────────────────────────
- * Admin PULNI QO'LDA HARAKATLANTIRMAYDI. Bu yerda balansni o'zgartirish
- * funksiyasi ataylab yo'q. Sababi: qo'lda o'zgartirilgan balans
- * buxgalteriya daftari (`wallet_transactions`) bilan mos kelmay qoladi
- * va hisobni tekshirib bo'lmaydi. Pulni qaytarish kerak bo'lsa —
- * alohida REFUND amali yoziladi (keyingi bosqichda).
+ * Admin BALANSNI QO'LDA O'ZGARTIRMAYDI. Bu yerda "balansga 50 000
+ * qo'shish" kabi funksiya ataylab yo'q. Sababi: qo'lda o'zgartirilgan
+ * balans buxgalteriya daftari (`wallet_transactions`) bilan mos kelmay
+ * qoladi va hisobni tekshirib bo'lmaydi.
+ *
+ * Pulni qaytarish esa bor, lekin u shu yerda emas —
+ * `payment.service.ts` dagi `refundPayment()` da. U aniq bir to'lovga
+ * bog'langan va daftarga `REFUND` yozuvini qo'shadi, ya'ni hisob
+ * baribir birlashadi.
  *
  * Shuning uchun bu modul faqat: KO'RADI va SOZLAYDI.
  */
@@ -604,6 +615,275 @@ export async function updateAdminUserStatus(
   );
 
   return getAdminUser(userId);
+}
+
+// ── Rollar ────────────────────────────────────────────────────────────
+
+/**
+ * Foydalanuvchiga rol beradi yoki olib tashlaydi.
+ *
+ * ── Uchta himoya ──────────────────────────────────────────────────────
+ *
+ * 1. O'Z ROLLARINI o'zgartirib bo'lmaydi. Bosh administrator o'zidan
+ *    SUPER_ADMIN ni olib tashlasa, uni qaytarib bera oladigan odam
+ *    qolmasligi mumkin — tizim boshqaruvsiz qoladi.
+ *
+ * 2. OXIRGI bosh administratorni olib tashlab bo'lmaydi. Bu tekshiruv
+ *    tranzaksiya ICHIDA, qulf ostida bajariladi: aks holda ikki xodim
+ *    bir vaqtda ikkita oxirgi SUPER_ADMIN ni olib tashlashi mumkin edi.
+ *
+ * 3. Rol o'zgargach BARCHA SESSIYALAR bekor qilinadi. Rollar JWT ichida
+ *    saqlanadi; sessiya bekor qilinmasa, olib tashlangan rol yana
+ *    15 daqiqa ishlayverardi.
+ */
+export async function updateUserRole(
+  actor: { userId: string; roles: readonly RoleValue[] },
+  userId: string,
+  input: UpdateUserRoleInput,
+  meta: OperationMeta = {},
+): Promise<AdminUserDetail> {
+  if (actor.userId === userId) {
+    throw new ForbiddenError("O'z rollaringizni o'zgartira olmaysiz");
+  }
+
+  const target = await prisma.user.findFirst({
+    where: { id: userId, deletedAt: null },
+    select: { id: true },
+  });
+
+  if (!target) {
+    throw new NotFoundError('Foydalanuvchi');
+  }
+
+  const role = await prisma.role.findUnique({
+    where: { name: input.role as RoleName },
+    select: { id: true, name: true },
+  });
+
+  if (!role) {
+    throw new ConflictError(`"${input.role}" roli bazada yo'q. "npm run db:seed" bajaring.`);
+  }
+
+  const revokedSessions = await prisma.$transaction(async (tx) => {
+    if (input.action === 'grant') {
+      await tx.userRoleAssignment.upsert({
+        where: { userId_roleId: { userId, roleId: role.id } },
+        update: {},
+        create: { userId, roleId: role.id },
+      });
+    } else {
+      // Oxirgi bosh administratorni yo'qotib qo'ymaslik.
+      if (role.name === Role.SUPER_ADMIN) {
+        const remaining = await tx.userRoleAssignment.count({
+          where: { roleId: role.id, userId: { not: userId }, user: { deletedAt: null } },
+        });
+
+        if (remaining === 0) {
+          throw new ConflictError(
+            'Bu oxirgi bosh administrator. Avval boshqa birovga shu rolni bering, keyin olib tashlang.',
+          );
+        }
+      }
+
+      await tx.userRoleAssignment.deleteMany({ where: { userId, roleId: role.id } });
+    }
+
+    // Rollar tokenda — eski token yangi holatni bilmaydi.
+    const result = await tx.session.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return result.count;
+  });
+
+  await recordAudit({
+    actorId: actor.userId,
+    action: input.action === 'grant' ? AuditAction.ADMIN_ROLE_GRANTED : AuditAction.ADMIN_ROLE_REVOKED,
+    resourceType: 'User',
+    resourceId: userId,
+    module: MODULE,
+    metadata: { role: role.name, revokedSessions },
+    ...meta,
+  });
+
+  logger.warn(
+    { actorId: actor.userId, userId, role: role.name, action: input.action, revokedSessions },
+    "Foydalanuvchi roli o'zgartirildi",
+  );
+
+  return getAdminUser(userId);
+}
+
+// ── To'lovlar ─────────────────────────────────────────────────────────
+
+/**
+ * Barcha foydalanuvchilarning xizmat to'lovlari.
+ *
+ * `listAdminTransactions` dan farqi: bu yerda SOHA ma'lumoti bor —
+ * qaysi provayder, qaysi hisob raqami, chek raqami. Murojaat kelganda
+ * xodim aynan shu ma'lumot bilan ishlaydi va shu yerdan pulni
+ * qaytara oladi.
+ */
+export async function listAdminPayments(
+  query: AdminPaymentQuery,
+): Promise<{ payments: AdminPaymentItem[]; total: number }> {
+  const { skip, take } = toPrismaPagination(query);
+
+  const where: Prisma.ServicePaymentWhereInput = {
+    ...(query.status === 'ALL' ? {} : { status: query.status as ServicePaymentStatus }),
+    ...(query.search ? buildPaymentSearch(query.search) : {}),
+  };
+
+  const [rows, total] = await Promise.all([
+    prisma.servicePayment.findMany({
+      where,
+      select: {
+        id: true,
+        accountNumber: true,
+        amount: true,
+        status: true,
+        receiptNumber: true,
+        createdAt: true,
+        refundedAt: true,
+        refundReason: true,
+        provider: { select: { name: true } },
+        user: { select: { id: true, phone: true, firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: query.order },
+      skip,
+      take,
+    }),
+    prisma.servicePayment.count({ where }),
+  ]);
+
+  return {
+    payments: rows.map((row) => ({
+      id: row.id,
+      accountNumber: row.accountNumber,
+      amount: tiyinToNumber(row.amount),
+      status: row.status,
+      receiptNumber: row.receiptNumber,
+      providerName: row.provider.name,
+      createdAt: row.createdAt.toISOString(),
+      refundedAt: row.refundedAt?.toISOString() ?? null,
+      refundReason: row.refundReason,
+      user: {
+        id: row.user.id,
+        phone: row.user.phone,
+        fullName: [row.user.firstName, row.user.lastName].filter(Boolean).join(' ') || null,
+      },
+    })),
+    total,
+  };
+}
+
+/** To'lovni chek raqami, hisob raqami yoki mijoz telefoni bo'yicha qidirish. */
+function buildPaymentSearch(search: string): Prisma.ServicePaymentWhereInput {
+  const normalizedPhone = normalizeUzPhone(search);
+
+  return {
+    OR: [
+      { receiptNumber: { contains: search, mode: 'insensitive' } },
+      { accountNumber: { contains: search } },
+      { user: normalizedPhone ? { phone: normalizedPhone } : { phone: { contains: search } } },
+    ],
+  };
+}
+
+// ── Audit jurnali ─────────────────────────────────────────────────────
+
+/**
+ * "Kim, qachon, nima qildi" jurnali.
+ *
+ * Nima uchun kerak: nizo chiqqanda ("men bu to'lovni qilmaganman",
+ * "tarifni kim o'zgartirdi?") yagona ishonchli manba shu jurnal.
+ *
+ * Yozuvlar HECH QACHON o'chirilmaydi va tahrirlanmaydi — shuning uchun
+ * bu yerda faqat o'qish funksiyasi bor.
+ */
+export async function listAuditLogs(
+  query: AdminAuditQuery,
+): Promise<{ entries: AdminAuditItem[]; total: number }> {
+  const { skip, take } = toPrismaPagination(query);
+
+  const where: Prisma.AuditLogWhereInput = {
+    ...(query.action
+      ? { action: query.action }
+      : query.group === 'ALL'
+        ? {}
+        : { action: { in: [...AUDIT_GROUP_ACTIONS[query.group]] } }),
+    ...(query.search ? buildAuditSearch(query.search) : {}),
+  };
+
+  const [rows, total] = await Promise.all([
+    prisma.auditLog.findMany({
+      where,
+      select: {
+        id: true,
+        action: true,
+        resourceType: true,
+        resourceId: true,
+        module: true,
+        ipAddress: true,
+        metadata: true,
+        createdAt: true,
+        actor: { select: { id: true, phone: true, firstName: true, lastName: true } },
+      },
+      orderBy: { createdAt: query.order },
+      skip,
+      take,
+    }),
+    prisma.auditLog.count({ where }),
+  ]);
+
+  return {
+    entries: rows.map((row) => ({
+      id: row.id,
+      action: row.action,
+      resourceType: row.resourceType,
+      resourceId: row.resourceId,
+      module: row.module,
+      ipAddress: row.ipAddress,
+      metadata: toPlainMetadata(row.metadata),
+      createdAt: row.createdAt.toISOString(),
+      actor: row.actor
+        ? {
+            id: row.actor.id,
+            phone: row.actor.phone,
+            fullName: [row.actor.firstName, row.actor.lastName].filter(Boolean).join(' ') || null,
+          }
+        : null,
+    })),
+    total,
+  };
+}
+
+/**
+ * `Json` ustunini xavfsiz obyektga aylantiradi.
+ *
+ * Bazadagi qiymat massiv, son yoki matn ham bo'lishi mumkin — interfeys
+ * esa faqat obyektni kutadi. Mos kelmasa `null` qaytaramiz: jurnal
+ * sahifasi bitta g'alati yozuv tufayli yiqilmasligi kerak.
+ */
+function toPlainMetadata(value: Prisma.JsonValue | null): Record<string, unknown> | null {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+/** Jurnalni bajaruvchi telefoni yoki obyekt ID'si bo'yicha qidirish. */
+function buildAuditSearch(search: string): Prisma.AuditLogWhereInput {
+  const normalizedPhone = normalizeUzPhone(search);
+
+  return {
+    OR: [
+      { resourceId: search },
+      { actor: normalizedPhone ? { phone: normalizedPhone } : { phone: { contains: search } } },
+    ],
+  };
 }
 
 // ── Tranzaksiyalar ────────────────────────────────────────────────────

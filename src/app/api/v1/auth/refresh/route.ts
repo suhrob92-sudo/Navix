@@ -3,7 +3,6 @@ import type { NextRequest } from 'next/server';
 import { ErrorCode, UnauthorizedError } from '@/lib/api/errors';
 import { withApiHandler } from '@/lib/api/handler';
 import { apiError, apiSuccess } from '@/lib/api/response';
-import { AuditAction, recordAudit } from '@/lib/audit';
 import { getRequestContext } from '@/lib/request-context';
 import { REFRESH_COOKIE_NAME, clearRefreshCookie, setRefreshCookie } from '@/modules/auth/auth.cookies';
 import { rotateSession } from '@/modules/auth/session.service';
@@ -43,17 +42,18 @@ export const POST = withApiHandler(async (request: NextRequest, { requestId }) =
 
   const { refreshToken, ...tokens } = await rotateSession(payload.sessionId, token, context);
 
-  await recordAudit({
-    actorId: payload.userId,
-    action: AuditAction.USER_TOKEN_REFRESHED,
-    resourceType: 'Session',
-    resourceId: payload.sessionId,
-    module: 'auth',
-    ipAddress: context.ipAddress,
-    userAgent: context.userAgent,
-    requestId,
-  });
-
+  /**
+   * Bu yerda audit yozuvi ATAYLAB yo'q.
+   *
+   * Token har 14 daqiqada va ilova har ochilganda yangilanadi. Har
+   * safar yozuv qoldirilsa, 100 000 foydalanuvchida kuniga millionlab
+   * qator paydo bo'lardi va audit jurnalida haqiqiy hodisalar
+   * (to'lov, bloklash, rol o'zgarishi) ular orasida ko'rinmay ketardi.
+   *
+   * Bundan tashqari bu ma'lumot allaqachon saqlanadi: `rotateSession`
+   * sessiyaning `lastUsedAt` va IP maydonini yangilaydi. Ya'ni "qaysi
+   * qurilma qachon faol bo'lgan" degan savolga javob yo'qolmaydi.
+   */
   const response = apiSuccess(tokens, { requestId });
   setRefreshCookie(response, refreshToken);
 

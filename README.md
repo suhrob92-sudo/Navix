@@ -3,7 +3,7 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 8-bosqich yakunlandi.
+> **Holat:** 9-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
@@ -11,7 +11,7 @@ kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada
 > **bildirishnomalar**, **AI Yordamchi** — oddiy tilda yozilgan
 > buyruqni tushunib, to'lov va o'tkazmani bajaradi — va **admin panel**:
 > xizmatlarni kodga tegmasdan qo'shish, foydalanuvchilarni boshqarish,
-> tranzaksiyalarni kuzatish.
+> **pulni qaytarish**, rol berish va **audit jurnali**.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -489,14 +489,19 @@ ruxsati borlarga ko'rinadi).
 chiqarish kerak edi. Real ishda bu ishlamaydi: "Beeline chegarani
 o'zgartirdi" degan xabar kelganda hech kim dasturchini kutib o'tirmaydi.
 
-### To'rtta bo'lim
+### Beshta bo'lim
 
-| Bo'lim           | Nima qiladi                                                            |
-| ---------------- | ---------------------------------------------------------------------- |
-| Ko'rsatkichlar   | Foydalanuvchilar, hamyonlardagi umumiy qoldiq, kunlik va haftalik hajm |
-| Xizmatlar        | Provayder qo'shish, tahrirlash, o'chirish (yumshoq)                    |
-| Foydalanuvchilar | Qidirish, batafsil ko'rish, bloklash va tiklash                        |
-| Tranzaksiyalar   | Barcha hamyon amallari — faqat o'qish uchun                            |
+| Bo'lim    | Nima qiladi                                                            |
+| --------- | ---------------------------------------------------------------------- |
+| Asosiy    | Foydalanuvchilar, hamyonlardagi umumiy qoldiq, kunlik va haftalik hajm |
+| Xizmatlar | Provayder qo'shish, tahrirlash, o'chirish (yumshoq)                    |
+| To'lovlar | Chek yoki telefon bo'yicha qidirish va **pulni qaytarish**             |
+| Odamlar   | Qidirish, batafsil ko'rish, bloklash, **rol berish**                   |
+| Jurnal    | Audit — kim, qachon, nima qildi                                        |
+
+Hamyon tranzaksiyalari (butun daftar) pastki panelda emas — u kundalik
+ish emas, "Asosiy" sahifadagi karta orqali ochiladi. Telefonda beshtadan
+ortiq bo'limni barmoq bilan aniq bosish qiyin.
 
 ### Birinchi adminni qanday yaratish
 
@@ -515,11 +520,12 @@ tokeni (JWT) ichida saqlanadi va eski token hali eski rollarni ko'rsatadi.
 
 ### Uchta xavfsizlik qoidasi
 
-**1. Admin pulni qo'lda harakatlantira olmaydi.** Balansni o'zgartirish
-funksiyasi ataylab yozilmagan. Qo'lda o'zgartirilgan balans buxgalteriya
-daftari (`wallet_transactions`) bilan mos kelmay qoladi va hisobni
-tekshirib bo'lmaydi. Pulni qaytarish kerak bo'lsa — alohida REFUND amali
-yoziladi.
+**1. Admin balansni qo'lda o'zgartira olmaydi.** "Balansga 50 000 qo'sh"
+kabi funksiya ataylab yozilmagan. Qo'lda o'zgartirilgan balans
+buxgalteriya daftari (`wallet_transactions`) bilan mos kelmay qoladi va
+hisobni tekshirib bo'lmaydi. Pulni qaytarish esa mumkin, lekin u har
+doim aniq bir TO'LOVGA bog'lanadi va daftarga `REFUND` yozuvi tushadi —
+ya'ni hisob baribir birlashadi.
 
 **2. Bloklanganda sessiyalar darhol bekor qilinadi.** Bu eng oson
 unutiladigan joy: rollar va kirish huquqi JWT ichida, JWT esa 15 daqiqa
@@ -554,6 +560,62 @@ kerak, guruh bo'lmasa bunday naqshni yozib bo'lmaydi.
 Formada uchta yordam bor: tayyor qoliplar (tugma bosiladi), jonli sinov
 maydoni (namunaviy raqam kiritiladi va darhol ✓/✗ ko'rinadi) va
 xavfsizlik tekshiruvi.
+
+### Pulni qaytarish (refund)
+
+**To'lovlar** bo'limida har bir bajarilgan to'lov yonida "Qaytarish"
+tugmasi bor. Bosilganda oyna ochiladi: summa, xizmat, hisob raqami,
+chek va mijoz ko'rsatiladi, **sabab esa majburiy** — u audit jurnaliga
+yoziladi.
+
+Qaytarilganda:
+
+1. mijoz hamyoniga `REFUND` tranzaksiyasi qo'shiladi (yo'nalish — kirim);
+2. to'lov holati `REFUNDED` bo'ladi;
+3. kim, qachon va nima uchun qaytargani saqlanadi;
+4. mijozga bildirishnoma yuboriladi.
+
+Ikkalasi — pul va holat — **bitta tranzaksiyada** bajariladi. Aks holda
+pul qaytib, to'lov holati eski qolib ketishi mumkin edi.
+
+**Ikki marta qaytarib bo'lmaydi, hatto ikki xodim bir vaqtda bossa ham.**
+Idempotentlik kaliti mijozdan olinmaydi — u to'lov ID'sidan hisoblanadi
+(`refund-{paymentId}`), ustun esa bazada `UNIQUE`. Ya'ni himoya kodda
+emas, **bazada**. Sinovda 5 ta bir vaqtdagi so'rovdan aynan bittasi
+o'tdi, balans esa aynan bir marta oshdi.
+
+### Rol berish
+
+**Odamlar → foydalanuvchi → Rollar**. Faqat `SUPER_ADMIN` uchun: bu
+ruxsatga ega odam istalgan hisobga istalgan huquqni bera oladi.
+
+Uchta himoya:
+
+- **o'z rollaringizni o'zgartira olmaysiz** — aks holda o'zingizdan bosh
+  administrator huquqini olib tashlab, tizimni boshqaruvsiz
+  qoldirishingiz mumkin edi;
+- **oxirgi bosh administratorni olib tashlab bo'lmaydi** — tekshiruv
+  tranzaksiya ichida bajariladi, shuning uchun ikki xodim bir vaqtda ham
+  buni qila olmaydi;
+- **rol o'zgargach barcha sessiyalar bekor qilinadi** — rollar JWT
+  ichida, aks holda olib tashlangan rol yana 15 daqiqa ishlayverardi.
+
+### Audit jurnali
+
+**Jurnal** bo'limi — nizolarni hal qilishning yagona ishonchli manbai.
+Yozuvlar o'zgarmas: tahrirlash yoki o'chirish tugmasi yo'q va bo'lmaydi
+ham.
+
+Filtrlar: **Pul** (to'ldirish, o'tkazma, to'lov, qaytarish), **Admin**
+(xizmat, holat, rol o'zgarishlari), **Kirish**. Qidiruv telefon raqami
+yoki obyekt ID bo'yicha ishlaydi. Har yozuvda eng muhim tafsilot bir
+qatorda chiqadi: summa, chek raqami, sabab, rol.
+
+> **Nima uchun token yangilash jurnalga yozilmaydi.** Token har
+> 14 daqiqada yangilanadi — har safar yozuv qoldirilsa, 100 000
+> foydalanuvchida kuniga millionlab qator paydo bo'lardi va haqiqiy
+> hodisalar ular orasida ko'rinmay ketardi. Qurilma faolligi
+> `sessions.lastUsedAt` da saqlanadi, ya'ni ma'lumot yo'qolmaydi.
 
 ### Kod nima uchun o'zgarmaydi
 
@@ -734,17 +796,21 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 
 **Admin** (`/api/v1/admin/...`) — har biri alohida ruxsat talab qiladi
 
-| Metod | Manzil            | Tavsif                              | Kerakli ruxsat              |
-| ----- | ----------------- | ----------------------------------- | --------------------------- |
-| GET   | `/stats`          | Platforma ko'rsatkichlari           | `platform:admin:access`     |
-| GET   | `/providers`      | Barcha xizmatlar (o'chirilgani ham) | `platform:admin:access`     |
-| POST  | `/providers`      | Yangi xizmat qo'shish               | `platform:provider:manage`  |
-| GET   | `/providers/{id}` | Bitta xizmat                        | `platform:admin:access`     |
-| PATCH | `/providers/{id}` | Xizmatni tahrirlash                 | `platform:provider:manage`  |
-| GET   | `/users`          | Foydalanuvchilar ro'yxati           | `platform:user:read`        |
-| GET   | `/users/{id}`     | Foydalanuvchi haqida batafsil       | `platform:user:read`        |
-| PATCH | `/users/{id}`     | Holatni o'zgartirish (bloklash)     | `platform:user:suspend`     |
-| GET   | `/transactions`   | Barcha hamyon amallari              | `platform:transaction:read` |
+| Metod | Manzil                  | Tavsif                              | Kerakli ruxsat               |
+| ----- | ----------------------- | ----------------------------------- | ---------------------------- |
+| GET   | `/stats`                | Platforma ko'rsatkichlari           | `platform:admin:access`      |
+| GET   | `/providers`            | Barcha xizmatlar (o'chirilgani ham) | `platform:admin:access`      |
+| POST  | `/providers`            | Yangi xizmat qo'shish               | `platform:provider:manage`   |
+| GET   | `/providers/{id}`       | Bitta xizmat                        | `platform:admin:access`      |
+| PATCH | `/providers/{id}`       | Xizmatni tahrirlash                 | `platform:provider:manage`   |
+| GET   | `/users`                | Foydalanuvchilar ro'yxati           | `platform:user:read`         |
+| GET   | `/users/{id}`           | Foydalanuvchi haqida batafsil       | `platform:user:read`         |
+| PATCH | `/users/{id}`           | Holatni o'zgartirish (bloklash)     | `platform:user:suspend`      |
+| PATCH | `/users/{id}/roles`     | Rol berish yoki olib tashlash       | `platform:role:manage`       |
+| GET   | `/transactions`         | Barcha hamyon amallari              | `platform:transaction:read`  |
+| GET   | `/payments`             | Barcha xizmat to'lovlari            | `platform:transaction:read`  |
+| POST  | `/payments/{id}/refund` | Pulni mijozga qaytarish             | `payment:transaction:refund` |
+| GET   | `/audit`                | Audit jurnali                       | `platform:audit:read`        |
 
 ---
 
@@ -892,5 +958,6 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **6-bosqich** — Bildirishnomalar: hodisalar katalogi, o'qilmaganlar
 - [x] **7-bosqich** — AI Yordamchi: niyatni tushunish va buyruq tayyorlash
 - [x] **8-bosqich** — Admin panel: xizmatlar, foydalanuvchilar, tranzaksiyalar, statistika
-- [ ] **9-bosqich** — Birinchi xizmat moduli (taksi yoki ovqat yetkazish)
-- [ ] **10-bosqich** — Real to'lov integratsiyasi (Payme / Click)
+- [x] **9-bosqich** — Pulni qaytarish, rol boshqaruvi, audit jurnali
+- [ ] **10-bosqich** — Birinchi xizmat moduli (taksi yoki ovqat yetkazish)
+- [ ] **11-bosqich** — Real to'lov integratsiyasi (Payme / Click)

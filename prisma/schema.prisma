@@ -514,6 +514,18 @@ model ServicePayment {
   /// Rad etilgan bo'lsa — sababi.
   failureReason       String? @db.VarChar(255)
 
+  /// Pul qaytarilgan bo'lsa — kim, qachon va nima uchun.
+  ///
+  /// `failureReason` dan alohida saqlanadi: "provayder rad etdi" va
+  /// "admin qaytardi" butunlay boshqa hodisalar, ularni bitta ustunga
+  /// aralashtirish tarixni o'qib bo'lmas qiladi.
+  refundedAt          DateTime?
+  refundReason        String?   @db.VarChar(255)
+  /// Qaytarishni bajargan xodim.
+  refundedById        String?   @db.Uuid
+  /// Qaytarish uchun yaratilgan hamyon tranzaksiyasi.
+  refundTransactionId String?   @db.Uuid
+
   createdAt   DateTime  @default(now())
   completedAt DateTime?
 

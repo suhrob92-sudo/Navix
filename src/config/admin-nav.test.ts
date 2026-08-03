@@ -33,19 +33,41 @@ describe("rollarga qarab ko'rinadigan bo'limlar", () => {
   });
 
   /**
-   * Qo'llab-quvvatlash xodimi murojaatlarni hal qiladi, lekin
-   * provayder tarifini o'zgartira olmasligi kerak.
+   * Qo'llab-quvvatlash xodimi murojaatlarni hal qiladi: to'lovni topadi
+   * va foydalanuvchini ko'radi. Lekin tarifni o'zgartira olmaydi.
    */
-  it("qo'llab-quvvatlash xodimi tranzaksiyalarni ko'radi", () => {
+  it("qo'llab-quvvatlash xodimi to'lovlar va odamlarni ko'radi", () => {
     const visible = visibleFor([Role.SUPPORT]);
 
-    expect(visible).toContain('/admin/transactions');
+    expect(visible).toContain('/admin/payments');
     expect(visible).toContain('/admin/users');
   });
 
   it("qo'llab-quvvatlash xodimida provayder boshqarish ruxsati yo'q", () => {
     expect(hasPermission([Role.SUPPORT], Permission.PLATFORM_PROVIDER_MANAGE)).toBe(false);
     expect(hasPermission([Role.SUPPORT], Permission.PLATFORM_USER_SUSPEND)).toBe(false);
+  });
+
+  /**
+   * Audit jurnalida boshqa foydalanuvchilarning IP manzillari va
+   * amallari bor — bu qo'llab-quvvatlash ishi uchun kerak emas.
+   */
+  it("qo'llab-quvvatlash xodimi audit jurnalini ko'rmaydi", () => {
+    expect(visibleFor([Role.SUPPORT])).not.toContain('/admin/audit');
+    expect(hasPermission([Role.SUPPORT], Permission.PLATFORM_AUDIT_READ)).toBe(false);
+  });
+
+  /**
+   * Pulni qaytarish — qo'llab-quvvatlashning asosiy vositasi.
+   * Har bir qaytarish audit jurnaliga yoziladi, shuning uchun
+   * bu ruxsat xodimda bo'lishi mumkin.
+   */
+  it("qo'llab-quvvatlash xodimi pulni qaytara oladi", () => {
+    expect(hasPermission([Role.SUPPORT], Permission.PAYMENT_REFUND)).toBe(true);
+  });
+
+  it('oddiy mijoz pulni qaytara olmaydi', () => {
+    expect(hasPermission([Role.CUSTOMER], Permission.PAYMENT_REFUND)).toBe(false);
   });
 
   /**

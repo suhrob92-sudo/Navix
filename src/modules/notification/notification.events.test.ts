@@ -21,6 +21,11 @@ const SAMPLES = {
     providerName: 'Uzonline',
     paymentId: '3a9e5aad-e0ca-4098-b59f-9bb9ce83a625',
   },
+  'payment.refunded': {
+    amountTiyin: 8_500_000,
+    providerName: 'Uzonline',
+    paymentId: '3a9e5aad-e0ca-4098-b59f-9bb9ce83a625',
+  },
   'security.password_changed': { revokedSessions: 3 },
 } as const;
 

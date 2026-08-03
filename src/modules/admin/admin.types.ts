@@ -147,7 +147,69 @@ export interface AdminTransactionsResponse {
   transactions: AdminTransactionItem[];
 }
 
+// ── Audit jurnali ─────────────────────────────────────────────────────
+
+export interface AdminAuditItem {
+  id: string;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  module: string;
+  ipAddress: string | null;
+  /** Qo'shimcha tafsilotlar — tuzilishi amalga qarab farq qiladi. */
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  /** Amalni bajargan odam. Tizim amallarida `null`. */
+  actor: {
+    id: string;
+    phone: string;
+    fullName: string | null;
+  } | null;
+}
+
+export interface AdminAuditResponse {
+  entries: AdminAuditItem[];
+}
+
+// ── To'lovlar (admin ko'rinishi) ──────────────────────────────────────
+
+export interface AdminPaymentItem {
+  id: string;
+  accountNumber: string;
+  /** Summa TIYINDA. */
+  amount: number;
+  status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
+  receiptNumber: string;
+  providerName: string;
+  createdAt: string;
+  refundedAt: string | null;
+  refundReason: string | null;
+  user: {
+    id: string;
+    phone: string;
+    fullName: string | null;
+  };
+}
+
+export interface AdminPaymentsResponse {
+  payments: AdminPaymentItem[];
+}
+
 // ── Ko'rinadigan nomlar ───────────────────────────────────────────────
+
+/** Rollarning o'zbekcha nomi. */
+export const ROLE_LABELS: Record<string, string> = {
+  CUSTOMER: 'Mijoz',
+  DRIVER: 'Haydovchi',
+  COURIER: 'Kuryer',
+  MERCHANT: 'Sotuvchi',
+  SUPPORT: "Qo'llab-quvvatlash",
+  ADMIN: 'Administrator',
+  SUPER_ADMIN: 'Bosh administrator',
+};
+
+/** Foydalanuvchiga berish mumkin bo'lgan rollar (CUSTOMER'dan tashqari). */
+export const ASSIGNABLE_ROLES = ['DRIVER', 'COURIER', 'MERCHANT', 'SUPPORT', 'ADMIN', 'SUPER_ADMIN'] as const;
 
 export const USER_STATUS_LABELS: Record<UserStatusName, string> = {
   PENDING_VERIFICATION: 'Tasdiqlanmagan',

@@ -1,6 +1,7 @@
 'use client';
 
 import { CheckCircle2, Receipt, ShieldCheck, Smartphone, Wallet } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
@@ -18,7 +19,10 @@ import { toUserMessage } from '@/lib/api-client';
 import { formatUzDate, formatUzDateTime } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
 import { formatUzPhone } from '@/lib/phone';
+import { cn } from '@/lib/utils';
 import {
+  ASSIGNABLE_ROLES,
+  ROLE_LABELS,
   USER_STATUS_LABELS,
   USER_STATUS_VARIANTS,
   type AdminUserResponse,
@@ -52,6 +56,7 @@ function UserDetailBody({ userId }: AdminUserDetailContentProps) {
   const { data, isLoading, error, setData } = useApiQuery<AdminUserResponse>(`/api/v1/admin/users/${userId}`);
 
   const [pendingStatus, setPendingStatus] = useState<UserStatusName | null>(null);
+  const [pendingRole, setPendingRole] = useState<{ role: string; action: 'grant' | 'revoke' } | null>(null);
   const [reason, setReason] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -60,6 +65,7 @@ function UserDetailBody({ userId }: AdminUserDetailContentProps) {
   const user = data?.user ?? null;
 
   const canSuspend = hasPermission(currentUser?.roles ?? [], Permission.PLATFORM_USER_SUSPEND);
+  const canManageRoles = hasPermission(currentUser?.roles ?? [], Permission.PLATFORM_ROLE_MANAGE);
   const isSelf = currentUser?.id === userId;
   const fullName = user ? [user.firstName, user.lastName].filter(Boolean).join(' ') || null : null;
 
@@ -81,6 +87,33 @@ function UserDetailBody({ userId }: AdminUserDetailContentProps) {
       setReason('');
     } catch (caught) {
       setActionError(toUserMessage(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function applyRole() {
+    if (!pendingRole) return;
+
+    setIsSaving(true);
+    setActionError(null);
+
+    try {
+      const response = await request<AdminUserResponse>(`/api/v1/admin/users/${userId}/roles`, {
+        method: 'PATCH',
+        body: pendingRole,
+      });
+
+      setData(response);
+      setSuccessMessage(
+        pendingRole.action === 'grant'
+          ? `"${ROLE_LABELS[pendingRole.role] ?? pendingRole.role}" roli berildi`
+          : `"${ROLE_LABELS[pendingRole.role] ?? pendingRole.role}" roli olib tashlandi`,
+      );
+      setPendingRole(null);
+    } catch (caught) {
+      setActionError(toUserMessage(caught));
+      setPendingRole(null);
     } finally {
       setIsSaving(false);
     }
@@ -159,13 +192,66 @@ function UserDetailBody({ userId }: AdminUserDetailContentProps) {
                 label="Hamyon balansi"
                 value={user.walletBalance === null ? 'Ochilmagan' : formatTiyin(user.walletBalance)}
               />
-              <SummaryTile
-                icon={Receipt}
-                label="To'lovlar"
-                value={`${user.paymentCount} ta`}
-                hint={formatTiyin(user.paymentVolume)}
-              />
+
+              {/*
+                To'lovlar kartochkasi bosiladigan: murojaat kelganda
+                xodim shu yerdan darhol to'lovlar ro'yxatiga o'tadi va
+                kerak bo'lsa pulni qaytaradi.
+              */}
+              <Link href={`/admin/payments?search=${encodeURIComponent(user.phone)}`} className="block">
+                <SummaryTile
+                  icon={Receipt}
+                  label="To'lovlar"
+                  value={`${user.paymentCount} ta`}
+                  hint={formatTiyin(user.paymentVolume)}
+                />
+              </Link>
             </div>
+
+            {/* Rollar */}
+            {canManageRoles && (
+              <section className="bg-card border-border animate-fade-up rounded-2xl border p-4">
+                <h2 className="text-sm font-semibold">Rollar</h2>
+
+                {isSelf ? (
+                  <Alert variant="info" className="mt-3">
+                    O&apos;z rollaringizni o&apos;zgartira olmaysiz. Aks holda o&apos;zingizdan bosh administrator
+                    huquqini olib tashlab, tizimni boshqaruvsiz qoldirishingiz mumkin edi.
+                  </Alert>
+                ) : (
+                  <>
+                    <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+                      Rol o&apos;zgarganda foydalanuvchi tizimdan chiqariladi — yangi huquqlar faqat qayta
+                      kirgandan keyin kuchga kiradi.
+                    </p>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {ASSIGNABLE_ROLES.map((role) => {
+                        const active = user.roles.includes(role);
+
+                        return (
+                          <button
+                            key={role}
+                            type="button"
+                            disabled={isSaving}
+                            onClick={() => setPendingRole({ role, action: active ? 'revoke' : 'grant' })}
+                            aria-pressed={active}
+                            className={cn(
+                              'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-60',
+                              active
+                                ? 'border-primary bg-primary text-primary-foreground'
+                                : 'border-border hover:bg-secondary',
+                            )}
+                          >
+                            {ROLE_LABELS[role] ?? role}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
 
             {/* Holatni boshqarish */}
             {canSuspend && (
@@ -234,6 +320,23 @@ function UserDetailBody({ userId }: AdminUserDetailContentProps) {
         isLoading={isSaving}
         onConfirm={applyStatus}
         onCancel={() => setPendingStatus(null)}
+      />
+
+      <ConfirmDialog
+        open={pendingRole !== null}
+        title={pendingRole?.action === 'grant' ? 'Rol berish' : 'Rolni olib tashlash'}
+        description={
+          pendingRole
+            ? pendingRole.action === 'grant'
+              ? `Foydalanuvchiga "${ROLE_LABELS[pendingRole.role] ?? pendingRole.role}" roli beriladi. U barcha qurilmalardan chiqariladi va qayta kirishi kerak bo'ladi.`
+              : `Foydalanuvchidan "${ROLE_LABELS[pendingRole.role] ?? pendingRole.role}" roli olib tashlanadi va u barcha qurilmalardan chiqariladi.`
+            : ''
+        }
+        confirmLabel={pendingRole?.action === 'grant' ? 'Rol berish' : 'Olib tashlash'}
+        isDestructive={pendingRole?.action === 'revoke'}
+        isLoading={isSaving}
+        onConfirm={applyRole}
+        onCancel={() => setPendingRole(null)}
       />
     </>
   );

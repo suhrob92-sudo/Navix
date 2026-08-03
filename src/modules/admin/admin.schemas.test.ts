@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  adminAuditQuerySchema,
   adminTransactionQuerySchema,
   adminUserQuerySchema,
   createProviderSchema,
+  refundPaymentSchema,
   updateProviderSchema,
+  updateUserRoleSchema,
   updateUserStatusSchema,
 } from '@/modules/admin/admin.schemas';
 
@@ -144,5 +147,74 @@ describe("so'rov sxemalari", () => {
     expect(adminTransactionQuerySchema.parse({}).type).toBe('ALL');
     expect(adminTransactionQuerySchema.safeParse({ type: 'HACK' }).success).toBe(false);
     expect(adminTransactionQuerySchema.safeParse({ direction: 'IN' }).success).toBe(true);
+  });
+});
+
+describe('refundPaymentSchema', () => {
+  /**
+   * Sabab MAJBURIY: pulni qaytarish qaytarib bo'lmaydigan amal.
+   * Nizo chiqqanda "nima uchun qaytarilgan?" degan savolga javob
+   * bo'lmasa, jurnalning foydasi qolmaydi.
+   */
+  it('sababsiz qaytarish rad etiladi', () => {
+    expect(refundPaymentSchema.safeParse({}).success).toBe(false);
+    expect(refundPaymentSchema.safeParse({ reason: '' }).success).toBe(false);
+    expect(refundPaymentSchema.safeParse({ reason: 'xato' }).success).toBe(false);
+  });
+
+  it('mazmunli sabab qabul qilinadi', () => {
+    expect(refundPaymentSchema.safeParse({ reason: 'provayder qabul qilmadi' }).success).toBe(true);
+  });
+
+  it("bo'shliqlar olib tashlanadi", () => {
+    const result = refundPaymentSchema.parse({ reason: "   ikki marta to'langan   " });
+
+    expect(result.reason).toBe("ikki marta to'langan");
+  });
+
+  it('juda uzun sabab rad etiladi', () => {
+    // Bazadagi ustun 255 belgi.
+    expect(refundPaymentSchema.safeParse({ reason: 'a'.repeat(256) }).success).toBe(false);
+  });
+});
+
+describe('updateUserRoleSchema', () => {
+  it.each(['DRIVER', 'COURIER', 'MERCHANT', 'SUPPORT', 'ADMIN', 'SUPER_ADMIN'])(
+    '"%s" roli qabul qilinadi',
+    (role) => {
+      expect(updateUserRoleSchema.safeParse({ role, action: 'grant' }).success).toBe(true);
+    },
+  );
+
+  /**
+   * CUSTOMER — har bir foydalanuvchining asosiy roli. Uni olib tashlash
+   * odamni o'z profiliga ham kira olmaydigan holga keltirardi.
+   */
+  it("CUSTOMER roli qo'lda boshqarilmaydi", () => {
+    expect(updateUserRoleSchema.safeParse({ role: 'CUSTOMER', action: 'revoke' }).success).toBe(false);
+  });
+
+  it("noma'lum rol rad etiladi", () => {
+    expect(updateUserRoleSchema.safeParse({ role: 'GOD', action: 'grant' }).success).toBe(false);
+  });
+
+  it("noma'lum amal rad etiladi", () => {
+    expect(updateUserRoleSchema.safeParse({ role: 'ADMIN', action: 'delete' }).success).toBe(false);
+  });
+});
+
+describe('adminAuditQuerySchema', () => {
+  it('standart guruh — hammasi', () => {
+    expect(adminAuditQuerySchema.parse({}).group).toBe('ALL');
+  });
+
+  it("noma'lum guruh rad etiladi", () => {
+    expect(adminAuditQuerySchema.safeParse({ group: 'SECRET' }).success).toBe(false);
+  });
+
+  it("aniq amal bo'yicha filtrlash mumkin", () => {
+    const result = adminAuditQuerySchema.parse({ action: 'payment.service.refunded' });
+
+    expect(result.action).toBe('payment.service.refunded');
   });
 });

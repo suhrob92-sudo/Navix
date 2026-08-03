@@ -140,6 +140,51 @@ export const updateUserStatusSchema = z.object({
 
 export type UpdateUserStatusInput = z.infer<typeof updateUserStatusSchema>;
 
+/**
+ * PATCH /api/v1/admin/users/[id]/roles
+ *
+ * `CUSTOMER` ataylab yo'q: u har bir foydalanuvchida bo'lishi kerak
+ * bo'lgan asosiy rol, uni qo'lda olib tashlash foydalanuvchini
+ * o'z profiliga ham kira olmaydigan holga keltirardi.
+ */
+export const updateUserRoleSchema = z.object({
+  role: z.enum(['DRIVER', 'COURIER', 'MERCHANT', 'SUPPORT', 'ADMIN', 'SUPER_ADMIN'], {
+    message: "Rol noto'g'ri",
+  }),
+  action: z.enum(['grant', 'revoke'], { message: "Amal noto'g'ri" }),
+});
+
+export type UpdateUserRoleInput = z.infer<typeof updateUserRoleSchema>;
+
+/**
+ * PATCH /api/v1/admin/payments/[id]/refund
+ *
+ * Sabab MAJBURIY. Pulni qaytarish — qaytarib bo'lmaydigan moliyaviy
+ * amal; nizo chiqqanda "nima uchun qaytarilgan?" degan savolga javob
+ * bo'lishi shart.
+ */
+export const refundPaymentSchema = z.object({
+  reason: z.string().trim().min(5, 'Sababni batafsilroq yozing (kamida 5 ta belgi)').max(255, 'Sabab juda uzun'),
+});
+
+export type RefundPaymentInput = z.infer<typeof refundPaymentSchema>;
+
+/** GET /api/v1/admin/audit */
+export const adminAuditQuerySchema = paginationQuerySchema.extend({
+  group: z.enum(['ALL', 'MONEY', 'ADMIN', 'AUTH']).default('ALL'),
+  /** Aniq bitta amal bo'yicha filtrlash. */
+  action: z.string().trim().min(3).max(120).optional(),
+});
+
+export type AdminAuditQuery = z.infer<typeof adminAuditQuerySchema>;
+
+/** GET /api/v1/admin/payments */
+export const adminPaymentQuerySchema = paginationQuerySchema.extend({
+  status: z.enum(['ALL', 'PENDING', 'COMPLETED', 'FAILED', 'REFUNDED']).default('ALL'),
+});
+
+export type AdminPaymentQuery = z.infer<typeof adminPaymentQuerySchema>;
+
 /** GET /api/v1/admin/transactions */
 export const adminTransactionQuerySchema = paginationQuerySchema.extend({
   type: z.enum(['ALL', 'TOP_UP', 'WITHDRAWAL', 'PAYMENT', 'REFUND', 'TRANSFER', 'BONUS']).default('ALL'),

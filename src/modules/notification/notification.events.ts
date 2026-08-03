@@ -22,6 +22,7 @@ export interface NotificationEventData {
   'wallet.transfer_sent': { amountTiyin: number; recipientName: string };
   'wallet.transfer_received': { amountTiyin: number; senderName: string };
   'payment.completed': { amountTiyin: number; providerName: string; paymentId: string };
+  'payment.refunded': { amountTiyin: number; providerName: string; paymentId: string };
   'security.password_changed': { revokedSessions: number };
 }
 
@@ -71,6 +72,17 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
   'payment.completed': ({ amountTiyin, providerName, paymentId }) => ({
     title: "To'lov bajarildi",
     body: `${providerName} uchun ${formatTiyin(amountTiyin)} to'landi. Chekni ko'rish uchun bosing.`,
+    actionUrl: `/payments/receipt/${paymentId}`,
+    sourceModule: 'payments',
+  }),
+
+  /**
+   * Pul qaytarilganda foydalanuvchi buni DARHOL bilishi kerak: aks holda
+   * u qayta to'laydi yoki qo'llab-quvvatlashga ikkinchi marta yozadi.
+   */
+  'payment.refunded': ({ amountTiyin, providerName, paymentId }) => ({
+    title: 'Pul qaytarildi',
+    body: `${providerName} to'lovi bekor qilindi. ${formatTiyin(amountTiyin)} hamyoningizga qaytarildi.`,
     actionUrl: `/payments/receipt/${paymentId}`,
     sourceModule: 'payments',
   }),

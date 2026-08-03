@@ -1,6 +1,15 @@
 'use client';
 
-import { AlertTriangle, ArrowUpRight, ChevronRight, Receipt, Users, Wallet, Wrench } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  ArrowUpRight,
+  ChevronRight,
+  Receipt,
+  Users,
+  Wallet,
+  Wrench,
+} from 'lucide-react';
 import Link from 'next/link';
 
 import { AdminHeader } from '@/components/admin/admin-header';
@@ -144,8 +153,8 @@ function DashboardBody() {
           </ul>
         </section>
 
-        {/* Xizmatlar bo'limiga o'tish */}
-        <Card variant="glass" padding="none" className="animate-fade-up mt-4">
+        {/* Pastki panelga sig'magan bo'limlar */}
+        <Card variant="glass" padding="none" className="animate-fade-up mt-4 overflow-hidden">
           <Link href="/admin/providers" className="flex items-center gap-3 p-4">
             <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
               <Wrench className="size-4.5" aria-hidden="true" />
@@ -155,6 +164,21 @@ function DashboardBody() {
               <span className="block text-sm font-medium">Xizmatlarni boshqarish</span>
               <span className="text-muted-foreground block text-xs">
                 {`${data?.providers.active ?? 0} ta faol, jami ${data?.providers.total ?? 0} ta`}
+              </span>
+            </span>
+
+            <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+          </Link>
+
+          <Link href="/admin/transactions" className="border-border/60 flex items-center gap-3 border-t p-4">
+            <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
+              <ArrowLeftRight className="size-4.5" aria-hidden="true" />
+            </span>
+
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium">Hamyon tranzaksiyalari</span>
+              <span className="text-muted-foreground block text-xs">
+                Barcha pul harakatlari — faqat tekshirish uchun
               </span>
             </span>
 

@@ -21,7 +21,16 @@ export const AuditAction = {
   USER_LOGIN_SUCCESS: 'user.login.success',
   USER_LOGIN_FAILED: 'user.login.failed',
   USER_LOGOUT: 'user.logout',
-  USER_TOKEN_REFRESHED: 'user.token.refreshed',
+  /**
+   * `user.token.refreshed` ATAYLAB olib tashlandi.
+   *
+   * Token har 14 daqiqada yangilanadi — bu yozuv jurnalni bosib ketardi
+   * va haqiqiy hodisalar orasida yo'qolardi. Sessiya faolligi
+   * `sessions.lastUsedAt` da saqlanadi.
+   *
+   * Eski yozuvlar bazada qoladi va jurnalda to'g'ri ko'rsatiladi:
+   * `AUDIT_ACTION_LABELS` da uning nomi saqlangan.
+   */
   USER_PASSWORD_RESET_REQUESTED: 'user.password.reset_requested',
   USER_PASSWORD_RESET_COMPLETED: 'user.password.reset_completed',
   SESSION_REVOKED: 'session.revoked',
@@ -36,6 +45,9 @@ export const AuditAction = {
   // Bular MAJBURIY yoziladi: admin butun platformaga ta'sir qiladi,
   // shuning uchun "kim tarifni o'zgartirdi", "kim foydalanuvchini
   // blokladi" degan savolga har doim javob bo'lishi kerak.
+  /** Pulni qaytarish — moliyaviy amal, shuning uchun alohida yozuv. */
+  SERVICE_PAYMENT_REFUNDED: 'payment.service.refunded',
+
   ADMIN_PROVIDER_CREATED: 'admin.provider.created',
   ADMIN_PROVIDER_UPDATED: 'admin.provider.updated',
   ADMIN_USER_STATUS_CHANGED: 'admin.user.status_changed',

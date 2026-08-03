@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/modules/notification/notification.service';
-import { chargeWallet, getOrCreateWallet } from '@/modules/wallet/wallet.service';
+import { chargeWallet, getOrCreateWallet, refundWallet } from '@/modules/wallet/wallet.service';
 import type {
   CreatePaymentInput,
   CreateSavedAccountInput,
@@ -454,6 +454,123 @@ export async function createPayment(
   logger.info({ userId, provider: provider.code, amount: input.amount }, "Xizmat to'lovi bajarildi");
 
   return toPaymentPayload(payment);
+}
+
+/**
+ * To'lovni bekor qilib, pulni hamyonga qaytaradi.
+ *
+ * ── Kim chaqiradi ─────────────────────────────────────────────────────
+ * Admin panel (`PATCH /api/v1/admin/payments/{id}/refund`). Foydalanuvchi
+ * o'zi qaytara olmaydi: provayderga pul ketgan-ketmaganini faqat xodim
+ * tekshira oladi.
+ *
+ * ── Ikki marta qaytarilishining oldini olish ──────────────────────────
+ * Idempotentlik kaliti mijozdan OLINMAYDI — u to'lov ID'sidan
+ * hisoblanadi: `refund-{paymentId}`. Ustun bazada UNIQUE bo'lgani uchun
+ * ikkinchi urinish DARAJADA to'xtaydi, hatto ikki xodim bir vaqtda
+ * bosgan bo'lsa ham. Bu holat kodda emas, BAZADA kafolatlanadi.
+ *
+ * Holat tekshiruvi ham tranzaksiya ICHIDA, `updateMany` shartida
+ * takrorlanadi: shunda "tekshirdim → boshqasi o'zgartirdi → yozdim"
+ * (TOCTOU) oralig'i qolmaydi.
+ */
+export async function refundPayment(
+  actorId: string,
+  paymentId: string,
+  reason: string,
+  meta: OperationMeta = {},
+): Promise<PaymentPayload> {
+  const payment = await prisma.servicePayment.findUnique({
+    where: { id: paymentId },
+    select: {
+      id: true,
+      userId: true,
+      amount: true,
+      status: true,
+      receiptNumber: true,
+      provider: { select: { name: true } },
+    },
+  });
+
+  if (!payment) {
+    throw new NotFoundError("To'lov");
+  }
+
+  if (payment.status === ServicePaymentStatus.REFUNDED) {
+    throw new ConflictError("Bu to'lov allaqachon qaytarilgan");
+  }
+
+  if (payment.status !== ServicePaymentStatus.COMPLETED) {
+    throw new ConflictError("Faqat bajarilgan to'lovni qaytarish mumkin");
+  }
+
+  const wallet = await getOrCreateWallet(payment.userId);
+  const idempotencyKey = `refund-${payment.id}`;
+
+  const refunded = await prisma.$transaction(async (tx) => {
+    /**
+     * Holatni yana bir bor, lekin bu safar QULF ostida tekshiramiz.
+     * `updateMany` faqat hali COMPLETED bo'lgan qatorni yangilaydi;
+     * boshqa so'rov ulgurgan bo'lsa `count` nolga teng bo'ladi.
+     */
+    const claimed = await tx.servicePayment.updateMany({
+      where: { id: payment.id, status: ServicePaymentStatus.COMPLETED },
+      data: {
+        status: ServicePaymentStatus.REFUNDED,
+        refundedAt: new Date(),
+        refundReason: reason,
+        refundedById: actorId,
+      },
+    });
+
+    if (claimed.count === 0) {
+      throw new ConflictError("Bu to'lov allaqachon qaytarilgan");
+    }
+
+    const credit = await refundWallet(tx, {
+      walletId: wallet.id,
+      amountTiyin: payment.amount,
+      description: `${payment.provider.name} — to'lov qaytarildi`,
+      sourceModule: SOURCE_MODULE,
+      sourceId: payment.id,
+      idempotencyKey,
+    });
+
+    return tx.servicePayment.update({
+      where: { id: payment.id },
+      data: { refundTransactionId: credit.id },
+      select: PAYMENT_SELECT,
+    });
+  });
+
+  await recordAudit({
+    actorId,
+    action: AuditAction.SERVICE_PAYMENT_REFUNDED,
+    resourceType: 'ServicePayment',
+    resourceId: payment.id,
+    module: SOURCE_MODULE,
+    metadata: {
+      amountTiyin: payment.amount.toString(),
+      receiptNumber: payment.receiptNumber,
+      customerId: payment.userId,
+      reason,
+    },
+    ipAddress: meta.ipAddress,
+    userAgent: meta.userAgent,
+  });
+
+  await notifyUser(payment.userId, 'payment.refunded', {
+    amountTiyin: tiyinToNumber(payment.amount),
+    providerName: payment.provider.name,
+    paymentId: payment.id,
+  });
+
+  logger.warn(
+    { actorId, paymentId: payment.id, customerId: payment.userId, amount: payment.amount.toString() },
+    "To'lov qaytarildi",
+  );
+
+  return toPaymentPayload(refunded);
 }
 
 /** To'lovlar tarixi — sahifalangan. */

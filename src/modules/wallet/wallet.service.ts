@@ -552,6 +552,69 @@ export async function chargeWallet(
 }
 
 /**
+ * Hamyonga pulni QAYTARADI — `chargeWallet` ning teskarisi.
+ *
+ * ── Nima uchun `chargeWallet` ga `-amountTiyin` berilmaydi ────────────
+ * Manfiy summa bilan chaqirish vasvasasi bor, lekin bu xato bo'lardi:
+ * yechishda balans yetarlimi degan tekshiruv bor, qaytarishda esa yo'q;
+ * yozuv turi ham boshqa (`REFUND`, yo'nalish `IN`). Ikkalasini bitta
+ * funksiyaga tiqish shartlar chalkashuviga olib kelardi.
+ *
+ * ── Nima uchun MUZLATILGAN hamyonga qaytariladi ───────────────────────
+ * Muzlatish — pulni SARFLASHNI to'xtatadi, egalikni emas. Qaytarilayotgan
+ * pul foydalanuvchining o'zinikidir; uni qaytarmaslik pulni o'zlashtirish
+ * bo'lardi. Sarflash baribir bloklangan holicha qoladi.
+ *
+ * YOPILGAN hamyon boshqa masala: u yerda tranzaksiya yozib bo'lmaydi,
+ * shuning uchun xatolik qaytadi va pul boshqa yo'l bilan beriladi.
+ */
+export async function refundWallet(
+  tx: Prisma.TransactionClient,
+  params: {
+    walletId: string;
+    /** Summa TIYINDA, musbat. */
+    amountTiyin: bigint;
+    description: string;
+    sourceModule: string;
+    sourceId: string;
+    idempotencyKey: string;
+  },
+): Promise<{ id: string; balanceAfter: bigint }> {
+  if (params.amountTiyin <= 0n) {
+    throw new ValidationError("Summa noldan katta bo'lishi kerak");
+  }
+
+  const locked = await lockWallet(tx, params.walletId);
+
+  if (locked.status === WalletStatus.CLOSED) {
+    throw new ConflictError("Hamyon yopilgan — pulni qaytarib bo'lmaydi.");
+  }
+
+  const balanceAfter = locked.balance + params.amountTiyin;
+
+  await tx.wallet.update({ where: { id: params.walletId }, data: { balance: balanceAfter } });
+
+  const transaction = await tx.walletTransaction.create({
+    data: {
+      walletId: params.walletId,
+      type: TransactionType.REFUND,
+      direction: TransactionDirection.IN,
+      status: TransactionStatus.COMPLETED,
+      amount: params.amountTiyin,
+      balanceAfter,
+      description: params.description,
+      idempotencyKey: params.idempotencyKey,
+      sourceModule: params.sourceModule,
+      sourceId: params.sourceId,
+      completedAt: new Date(),
+    },
+    select: { id: true },
+  });
+
+  return { id: transaction.id, balanceAfter };
+}
+
+/**
  * Takroriy so'rovni aniqlaydi — boshqa modullar uchun.
  *
  * @returns Shu kalit bilan amal allaqachon bajarilgan bo'lsa uning ID'si.
