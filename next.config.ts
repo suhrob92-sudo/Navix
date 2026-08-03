@@ -29,6 +29,28 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
 
   /**
+   * Ishlab chiqish rejimida qaysi domenlardan kirishga ruxsat berilgan.
+   *
+   * ── Nima uchun kerak ─────────────────────────────────────────────────
+   * Next.js 16 dev serveri `localhost` dan BOSHQA domendan kelgan
+   * so'rovlarga `/_next/static/*` fayllarini bermaydi — `403` qaytaradi.
+   * Bu himoya chorasi: aks holda istalgan sayt sizning dev serveringiz
+   * kodini o'qib olishi mumkin edi.
+   *
+   * Ammo biz ilovani ataylab tashqi manzil orqali ochamiz (telefondan
+   * sinash uchun). Natijada brauzer HTML'ni oladi-yu, JavaScript'ni
+   * ololmaydi. Sahifa ko'rinadi, lekin HECH BIR TUGMA ISHLAMAYDI —
+   * React umuman ishga tushmaydi.
+   *
+   * Quyidagi domenlar aynan shu ikki yo'lga tegishli:
+   *   - `*.app.github.dev`      — GitHub Codespaces porti
+   *   - `*.trycloudflare.com`   — Cloudflare tunneli (npm run share)
+   *
+   * Bu sozlama FAQAT dev rejimida ta'sir qiladi, production'da emas.
+   */
+  allowedDevOrigins: ['*.app.github.dev', '*.github.dev', '*.trycloudflare.com'],
+
+  /**
    * Ishlab chiqish rejimidagi Next.js belgisi (kichik "N" doirasi) o'chirilgan.
    *
    * Nima uchun: u ekranning pastki burchagida turadi va telefonda pastki

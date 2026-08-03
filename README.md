@@ -172,6 +172,28 @@ papkasiga yuklab olinadi (~40 MB, bir martalik).
 > Cloudflare havolasi har qayta ishga tushirilganda **o'zgaradi** —
 > shuning uchun `npm run go` chiqargan havolani ishlating.
 
+### Sahifa ochildi-yu, tugmalar ishlamasa
+
+Sahifa ko'rinadi, lekin hech bir tugma bosilmaydi va tugmalar o'rnida
+bo'sh kulrang to'rtburchaklar turadi — bu **hidratsiya** ishlamagani.
+Ya'ni HTML kelgan, lekin JavaScript kelmagan: React umuman ishga
+tushmagan.
+
+**Sabab.** Next.js 16 dev serveri `localhost` dan boshqa domendan
+kelgan so'rovlarga `/_next/static/*` fayllarini bermaydi — `403`
+qaytaradi. Bu himoya chorasi, lekin biz ilovani ataylab tashqi manzil
+orqali ochamiz.
+
+**Yechim** — `next.config.ts` dagi `allowedDevOrigins`:
+
+```ts
+allowedDevOrigins: ['*.app.github.dev', '*.github.dev', '*.trycloudflare.com'],
+```
+
+Bu allaqachon sozlangan. Boshqa tunnel xizmatini ishlatsangiz, uning
+domenini shu ro'yxatga qo'shing va serverni qayta ishga tushiring
+(`npm run go`). Sozlama faqat dev rejimida ta'sir qiladi.
+
 **Bir martalik doimiy yechim** (xohlasangiz): codespace'ni brauzerda
 ochib, portni bir marta public qilib qo'ysangiz, GitHub buni eslab
 qoladi va keyin har safar Termux'dan ishlaganda ham ishlaydi:
