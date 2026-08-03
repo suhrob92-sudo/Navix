@@ -7,12 +7,13 @@ const execFileAsync = promisify(execFile);
  * Hammasi ishlayaptimi — bitta buyruq bilan tekshiradi.
  *
  * Nima tekshiriladi:
- *  1. Dev server javob beryaptimi;
- *  2. Ma'lumotlar bazasi ulanganmi;
- *  3. Redis ulanganmi;
- *  4. Baza jadvallari kodga mos keladimi (migratsiya).
+ *  1. Kod eng yangi versiyadami (git);
+ *  2. Dev server javob beryaptimi;
+ *  3. Ma'lumotlar bazasi ulanganmi;
+ *  4. Redis ulanganmi;
+ *  5. Baza jadvallari kodga mos keladimi (migratsiya).
  *
- * Uchalasi ham `/api/health` endpointidan o'qiladi — u allaqachon shu
+ * 2-4 punktlar `/api/health` endpointidan o'qiladi — u allaqachon shu
  * tekshiruvlarni bajaradi, takrorlashning hojati yo'q.
  *
  * Ishlatish: npm run status
@@ -30,6 +31,49 @@ const TIMEOUT_MS = 30_000;
 
 /** Belgi: ✅ yoki ❌ */
 const mark = (ok) => (ok ? '✅' : '❌');
+
+/**
+ * Lokal kod GitHub'dagi versiyadan orqada qolmaganmi.
+ *
+ * Nima uchun kerak: yangi bosqichda ko'pincha YANGI BUYRUQ paydo bo'ladi
+ * (masalan `npm run role:grant`). `git pull` unutilsa, buyruq
+ * "Missing script" deb yiqiladi va sababi umuman ko'rinmaydi —
+ * xato buyruq haqida gapiradi, aslida esa kod eski.
+ *
+ * Xuddi shu holat migratsiya va seed uchun ham amal qiladi.
+ */
+async function checkCodeFreshness() {
+  try {
+    const { stdout: head } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
+    const branch = head.trim();
+
+    // Internet yo'q bo'lsa shu joyda uzilib qoladi — pastdagi `catch`
+    // tekshiruvni jimgina o'tkazib yuboradi.
+    await execFileAsync('git', ['fetch', 'origin', branch], { timeout: 30_000 });
+
+    const { stdout } = await execFileAsync('git', ['rev-list', '--count', `HEAD..origin/${branch}`]);
+    const behind = Number(stdout.trim());
+
+    return { ok: behind === 0, behind, branch };
+  } catch {
+    // Git yo'q, internet yo'q yoki shox hali push qilinmagan —
+    // bularning hech biri xato emas, shuning uchun tekshiruv o'tkaziladi.
+    return { ok: true, skipped: true };
+  }
+}
+
+const freshness = await checkCodeFreshness();
+
+if (!freshness.ok) {
+  console.info('\n⚠️  KOD ESKIRGAN\n');
+  console.info(`   GitHub'da ${freshness.behind} ta yangi commit bor.`);
+  console.info("   Yangi buyruqlar va jadvallar hali sizda yo'q.\n");
+  console.info('   Tuzatish:\n');
+  console.info(`      git pull origin ${freshness.branch}`);
+  console.info('      npm run db:migrate:deploy');
+  console.info('      npm run db:seed\n');
+  console.info('   ────────────────────────────────────────');
+}
 
 let response;
 
@@ -62,6 +106,13 @@ const database = health.dependencies?.database?.status === 'ok';
 const redis = health.dependencies?.redis?.status === 'ok';
 
 console.info('\n📊 Tizim holati\n');
+
+if (!freshness.skipped) {
+  console.info(
+    `   ${mark(freshness.ok)} Kod           — ${freshness.ok ? 'eng yangi' : `ESKIRGAN (${freshness.behind} ta commit orqada)`}`,
+  );
+}
+
 console.info(`   ${mark(true)} Server        — ishlayapti (${PORT}-port)`);
 console.info(`   ${mark(database)} Baza          — ${database ? 'ulangan' : 'ULANMAGAN'}`);
 console.info(`   ${mark(redis)} Redis         — ${redis ? 'ulangan' : 'ULANMAGAN'}`);
@@ -98,6 +149,11 @@ if (!migrations.ok) {
   console.info('\n   Baza kodga mos emas. Tuzatish:\n');
   console.info('      npm run db:migrate:deploy');
   console.info('      npm run db:seed\n');
+  process.exit(1);
+}
+
+if (!freshness.ok) {
+  console.info(`\n   ⚠️  Kod eskirgan. Avval:  git pull origin ${freshness.branch}\n`);
   process.exit(1);
 }
 

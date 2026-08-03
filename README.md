@@ -219,6 +219,46 @@ Serverda kutilmagan xatolik yuz berdi.
 Production'da bu qism **umuman yuborilmaydi** — jadval nomlari va ichki
 tuzilma tashqariga chiqmasligi kerak.
 
+### `npm error Missing script: "..."` chiqsa
+
+```
+npm error Missing script: "role:grant"
+```
+
+**Sabab.** Buyruq mavjud, lekin SIZDA emas. Har bosqichda yangi buyruq
+qo'shilishi mumkin, u esa `package.json` da yozilgan — ya'ni kod
+yangilanmaguncha buyruq ham paydo bo'lmaydi.
+
+Xato buyruq haqida gapiradi, aslida sabab boshqa joyda — shuning uchun
+bu eng chalg'ituvchi xatolardan biri.
+
+**Tekshirish:**
+
+```bash
+npm run status
+```
+
+```
+⚠️  KOD ESKIRGAN
+
+   GitHub'da 1 ta yangi commit bor.
+```
+
+**Tuzatish:**
+
+```bash
+git pull origin claude/ai-super-app-setup-fxkrux
+npm run db:migrate:deploy
+npm run db:seed
+```
+
+Uchtasi birga bajarilishi kerak: yangi kod ko'pincha yangi jadval
+(`migrate`) va yangi boshlang'ich ma'lumot (`seed`) talab qiladi.
+
+> **Belgisi:** `npm run db:seed` chiqargan sonlar (`N ta ruxsat`,
+> `N ta rol-ruxsat bog'lanishi`) yangilanishdan keyin ODATDA o'zgaradi.
+> Sonlar o'zgarmasa — pull bajarilmagan.
+
 ### "Export ... doesn't exist in target module" chiqsa
 
 Baza sxemasi o'zgargandan keyin shunga o'xshash xato chiqishi mumkin:
