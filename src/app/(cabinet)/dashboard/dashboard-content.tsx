@@ -13,8 +13,9 @@ import { ServiceIcon } from '@/components/app/service-icon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getModuleById } from '@/config/modules';
 import { useApiQuery } from '@/hooks/use-api';
-import { formatUZS } from '@/lib/utils';
+import { formatTiyin } from '@/lib/money';
 import { useAuth } from '@/modules/auth/auth-context';
+import type { WalletSummary } from '@/modules/wallet/wallet.types';
 
 interface AddressesResponse {
   addresses: { id: string; label: string; isDefault: boolean }[];
@@ -64,6 +65,7 @@ export function DashboardContent() {
   const { user } = useAuth();
 
   const addresses = useApiQuery<AddressesResponse>('/api/v1/addresses');
+  const wallet = useApiQuery<WalletSummary>('/api/v1/wallet');
 
   const displayName = user?.firstName ?? 'foydalanuvchi';
   const defaultAddress = addresses.data?.addresses.find((address) => address.isDefault);
@@ -105,7 +107,14 @@ export function DashboardContent() {
               <Wallet className="size-4.5" aria-hidden="true" />
             </span>
             <p className="text-muted-foreground mt-3 text-xs">Hamyon balansi</p>
-            <p className="mt-0.5 text-base font-semibold tabular-nums">{formatUZS(0)}</p>
+
+            {wallet.isLoading ? (
+              <Skeleton className="mt-1 h-5 w-24" />
+            ) : (
+              <p className="mt-0.5 text-base font-semibold tabular-nums">
+                {formatTiyin(wallet.data?.balance ?? 0)}
+              </p>
+            )}
           </Link>
 
           <Link

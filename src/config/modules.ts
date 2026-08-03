@@ -231,9 +231,9 @@ export const APP_MODULES: readonly AppModule[] = [
     href: '/wallet',
     icon: Wallet,
     category: ModuleCategory.FINANCE,
-    status: ModuleStatus.PLANNED,
+    status: ModuleStatus.LIVE,
     color: 'green',
-    aiIntents: ['balansim qancha', "pul o'tkaz", 'hamyon och'],
+    aiIntents: ['balansim qancha', "pul o'tkaz", 'hamyon och', "hisobni to'ldir", 'balans'],
   },
   {
     id: 'jobs',

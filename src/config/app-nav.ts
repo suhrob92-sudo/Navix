@@ -1,5 +1,17 @@
 import type { LucideIcon } from 'lucide-react';
-import { ClipboardList, Home, Search, Sparkles, User } from 'lucide-react';
+import {
+  Bell,
+  ClipboardList,
+  Home,
+  MapPin,
+  Search,
+  Settings,
+  ShieldCheck,
+  Smartphone,
+  Sparkles,
+  User,
+  Receipt,
+} from 'lucide-react';
 
 /**
  * Ilovaning asosiy navigatsiyasi — pastki menyu.
@@ -40,14 +52,34 @@ export interface ProfileMenuItem {
   href: string;
   label: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
 }
 
+/**
+ * Hamyon bu ro'yxatda YO'Q — u profil sahifasida alohida, balansi
+ * ko'rinadigan karta sifatida chiqadi. Ikki joyda takrorlanmasligi uchun.
+ */
 export const PROFILE_MENU: readonly ProfileMenuItem[] = [
-  { href: '/orders', label: 'Mening buyurtmalarim', description: 'Barcha modullardagi buyurtmalar', icon: 'orders' },
-  { href: '/addresses', label: 'Manzillarim', description: 'Uy, ish va boshqa manzillar', icon: 'addresses' },
-  { href: '/notifications', label: 'Bildirishnomalar', description: 'Kelgan xabarlar', icon: 'notifications' },
-  { href: '/devices', label: 'Qurilmalarim', description: 'Tizimga kirgan qurilmalar', icon: 'devices' },
-  { href: '/security', label: 'Xavfsizlik', description: 'Parol va himoya sozlamalari', icon: 'security' },
-  { href: '/profile/settings', label: 'Sozlamalar', description: 'Til, mavzu va shaxsiy maʼlumotlar', icon: 'settings' },
+  {
+    href: '/wallet/history',
+    label: 'Amallar tarixi',
+    description: "Barcha to'lovlar va o'tkazmalar",
+    icon: Receipt,
+  },
+  {
+    href: '/orders',
+    label: 'Mening buyurtmalarim',
+    description: 'Barcha modullardagi buyurtmalar',
+    icon: ClipboardList,
+  },
+  { href: '/addresses', label: 'Manzillarim', description: 'Uy, ish va boshqa manzillar', icon: MapPin },
+  { href: '/notifications', label: 'Bildirishnomalar', description: 'Kelgan xabarlar', icon: Bell },
+  { href: '/devices', label: 'Qurilmalarim', description: 'Tizimga kirgan qurilmalar', icon: Smartphone },
+  { href: '/security', label: 'Xavfsizlik', description: 'Parol va himoya', icon: ShieldCheck },
+  {
+    href: '/profile/settings',
+    label: 'Sozlamalar',
+    description: "Til, mavzu va shaxsiy ma'lumotlar",
+    icon: Settings,
+  },
 ] as const;

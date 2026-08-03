@@ -23,7 +23,15 @@ import { REFRESH_COOKIE_NAME } from '@/modules/auth/auth.cookies';
  */
 
 /** Kirish talab qiladigan sahifalar. */
-const PROTECTED_PREFIXES = ['/dashboard', '/profile', '/addresses', '/devices', '/notifications', '/security'];
+const PROTECTED_PREFIXES = [
+  '/dashboard',
+  '/profile',
+  '/addresses',
+  '/devices',
+  '/notifications',
+  '/security',
+  '/wallet',
+];
 
 /** Kirgan foydalanuvchiga keraksiz sahifalar (kirish, ro'yxatdan o'tish). */
 const GUEST_ONLY_PATHS = ['/auth/login', '/auth/register'];

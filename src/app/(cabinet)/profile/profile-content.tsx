@@ -1,17 +1,6 @@
 'use client';
 
-import {
-  Bell,
-  ChevronRight,
-  ClipboardList,
-  LogOut,
-  MapPin,
-  Settings,
-  ShieldCheck,
-  Smartphone,
-  Wallet,
-  type LucideIcon,
-} from 'lucide-react';
+import { ChevronRight, LogOut, ShieldCheck, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -21,10 +10,12 @@ import { Alert } from '@/components/ui/alert';
 import { Avatar } from '@/components/ui/avatar';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PROFILE_MENU } from '@/config/app-nav';
 import { useApiQuery } from '@/hooks/use-api';
 import { formatUzPhone } from '@/lib/phone';
-import { formatUZS } from '@/lib/utils';
+import { formatTiyin } from '@/lib/money';
 import { useAuth } from '@/modules/auth/auth-context';
+import type { WalletSummary } from '@/modules/wallet/wallet.types';
 
 export interface ProfileResponse {
   id: string;
@@ -46,31 +37,12 @@ export interface ProfileResponse {
   };
 }
 
-/** Profil menyusi — pastki panelga sig'magan bo'limlar. */
-const MENU_ITEMS: { href: string; label: string; description: string; icon: LucideIcon }[] = [
-  {
-    href: '/orders',
-    label: 'Mening buyurtmalarim',
-    description: 'Barcha modullardagi buyurtmalar',
-    icon: ClipboardList,
-  },
-  { href: '/addresses', label: 'Manzillarim', description: 'Uy, ish va boshqa manzillar', icon: MapPin },
-  { href: '/notifications', label: 'Bildirishnomalar', description: 'Kelgan xabarlar', icon: Bell },
-  { href: '/devices', label: 'Qurilmalarim', description: 'Tizimga kirgan qurilmalar', icon: Smartphone },
-  { href: '/security', label: 'Xavfsizlik', description: 'Parol va himoya', icon: ShieldCheck },
-  {
-    href: '/profile/settings',
-    label: 'Sozlamalar',
-    description: "Til, mavzu va shaxsiy ma'lumotlar",
-    icon: Settings,
-  },
-];
-
 /** Profil sahifasi — maketdagi kabi menyu ko'rinishida. */
 export function ProfileContent() {
   const router = useRouter();
   const { logout } = useAuth();
   const { data, isLoading, error } = useApiQuery<ProfileResponse>('/api/v1/profile');
+  const wallet = useApiQuery<WalletSummary>('/api/v1/wallet');
 
   const [isLogoutOpen, setIsLogoutOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -144,13 +116,18 @@ export function ProfileContent() {
           href="/wallet"
           className="bg-card border-border flex items-center gap-3 rounded-2xl border p-4 transition-transform active:scale-[0.99]"
         >
-          <span className="bg-emerald-100 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-400 inline-flex size-11 items-center justify-center rounded-xl">
+          <span className="inline-flex size-11 items-center justify-center rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-400">
             <Wallet className="size-5" aria-hidden="true" />
           </span>
 
           <div className="min-w-0 flex-1">
             <p className="text-muted-foreground text-xs">Mening hamyonim</p>
-            <p className="text-lg font-semibold tabular-nums">{formatUZS(0)}</p>
+
+            {wallet.isLoading ? (
+              <Skeleton className="mt-1 h-6 w-28" />
+            ) : (
+              <p className="text-lg font-semibold tabular-nums">{formatTiyin(wallet.data?.balance ?? 0)}</p>
+            )}
           </div>
 
           <ChevronRight className="text-muted-foreground size-5 shrink-0" aria-hidden="true" />
@@ -158,7 +135,7 @@ export function ProfileContent() {
 
         {/* Menyu */}
         <nav className="bg-card border-border divide-border divide-y overflow-hidden rounded-2xl border">
-          {MENU_ITEMS.map((item) => {
+          {PROFILE_MENU.map((item) => {
             const Icon = item.icon;
 
             return (

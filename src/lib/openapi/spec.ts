@@ -30,6 +30,7 @@ export const openApiSpec = {
     { name: 'Profile', description: 'Profil va sozlamalar' },
     { name: 'Addresses', description: 'Saqlangan manzillar (barcha modullar uchun umumiy)' },
     { name: 'Notifications', description: 'Bildirishnomalar' },
+    { name: 'Wallet', description: "Hamyon: balans, to'ldirish va o'tkazmalar" },
   ],
   components: {
     securitySchemes: {
@@ -216,6 +217,88 @@ export const openApiSpec = {
       },
 
       // --- Manzillar ------------------------------------------------------
+      WalletTransaction: {
+        type: 'object',
+        required: ['id', 'type', 'status', 'amount', 'balanceAfter', 'direction'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          type: {
+            type: 'string',
+            enum: ['TOP_UP', 'WITHDRAWAL', 'PAYMENT', 'REFUND', 'TRANSFER', 'BONUS'],
+          },
+          status: { type: 'string', enum: ['PENDING', 'COMPLETED', 'FAILED', 'REVERSED'] },
+          amount: {
+            type: 'integer',
+            description: "Summa TIYINDA, har doim musbat. 1 so'm = 100 tiyin.",
+            examples: [5000000],
+          },
+          balanceAfter: { type: 'integer', description: 'Amaldan keyingi balans, tiyinda.' },
+          direction: {
+            type: 'string',
+            enum: ['in', 'out'],
+            description: '`in` — hamyonga kirdi, `out` — hamyondan chiqdi.',
+          },
+          description: { type: ['string', 'null'] },
+          sourceModule: { type: 'string', examples: ['wallet'] },
+          createdAt: { type: 'string', format: 'date-time' },
+          completedAt: { type: ['string', 'null'], format: 'date-time' },
+        },
+      },
+      WalletSummary: {
+        type: 'object',
+        required: ['id', 'balance', 'reserved', 'available', 'currency', 'status'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          balance: { type: 'integer', description: 'Umumiy balans, tiyinda.' },
+          reserved: { type: 'integer', description: 'Buyurtmalar uchun band qilingan summa, tiyinda.' },
+          available: { type: 'integer', description: "`balance - reserved` — sarflash mumkin bo'lgan summa." },
+          currency: { type: 'string', examples: ['UZS'] },
+          status: { type: 'string', enum: ['ACTIVE', 'FROZEN', 'CLOSED'] },
+          recentTransactions: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/WalletTransaction' },
+          },
+        },
+      },
+      TopUpInput: {
+        type: 'object',
+        required: ['amount', 'method', 'idempotencyKey'],
+        properties: {
+          amount: {
+            type: 'integer',
+            minimum: 1000,
+            maximum: 10000000,
+            description: "Summa SO'MDA (tiyinda emas).",
+            examples: [50000],
+          },
+          method: { type: 'string', enum: ['CARD', 'PAYME', 'CLICK', 'UZUM'] },
+          idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 100,
+            description:
+              "Takroriy so'rovdan himoya. Bir xil kalit bilan kelgan ikkinchi so'rov yangi amal yaratmaydi.",
+          },
+        },
+      },
+      TransferInput: {
+        type: 'object',
+        required: ['phone', 'amount', 'idempotencyKey'],
+        properties: {
+          phone: { type: 'string', examples: ['+998901234567'] },
+          amount: { type: 'integer', minimum: 1000, maximum: 10000000, description: "Summa SO'MDA." },
+          note: { type: 'string', maxLength: 140 },
+          idempotencyKey: { type: 'string', minLength: 8, maxLength: 100 },
+        },
+      },
+      TransferRecipient: {
+        type: 'object',
+        required: ['name', 'isSelf'],
+        properties: {
+          name: { type: 'string', description: 'Faqat ism qaytariladi — boshqa maʼlumot berilmaydi.' },
+          isSelf: { type: 'boolean' },
+        },
+      },
       Address: {
         type: 'object',
         required: ['id', 'type', 'label', 'city', 'street', 'latitude', 'longitude', 'isDefault'],
@@ -799,6 +882,146 @@ export const openApiSpec = {
     },
 
     // --- Manzillar --------------------------------------------------------
+    '/api/v1/wallet': {
+      get: {
+        tags: ['Wallet'],
+        summary: 'Hamyon holati',
+        description:
+          "Balans, band qilingan summa va oxirgi 5 ta amal. Barcha summalar TIYINDA (1 so'm = 100 tiyin).",
+        operationId: 'getWallet',
+        responses: {
+          '200': {
+            description: 'Hamyon',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/WalletSummary' } } },
+          },
+          '401': {
+            description: 'Avtorizatsiya talab qilinadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
+    '/api/v1/wallet/transactions': {
+      get: {
+        tags: ['Wallet'],
+        summary: 'Amallar tarixi',
+        description: 'Sahifalangan roʻyxat. Turi boʻyicha filtrlash mumkin.',
+        operationId: 'listWalletTransactions',
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
+          {
+            name: 'pageSize',
+            in: 'query',
+            schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+          },
+          {
+            name: 'type',
+            in: 'query',
+            schema: {
+              type: 'string',
+              enum: ['ALL', 'TOP_UP', 'WITHDRAWAL', 'PAYMENT', 'REFUND', 'TRANSFER', 'BONUS'],
+              default: 'ALL',
+            },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Amallar',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    transactions: {
+                      type: 'array',
+                      items: { $ref: '#/components/schemas/WalletTransaction' },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/v1/wallet/topup': {
+      post: {
+        tags: ['Wallet'],
+        summary: "Hisobni to'ldirish",
+        description:
+          'Hozircha toʻlov provayderi simulyatsiya qilinadi. `idempotencyKey` majburiy: aloqa uzilib qayta yuborilganda pul ikki marta qoʻshilmasligi kerak.',
+        operationId: 'topUpWallet',
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/TopUpInput' } } },
+        },
+        responses: {
+          '201': {
+            description: 'Amal bajarildi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/WalletTransaction' } } },
+          },
+          '409': {
+            description: 'Hamyon muzlatilgan yoki yopilgan',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+          '422': {
+            description: "Summa yoki to'lov usuli noto'g'ri",
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
+    '/api/v1/wallet/transfer': {
+      get: {
+        tags: ['Wallet'],
+        summary: 'Qabul qiluvchini tekshirish',
+        description:
+          'Pul yuborishdan OLDIN chaqiriladi — foydalanuvchi kimga yuborayotganini koʻrishi kerak. Faqat ism qaytariladi.',
+        operationId: 'lookupTransferRecipient',
+        parameters: [
+          {
+            name: 'phone',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', examples: ['+998901234567'] },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Qabul qiluvchi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/TransferRecipient' } } },
+          },
+          '404': {
+            description: 'Bu raqam bilan foydalanuvchi topilmadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+      post: {
+        tags: ['Wallet'],
+        summary: "Pul o'tkazish",
+        description: 'Ikki hamyon bitta tranzaksiya ichida qulflanadi. Mablagʻ yetmasa amal umuman bajarilmaydi.',
+        operationId: 'transferMoney',
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/TransferInput' } } },
+        },
+        responses: {
+          '201': {
+            description: "O'tkazma bajarildi",
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/WalletTransaction' } } },
+          },
+          '404': {
+            description: 'Qabul qiluvchi topilmadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+          '409': {
+            description: "Mablag' yetarli emas",
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
     '/api/v1/addresses': {
       get: {
         tags: ['Addresses'],

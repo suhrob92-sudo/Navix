@@ -75,6 +75,16 @@ enum TransactionType {
   BONUS
 }
 
+/// Pulning yo'nalishi. Turdan TAXMIN QILIB bo'lmaydi: o'tkazmada
+/// yuboruvchi uchun chiqim, qabul qiluvchi uchun kirim — turi esa
+/// ikkalasida ham TRANSFER. Shuning uchun aniq saqlanadi.
+enum TransactionDirection {
+  /// Hamyonga kirdi.
+  IN
+  /// Hamyondan chiqdi.
+  OUT
+}
+
 enum TransactionStatus {
   PENDING
   COMPLETED
@@ -287,6 +297,7 @@ model WalletTransaction {
   walletId String @db.Uuid
 
   type        TransactionType
+  direction   TransactionDirection
   status      TransactionStatus @default(PENDING)
   /// Summa tiyinlarda. Har doim musbat; yo'nalishni `type` belgilaydi.
   amount      BigInt

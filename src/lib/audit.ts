@@ -25,6 +25,10 @@ export const AuditAction = {
   USER_PASSWORD_RESET_REQUESTED: 'user.password.reset_requested',
   USER_PASSWORD_RESET_COMPLETED: 'user.password.reset_completed',
   SESSION_REVOKED: 'session.revoked',
+
+  // Moliyaviy amallar — nizo chiqqanda aynan shular tekshiriladi.
+  WALLET_TOP_UP: 'wallet.top_up',
+  WALLET_TRANSFER: 'wallet.transfer',
 } as const;
 
 export type AuditActionValue = (typeof AuditAction)[keyof typeof AuditAction];

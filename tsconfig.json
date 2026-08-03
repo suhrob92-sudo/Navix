@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
+    // ES2020 — `BigInt` uchun kerak. Pul tiyinlarda, BigInt sifatida
+    // saqlanadi (`src/lib/money.ts`), ES2017 esa `100n` yozuvini bilmaydi.
+    // Brauzer mosligiga ta'sir qilmaydi: Next.js chiqadigan kodni o'zining
+    // browserslist sozlamasiga qarab alohida moslashtiradi.
+    "target": "ES2020",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
