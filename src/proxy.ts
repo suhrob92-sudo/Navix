@@ -31,6 +31,7 @@ const PROTECTED_PREFIXES = [
   '/notifications',
   '/security',
   '/wallet',
+  '/payments',
 ];
 
 /** Kirgan foydalanuvchiga keraksiz sahifalar (kirish, ro'yxatdan o'tish). */

@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+import { formatRelativeUz } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { TRANSACTION_TYPE_LABELS, type WalletTransaction } from '@/modules/wallet/wallet.types';
@@ -31,24 +32,6 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
 /** Ikonkalar jadvalidagi kalit. */
 function iconKey(transaction: WalletTransaction): string {
   return transaction.type === 'TRANSFER' ? `TRANSFER_${transaction.direction}` : transaction.type;
-}
-
-/** Sanani "Bugun, 14:30" ko'rinishida chiqaradi. */
-function formatTransactionDate(iso: string): string {
-  const date = new Date(iso);
-  const time = new Intl.DateTimeFormat('uz-UZ', { hour: '2-digit', minute: '2-digit' }).format(date);
-
-  const today = new Date();
-  const isToday = date.toDateString() === today.toDateString();
-
-  if (isToday) return `Bugun, ${time}`;
-
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) return `Kecha, ${time}`;
-
-  const day = new Intl.DateTimeFormat('uz-UZ', { day: 'numeric', month: 'short' }).format(date);
-  return `${day}, ${time}`;
 }
 
 export interface TransactionRowProps {
@@ -78,7 +61,7 @@ export function TransactionRow({ transaction, className }: TransactionRowProps) 
           {transaction.description ?? TRANSACTION_TYPE_LABELS[transaction.type]}
         </p>
         <p className="text-muted-foreground mt-0.5 text-xs">
-          {formatTransactionDate(transaction.createdAt)}
+          {formatRelativeUz(transaction.createdAt)}
           {transaction.status === 'PENDING' && ' · Kutilmoqda'}
           {isFailed && ' · Bekor qilindi'}
         </p>

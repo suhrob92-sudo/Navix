@@ -219,7 +219,7 @@ export const APP_MODULES: readonly AppModule[] = [
     href: '/payments',
     icon: CreditCard,
     category: ModuleCategory.FINANCE,
-    status: ModuleStatus.PLANNED,
+    status: ModuleStatus.LIVE,
     color: 'orange',
     quickOrder: 4,
     aiIntents: ["kommunal to'la", "to'lov qil", "internet to'la", "telefon to'ldir"],

@@ -467,6 +467,85 @@ export async function transfer(
 }
 
 /**
+ * Hamyondan xizmat uchun pul yechadi — BOSHQA MODULLAR ishlatadi.
+ *
+ * ── Nima uchun alohida eksport ────────────────────────────────────────
+ * To'lovlar, taksi, ovqat yetkazish — hammasi hamyondan pul yechadi.
+ * Har biri o'zicha yozsa, qulflash va tekshiruv mantig'i takrorlanadi va
+ * bir joyda xato qilinsa pul yo'qoladi. Shuning uchun bitta joyda.
+ *
+ * ── Nima uchun `tx` tashqaridan keladi ────────────────────────────────
+ * Chaqiruvchi modulning o'z yozuvi (masalan `ServicePayment`) va pul
+ * yechish BIR tranzaksiyada bo'lishi shart. Aks holda pul yechilib,
+ * buyurtma yozilmay qolishi mumkin.
+ *
+ * Chaqiruvchi tranzaksiyani o'zi ochadi va shu funksiyaga uzatadi.
+ */
+export async function chargeWallet(
+  tx: Prisma.TransactionClient,
+  params: {
+    userId: string;
+    walletId: string;
+    /** Summa TIYINDA, musbat. */
+    amountTiyin: bigint;
+    description: string;
+    /** Qaysi modul: "payments", "taxi". */
+    sourceModule: string;
+    /** Shu moduldagi obyekt ID'si. */
+    sourceId: string;
+    idempotencyKey: string;
+  },
+): Promise<{ id: string; balanceAfter: bigint }> {
+  if (params.amountTiyin <= 0n) {
+    throw new ValidationError("Summa noldan katta bo'lishi kerak");
+  }
+
+  const locked = await lockWallet(tx, params.walletId);
+  assertWalletUsable(locked.status);
+
+  const available = locked.balance - locked.reserved;
+
+  if (available < params.amountTiyin) {
+    throw new ConflictError("Hamyoningizda mablag' yetarli emas. Avval hisobni to'ldiring.");
+  }
+
+  const balanceAfter = locked.balance - params.amountTiyin;
+
+  await tx.wallet.update({ where: { id: params.walletId }, data: { balance: balanceAfter } });
+
+  const transaction = await tx.walletTransaction.create({
+    data: {
+      walletId: params.walletId,
+      type: TransactionType.PAYMENT,
+      direction: TransactionDirection.OUT,
+      status: TransactionStatus.COMPLETED,
+      amount: params.amountTiyin,
+      balanceAfter,
+      description: params.description,
+      idempotencyKey: params.idempotencyKey,
+      sourceModule: params.sourceModule,
+      sourceId: params.sourceId,
+      completedAt: new Date(),
+    },
+    select: { id: true },
+  });
+
+  return { id: transaction.id, balanceAfter };
+}
+
+/**
+ * Takroriy so'rovni aniqlaydi — boshqa modullar uchun.
+ *
+ * @returns Shu kalit bilan amal allaqachon bajarilgan bo'lsa uning ID'si.
+ */
+export async function findTransactionByIdempotencyKey(key: string): Promise<{ sourceId: string | null } | null> {
+  return prisma.walletTransaction.findUnique({
+    where: { idempotencyKey: key },
+    select: { sourceId: true },
+  });
+}
+
+/**
  * Qabul qiluvchini o'tkazmadan OLDIN tekshiradi.
  *
  * Nima uchun alohida: foydalanuvchi raqamni kiritishi bilan "kimga

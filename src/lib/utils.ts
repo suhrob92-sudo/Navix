@@ -23,16 +23,6 @@ export function formatUZS(amount: number): string {
   return `${formatted} so'm`;
 }
 
-/** Sanani o'zbekcha, qisqa ko'rinishda chiqaradi. Masalan: 2-avg, 2026 */
-export function formatDate(date: Date | string): string {
-  const value = typeof date === 'string' ? new Date(date) : date;
-  return new Intl.DateTimeFormat('uz-UZ', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(value);
-}
-
 /** Matnni belgilangan uzunlikda kesadi va oxiriga "…" qo'yadi. */
 export function truncate(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;

@@ -3,9 +3,13 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 3-bosqich yakunlandi — poydevor, autentifikatsiya va shaxsiy kabinet
-> (profil, manzillar, qurilmalar, bildirishnomalar, xavfsizlik) tayyor.
-> Xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
+> **Holat:** 5-bosqich yakunlandi.
+>
+> Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
+> (balans, to'ldirish, o'tkazma, tarix) va **to'lovlar** (kommunal,
+> internet, mobil aloqa, TV — 14 ta provayder, saqlangan hisoblar, chek).
+>
+> Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
 ---
 

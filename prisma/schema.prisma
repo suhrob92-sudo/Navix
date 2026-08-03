@@ -92,6 +92,30 @@ enum TransactionStatus {
   REVERSED
 }
 
+/// Xizmat turlari — to'lovlar moduli uchun.
+enum ServiceCategory {
+  /// Kommunal: gaz, suv, elektr, issiqlik.
+  UTILITY
+  /// Internet provayderlari.
+  INTERNET
+  /// Uyali aloqa hisobini to'ldirish.
+  MOBILE
+  /// Kabel va raqamli televidenie.
+  TV
+}
+
+/// Xizmat to'lovining holati.
+enum ServicePaymentStatus {
+  /// Provayderga yuborilgan, javob kutilmoqda.
+  PENDING
+  /// Muvaffaqiyatli yakunlangan.
+  COMPLETED
+  /// Provayder rad etdi yoki xatolik bo'ldi.
+  FAILED
+  /// Pul foydalanuvchiga qaytarildi.
+  REFUNDED
+}
+
 enum AddressType {
   HOME
   WORK
@@ -145,6 +169,8 @@ model User {
   addresses     Address[]
   notifications Notification[]
   auditLogs     AuditLog[]
+  savedAccounts SavedAccount[]
+  payments      ServicePayment[]
 
   @@index([status])
   @@index([createdAt])
@@ -157,13 +183,13 @@ model UserProfile {
   id     String @id @default(uuid()) @db.Uuid
   userId String @unique @db.Uuid
 
-  dateOfBirth DateTime?
-  language    Language        @default(UZ)
-  theme       ThemePreference @default(SYSTEM)
+  dateOfBirth    DateTime?
+  language       Language        @default(UZ)
+  theme          ThemePreference @default(SYSTEM)
   /// IANA vaqt zonasi, masalan "Asia/Tashkent".
-  timezone    String          @default("Asia/Tashkent") @db.VarChar(64)
+  timezone       String          @default("Asia/Tashkent") @db.VarChar(64)
   /// Marketing xabarnomalariga rozilik.
-  marketingOptIn Boolean      @default(false)
+  marketingOptIn Boolean         @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -296,15 +322,15 @@ model WalletTransaction {
   id       String @id @default(uuid()) @db.Uuid
   walletId String @db.Uuid
 
-  type        TransactionType
-  direction   TransactionDirection
-  status      TransactionStatus @default(PENDING)
+  type         TransactionType
+  direction    TransactionDirection
+  status       TransactionStatus    @default(PENDING)
   /// Summa tiyinlarda. Har doim musbat; yo'nalishni `type` belgilaydi.
-  amount      BigInt
+  amount       BigInt
   /// Amaldan keyingi balans — tekshiruv (reconciliation) uchun.
   balanceAfter BigInt
-  currency    String            @default("UZS") @db.VarChar(3)
-  description String?           @db.VarChar(255)
+  currency     String               @default("UZS") @db.VarChar(3)
+  description  String?              @db.VarChar(255)
 
   /// Tashqi tizim (Payme, Click, Uzum) tranzaksiya raqami.
   externalReference String? @db.VarChar(120)
@@ -367,16 +393,16 @@ model Notification {
   id     String @id @default(uuid()) @db.Uuid
   userId String @db.Uuid
 
-  channel NotificationChannel @default(IN_APP)
-  status  NotificationStatus  @default(QUEUED)
-  title   String              @db.VarChar(150)
-  body    String              @db.VarChar(1000)
+  channel      NotificationChannel @default(IN_APP)
+  status       NotificationStatus  @default(QUEUED)
+  title        String              @db.VarChar(150)
+  body         String              @db.VarChar(1000)
   /// Bosilganda ochiladigan manzil.
-  actionUrl String?           @db.VarChar(500)
+  actionUrl    String?             @db.VarChar(500)
   /// Qaysi modul yubordi.
-  sourceModule String         @db.VarChar(50)
+  sourceModule String              @db.VarChar(50)
   /// Qo'shimcha strukturasiz ma'lumot (buyurtma ID, narx...).
-  payload   Json?
+  payload      Json?
 
   createdAt DateTime  @default(now())
   sentAt    DateTime?
@@ -391,6 +417,114 @@ model Notification {
 
 /// Audit jurnali — kim, qachon, nima qildi.
 /// Xavfsizlik tekshiruvi va nizolarni hal qilish uchun majburiy.
+/// To'lov qabul qiluvchi xizmat (Hududgaz, Beeline, Uzonline...).
+///
+/// Nima uchun alohida jadval, kodda ro'yxat emas: provayderlar tez-tez
+/// o'zgaradi — yangisi qo'shiladi, eskisi yopiladi, tarif o'zgaradi.
+/// Har safar kodni qayta chiqarish o'rniga bazadan boshqariladi.
+model ServiceProvider {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Kod — barqaror identifikator ("hududgaz", "beeline").
+  code     String          @unique @db.VarChar(50)
+  name     String          @db.VarChar(120)
+  category ServiceCategory
+
+  /// Qisqa izoh — foydalanuvchi to'g'ri provayderni tanlashi uchun.
+  description String? @db.VarChar(255)
+
+  /// Hisob raqami maydonining nomi: "Shaxsiy hisob raqami", "Telefon raqami".
+  accountLabel String @db.VarChar(60)
+  /// Kiritishga yordam beruvchi namuna: "1234567890".
+  accountHint  String @db.VarChar(60)
+  /// Hisob raqamini tekshirish uchun naqsh (regex). Server tomonda ishlatiladi.
+  accountRegex String @db.VarChar(200)
+
+  /// To'lov chegaralari, TIYINDA.
+  minAmount BigInt
+  maxAmount BigInt
+
+  /// Interfeysdagi rang kaliti (`ServiceColor`).
+  color String @db.VarChar(20)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  savedAccounts SavedAccount[]
+  payments      ServicePayment[]
+
+  @@index([category, isActive, sortOrder])
+  @@map("service_providers")
+}
+
+/// Foydalanuvchi saqlab qo'ygan hisob (masalan uyining gaz raqami).
+///
+/// Nima uchun kerak: kommunal to'lov har oy takrorlanadi. Raqamni har
+/// safar qayta kiritish uzoq va xatoga moyil.
+model SavedAccount {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId     String @db.Uuid
+  providerId String @db.Uuid
+
+  /// Hisob raqami — provayder talab qilgan ko'rinishda.
+  accountNumber String @db.VarChar(60)
+  /// Foydalanuvchi bergan nom: "Uy gazi", "Onamning telefoni".
+  label         String @db.VarChar(60)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+
+  /// Bir xil provayderga bir xil raqam ikki marta saqlanmasin.
+  @@unique([userId, providerId, accountNumber])
+  @@index([userId, deletedAt])
+  @@map("saved_accounts")
+}
+
+/// Bajarilgan xizmat to'lovi.
+///
+/// Pulning o'zi `WalletTransaction` orqali harakatlanadi; bu jadval
+/// esa "kimga, qaysi hisobga, qancha" degan SOHA ma'lumotini saqlaydi.
+/// Ikkisi `walletTransactionId` orqali bog'langan.
+model ServicePayment {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId     String @db.Uuid
+  providerId String @db.Uuid
+
+  accountNumber String               @db.VarChar(60)
+  /// Summa TIYINDA.
+  amount        BigInt
+  status        ServicePaymentStatus @default(PENDING)
+
+  /// Chek raqami — foydalanuvchi nizo chiqqanda shuni ko'rsatadi.
+  receiptNumber String @unique @db.VarChar(40)
+
+  /// Hamyondagi tegishli tranzaksiya.
+  walletTransactionId String? @db.Uuid
+  /// Provayder tizimidagi raqam (real integratsiyada to'ldiriladi).
+  externalReference   String? @db.VarChar(120)
+  /// Rad etilgan bo'lsa — sababi.
+  failureReason       String? @db.VarChar(255)
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  provider ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("service_payments")
+}
+
 model AuditLog {
   id String @id @default(uuid()) @db.Uuid
 

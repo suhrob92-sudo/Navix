@@ -4,8 +4,9 @@ import 'dotenv/config';
 
 import { PrismaPg } from '@prisma/adapter-pg';
 
-import { PrismaClient, RoleName } from '../src/generated/prisma/client';
+import { PrismaClient, RoleName, ServiceCategory } from '../src/generated/prisma/client';
 import { Permission, ROLE_PERMISSIONS, Role } from '../src/config/rbac';
+import { SERVICE_PROVIDERS } from '../src/config/service-providers';
 
 /**
  * Boshlang'ich ma'lumotlarni bazaga yozadi (seed).
@@ -124,6 +125,40 @@ async function seedRolePermissions(prisma: PrismaClient): Promise<void> {
   console.info(`✅ ${linkCount} ta rol–ruxsat bog'lanishi yozildi`);
 }
 
+/**
+ * To'lov qabul qiluvchi xizmatlarni yozadi.
+ *
+ * `upsert` ishlatiladi: mavjud provayder ma'lumotlari yangilanadi, lekin
+ * uning ID'si o'zgarmaydi — aks holda eski to'lovlar bog'lanishini
+ * yo'qotardi.
+ */
+async function seedServiceProviders(prisma: PrismaClient): Promise<void> {
+  for (const provider of SERVICE_PROVIDERS) {
+    const data = {
+      name: provider.name,
+      category: provider.category as ServiceCategory,
+      description: provider.description,
+      accountLabel: provider.accountLabel,
+      accountHint: provider.accountHint,
+      accountRegex: provider.accountRegex,
+      // Chegaralar konfiguratsiyada so'mda, bazada esa tiyinda saqlanadi.
+      minAmount: BigInt(provider.minAmountSom) * 100n,
+      maxAmount: BigInt(provider.maxAmountSom) * 100n,
+      color: provider.color,
+      sortOrder: provider.sortOrder,
+      isActive: true,
+    };
+
+    await prisma.serviceProvider.upsert({
+      where: { code: provider.code },
+      update: data,
+      create: { code: provider.code, ...data },
+    });
+  }
+
+  console.info(`✅ ${SERVICE_PROVIDERS.length} ta xizmat provayderi yozildi`);
+}
+
 async function main(): Promise<void> {
   const prisma = createClient();
 
@@ -132,6 +167,7 @@ async function main(): Promise<void> {
     await seedPermissions(prisma);
     await seedRoles(prisma);
     await seedRolePermissions(prisma);
+    await seedServiceProviders(prisma);
     console.info('🎉 Tayyor!');
   } finally {
     await prisma.$disconnect();

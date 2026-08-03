@@ -29,6 +29,7 @@ export const AuditAction = {
   // Moliyaviy amallar — nizo chiqqanda aynan shular tekshiriladi.
   WALLET_TOP_UP: 'wallet.top_up',
   WALLET_TRANSFER: 'wallet.transfer',
+  SERVICE_PAYMENT: 'payment.service',
 } as const;
 
 export type AuditActionValue = (typeof AuditAction)[keyof typeof AuditAction];

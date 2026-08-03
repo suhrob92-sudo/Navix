@@ -31,6 +31,7 @@ export const openApiSpec = {
     { name: 'Addresses', description: 'Saqlangan manzillar (barcha modullar uchun umumiy)' },
     { name: 'Notifications', description: 'Bildirishnomalar' },
     { name: 'Wallet', description: "Hamyon: balans, to'ldirish va o'tkazmalar" },
+    { name: 'Payments', description: "Xizmat to'lovlari: kommunal, internet, mobil aloqa, TV" },
   ],
   components: {
     securitySchemes: {
@@ -217,6 +218,67 @@ export const openApiSpec = {
       },
 
       // --- Manzillar ------------------------------------------------------
+      ServiceProvider: {
+        type: 'object',
+        required: ['id', 'code', 'name', 'category', 'accountLabel', 'minAmount', 'maxAmount'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          code: { type: 'string', examples: ['hududgaz'] },
+          name: { type: 'string', examples: ['Hududgaz'] },
+          category: { type: 'string', enum: ['UTILITY', 'INTERNET', 'MOBILE', 'TV'] },
+          description: { type: ['string', 'null'] },
+          accountLabel: {
+            type: 'string',
+            description: 'Hisob raqami maydonining nomi.',
+            examples: ['Shaxsiy hisob raqami'],
+          },
+          accountHint: { type: 'string', examples: ['1234567890'] },
+          minAmount: { type: 'integer', description: 'Eng kam summa, TIYINDA.' },
+          maxAmount: { type: 'integer', description: "Eng ko'p summa, TIYINDA." },
+          color: { type: 'string', examples: ['orange'] },
+        },
+      },
+      SavedAccount: {
+        type: 'object',
+        required: ['id', 'accountNumber', 'label', 'provider'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          accountNumber: { type: 'string', examples: ['1234567890'] },
+          label: { type: 'string', examples: ['Uy gazi'] },
+          provider: { $ref: '#/components/schemas/ServiceProvider' },
+          createdAt: { type: 'string', format: 'date-time' },
+        },
+      },
+      ServicePayment: {
+        type: 'object',
+        required: ['id', 'accountNumber', 'amount', 'status', 'receiptNumber', 'provider'],
+        properties: {
+          id: { type: 'string', format: 'uuid' },
+          accountNumber: { type: 'string' },
+          amount: { type: 'integer', description: 'Summa TIYINDA.' },
+          status: { type: 'string', enum: ['PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'] },
+          receiptNumber: { type: 'string', examples: ['NVX-20260803-F9A31Q'] },
+          failureReason: { type: ['string', 'null'] },
+          provider: { $ref: '#/components/schemas/ServiceProvider' },
+          createdAt: { type: 'string', format: 'date-time' },
+          completedAt: { type: ['string', 'null'], format: 'date-time' },
+        },
+      },
+      CreatePaymentInput: {
+        type: 'object',
+        required: ['providerId', 'accountNumber', 'amount', 'idempotencyKey'],
+        properties: {
+          providerId: { type: 'string', format: 'uuid' },
+          accountNumber: {
+            type: 'string',
+            description: "Provayder naqshiga mos bo'lishi kerak (server tekshiradi).",
+          },
+          amount: { type: 'integer', description: "Summa SO'MDA. Chegara provayderga qarab tekshiriladi." },
+          saveAccount: { type: 'boolean', default: false },
+          accountLabel: { type: 'string', maxLength: 60 },
+          idempotencyKey: { type: 'string', minLength: 8, maxLength: 100 },
+        },
+      },
       WalletTransaction: {
         type: 'object',
         required: ['id', 'type', 'status', 'amount', 'balanceAfter', 'direction'],
@@ -882,6 +944,212 @@ export const openApiSpec = {
     },
 
     // --- Manzillar --------------------------------------------------------
+    '/api/v1/payments/providers': {
+      get: {
+        tags: ['Payments'],
+        summary: 'Xizmatlar roʻyxati',
+        description: 'Toifa boʻyicha filtrlash mumkin. Faqat faol xizmatlar qaytariladi.',
+        operationId: 'listServiceProviders',
+        parameters: [
+          {
+            name: 'category',
+            in: 'query',
+            schema: { type: 'string', enum: ['ALL', 'UTILITY', 'INTERNET', 'MOBILE', 'TV'], default: 'ALL' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'Xizmatlar',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    providers: { type: 'array', items: { $ref: '#/components/schemas/ServiceProvider' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    '/api/v1/payments/providers/{id}': {
+      get: {
+        tags: ['Payments'],
+        summary: 'Bitta xizmat',
+        description: "To'lov formasi shu yerdan hisob raqami maydonining nomini va summa chegaralarini oladi.",
+        operationId: 'getServiceProvider',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '200': {
+            description: 'Xizmat',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ServiceProvider' } } },
+          },
+          '404': {
+            description: 'Xizmat topilmadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
+    '/api/v1/payments/accounts': {
+      get: {
+        tags: ['Payments'],
+        summary: 'Saqlangan hisoblar',
+        operationId: 'listSavedAccounts',
+        responses: {
+          '200': {
+            description: 'Hisoblar',
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    accounts: { type: 'array', items: { $ref: '#/components/schemas/SavedAccount' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        tags: ['Payments'],
+        summary: 'Hisobni saqlash',
+        description: 'Kommunal toʻlov har oy takrorlanadi — raqamni qayta kiritmaslik uchun.',
+        operationId: 'createSavedAccount',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['providerId', 'accountNumber', 'label'],
+                properties: {
+                  providerId: { type: 'string', format: 'uuid' },
+                  accountNumber: { type: 'string' },
+                  label: { type: 'string', minLength: 2, maxLength: 60 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': {
+            description: 'Saqlandi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/SavedAccount' } } },
+          },
+          '409': {
+            description: 'Bu hisob allaqachon saqlangan yoki chegara oshdi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
+    '/api/v1/payments/accounts/{id}': {
+      delete: {
+        tags: ['Payments'],
+        summary: 'Saqlangan hisobni oʻchirish',
+        description: "O'chirish yumshoq — eski to'lovlar tarixi buzilmaydi.",
+        operationId: 'deleteSavedAccount',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '200': { description: "O'chirildi" },
+          '404': {
+            description: 'Hisob topilmadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
+    '/api/v1/payments': {
+      get: {
+        tags: ['Payments'],
+        summary: 'Toʻlovlar tarixi',
+        operationId: 'listServicePayments',
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', minimum: 1, default: 1 } },
+          {
+            name: 'pageSize',
+            in: 'query',
+            schema: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+          },
+          {
+            name: 'status',
+            in: 'query',
+            schema: {
+              type: 'string',
+              enum: ['ALL', 'PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'],
+              default: 'ALL',
+            },
+          },
+        ],
+        responses: {
+          '200': {
+            description: "To'lovlar",
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    payments: { type: 'array', items: { $ref: '#/components/schemas/ServicePayment' } },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        tags: ['Payments'],
+        summary: 'Xizmat uchun toʻlov',
+        description:
+          "Pul hamyondan yechiladi. Yechish va to'lov yozuvi BITTA tranzaksiyada bajariladi — biri bajarilib ikkinchisi qolib ketmaydi. Hozircha provayderga so'rov simulyatsiya qilinadi.",
+        operationId: 'createServicePayment',
+        requestBody: {
+          required: true,
+          content: { 'application/json': { schema: { $ref: '#/components/schemas/CreatePaymentInput' } } },
+        },
+        responses: {
+          '201': {
+            description: "To'lov bajarildi",
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ServicePayment' } } },
+          },
+          '404': {
+            description: 'Xizmat topilmadi',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+          '409': {
+            description: "Mablag' yetarli emas",
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+          '422': {
+            description: "Hisob raqami yoki summa noto'g'ri",
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
+    '/api/v1/payments/{id}': {
+      get: {
+        tags: ['Payments'],
+        summary: 'Chek',
+        description: "Boshqa foydalanuvchining to'lovi so'ralsa 404 qaytadi.",
+        operationId: 'getServicePayment',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string', format: 'uuid' } }],
+        responses: {
+          '200': {
+            description: "To'lov",
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ServicePayment' } } },
+          },
+          '404': {
+            description: "To'lov topilmadi",
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ApiError' } } },
+          },
+        },
+      },
+    },
     '/api/v1/wallet': {
       get: {
         tags: ['Wallet'],

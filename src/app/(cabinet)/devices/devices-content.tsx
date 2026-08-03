@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { PageIntro } from '@/components/app/page-intro';
+import { formatRelativeUz } from '@/lib/date';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -26,25 +27,6 @@ interface SessionItem {
 
 interface SessionsResponse {
   sessions: SessionItem[];
-}
-
-/** Sanani "3 daqiqa oldin" ko'rinishida chiqaradi. */
-function formatRelativeTime(isoDate: string): string {
-  const diffMs = Date.now() - new Date(isoDate).getTime();
-  const minutes = Math.floor(diffMs / 60_000);
-
-  if (minutes < 1) return 'Hozir';
-  if (minutes < 60) return `${minutes} daqiqa oldin`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} soat oldin`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days} kun oldin`;
-
-  return new Intl.DateTimeFormat('uz-UZ', { day: 'numeric', month: 'short', year: 'numeric' }).format(
-    new Date(isoDate),
-  );
 }
 
 /** Qurilma nomiga qarab ikonka tanlaydi. */
@@ -169,7 +151,7 @@ export function DevicesContent() {
                         <dl className="text-muted-foreground mt-1.5 space-y-0.5 text-xs">
                           <div className="flex gap-1.5">
                             <dt>Oxirgi faollik:</dt>
-                            <dd>{formatRelativeTime(session.lastUsedAt)}</dd>
+                            <dd>{formatRelativeUz(session.lastUsedAt)}</dd>
                           </div>
                           {session.ipAddress && (
                             <div className="flex gap-1.5">
