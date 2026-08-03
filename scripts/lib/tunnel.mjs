@@ -16,7 +16,7 @@
  * Hisob (account) talab qilinmaydi — "quick tunnel" rejimi.
  */
 
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
@@ -51,6 +51,46 @@ function isProcessAlive(pid) {
   }
 }
 
+/**
+ * Bu PID haqiqatan ham BIZNING tunnelimizmi?
+ *
+ * ── Nima uchun tekshirish shart ───────────────────────────────────────
+ * Faylda saqlangan PID eskirgan bo'lishi mumkin: codespace qayta ishga
+ * tushsa, tunnel o'ladi-yu, fayl qoladi. Operatsion tizim esa PID
+ * raqamlarini QAYTA ISHLATADI — o'sha raqamni butunlay boshqa jarayon
+ * olishi mumkin.
+ *
+ * Faqat "jarayon tirikmi" deb tekshirsak, begona jarayonni o'ldiramiz.
+ * Aynan shu sabab `npm run go` o'zini to'xtatib qo'ygan edi.
+ *
+ * Shuning uchun jarayonning BUYRUQ SATRI ham tekshiriladi.
+ */
+function isOurTunnel(pid) {
+  if (!isProcessAlive(pid)) return false;
+
+  // Linux (Codespaces) — eng ishonchli manba.
+  try {
+    const cmdline = fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8');
+    return cmdline.includes('cloudflared');
+  } catch {
+    // `/proc` yo'q (masalan macOS) — `ps` bilan tekshiramiz.
+  }
+
+  try {
+    return execFileSync('ps', ['-p', String(pid), '-o', 'args='], { encoding: 'utf8' }).includes('cloudflared');
+  } catch {
+    return false;
+  }
+}
+
+/** Eskirgan holat fayllarini o'chiradi. */
+function clearStaleFiles(pid) {
+  if (pid === null) return;
+
+  fs.rmSync(PID_PATH, { force: true });
+  fs.rmSync(URL_PATH, { force: true });
+}
+
 /** Saqlangan tunnel jarayonining PID'i (bo'lmasa — null). */
 function readPid() {
   try {
@@ -69,7 +109,12 @@ function readPid() {
  */
 export function getRunningTunnelUrl() {
   const pid = readPid();
-  if (!pid || !isProcessAlive(pid)) return null;
+
+  // Faqat "tirik" emas — aynan bizning tunnelimiz ekanligi tekshiriladi.
+  if (!pid || !isOurTunnel(pid)) {
+    clearStaleFiles(pid);
+    return null;
+  }
 
   try {
     const url = fs.readFileSync(URL_PATH, 'utf8').trim();
@@ -188,16 +233,21 @@ export async function startTunnel(port, onProgress) {
  */
 export function stopTunnel() {
   const pid = readPid();
-  if (!pid || !isProcessAlive(pid)) return false;
+
+  // Begona jarayonni HECH QACHON o'ldirmaymiz — PID qayta ishlatilgan
+  // bo'lishi mumkin. Bunday holatda shunchaki eski fayllarni tozalaymiz.
+  if (!pid || !isOurTunnel(pid)) {
+    clearStaleFiles(pid);
+    return false;
+  }
 
   try {
     process.kill(pid, 'SIGTERM');
   } catch {
+    clearStaleFiles(pid);
     return false;
   }
 
-  fs.rmSync(PID_PATH, { force: true });
-  fs.rmSync(URL_PATH, { force: true });
-
+  clearStaleFiles(pid);
   return true;
 }
