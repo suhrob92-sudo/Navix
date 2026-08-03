@@ -25,7 +25,7 @@ import { execFile } from 'node:child_process';
 import net from 'node:net';
 import { promisify } from 'node:util';
 
-import { getRunningTunnelUrl, startTunnel } from './lib/tunnel.mjs';
+import { getRunningTunnelUrl, startTunnel, stopTunnel } from './lib/tunnel.mjs';
 
 const execFileAsync = promisify(execFile);
 
@@ -65,6 +65,44 @@ async function waitForPort(port, timeoutMs = 40_000) {
   }
 
   return false;
+}
+
+/**
+ * Ommaviy havola HAQIQATAN ishlayaptimi.
+ *
+ * ── Nima uchun jarayonni tekshirish yetarli emas ──────────────────────
+ * `cloudflared` jarayoni tirik bo'lsa ham, uning Cloudflare bilan aloqasi
+ * uzilgan bo'lishi mumkin (mobil internet, codespace uyqusi). Bunda
+ * brauzerda quyidagi xato chiqadi:
+ *
+ *     Error 1033 — Cloudflare Tunnel error
+ *
+ * Skript esa "havola ochiq" deb aldab qo'yardi.
+ *
+ * ── Nima uchun HTTP kodini tekshirish ham yetarli emas ────────────────
+ * Yo'lda turgan proxy yoki Cloudflare xato sahifasi ham "chiroyli" javob
+ * qaytarishi mumkin. Shuning uchun havola BIZNING serverimizga yetib
+ * borganini isbotlash kerak: `/api/health` so'raladi va javob ichida
+ * ilovaning o'z belgisi (`success: true`) borligi tekshiriladi.
+ * Buni boshqa hech qanday sahifa qaytara olmaydi.
+ */
+async function isTunnelReachable(url) {
+  try {
+    const response = await fetch(`${url}/api/health`, {
+      method: 'GET',
+      redirect: 'manual',
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(12_000),
+    });
+
+    if (!response.ok) return false;
+
+    const body = await response.json();
+    return body?.success === true && typeof body?.data?.status === 'string';
+  } catch {
+    // Ulanib bo'lmadi yoki javob bizniki emas — havola ishlamayapti.
+    return false;
+  }
 }
 
 /** Havolani ko'zga tashlanadigan qilib chiqaradi. */
@@ -120,13 +158,19 @@ if (!codespaceName) {
   process.exit(0);
 }
 
-// Tunnel allaqachon ishlab tursa — qayta ochmaymiz.
+// Tunnel allaqachon ishlab tursa — qayta ochmaymiz. Ammo avval uning
+// HAQIQATAN javob berayotganini tekshiramiz (pastdagi izohga qarang).
 const activeTunnel = getRunningTunnelUrl();
 
 if (activeTunnel) {
-  console.info('✅ Ommaviy havola allaqachon ochiq');
-  printUrl(activeTunnel, 'Yopish uchun:  npm run dev:stop');
-  process.exit(0);
+  if (await isTunnelReachable(activeTunnel)) {
+    console.info('✅ Ommaviy havola allaqachon ochiq');
+    printUrl(activeTunnel, 'Yopish uchun:  npm run dev:stop');
+    process.exit(0);
+  }
+
+  console.info('ℹ️  Eski havola javob bermayapti — yangisi ochiladi');
+  stopTunnel();
 }
 
 console.info('⏳ Port ochilmoqda...');

@@ -202,6 +202,35 @@ npm run db:generate
 npm run go
 ```
 
+### "Error 1033 — Cloudflare Tunnel error" chiqsa
+
+Havola ishlab turgandi, keyin to'satdan shu xato chiqadi:
+
+```
+Error 1033
+Cloudflare Tunnel error
+```
+
+**Sabab.** Tunnel uzilib qolgan. Bu odatiy hol: codespace uxlab qolsa,
+mobil internet uzilsa yoki `npm run dev:stop` bajarilsa tunnel yopiladi.
+
+**Yechim — bitta buyruq:**
+
+```bash
+npm run share
+```
+
+U eski havolaning haqiqatan javob berayotganini `/api/health` orqali
+tekshiradi. Javob bermasa — eskisini yopib, yangisini ochadi.
+
+> Yangi havola **boshqacha** bo'ladi — Cloudflare "quick tunnel" har
+> safar yangi manzil beradi. Eski havolani saqlab qo'yish foydasiz.
+
+**Havola o'zgarmasligini xohlasangiz** — codespace'ni bir marta
+brauzerda ochib, `3000`-portni Public qilib qo'ying (pastdagi bo'limga
+qarang). Shundan keyin GitHub'ning o'z manzili ishlaydi va u
+**hech qachon o'zgarmaydi**.
+
 ### Sahifa ochildi-yu, tugmalar ishlamasa
 
 Sahifa ko'rinadi, lekin hech bir tugma bosilmaydi va tugmalar o'rnida
