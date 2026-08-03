@@ -246,6 +246,26 @@ mkdir -p ~/.ssh
 printf 'Host *\n  ServerAliveInterval 30\n  ServerAliveCountMax 6\n' >> ~/.ssh/config
 ```
 
+### Qayta ulanish uchun qisqa buyruq
+
+Aloqa uzilgani telefonda tez-tez takrorlanadi, `gh codespace ssh` ni har
+safar yozish esa kichik klaviaturada zerikarli. Termux'da **bir marta**
+bajaring:
+
+```bash
+cat > $PREFIX/bin/nav <<'EOF'
+#!/data/data/com.termux/files/usr/bin/bash
+exec gh codespace ssh
+EOF
+chmod +x $PREFIX/bin/nav
+```
+
+Shundan keyin qayta ulanish uchun bitta so'z yetarli:
+
+```bash
+nav
+```
+
 ### SMS kodni olish
 
 Ishlab chiqish rejimida haqiqiy SMS yuborilmaydi. Kodni olish uchun:
