@@ -11,6 +11,7 @@ import { AuditAction, recordAudit } from '@/lib/audit';
 import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
+import { notifyUser } from '@/modules/notification/notification.service';
 import type { TopUpInput, TransactionQuery, TransferInput } from '@/modules/wallet/wallet.schemas';
 
 /**
@@ -330,6 +331,12 @@ export async function topUp(
     userAgent: meta.userAgent,
   });
 
+  // Tranzaksiyadan KEYIN — xabar yiqilsa ham pul joyida qoladi.
+  await notifyUser(userId, 'wallet.topped_up', {
+    amountTiyin: tiyinToNumber(amountTiyin),
+    balanceTiyin: tiyinToNumber(created.balanceAfter),
+  });
+
   logger.info({ userId, walletId: wallet.id, amount: input.amount }, "Hamyon to'ldirildi");
 
   return toTransactionPayload(created);
@@ -456,6 +463,17 @@ export async function transfer(
     metadata: { amountTiyin: amountTiyin.toString(), recipientId: recipient.id },
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
+  });
+
+  // Ikkala tomon ham xabardor bo'lishi kerak.
+  await notifyUser(userId, 'wallet.transfer_sent', {
+    amountTiyin: tiyinToNumber(amountTiyin),
+    recipientName,
+  });
+
+  await notifyUser(recipient.id, 'wallet.transfer_received', {
+    amountTiyin: tiyinToNumber(amountTiyin),
+    senderName: senderName || 'Navix foydalanuvchisi',
   });
 
   logger.info(

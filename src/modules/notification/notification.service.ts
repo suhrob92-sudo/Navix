@@ -1,7 +1,13 @@
 import { NotFoundError } from '@/lib/api/errors';
 import { buildPagination, type PaginationMeta } from '@/lib/api/response';
 import { toPrismaPagination, type PaginationQuery } from '@/lib/api/pagination';
+import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
+import {
+  buildNotification,
+  type NotificationEventData,
+  type NotificationEventName,
+} from '@/modules/notification/notification.events';
 
 /**
  * Bildirishnomalar bilan ishlash.
@@ -143,4 +149,46 @@ export async function createNotification(input: CreateNotificationInput): Promis
     },
     select: NOTIFICATION_SELECT,
   });
+}
+
+/**
+ * Foydalanuvchiga hodisa bo'yicha xabar yuboradi.
+ *
+ * ── Nima uchun xatolik yutiladi ───────────────────────────────────────
+ * Bu funksiya to'lov, o'tkazma va boshqa MOLIYAVIY amallardan keyin
+ * chaqiriladi. Agar bildirishnoma yozilmay xatolik chiqarsa, chaqiruvchi
+ * amal ham yiqilardi — ya'ni pul o'tkazilib bo'lgandan keyin foydalanuvchi
+ * "xatolik" degan xabarni ko'rardi.
+ *
+ * Xabar yetkazilmasligi — noqulaylik. Pul yo'qolishi — falokat.
+ * Shuning uchun bu yerda barcha xatoliklar tutiladi va faqat log'ga yoziladi
+ * (audit jurnali bilan bir xil qoida).
+ *
+ * MUHIM: shu sababli uni tranzaksiya ICHIDA chaqirmang — tranzaksiya
+ * tugagandan KEYIN chaqiring.
+ */
+export async function notifyUser<Event extends NotificationEventName>(
+  userId: string,
+  event: Event,
+  data: NotificationEventData[Event],
+): Promise<void> {
+  try {
+    const template = buildNotification(event, data);
+
+    await prisma.notification.create({
+      data: {
+        userId,
+        channel: 'IN_APP',
+        status: 'SENT',
+        title: template.title,
+        body: template.body,
+        actionUrl: template.actionUrl,
+        sourceModule: template.sourceModule,
+        payload: { event, ...data },
+        sentAt: new Date(),
+      },
+    });
+  } catch (error) {
+    logger.error({ err: error, userId, event }, "Bildirishnomani yuborib bo'lmadi");
+  }
 }

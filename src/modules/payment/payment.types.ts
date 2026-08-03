@@ -62,7 +62,7 @@ export interface PaymentsResponse {
 /** Holatlarning o'zbekcha nomi. */
 export const PAYMENT_STATUS_LABELS: Record<ServicePaymentStatusName, string> = {
   PENDING: 'Kutilmoqda',
-  COMPLETED: 'To‘landi',
+  COMPLETED: "To'landi",
   FAILED: 'Bajarilmadi',
   REFUNDED: 'Qaytarildi',
 };

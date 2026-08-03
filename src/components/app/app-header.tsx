@@ -33,8 +33,16 @@ export interface AppHeaderProps {
  */
 export function AppHeader({ title, showBack = false, backHref, onBack, className }: AppHeaderProps) {
   const router = useRouter();
-  // Faqat sonni olish uchun eng kichik sahifani so'raymiz.
-  const { data } = useApiQuery<NotificationsResponse>('/api/v1/notifications?pageSize=1');
+  /**
+   * Faqat sonni olish uchun eng kichik sahifani so'raymiz.
+   *
+   * Har 45 soniyada yangilanadi: to'lov yoki o'tkazmadan keyin xabar
+   * kelganini foydalanuvchi sahifani qayta ochmasdan ko'rishi kerak.
+   * Tez-tez so'rash esa mobil trafikni behuda sarflaydi.
+   */
+  const { data } = useApiQuery<NotificationsResponse>('/api/v1/notifications?pageSize=1', {
+    refreshIntervalMs: 45_000,
+  });
   const unreadCount = data?.unreadCount ?? 0;
 
   return (

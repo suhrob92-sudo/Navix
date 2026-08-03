@@ -1,6 +1,7 @@
 import { NotFoundError, UnauthorizedError, ValidationError } from '@/lib/api/errors';
 import { AuditAction, recordAudit } from '@/lib/audit';
 import { prisma } from '@/lib/prisma';
+import { notifyUser } from '@/modules/notification/notification.service';
 import { hashPassword, verifyPassword } from '@/modules/auth/password.service';
 import { revokeAllSessions } from '@/modules/auth/session.service';
 import type { ChangePasswordInput, UpdateProfileInput } from '@/modules/profile/profile.schemas';
@@ -220,6 +221,10 @@ export async function changePassword(
     requestId: context.requestId,
     metadata: { method: 'self-service', revokedSessions },
   });
+
+  // Xavfsizlik xabari: parolni boshqa kimdir o'zgartirgan bo'lsa,
+  // foydalanuvchi buni darhol ko'radi.
+  await notifyUser(userId, 'security.password_changed', { revokedSessions });
 
   return { revokedSessions };
 }

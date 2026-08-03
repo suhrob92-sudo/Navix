@@ -5,6 +5,7 @@ import { AuditAction, recordAudit } from '@/lib/audit';
 import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
+import { notifyUser } from '@/modules/notification/notification.service';
 import { chargeWallet, getOrCreateWallet } from '@/modules/wallet/wallet.service';
 import type {
   CreatePaymentInput,
@@ -442,6 +443,12 @@ export async function createPayment(
     },
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
+  });
+
+  await notifyUser(userId, 'payment.completed', {
+    amountTiyin: tiyinToNumber(amountTiyin),
+    providerName: provider.name,
+    paymentId: payment.id,
   });
 
   logger.info({ userId, provider: provider.code, amount: input.amount }, "Xizmat to'lovi bajarildi");

@@ -51,13 +51,25 @@ export interface QueryState<TData> {
   setData: (updater: TData | ((current: TData | null) => TData)) => void;
 }
 
+export interface QueryOptions {
+  /**
+   * Shuncha millisekunddan keyin ma'lumot avtomatik yangilanadi.
+   *
+   * Faqat kerak bo'lgan joyda yoqing: har bir so'rov mobil internetda
+   * trafik va batareya sarflaydi. Masalan o'qilmagan xabarlar soni uchun
+   * mos, lekin uzun ro'yxatlar uchun emas.
+   */
+  refreshIntervalMs?: number;
+}
+
 /**
  * Sahifa ochilganda ma'lumot yuklaydigan hook.
  *
  * @param path API manzili. `null` bo'lsa so'rov yuborilmaydi
  *             (masalan foydalanuvchi hali aniqlanmagan bo'lsa).
+ * @param options Qo'shimcha sozlamalar (avtomatik yangilash).
  */
-export function useApiQuery<TData>(path: string | null): QueryState<TData> {
+export function useApiQuery<TData>(path: string | null, options: QueryOptions = {}): QueryState<TData> {
   const request = useApiClient();
   const { isLoading: isAuthLoading } = useAuth();
 
@@ -111,6 +123,22 @@ export function useApiQuery<TData>(path: string | null): QueryState<TData> {
     setIsLoading(true);
     setReloadCount((count) => count + 1);
   }, []);
+
+  /**
+   * Davriy yangilash.
+   *
+   * `reload` dan farqi: `isLoading` yoqilmaydi — aks holda har safar
+   * skeletonlar miltillab, ekran bezovta qilardi.
+   */
+  const { refreshIntervalMs } = options;
+
+  useEffect(() => {
+    if (!refreshIntervalMs || !path) return;
+
+    const timer = setInterval(() => setReloadCount((count) => count + 1), refreshIntervalMs);
+
+    return () => clearInterval(timer);
+  }, [refreshIntervalMs, path]);
 
   const setData = useCallback((updater: TData | ((current: TData | null) => TData)) => {
     setDataState((current) =>
