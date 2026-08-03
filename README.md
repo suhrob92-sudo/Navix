@@ -54,31 +54,31 @@ npm run dev
 
 ## Foydali buyruqlar
 
-| Buyruq                | Nima qiladi                                            |
-| --------------------- | ------------------------------------------------------ |
-| `npm run dev`         | Ishlab chiqish serverini ishga tushiradi               |
-| `npm run go`          | Baza + Redis + serverni birdan ishga tushiradi         |
-| `npm run status`      | Server, baza va Redis ishlayaptimi — tekshiradi        |
-| `npm run dev:bg`      | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi) |
-| `npm run dev:stop`    | Fondagi serverni toʻxtatadi                            |
-| `npm run dev:log`     | Server logini jonli koʻrsatadi                         |
-| `npm run share`       | Ommaviy havola ochadi (GitHub yoki Cloudflare tunneli) |
-| `npm run url`         | Ochiq havolani qayta chiqaradi (yangisini ochmaydi)    |
-| `npm run otp`         | Oxirgi SMS tasdiqlash kodini topib beradi              |
-| `npm run build`       | Production uchun yig'adi                               |
-| `npm run start`       | Yig'ilgan ilovani ishga tushiradi                      |
-| `npm run verify`      | Turlar + lint + testlar — hammasini birdan tekshiradi  |
-| `npm run typecheck`   | TypeScript xatolarini tekshiradi                       |
-| `npm run lint`        | Kod uslubini tekshiradi                                |
-| `npm run test`        | Testlarni bir marta ishga tushiradi                    |
-| `npm run test:watch`  | Testlarni kuzatuv rejimida ishlatadi                   |
-| `npm run format`      | Kodni avtomatik formatlaydi                            |
-| `npm run db:generate` | Prisma klientini sxemadan yaratadi                     |
-| `npm run db:studio`   | Bazani brauzerda ko'rish oynasini ochadi               |
-| `npm run db:migrate`  | Yangi migratsiya yaratadi va qo'llaydi                 |
-| `npm run db:seed`     | Boshlang'ich ma'lumotlarni yozadi                      |
-| `npm run docker:up`   | PostgreSQL va Redis'ni ko'taradi                       |
-| `npm run docker:down` | Konteynerlarni to'xtatadi                              |
+| Buyruq                | Nima qiladi                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| `npm run dev`         | Ishlab chiqish serverini ishga tushiradi                          |
+| `npm run go`          | Baza + Redis + serverni birdan ishga tushiradi                    |
+| `npm run status`      | Server, baza va Redis ishlayaptimi — tekshiradi                   |
+| `npm run dev:bg`      | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi)            |
+| `npm run dev:stop`    | Fondagi serverni toʻxtatadi                                       |
+| `npm run dev:log`     | Server logini jonli koʻrsatadi                                    |
+| `npm run share`       | Ommaviy havola ochadi (GitHub yoki Cloudflare tunneli)            |
+| `npm run url`         | Ochiq havolani qayta chiqaradi (yangisini ochmaydi)               |
+| `npm run otp`         | Oxirgi SMS tasdiqlash kodini topib beradi                         |
+| `npm run build`       | Production uchun yig'adi                                          |
+| `npm run start`       | Yig'ilgan ilovani ishga tushiradi                                 |
+| `npm run verify`      | Turlar + lint + testlar — hammasini birdan tekshiradi             |
+| `npm run typecheck`   | TypeScript xatolarini tekshiradi                                  |
+| `npm run lint`        | Kod uslubini tekshiradi                                           |
+| `npm run test`        | Testlarni bir marta ishga tushiradi                               |
+| `npm run test:watch`  | Testlarni kuzatuv rejimida ishlatadi                              |
+| `npm run format`      | Kodni avtomatik formatlaydi                                       |
+| `npm run db:generate` | Prisma klientini sxemadan yaratadi (dev/build o'zi ham chaqiradi) |
+| `npm run db:studio`   | Bazani brauzerda ko'rish oynasini ochadi                          |
+| `npm run db:migrate`  | Yangi migratsiya yaratadi va qo'llaydi                            |
+| `npm run db:seed`     | Boshlang'ich ma'lumotlarni yozadi                                 |
+| `npm run docker:up`   | PostgreSQL va Redis'ni ko'taradi                                  |
+| `npm run docker:down` | Konteynerlarni to'xtatadi                                         |
 
 ---
 
@@ -171,6 +171,32 @@ papkasiga yuklab olinadi (~40 MB, bir martalik).
 
 > Cloudflare havolasi har qayta ishga tushirilganda **o'zgaradi** —
 > shuning uchun `npm run go` chiqargan havolani ishlating.
+
+### "Export ... doesn't exist in target module" chiqsa
+
+Baza sxemasi o'zgargandan keyin shunga o'xshash xato chiqishi mumkin:
+
+```
+Export TransactionDirection doesn't exist in target module
+./src/modules/wallet/wallet.service.ts
+```
+
+**Sabab.** `prisma/schema.prisma` ga yangi ustun yoki enum qo'shilganda
+ikki narsa yangilanishi kerak:
+
+1. **Baza** — `npm run db:migrate:deploy` (SQL o'zgarishi);
+2. **Prisma klienti** — kodda ishlatiladigan turlar (`npm run db:generate`).
+
+Faqat birinchisi bajarilsa, kod hali eski turlarni ko'radi.
+
+**Yechim.** `npm run dev` va `npm run build` endi klientni HAR SAFAR
+o'zi yangilaydi, shuning uchun `npm run go` yetarli. Agar baribir xato
+chiqsa, qo'lda:
+
+```bash
+npm run db:generate
+npm run go
+```
 
 ### Sahifa ochildi-yu, tugmalar ishlamasa
 
