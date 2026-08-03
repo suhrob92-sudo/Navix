@@ -77,7 +77,16 @@ export async function apiRequest<TData>(path: string, options: RequestOptions = 
 /** Tarmoq uzilishi kabi kutilmagan xatoliklarni ham o'zbekcha xabarga aylantiradi. */
 export function toUserMessage(error: unknown): string {
   if (error instanceof ApiClientError) {
-    return error.message;
+    /**
+     * Ishlab chiqish rejimida server xatoning haqiqiy sababini `_dev`
+     * maydonida yuboradi (`src/lib/api/handler.ts`). Uni ekranda
+     * ko'rsatamiz — aks holda telefondan tashxis qo'yib bo'lmaydi.
+     *
+     * Production'da server bu maydonni umuman yubormaydi.
+     */
+    const developerHint = error.details?._dev?.[0];
+
+    return developerHint ? `${error.message}\n\n[dev] ${developerHint}` : error.message;
   }
 
   if (error instanceof TypeError) {

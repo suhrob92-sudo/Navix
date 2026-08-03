@@ -6,6 +6,7 @@ import { ZodError, type ZodType } from 'zod';
 
 import { AppError, ErrorCode, RateLimitError, ValidationError, type FieldErrors } from '@/lib/api/errors';
 import { apiError, type ApiErrorBody } from '@/lib/api/response';
+import { isProduction } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
 /**
@@ -46,6 +47,19 @@ export function toFieldErrors(error: ZodError): FieldErrors {
 
 function resolveRequestId(request: NextRequest): string {
   return request.headers.get('x-request-id') ?? randomUUID();
+}
+
+/** Uzun xato matnidan eng foydali qismini ajratadi (faqat dev rejimi uchun). */
+export function toDeveloperHint(message: string, maxLength = 400): string {
+  // Turbopack modul nomlari juda uzun va hech narsa anglatmaydi:
+  // `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$lib...`
+  const cleaned = message.replace(/__TURBOPACK__[A-Za-z0-9_$]+__/g, '…').trim();
+
+  // Sabab odatda OXIRIDA yoziladi. Masalan Prisma:
+  //   "Invalid `prisma.x.findMany()` invocation: ...
+  //    The table `public.service_providers` does not exist"
+  // Shuning uchun boshidan emas, oxiridan kesamiz.
+  return cleaned.length > maxLength ? `…${cleaned.slice(-maxLength)}` : cleaned;
 }
 
 export function withApiHandler<TParams = Record<string, string>>(
@@ -108,14 +122,28 @@ function handleRouteError(
     });
   }
 
-  // Kutilmagan xatolik: to'liq ma'lumot faqat log'ga, foydalanuvchiga umumiy xabar.
+  // Kutilmagan xatolik: to'liq ma'lumot faqat log'ga.
   log.error({ err: error, durationMs }, 'Kutilmagan server xatosi');
+
+  /**
+   * Ishlab chiqish rejimida xato matni javobga ham qo'shiladi.
+   *
+   * Nima uchun: telefondan ishlaganda log faylini ochish qiyin. Ekranda
+   * "Serverda kutilmagan xatolik" degan yozuv esa hech narsani aytmaydi —
+   * jadval yo'qmi, ulanish uzilganmi, bilib bo'lmaydi.
+   *
+   * Production'da bu MUTLAQO chiqmaydi: xato matnida jadval nomlari va
+   * ichki tuzilma haqida ma'lumot bo'ladi, u tashqariga chiqmasligi kerak.
+   */
+  const developerHint =
+    !isProduction() && error instanceof Error ? { _dev: [toDeveloperHint(error.message)] } : undefined;
 
   return apiError({
     requestId,
     code: ErrorCode.INTERNAL_ERROR,
     message: "Serverda kutilmagan xatolik yuz berdi. Iltimos, keyinroq urinib ko'ring.",
     status: 500,
+    details: developerHint,
   });
 }
 

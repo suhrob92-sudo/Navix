@@ -62,7 +62,7 @@ npm run dev
 | --------------------- | ----------------------------------------------------------------- |
 | `npm run dev`         | Ishlab chiqish serverini ishga tushiradi                          |
 | `npm run go`          | Baza + Redis + serverni birdan ishga tushiradi                    |
-| `npm run status`      | Server, baza va Redis ishlayaptimi — tekshiradi                   |
+| `npm run status`      | Server, baza, Redis va jadvallar mosligini tekshiradi             |
 | `npm run dev:bg`      | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi)            |
 | `npm run dev:stop`    | Fondagi serverni toʻxtatadi                                       |
 | `npm run dev:log`     | Server logini jonli koʻrsatadi                                    |
@@ -175,6 +175,44 @@ papkasiga yuklab olinadi (~40 MB, bir martalik).
 
 > Cloudflare havolasi har qayta ishga tushirilganda **o'zgaradi** —
 > shuning uchun `npm run go` chiqargan havolani ishlating.
+
+### "Serverda kutilmagan xatolik" chiqsa
+
+Sahifa ochiladi, lekin ro'yxat o'rnida qizil xato turadi. Eng ko'p
+uchraydigan sabab — `git pull` dan keyin **migratsiya bajarilmagan**:
+kod yangi jadvalni so'rayapti, bazada esa u yo'q.
+
+**Avval holatni tekshiring:**
+
+```bash
+npm run status
+```
+
+```
+   ✅ Server        — ishlayapti (3000-port)
+   ✅ Baza          — ulangan
+   ✅ Redis         — ulangan
+   ❌ Jadvallar     — MOS EMAS      ← sabab shu
+```
+
+**Tuzatish:**
+
+```bash
+npm run db:migrate:deploy
+npm run db:seed
+```
+
+**Sabab aniq ko'rinishi.** Ishlab chiqish rejimida xato matni ekranga
+ham chiqadi:
+
+```
+Serverda kutilmagan xatolik yuz berdi.
+
+[dev] The table `public.service_providers` does not exist
+```
+
+Production'da bu qism **umuman yuborilmaydi** — jadval nomlari va ichki
+tuzilma tashqariga chiqmasligi kerak.
 
 ### "Export ... doesn't exist in target module" chiqsa
 
