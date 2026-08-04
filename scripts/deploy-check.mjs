@@ -256,19 +256,84 @@ async function checkDatabase(url, directUrl) {
       ok('Pooled ulanish ishlatilyapti');
     }
 
-    if (!directUrl) {
-      warn(
-        "DIRECT_URL berilmagan",
-        "Migratsiya pooled manzil orqali ishonchsiz. Neon'dagi 'Direct connection' manzilini DIRECT_URL ga yozing.",
-      );
+    if (directUrl) {
+      await checkDirectUrl(directUrl);
     } else {
-      ok('DIRECT_URL berilgan (migratsiya uchun)');
+      await suggestDirectUrl(url);
     }
   } catch (error) {
     bad(`Bazaga ulanib bo'lmadi: ${error.message}`, 'DATABASE_URL to\'g\'riligini tekshiring');
   } finally {
     await client.end().catch(() => {});
   }
+}
+
+/** Berilgan DIRECT_URL haqiqatan ishlayaptimi. */
+async function checkDirectUrl(url) {
+  const { Client } = await import('pg');
+  const client = new Client({ connectionString: url, connectionTimeoutMillis: 15_000 });
+
+  try {
+    await client.connect();
+    ok('DIRECT_URL ishlayapti (migratsiya uchun)');
+  } catch (error) {
+    bad(
+      `DIRECT_URL bilan ulanib bo'lmadi: ${error.message}`,
+      "Neon'dagi 'Direct connection' manzilini qaytadan nusxalang",
+    );
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
+/**
+ * DIRECT_URL berilmagan bo'lsa — uni O'ZI topib beradi.
+ *
+ * ── Nima uchun ────────────────────────────────────────────────────────
+ * Neon'da ikkita manzil bor va ular BITTA harf bilan farq qiladi:
+ * pooled manzilda "-pooler" qo'shimchasi bo'ladi. Telefonda ikkalasini
+ * ajratib nusxalash oson emas — chalkashtirib yuborish juda oson.
+ *
+ * Shuning uchun skript o'zi "-pooler" ni olib tashlab, HAQIQATAN
+ * ulanib ko'radi. Ishlasa — tayyor qiymatni ekranga chiqaradi:
+ * foydalanuvchi uni ko'chirib qo'yishi kifoya. Bu taxmin emas,
+ * tekshirilgan natija.
+ */
+async function suggestDirectUrl(pooledUrl) {
+  if (!pooledUrl.includes('-pooler')) {
+    warn(
+      'DIRECT_URL berilmagan',
+      "Migratsiya pooled manzil orqali ishonchsiz. Bazangizning to'g'ridan-to'g'ri manzilini DIRECT_URL ga yozing.",
+    );
+    return;
+  }
+
+  const candidate = pooledUrl.replace('-pooler', '');
+  const { Client } = await import('pg');
+  const client = new Client({ connectionString: candidate, connectionTimeoutMillis: 15_000 });
+
+  try {
+    await client.connect();
+
+    warn(
+      'DIRECT_URL berilmagan — lekin men uni topdim',
+      `Quyidagi qatorni ".env.production" ga qo'shing (tekshirdim, ishlayapti):\n\n` +
+        `        DIRECT_URL="${hidePassword(candidate)}"\n\n` +
+        `      Paroli DATABASE_URL dagi bilan bir xil. Farqi bittagina: "-pooler" so'zi yo'q.`,
+    );
+  } catch {
+    warn(
+      'DIRECT_URL berilmagan',
+      "Migratsiya pooled manzil orqali ishonchsiz. Neon'dagi 'Direct connection' manzilini DIRECT_URL ga yozing.",
+    );
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
+/** Ekranga chiqarishda parolni yashiradi — skrinshot yuborilsa ham xavfsiz. */
+function hidePassword(url) {
+  return url.replace(/:\/\/([^:]+):[^@]*@/, '://$1:PAROLINGIZ@');
 }
 
 // ── 4. Redis'ga ulanish ───────────────────────────────────────────────

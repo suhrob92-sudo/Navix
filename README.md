@@ -724,9 +724,13 @@ shart emas.
 
 1. [neon.tech](https://neon.tech) → **Sign up with GitHub**
 2. **Create project** → nomi `navix`, region **Europe (Frankfurt)**
-3. **Connection string** bandida IKKITA manzilni nusxalang:
-   - **Pooled connection** → bu `DATABASE_URL` bo'ladi
-   - **Direct connection** → bu `DIRECT_URL` bo'ladi
+3. **Connection string** bandidagi manzilni **Copy snippet** tugmasi
+   bilan nusxalang — bu `DATABASE_URL` bo'ladi
+
+Ikkinchi manzil (`DIRECT_URL`) ni qidirib o'tirish shart emas:
+`npm run deploy:check` uni o'zi topib, ulanib ko'rib, tayyor qatorni
+ekranga chiqaradi. Ikkalasi faqat bitta so'z bilan farq qiladi
+(`-pooler`), telefonda esa ularni chalkashtirib yuborish juda oson.
 
 > **Nima uchun ikkita.** Vercel serverless ishlaydi: har so'rov alohida
 > ko'tariladi. Har biri bazaga to'g'ridan-to'g'ri ulansa, ulanishlar soni
