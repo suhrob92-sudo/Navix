@@ -64,38 +64,39 @@ npm run dev
 
 ## Foydali buyruqlar
 
-| Buyruq                      | Nima qiladi                                                       |
-| --------------------------- | ----------------------------------------------------------------- |
-| `npm run dev`               | Ishlab chiqish serverini ishga tushiradi                          |
-| `npm run go`                | Baza + Redis + serverni birdan ishga tushiradi                    |
-| `npm run status`            | Server, baza, Redis va jadvallar mosligini tekshiradi             |
-| `npm run update`            | Kodni xavfsiz yangilaydi (git pull + npm install)                 |
-| `npm run dev:bg`            | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi)            |
-| `npm run dev:stop`          | Fondagi serverni toʻxtatadi                                       |
-| `npm run dev:log`           | Server logini jonli koʻrsatadi                                    |
-| `npm run share`             | Vaqtinchalik havola ochadi (har safar yangi — sinov uchun)        |
-| `npm run url`               | Ochiq havolani qayta chiqaradi (yangisini ochmaydi)               |
-| `npm run env:setup`         | Production sozlamalarini savol-javob bilan yozadi                 |
-| `npm run deploy:check`      | Production tayyorligini tekshiradi (baza, Redis, kalitlar)        |
-| `npm run deploy:db`         | Bulutdagi bazaga migratsiya va boshlang'ich ma'lumotlarni yozadi  |
-| `npm run deploy:vars`       | Vercel'ga qo'yiladigan o'zgaruvchilarni tayyor holda chiqaradi    |
-| `npm run otp`               | Oxirgi SMS tasdiqlash kodini topib beradi                         |
-| `npm run role:grant`        | Foydalanuvchiga rol beradi (birinchi adminni yaratish uchun)      |
-| `npm run restaurant:assign` | Restoranni egasiga biriktiradi (MERCHANT roli bilan)              |
-| `npm run build`             | Production uchun yig'adi                                          |
-| `npm run start`             | Yig'ilgan ilovani ishga tushiradi                                 |
-| `npm run verify`            | Turlar + lint + testlar — hammasini birdan tekshiradi             |
-| `npm run typecheck`         | TypeScript xatolarini tekshiradi                                  |
-| `npm run lint`              | Kod uslubini tekshiradi                                           |
-| `npm run test`              | Testlarni bir marta ishga tushiradi                               |
-| `npm run test:watch`        | Testlarni kuzatuv rejimida ishlatadi                              |
-| `npm run format`            | Kodni avtomatik formatlaydi                                       |
-| `npm run db:generate`       | Prisma klientini sxemadan yaratadi (dev/build o'zi ham chaqiradi) |
-| `npm run db:studio`         | Bazani brauzerda ko'rish oynasini ochadi                          |
-| `npm run db:migrate`        | Yangi migratsiya yaratadi va qo'llaydi                            |
-| `npm run db:seed`           | Boshlang'ich ma'lumotlarni yozadi                                 |
-| `npm run docker:up`         | PostgreSQL va Redis'ni ko'taradi                                  |
-| `npm run docker:down`       | Konteynerlarni to'xtatadi                                         |
+| Buyruq                      | Nima qiladi                                                        |
+| --------------------------- | ------------------------------------------------------------------ |
+| `npm run dev`               | Ishlab chiqish serverini ishga tushiradi                           |
+| `npm run go`                | Baza + Redis + serverni birdan ishga tushiradi                     |
+| `npm run status`            | Server, baza, Redis va jadvallar mosligini tekshiradi              |
+| `npm run update`            | Kodni xavfsiz yangilaydi (git pull + npm install)                  |
+| `npm run dev:bg`            | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi)             |
+| `npm run dev:stop`          | Fondagi serverni toʻxtatadi                                        |
+| `npm run dev:log`           | Server logini jonli koʻrsatadi                                     |
+| `npm run share`             | Vaqtinchalik havola ochadi (har safar yangi — sinov uchun)         |
+| `npm run url`               | Ochiq havolani qayta chiqaradi (yangisini ochmaydi)                |
+| `npm run env:setup`         | Production sozlamalarini savol-javob bilan yozadi                  |
+| `npm run deploy:check`      | Production tayyorligini tekshiradi (baza, Redis, kalitlar)         |
+| `npm run deploy:db`         | Bulutdagi bazaga migratsiya va boshlang'ich ma'lumotlarni yozadi   |
+| `npm run deploy:vars`       | Vercel o'zgaruvchilarini ekranga chiqaradi (qo'lda kiritish uchun) |
+| `npm run deploy:push-env`   | O'zgaruvchilarni Vercel'ga terminaldan yuboradi                    |
+| `npm run otp`               | Oxirgi SMS tasdiqlash kodini topib beradi                          |
+| `npm run role:grant`        | Foydalanuvchiga rol beradi (birinchi adminni yaratish uchun)       |
+| `npm run restaurant:assign` | Restoranni egasiga biriktiradi (MERCHANT roli bilan)               |
+| `npm run build`             | Production uchun yig'adi                                           |
+| `npm run start`             | Yig'ilgan ilovani ishga tushiradi                                  |
+| `npm run verify`            | Turlar + lint + testlar — hammasini birdan tekshiradi              |
+| `npm run typecheck`         | TypeScript xatolarini tekshiradi                                   |
+| `npm run lint`              | Kod uslubini tekshiradi                                            |
+| `npm run test`              | Testlarni bir marta ishga tushiradi                                |
+| `npm run test:watch`        | Testlarni kuzatuv rejimida ishlatadi                               |
+| `npm run format`            | Kodni avtomatik formatlaydi                                        |
+| `npm run db:generate`       | Prisma klientini sxemadan yaratadi (dev/build o'zi ham chaqiradi)  |
+| `npm run db:studio`         | Bazani brauzerda ko'rish oynasini ochadi                           |
+| `npm run db:migrate`        | Yangi migratsiya yaratadi va qo'llaydi                             |
+| `npm run db:seed`           | Boshlang'ich ma'lumotlarni yozadi                                  |
+| `npm run docker:up`         | PostgreSQL va Redis'ni ko'taradi                                   |
+| `npm run docker:down`       | Konteynerlarni to'xtatadi                                          |
 
 ---
 
@@ -814,19 +815,40 @@ lokal bazani adashib o'zgartirib qo'yish mumkin emas.
 
 1. [vercel.com/new](https://vercel.com/new) → **Continue with GitHub**
 2. `Navix` omborini tanlang → **Import**
-3. **Environment Variables** bo'limini oching. Terminalda:
-
-   ```bash
-   npm run deploy:vars
-   ```
-
-   Chiqqan matnni to'liq nusxalab, birinchi katakka tashlang — Vercel
-   uni o'zi qatorlarga ajratadi. `NODE_ENV` qo'shilmaydi: uni Vercel
-   o'zi qo'yadi.
+3. **Environment Variables** bo'limini hozircha bo'sh qoldiring —
+   ularni keyingi qadamda terminaldan yuboramiz
 
 4. **Deploy** tugmasini bosing
 
 2-3 daqiqada tayyor bo'ladi va manzil beriladi.
+
+### 6-qadam. O'zgaruvchilarni yuborish
+
+Vercel sahifasidagi katakchalarga qo'lda yozish shart emas — telefonda
+bu ishlamaydi ham: Android klaviaturasi qator ajratgichlarini probelga
+aylantiradi va 8 ta qator bitta katakka tushib qoladi.
+
+Terminaldan yuborgan qulayroq va xavfsizroq (parollar ekranda umuman
+ko'rinmaydi):
+
+```bash
+npx vercel login
+npx vercel link
+npm run deploy:push-env
+```
+
+`login` — bir marta. `link` sizdan loyihani so'raydi, ro'yxatdan
+`navix` ni tanlaysiz. Uchinchi buyruq esa barcha qiymatlarni
+`production` va `preview` muhitlariga yuboradi.
+
+Keyin saytni qaytadan yig'amiz:
+
+```bash
+npx vercel --prod
+```
+
+Kelajakda sozlama o'zgarsa — faqat shu ikki buyruq:
+`npm run deploy:push-env` va `npx vercel --prod`.
 
 **Manzil ma'lum bo'lgach:** Vercel → Settings → Environment Variables →
 `NEXT_PUBLIC_APP_URL` ni haqiqiy manzilga o'zgartiring va qaytadan
@@ -925,6 +947,7 @@ Navix/
 │   ├── deploy-check.mjs     # Production tayyorligini tekshirish
 │   ├── deploy-db.mjs        # Bulutdagi bazani tayyorlash
 │   ├── deploy-vars.mjs      # Vercel o'zgaruvchilarini chiqarish
+│   ├── deploy-push-env.mjs  # O'zgaruvchilarni Vercel'ga yuborish
 │   └── lib/tunnel.mjs       # Ommaviy havola (Cloudflare tunneli)
 ├── vercel.json              # Vercel sozlamalari (region, funksiya muddati)
 ├── docker-compose.yml       # Lokal PostgreSQL + Redis
