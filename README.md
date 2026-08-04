@@ -74,6 +74,7 @@ npm run dev
 | `npm run dev:log`           | Server logini jonli koʻrsatadi                                    |
 | `npm run share`             | Vaqtinchalik havola ochadi (har safar yangi — sinov uchun)        |
 | `npm run url`               | Ochiq havolani qayta chiqaradi (yangisini ochmaydi)               |
+| `npm run env:setup`         | Production sozlamalarini savol-javob bilan yozadi                 |
 | `npm run deploy:check`      | Production tayyorligini tekshiradi (baza, Redis, kalitlar)        |
 | `npm run deploy:db`         | Bulutdagi bazaga migratsiya va boshlang'ich ma'lumotlarni yozadi  |
 | `npm run otp`               | Oxirgi SMS tasdiqlash kodini topib beradi                         |
@@ -747,39 +748,39 @@ ekranga chiqaradi. Ikkalasi faqat bitta so'z bilan farq qiladi
 3. **Redis Connect** → `ioredis` bandidagi manzilni nusxalang
    (`rediss://` bilan boshlanadi)
 
-### 3-qadam. Kalitlarni tayyorlash
-
-Termuxda:
+### 3-qadam. Sozlamalarni yozish
 
 ```bash
 cd /workspaces/Navix
-openssl rand -base64 48   # JWT_ACCESS_SECRET uchun
-openssl rand -base64 48   # JWT_REFRESH_SECRET uchun
+npm run env:setup
 ```
 
-Ikkalasi **har xil** bo'lishi shart.
+Skript ketma-ket ikkita manzilni so'raydi — Neon va Upstash. Har birini
+nusxalab tashlaysiz, xolos.
 
-Endi `.env.production` faylini yarating (u Git'ga tushmaydi):
-
-```bash
-nano .env.production
-```
-
-Ichiga yozing:
+**Nusxalashda ortiqcha belgi qo'shilib ketsa xavotir olmang.** Skript
+ularni o'zi tozalaydi:
 
 ```
-DATABASE_URL="<Neon pooled manzil>"
-DIRECT_URL="<Neon direct manzil>"
-REDIS_URL="<Upstash manzil>"
-JWT_ACCESS_SECRET="<birinchi kalit>"
-JWT_REFRESH_SECRET="<ikkinchi kalit>"
-NEXT_PUBLIC_APP_URL="https://navix.vercel.app"
-NEXT_PUBLIC_APP_NAME="Navix"
-SMS_PROVIDER=console
-NODE_ENV=production
+<postgresql://...>              → qavslar olib tashlanadi
+REDIS_URL="rediss://..."        → nomi olib tashlanadi
+"  rediss://...  "              → qo'shtirnoq va probellar olib tashlanadi
 ```
 
-Tekshiring:
+Manzil noto'g'ri bo'lsa (masalan Upstash'ning REST manzili) — darhol
+aytadi va qaytadan so'raydi.
+
+**JWT kalitlarini o'zingiz yozmaysiz** — skript ularni o'zi yaratadi.
+`DIRECT_URL` ham avtomatik hosil qilinadi.
+
+Natijada `.env.production` fayli paydo bo'ladi. U Git'ga tushmaydi va
+uni faqat siz o'qiy olasiz.
+
+> **Kalitlarni hech kimga yubormang.** Parol yoki token boshqa odamning
+> qo'liga tushsa — u bazangizga to'g'ridan-to'g'ri kira oladi. Xato
+> chiqsa faqat XATO MATNINI ko'rsating, faylning o'zini emas.
+
+Endi tekshiring:
 
 ```bash
 npm run deploy:check
@@ -905,6 +906,7 @@ Navix/
 ├── scripts/                 # Yordamchi skriptlar (share, url, otp, dev:stop)
 │   ├── grant-role.ts        # Foydalanuvchiga rol berish (birinchi admin)
 │   ├── assign-restaurant.ts # Restoranni egasiga biriktirish
+│   ├── env-setup.mjs        # Production sozlamalarini yozish
 │   ├── deploy-check.mjs     # Production tayyorligini tekshirish
 │   └── lib/tunnel.mjs       # Ommaviy havola (Cloudflare tunneli)
 ├── vercel.json              # Vercel sozlamalari (region, funksiya muddati)
