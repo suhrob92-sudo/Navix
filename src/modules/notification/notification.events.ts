@@ -23,6 +23,19 @@ export interface NotificationEventData {
   'wallet.transfer_received': { amountTiyin: number; senderName: string };
   'payment.completed': { amountTiyin: number; providerName: string; paymentId: string };
   'payment.refunded': { amountTiyin: number; providerName: string; paymentId: string };
+  'food.order_created': {
+    orderId: string;
+    orderNumber: string;
+    restaurantName: string;
+    amountTiyin: number;
+    deliveryMinutes: number;
+  };
+  'food.order_cancelled': {
+    orderId: string;
+    orderNumber: string;
+    restaurantName: string;
+    amountTiyin: number;
+  };
   'security.password_changed': { revokedSessions: number };
 }
 
@@ -85,6 +98,20 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
     body: `${providerName} to'lovi bekor qilindi. ${formatTiyin(amountTiyin)} hamyoningizga qaytarildi.`,
     actionUrl: `/payments/receipt/${paymentId}`,
     sourceModule: 'payments',
+  }),
+
+  'food.order_created': ({ orderId, restaurantName, amountTiyin, deliveryMinutes }) => ({
+    title: 'Buyurtma qabul qilindi',
+    body: `${restaurantName} buyurtmangizni qabul qildi. ${formatTiyin(amountTiyin)} to'landi, taxminan ${deliveryMinutes} daqiqada yetkaziladi.`,
+    actionUrl: `/orders/${orderId}`,
+    sourceModule: 'food',
+  }),
+
+  'food.order_cancelled': ({ orderId, restaurantName, amountTiyin }) => ({
+    title: 'Buyurtma bekor qilindi',
+    body: `${restaurantName} buyurtmasi bekor qilindi. ${formatTiyin(amountTiyin)} hamyoningizga qaytarildi.`,
+    actionUrl: `/orders/${orderId}`,
+    sourceModule: 'food',
   }),
 
   'security.password_changed': ({ revokedSessions }) => ({

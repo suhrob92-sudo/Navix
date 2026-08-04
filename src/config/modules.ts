@@ -172,7 +172,7 @@ export const APP_MODULES: readonly AppModule[] = [
     href: '/food',
     icon: UtensilsCrossed,
     category: ModuleCategory.COMMERCE,
-    status: ModuleStatus.PLANNED,
+    status: ModuleStatus.LIVE,
     color: 'rose',
     quickOrder: 2,
     aiIntents: ['ovqat buyurtma qil', 'pizza buyurtma qil', 'ovqat yetkaz', 'och qoldim'],

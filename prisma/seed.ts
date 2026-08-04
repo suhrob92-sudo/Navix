@@ -7,6 +7,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, RoleName, ServiceCategory } from '../src/generated/prisma/client';
 import { Permission, ROLE_PERMISSIONS, Role } from '../src/config/rbac';
 import { SERVICE_PROVIDERS } from '../src/config/service-providers';
+import { RESTAURANTS } from '../src/config/restaurants';
 
 /**
  * Boshlang'ich ma'lumotlarni bazaga yozadi (seed).
@@ -162,6 +163,75 @@ async function seedServiceProviders(prisma: PrismaClient): Promise<void> {
   console.info(`✅ ${SERVICE_PROVIDERS.length} ta xizmat provayderi yozildi`);
 }
 
+/**
+ * Restoranlar va menyularni yozadi.
+ *
+ * `upsert` kaliti — `slug` va (restoran + bo'lim nomi). Shu sababli
+ * seed qayta ishga tushirilganda mavjud taomlarning ID'si o'zgarmaydi
+ * va eski buyurtmalar bog'lanishini yo'qotmaydi.
+ */
+async function seedRestaurants(prisma: PrismaClient): Promise<void> {
+  let itemCount = 0;
+
+  for (const restaurant of RESTAURANTS) {
+    const data = {
+      name: restaurant.name,
+      description: restaurant.description,
+      cuisine: restaurant.cuisine,
+      deliveryFee: BigInt(restaurant.deliveryFeeSom) * 100n,
+      minOrder: BigInt(restaurant.minOrderSom) * 100n,
+      deliveryMinutes: restaurant.deliveryMinutes,
+      rating: restaurant.rating,
+      ratingCount: restaurant.ratingCount,
+      color: restaurant.color,
+      sortOrder: restaurant.sortOrder,
+      isActive: true,
+    };
+
+    const saved = await prisma.restaurant.upsert({
+      where: { slug: restaurant.slug },
+      update: data,
+      create: { slug: restaurant.slug, ...data },
+    });
+
+    for (const [categoryIndex, category] of restaurant.categories.entries()) {
+      const savedCategory = await prisma.menuCategory.upsert({
+        where: { restaurantId_name: { restaurantId: saved.id, name: category.name } },
+        update: { sortOrder: (categoryIndex + 1) * 10 },
+        create: { restaurantId: saved.id, name: category.name, sortOrder: (categoryIndex + 1) * 10 },
+      });
+
+      for (const [itemIndex, item] of category.items.entries()) {
+        // Taomning tabiiy kaliti yo'q, shuning uchun nom bo'yicha qidiramiz.
+        const existing = await prisma.menuItem.findFirst({
+          where: { restaurantId: saved.id, name: item.name },
+          select: { id: true },
+        });
+
+        const itemData = {
+          restaurantId: saved.id,
+          categoryId: savedCategory.id,
+          name: item.name,
+          description: item.description ?? null,
+          price: BigInt(item.priceSom) * 100n,
+          sortOrder: (itemIndex + 1) * 10,
+          isAvailable: true,
+        };
+
+        if (existing) {
+          await prisma.menuItem.update({ where: { id: existing.id }, data: itemData });
+        } else {
+          await prisma.menuItem.create({ data: itemData });
+        }
+
+        itemCount += 1;
+      }
+    }
+  }
+
+  console.info(`✅ ${RESTAURANTS.length} ta restoran va ${itemCount} ta taom yozildi`);
+}
+
 async function main(): Promise<void> {
   const prisma = createClient();
 
@@ -171,6 +241,7 @@ async function main(): Promise<void> {
     await seedRoles(prisma);
     await seedRolePermissions(prisma);
     await seedServiceProviders(prisma);
+    await seedRestaurants(prisma);
     console.info('🎉 Tayyor!');
   } finally {
     await prisma.$disconnect();

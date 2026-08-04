@@ -29,6 +29,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'wallet.transfer': "Pul o'tkazdi",
   'payment.service': "Xizmat uchun to'ladi",
   'payment.service.refunded': 'Pulni qaytardi',
+  'food.order.created': 'Ovqat buyurtma qildi',
+  'food.order.cancelled': 'Buyurtmani bekor qildi',
 
   'admin.provider.created': "Yangi xizmat qo'shdi",
   'admin.provider.updated': 'Xizmatni tahrirladi',
@@ -55,7 +57,14 @@ export type AuditFilterGroup = (typeof AUDIT_FILTER_GROUPS)[number]['value'];
 
 /** Har bir guruhga qaysi amallar kiradi. */
 export const AUDIT_GROUP_ACTIONS: Record<Exclude<AuditFilterGroup, 'ALL'>, readonly string[]> = {
-  MONEY: ['wallet.top_up', 'wallet.transfer', 'payment.service', 'payment.service.refunded'],
+  MONEY: [
+    'wallet.top_up',
+    'wallet.transfer',
+    'payment.service',
+    'payment.service.refunded',
+    'food.order.created',
+    'food.order.cancelled',
+  ],
   ADMIN: [
     'admin.provider.created',
     'admin.provider.updated',

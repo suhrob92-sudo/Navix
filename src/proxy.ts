@@ -32,6 +32,8 @@ const PROTECTED_PREFIXES = [
   '/security',
   '/wallet',
   '/payments',
+  '/food',
+  '/orders',
   /**
    * Admin panel.
    *

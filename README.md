@@ -3,15 +3,16 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 9-bosqich yakunlandi.
+> **Holat:** 10-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
 > internet, mobil aloqa, TV — 14 ta provayder, saqlangan hisoblar, chek),
 > **bildirishnomalar**, **AI Yordamchi** — oddiy tilda yozilgan
-> buyruqni tushunib, to'lov va o'tkazmani bajaradi — va **admin panel**:
-> xizmatlarni kodga tegmasdan qo'shish, foydalanuvchilarni boshqarish,
-> **pulni qaytarish**, rol berish va **audit jurnali**.
+> buyruqni tushunib, to'lov va o'tkazmani bajaradi, **admin panel**
+> (xizmatlar, foydalanuvchilar, pulni qaytarish, audit jurnali) va
+> **ovqat yetkazish** — restoranlar, menyu, savat, buyurtma va bekor
+> qilish.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -658,11 +659,13 @@ Navix/
 │   │   ├── payment/         # Xizmat to'lovlari (kommunal, internet...)
 │   │   ├── notification/    # Bildirishnomalar
 │   │   ├── assistant/       # AI Yordamchi (niyat tahlili, slot to'ldirish)
+│   │   ├── food/            # Ovqat yetkazish (restoran, menyu, buyurtma)
 │   │   └── admin/           # Admin panel (xizmatlar, foydalanuvchilar)
 │   ├── config/
 │   │   ├── modules.ts       # SUPER APP MODULLAR REYESTRI
 │   │   ├── rbac.ts          # Rollar va ruxsatlar
 │   │   ├── service-providers.ts # To'lov xizmatlari (seed manbasi)
+│   │   ├── restaurants.ts   # Restoranlar va menyu (seed manbasi)
 │   │   ├── app-nav.ts       # Ilova navigatsiyasi
 │   │   ├── admin-nav.ts     # Admin panel navigatsiyasi
 │   │   ├── cabinet-nav.ts   # Kabinet navigatsiyasi
@@ -812,6 +815,85 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 | POST  | `/payments/{id}/refund` | Pulni mijozga qaytarish             | `payment:transaction:refund` |
 | GET   | `/audit`                | Audit jurnali                       | `platform:audit:read`        |
 
+**Ovqat yetkazish** (`/api/v1/food/...`)
+
+| Metod | Manzil                | Tavsif                               |
+| ----- | --------------------- | ------------------------------------ |
+| GET   | `/restaurants`        | Restoranlar (toifa va qidiruv bilan) |
+| GET   | `/restaurants/{slug}` | Restoran va uning menyusi            |
+| GET   | `/orders`             | Mening buyurtmalarim                 |
+| POST  | `/orders`             | Buyurtma berish                      |
+| GET   | `/orders/{id}`        | Bitta buyurtma                       |
+| POST  | `/orders/{id}/cancel` | Bekor qilish va pulni qaytarish      |
+
+---
+
+## Ovqat yetkazish
+
+Manzil: `/food`. Bosh sahifadagi "Ovqat" kartochkasi ham shu yerga
+olib boradi.
+
+Oqim: **restoranlar → menyu → savat → manzil → buyurtma → kuzatish**.
+
+### Ikkita asosiy qoida
+
+**1. Narx HAR DOIM bazadan olinadi.** Savat serverga faqat "qaysi taom,
+nechta" yuboradi — narx emas. Summa, yetkazish haqi va jami serverda
+qayta hisoblanadi.
+
+Aks holda so'rovni tahrirlab 55 000 so'mlik pitsani 1 so'mga "sotib
+olish" mumkin bo'lardi. `createFoodOrderSchema` da narx maydoni umuman
+yo'q va buni test doimiy tekshiradi.
+
+**2. Buyurtma — o'zgarmas nusxa.** Taom nomi va narxi buyurtma qatoriga
+KO'CHIRILADI, havola bilan bog'lanmaydi. Restoran ertaga narxni oshirsa
+yoki taomni menyudan olib tashlasa, eski chek o'zgarmasligi kerak —
+aks holda foydalanuvchi "men boshqa narx to'lagandim" desa, biz isbotlay
+olmasdik.
+
+Xuddi shu sabab manzil ham MATN sifatida saqlanadi: foydalanuvchi
+manzilni o'chirsa, eski buyurtma "qayerga yetkazilgan?" degan savolga
+javob bera olishi kerak.
+
+### Savat nima uchun brauzerda
+
+Savat — vaqtinchalik ro'yxat, moliyaviy hujjat emas. Uni bazada saqlash
+har bir "+" bosishda so'rov yuborishni talab qilardi: mobil internetda
+sekin va trafik sarflaydi.
+
+Bu xavfsiz, chunki savatda faqat ID va son turadi. Foydalanuvchi
+`localStorage` ni tahrirlasa, eng yomoni — o'z savatini buzadi.
+
+Bitta savatda faqat BITTA restoran bo'ladi: har birining o'z kuryeri va
+yetkazish haqi bor. Boshqa restoran tanlanganda savat jimgina
+tozalanmaydi — tasdiqlash so'raladi.
+
+### Bekor qilish va pul qaytishi
+
+Buyurtmani **oshxona tayyorlashni boshlagunicha** bekor qilish mumkin —
+pul to'liq qaytariladi. Undan keyin mahsulot sarflangan bo'ladi va
+bekor qilish restoranga zarar keltiradi.
+
+Qaytarish 9-bosqichdagi `refundWallet()` ni ishlatadi va xuddi
+shunday himoyalangan: idempotentlik kaliti buyurtma ID'sidan
+hisoblanadi (`food-refund-{orderId}`), ustun esa bazada `UNIQUE`.
+Sinovda 5 ta bir vaqtdagi so'rovdan aynan bittasi o'tdi.
+
+### Buyurtma holatlari
+
+`PENDING → CONFIRMED → PREPARING → DELIVERING → DELIVERED`
+(`CANCELLED` — alohida yakuniy holat).
+
+Hozircha to'lov o'tishi bilan buyurtma `CONFIRMED` bo'ladi. Keyingi
+bosqichlarni restoran o'zgartiradi — buning uchun **restoran kabineti**
+kerak, u alohida bosqichda yoziladi.
+
+### Restoranlar qayerdan keladi
+
+`src/config/restaurants.ts` — boshlang'ich ro'yxat (6 ta restoran,
+50 ta taom). `npm run db:seed` uni bazaga yozadi. Ishlash paytida
+hammasi bazadan o'qiladi.
+
 ---
 
 ## Shaxsiy kabinet
@@ -959,5 +1041,7 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **7-bosqich** — AI Yordamchi: niyatni tushunish va buyruq tayyorlash
 - [x] **8-bosqich** — Admin panel: xizmatlar, foydalanuvchilar, tranzaksiyalar, statistika
 - [x] **9-bosqich** — Pulni qaytarish, rol boshqaruvi, audit jurnali
-- [ ] **10-bosqich** — Birinchi xizmat moduli (taksi yoki ovqat yetkazish)
-- [ ] **11-bosqich** — Real to'lov integratsiyasi (Payme / Click)
+- [x] **10-bosqich** — Ovqat yetkazish: restoranlar, menyu, savat, buyurtma
+- [ ] **11-bosqich** — Restoran kabineti: buyurtma holatini boshqarish
+- [ ] **12-bosqich** — Taksi moduli (xarita API kaliti kerak)
+- [ ] **13-bosqich** — Real to'lov integratsiyasi (Payme / Click)

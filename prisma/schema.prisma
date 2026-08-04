@@ -116,6 +116,25 @@ enum ServicePaymentStatus {
   REFUNDED
 }
 
+/// Ovqat buyurtmasining holati.
+///
+/// Tartib ATAYLAB shunday: buyurtma faqat oldinga harakatlanadi.
+/// Orqaga qaytish yo'q — bekor qilish alohida yakuniy holat.
+enum FoodOrderStatus {
+  /// Yaratildi, restoran hali javob bermagan.
+  PENDING
+  /// Restoran qabul qildi.
+  CONFIRMED
+  /// Oshxonada tayyorlanmoqda.
+  PREPARING
+  /// Kuryer yo'lda.
+  DELIVERING
+  /// Yetkazib berildi.
+  DELIVERED
+  /// Bekor qilindi (pul qaytarilgan).
+  CANCELLED
+}
+
 enum AddressType {
   HOME
   WORK
@@ -171,6 +190,7 @@ model User {
   auditLogs     AuditLog[]
   savedAccounts SavedAccount[]
   payments      ServicePayment[]
+  foodOrders    FoodOrder[]
 
   @@index([status])
   @@index([createdAt])
@@ -381,11 +401,181 @@ model Address {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodOrders FoodOrder[]
 
   @@index([userId])
   @@index([city])
   @@map("addresses")
+}
+
+// ---------------------------------------------------------------------------
+// Ovqat yetkazish (Food delivery)
+// ---------------------------------------------------------------------------
+
+/// Restoran.
+///
+/// Nima uchun narxlar shu yerda emas, `MenuItem` da: bitta restoranda
+/// yuzlab taom bo'lishi mumkin va har birining narxi alohida o'zgaradi.
+model Restaurant {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Manzildagi barqaror nom: "milliy-taomlar".
+  slug        String  @unique @db.VarChar(60)
+  name        String  @db.VarChar(120)
+  description String  @db.VarChar(255)
+  /// Oshxona turi: "Milliy", "Fast food", "Yapon".
+  cuisine     String  @db.VarChar(60)
+
+  /// Yetkazib berish narxi va eng kam buyurtma — TIYINDA.
+  deliveryFee     BigInt
+  minOrder        BigInt
+  /// Taxminiy yetkazish vaqti (daqiqa).
+  deliveryMinutes Int
+
+  /// Reyting 0.0 dan 5.0 gacha. `Decimal` — kasr aniq saqlanishi uchun.
+  rating      Decimal @default(0) @db.Decimal(2, 1)
+  ratingCount Int     @default(0)
+
+  /// Interfeysdagi rang kaliti (`ServiceColor`).
+  color String @db.VarChar(20)
+
+  /// Ro'yxatda ko'rinadimi (admin boshqaradi).
+  isActive  Boolean @default(true)
+  /// Hozir buyurtma qabul qilyaptimi (ish vaqti).
+  isOpen    Boolean @default(true)
+  sortOrder Int     @default(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categories MenuCategory[]
+  items      MenuItem[]
+  orders     FoodOrder[]
+
+  @@index([isActive, sortOrder])
+  @@map("restaurants")
+}
+
+/// Menyu bo'limi: "Issiq taomlar", "Salatlar", "Ichimliklar".
+model MenuCategory {
+  id           String @id @default(uuid()) @db.Uuid
+  restaurantId String @db.Uuid
+
+  name      String @db.VarChar(80)
+  sortOrder Int    @default(100)
+
+  createdAt DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  items      MenuItem[]
+
+  /// Bitta restoranda bir xil nomli ikkita bo'lim bo'lmasin.
+  @@unique([restaurantId, name])
+  @@map("menu_categories")
+}
+
+/// Menyudagi bitta taom.
+model MenuItem {
+  id           String @id @default(uuid()) @db.Uuid
+  restaurantId String @db.Uuid
+  categoryId   String @db.Uuid
+
+  name        String  @db.VarChar(120)
+  description String? @db.VarChar(255)
+  /// Narx TIYINDA.
+  price       BigInt
+
+  /// Tugab qolgan bo'lsa `false` — menyuda ko'rinadi, lekin tanlab bo'lmaydi.
+  isAvailable Boolean @default(true)
+  sortOrder   Int     @default(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category   MenuCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  orderItems FoodOrderItem[]
+
+  @@index([restaurantId, isAvailable])
+  @@index([categoryId, sortOrder])
+  @@map("menu_items")
+}
+
+/// Ovqat buyurtmasi.
+///
+/// ── Nima uchun manzil MATN sifatida ham saqlanadi ────────────────────
+/// `addressId` bog'lanishi yetarli emas: foydalanuvchi manzilni
+/// o'chirishi yoki tahrirlashi mumkin. Shunda eski buyurtma "qayerga
+/// yetkazilgan?" degan savolga javob bera olmasdi. Shuning uchun
+/// buyurtma paytidagi manzil MATNI nusxa qilib saqlanadi.
+model FoodOrder {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId       String  @db.Uuid
+  restaurantId String  @db.Uuid
+  /// Manzil o'chirilsa `null` bo'ladi, lekin matn qoladi.
+  addressId    String? @db.Uuid
+
+  /// Foydalanuvchi ko'rsatadigan raqam: NVX-F-20260803-A1B2C3.
+  orderNumber String          @unique @db.VarChar(40)
+  status      FoodOrderStatus @default(PENDING)
+
+  /// Summalar TIYINDA. `total = subtotal + deliveryFee`.
+  subtotal    BigInt
+  deliveryFee BigInt
+  total       BigInt
+
+  /// Buyurtma paytidagi manzil matni — o'zgarmas nusxa.
+  deliveryAddress String  @db.VarChar(400)
+  /// Kuryer uchun izoh: "domofon 45", "eshik oldiga qoldiring".
+  deliveryNote    String? @db.VarChar(255)
+
+  /// Hamyondagi to'lov tranzaksiyasi.
+  walletTransactionId String? @db.Uuid
+  /// Bekor qilinganda — sababi va qaytarish tranzaksiyasi.
+  cancelReason        String? @db.VarChar(255)
+  refundTransactionId String? @db.Uuid
+
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+  deliveredAt DateTime?
+  cancelledAt DateTime?
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  address    Address?   @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  items      FoodOrderItem[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("food_orders")
+}
+
+/// Buyurtmadagi bitta qator.
+///
+/// Taom nomi va narxi BU YERGA NUSXA qilinadi. Restoran ertaga narxni
+/// oshirsa yoki taomni o'chirsa, eski chek o'zgarmasligi kerak —
+/// aks holda foydalanuvchi "men boshqa narx to'lagandim" deya olardi
+/// va biz isbotlay olmasdik.
+model FoodOrderItem {
+  id      String @id @default(uuid()) @db.Uuid
+  orderId String @db.Uuid
+  /// Taom o'chirilsa ham qator qoladi.
+  menuItemId String? @db.Uuid
+
+  /// Buyurtma paytidagi nom va narx (TIYINDA).
+  name      String @db.VarChar(120)
+  unitPrice BigInt
+  quantity  Int
+  /// `unitPrice * quantity` — hisobni qayta hisoblamaslik uchun saqlanadi.
+  lineTotal BigInt
+
+  order    FoodOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("food_order_items")
 }
 
 /// Barcha modullardan keladigan bildirishnomalar.

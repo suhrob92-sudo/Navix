@@ -48,6 +48,10 @@ export const AuditAction = {
   /** Pulni qaytarish — moliyaviy amal, shuning uchun alohida yozuv. */
   SERVICE_PAYMENT_REFUNDED: 'payment.service.refunded',
 
+  // Ovqat yetkazish.
+  FOOD_ORDER_CREATED: 'food.order.created',
+  FOOD_ORDER_CANCELLED: 'food.order.cancelled',
+
   ADMIN_PROVIDER_CREATED: 'admin.provider.created',
   ADMIN_PROVIDER_UPDATED: 'admin.provider.updated',
   ADMIN_USER_STATUS_CHANGED: 'admin.user.status_changed',
