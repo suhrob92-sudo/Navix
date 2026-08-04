@@ -1,0 +1,18 @@
+# Vercel'ga yuborilmaydigan fayllar.
+#
+# Nima uchun kerak: build vaqti va yuklanadigan hajm kamayadi.
+#
+# ── Nima uchun testlar bu yerda YO'Q ──────────────────────────────────
+# Testlarni ham chiqarib tashlash mumkin edi, lekin unda Vercel'dagi
+# build lokal build'dan farq qila boshlaydi. Telefondan ishlaganda
+# "menda ishlaydi, Vercel'da ishlamaydi" xatosini topish juda qiyin.
+# Bir necha kilobayt tejash bunga arzimaydi.
+
+# Lokal ishlash uchun vositalar
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Yordamchi vositalar keshi (cloudflared va tunnel loglari)
+.cache
+dev.log

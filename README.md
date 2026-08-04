@@ -3,7 +3,7 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 12-bosqich yakunlandi.
+> **Holat:** 13-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
@@ -72,8 +72,10 @@ npm run dev
 | `npm run dev:bg`            | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi)            |
 | `npm run dev:stop`          | Fondagi serverni toʻxtatadi                                       |
 | `npm run dev:log`           | Server logini jonli koʻrsatadi                                    |
-| `npm run share`             | Ommaviy havola ochadi (GitHub yoki Cloudflare tunneli)            |
+| `npm run share`             | Vaqtinchalik havola ochadi (har safar yangi — sinov uchun)        |
 | `npm run url`               | Ochiq havolani qayta chiqaradi (yangisini ochmaydi)               |
+| `npm run deploy:check`      | Production tayyorligini tekshiradi (baza, Redis, kalitlar)        |
+| `npm run deploy:db`         | Bulutdagi bazaga migratsiya va boshlang'ich ma'lumotlarni yozadi  |
 | `npm run otp`               | Oxirgi SMS tasdiqlash kodini topib beradi                         |
 | `npm run role:grant`        | Foydalanuvchiga rol beradi (birinchi adminni yaratish uchun)      |
 | `npm run restaurant:assign` | Restoranni egasiga biriktiradi (MERCHANT roli bilan)              |
@@ -163,6 +165,11 @@ Nima qiladi:
 2. GitHub portini `public` qilishga urinadi;
 3. ishlamasa — **Cloudflare tunneli** orqali ommaviy havola ochadi;
 4. tayyor havolani chiqaradi.
+
+> **Doimiy havola kerakmi?** `npm run share` har safar yangi manzil
+> beradi. O'zgarmaydigan havola uchun
+> [Doimiy manzil — Vercel'ga chiqarish](#doimiy-manzil--vercelga-chiqarish)
+> bo'limiga qarang.
 
 `npm run go` oxirida buni avtomatik chaqiradi — odatda alohida yozish
 shart emas. `npm run dev:stop` esa havolani ham yopadi.
@@ -690,6 +697,155 @@ Provayder o'chirilsa unga bog'langan to'lovlar tarixi buzilardi.
 
 ---
 
+## Doimiy manzil — Vercel'ga chiqarish
+
+Ishlab chiqishda `npm run share` har safar YANGI havola beradi
+(`tasodifiy-nom.trycloudflare.com`). Bu vaqtinchalik tunnelning tabiati,
+sozlama bilan tuzatib bo'lmaydi.
+
+Doimiy manzil uchun ilova **Vercel**'ga chiqariladi. Shundan keyin:
+
+- havola bir marta beriladi va **hech qachon o'zgarmaydi**;
+- codespace uxlab qolsa ham sayt ishlab turaveradi;
+- `git push` qilsangiz — sayt o'zi yangilanadi.
+
+### Nima kerak (hammasi bepul)
+
+| Xizmat                         | Nima uchun        | Bepul chegara           |
+| ------------------------------ | ----------------- | ----------------------- |
+| [Vercel](https://vercel.com)   | Ilovaning o'zi    | Shaxsiy loyihalar uchun |
+| [Neon](https://neon.tech)      | PostgreSQL bazasi | 0.5 GB                  |
+| [Upstash](https://upstash.com) | Redis             | Kuniga 10 000 buyruq    |
+
+Uchalasiga ham GitHub hisobingiz bilan kirasiz — alohida parol o'ylash
+shart emas.
+
+### 1-qadam. Baza (Neon)
+
+1. [neon.tech](https://neon.tech) → **Sign up with GitHub**
+2. **Create project** → nomi `navix`, region **Europe (Frankfurt)**
+3. **Connection string** bandida IKKITA manzilni nusxalang:
+   - **Pooled connection** → bu `DATABASE_URL` bo'ladi
+   - **Direct connection** → bu `DIRECT_URL` bo'ladi
+
+> **Nima uchun ikkita.** Vercel serverless ishlaydi: har so'rov alohida
+> ko'tariladi. Har biri bazaga to'g'ridan-to'g'ri ulansa, ulanishlar soni
+> tez orada tugaydi. "Pooled" manzil ularni birlashtiradi.
+>
+> Lekin migratsiya "pooled" orqali ishonchli bajarilmaydi — u jadval
+> qulflarini ishlatadi, birlashtiruvchi esa ularni yo'qotadi. Shuning
+> uchun migratsiyaga alohida "direct" manzil kerak.
+
+### 2-qadam. Redis (Upstash)
+
+1. [upstash.com](https://upstash.com) → **Sign up with GitHub**
+2. **Create Database** → nomi `navix`, region **eu-central-1**
+3. **Redis Connect** → `ioredis` bandidagi manzilni nusxalang
+   (`rediss://` bilan boshlanadi)
+
+### 3-qadam. Kalitlarni tayyorlash
+
+Termuxda:
+
+```bash
+cd ~/Navix
+openssl rand -base64 48   # JWT_ACCESS_SECRET uchun
+openssl rand -base64 48   # JWT_REFRESH_SECRET uchun
+```
+
+Ikkalasi **har xil** bo'lishi shart.
+
+Endi `.env.production` faylini yarating (u Git'ga tushmaydi):
+
+```bash
+nano .env.production
+```
+
+Ichiga yozing:
+
+```
+DATABASE_URL="<Neon pooled manzil>"
+DIRECT_URL="<Neon direct manzil>"
+REDIS_URL="<Upstash manzil>"
+JWT_ACCESS_SECRET="<birinchi kalit>"
+JWT_REFRESH_SECRET="<ikkinchi kalit>"
+NEXT_PUBLIC_APP_URL="https://navix.vercel.app"
+NEXT_PUBLIC_APP_NAME="Navix"
+SMS_PROVIDER=console
+NODE_ENV=production
+```
+
+Tekshiring:
+
+```bash
+npm run deploy:check
+```
+
+Bu buyruq bazaga ham, Redis'ga ham HAQIQATAN ulanib ko'radi va nima
+xato ekanini o'zbekcha aytadi. Vercel'da xato chiqqanidan ko'ra, shu
+yerda topgan ancha oson.
+
+### 4-qadam. Bazani tayyorlash
+
+Jadvallar va boshlang'ich ma'lumotlarni bulutdagi bazaga yozamiz:
+
+```bash
+set -a && source .env.production && set +a
+npm run deploy:db
+```
+
+`set -a && source ...` — bu qator `.env.production` dagi qiymatlarni
+vaqtincha ishlatadi. Terminalni yopsangiz ular yo'qoladi, ya'ni lokal
+ishingiz buzilmaydi.
+
+### 5-qadam. Vercel
+
+1. [vercel.com/new](https://vercel.com/new) → **Continue with GitHub**
+2. `Navix` omborini tanlang → **Import**
+3. **Environment Variables** bo'limiga `.env.production` dagi
+   qiymatlarni bitta-bitta ko'chiring
+4. **Deploy** tugmasini bosing
+
+2-3 daqiqada tayyor bo'ladi va manzil beriladi.
+
+**Manzil ma'lum bo'lgach:** Vercel → Settings → Environment Variables →
+`NEXT_PUBLIC_APP_URL` ni haqiqiy manzilga o'zgartiring va qaytadan
+deploy qiling (Deployments → oxirgisi → Redeploy).
+
+### Shundan keyin ishlash tartibi
+
+```bash
+git add -A
+git commit -m "..."
+git push
+```
+
+Vercel o'zi ko'radi va 2-3 daqiqada saytni yangilaydi. **Manzil
+o'zgarmaydi.**
+
+### Uchta muhim ogohlantirish
+
+**1. SMS hali ulanmagan.** `SMS_PROVIDER=console` bo'lgani uchun
+tasdiqlash kodi SMS orqali yuborilmaydi — u Vercel loglarida ko'rinadi
+(Deployments → Functions → Logs). Ya'ni saytga faqat **siz** kira
+olasiz. Haqiqiy foydalanuvchilar uchun [eskiz.uz](https://eskiz.uz)
+hisobi kerak (pullik).
+
+**2. Vercel bepul rejasi tijorat uchun emas.** Sayt pul topa boshlasa,
+Vercel qoidasi bo'yicha **Pro** rejaga o'tish kerak (oyiga $20).
+Hozircha — namoyish va sinov uchun bepul reja yetarli.
+
+**3. Lokal baza va bulutdagi baza — ALOHIDA.** Codespace'dagi
+ma'lumotlar saytda ko'rinmaydi va aksincha. Yangi migratsiya yozsangiz,
+uni bulutdagi bazaga ham qo'llash kerak:
+
+```bash
+set -a && source .env.production && set +a
+npm run deploy:db
+```
+
+---
+
 ## Loyiha tuzilishi
 
 ```
@@ -745,7 +901,9 @@ Navix/
 ├── scripts/                 # Yordamchi skriptlar (share, url, otp, dev:stop)
 │   ├── grant-role.ts        # Foydalanuvchiga rol berish (birinchi admin)
 │   ├── assign-restaurant.ts # Restoranni egasiga biriktirish
+│   ├── deploy-check.mjs     # Production tayyorligini tekshirish
 │   └── lib/tunnel.mjs       # Ommaviy havola (Cloudflare tunneli)
+├── vercel.json              # Vercel sozlamalari (region, funksiya muddati)
 ├── docker-compose.yml       # Lokal PostgreSQL + Redis
 ├── Dockerfile               # Production image
 └── next.config.ts           # Next.js va xavfsizlik sozlamalari
@@ -1119,5 +1277,6 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **10-bosqich** — Ovqat yetkazish: restoranlar, menyu, savat, buyurtma
 - [x] **11-bosqich** — Restoran kabineti: buyurtma holatini boshqarish
 - [x] **12-bosqich** — AI Yordamchiga ovqat modulini ulash: suhbat ichida buyurtma, holat savoli
-- [ ] **13-bosqich** — Taksi moduli (xarita API kaliti kerak)
-- [ ] **14-bosqich** — Real to'lov integratsiyasi (Payme / Click)
+- [x] **13-bosqich** — Doimiy manzil: Vercel'ga chiqarish (Neon + Upstash)
+- [ ] **14-bosqich** — Taksi moduli (xarita API kaliti kerak)
+- [ ] **15-bosqich** — Real to'lov integratsiyasi (Payme / Click)

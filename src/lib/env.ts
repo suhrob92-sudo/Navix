@@ -23,6 +23,21 @@ const serverSchema = z.object({
       'DATABASE_URL "postgresql://" bilan boshlanishi kerak',
     ),
 
+  /**
+   * Bazaga TO'G'RIDAN-TO'G'RI ulanish satri — faqat migratsiya uchun.
+   *
+   * Bulutdagi bazalarda (Neon, Supabase) ilova "pooled" manzildan,
+   * migratsiya esa "direct" manzildan foydalanadi. Batafsil izoh
+   * `prisma.config.ts` da. Lokal ishlashda kerak emas.
+   */
+  DIRECT_URL: z
+    .string()
+    .refine(
+      (value) => value.startsWith('postgres://') || value.startsWith('postgresql://'),
+      'DIRECT_URL "postgresql://" bilan boshlanishi kerak',
+    )
+    .optional(),
+
   /** Redis ulanish satri (kesh, sessiya, rate limit uchun). */
   REDIS_URL: z
     .string()
