@@ -80,7 +80,7 @@ npm run dev
 | `npm run deploy:db`         | Bulutdagi bazaga migratsiya va boshlang'ich ma'lumotlarni yozadi   |
 | `npm run deploy:vars`       | Vercel o'zgaruvchilarini ekranga chiqaradi (qo'lda kiritish uchun) |
 | `npm run deploy:push-env`   | O'zgaruvchilarni Vercel'ga terminaldan yuboradi                    |
-| `npm run otp`               | Oxirgi SMS tasdiqlash kodini topib beradi                          |
+| `npm run otp`               | Oxirgi SMS kodini topadi (lokal). Internet uchun: `-- --prod`      |
 | `npm run role:grant`        | Foydalanuvchiga rol beradi (birinchi adminni yaratish uchun)       |
 | `npm run restaurant:assign` | Restoranni egasiga biriktiradi (MERCHANT roli bilan)               |
 | `npm run build`             | Production uchun yig'adi                                           |
@@ -425,17 +425,35 @@ nav
 
 ### SMS kodni olish
 
-Ishlab chiqish rejimida haqiqiy SMS yuborilmaydi. Kodni olish uchun:
+`SMS_PROVIDER=console` bo'lganda haqiqiy SMS yuborilmaydi — kod server
+logiga yoziladi.
+
+**Lokal server:**
 
 ```bash
 npm run otp
+```
+
+**Internetdagi sayt (Vercel):**
+
+```bash
+npm run otp -- --prod
 ```
 
 ```
 📩 Oxirgi tasdiqlash kodi:
 
    781769
+
+   Manba: navix-iota.vercel.app
 ```
+
+> Vercel loglari qisqa muddat saqlanadi. Kod topilmasa — saytda
+> "Yangi kod so'rash" tugmasini bosing va darhol buyruqni qaytaring.
+
+**Nima uchun kodni bazadan o'qib bo'lmaydi.** Kod Redis'ga HASH
+ko'rinishida yoziladi. Bu ataylab: baza o'g'irlansa ham kodlar foydasiz
+bo'ladi. Shuning uchun yagona manba — server logi.
 
 ### Foydali
 
