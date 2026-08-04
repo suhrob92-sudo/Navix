@@ -28,7 +28,21 @@ import { spawnSync } from 'node:child_process';
 
 const ROOT = process.cwd();
 const ENV_PATH = path.join(ROOT, '.env.production');
-const LINK_PATH = path.join(ROOT, '.vercel', 'project.json');
+
+/**
+ * Loyiha Vercel bilan bog'lanmaganini bildiruvchi belgilar.
+ *
+ * ── Nima uchun fayl tekshirilmaydi ────────────────────────────────────
+ * Avval bu yerda `.vercel/project.json` fayli qidirilardi. Bu XATO edi:
+ * Vercel CLI bog'lanish ma'lumotini qayerda va qanday saqlashini o'zi
+ * hal qiladi va versiyadan versiyaga o'zgartiradi. Natijada `vercel
+ * link` muvaffaqiyatli o'tgan bo'lsa ham skript "bog'lanmagan" deb
+ * to'xtab qolardi.
+ *
+ * To'g'ri yo'l — boshqa dasturning ichki holatini taxmin qilmaslik:
+ * buyruqni bajaramiz va Vercel'ning O'Z javobiga qaraymiz.
+ */
+const NOT_LINKED_SIGNS = ["isn't linked", 'not linked', 'vercel link'];
 
 /** Vercel o'zi boshqaradi — qo'lda yuborilmaydi. */
 const MANAGED_BY_VERCEL = new Set(['NODE_ENV', 'PORT', 'VERCEL', 'VERCEL_ENV', 'VERCEL_URL']);
@@ -54,16 +68,12 @@ if (!fs.existsSync(ENV_PATH)) {
   fail('".env.production" topilmadi', '   Avval sozlamalarni yozing:  npm run env:setup');
 }
 
-if (!fs.existsSync(LINK_PATH)) {
-  fail(
-    'Loyiha Vercel bilan bog\'lanmagan',
-    '   Ikkita buyruqni bir marta bajaring:\n\n' +
-      '      npx vercel login\n' +
-      '      npx vercel link\n\n' +
-      "   `link` sizdan loyihani so'raydi — ro'yxatdan `navix` ni tanlang.\n" +
-      '   Keyin qaytadan:  npm run deploy:push-env',
-  );
-}
+const LINK_HINT =
+  '   Ikkita buyruqni bir marta bajaring:\n\n' +
+  '      npx vercel login\n' +
+  '      npx vercel link\n\n' +
+  "   `link` sizdan loyihani so'raydi — ro'yxatdan `navix` ni tanlang.\n" +
+  '   Keyin qaytadan:  npm run deploy:push-env';
 
 // ── 2. Qiymatlarni o'qiymiz ───────────────────────────────────────────
 
@@ -145,6 +155,21 @@ for (const { key, value } of variables) {
 // ── 4. Yakun ──────────────────────────────────────────────────────────
 
 console.info(`\n${'─'.repeat(56)}`);
+
+/**
+ * Hamma urinish bir xil sababdan yiqilgan bo'lsa — bu alohida
+ * qiymatning muammosi emas, umumiy sabab. Eng ko'p uchraydigani:
+ * loyiha hali bog'lanmagan.
+ */
+const allFailed = failures.length === variables.length * ENVIRONMENTS.length;
+const looksUnlinked =
+  allFailed && failures.some((f) => NOT_LINKED_SIGNS.some((sign) => f.reason.includes(sign)));
+
+if (looksUnlinked) {
+  console.info("\n❌ Loyiha Vercel bilan bog'lanmagan\n");
+  console.info(`${LINK_HINT}\n`);
+  process.exit(1);
+}
 
 if (failures.length === 0) {
   console.info(`\n✅ ${sent} ta qiymat yuborildi\n`);
