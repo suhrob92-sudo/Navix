@@ -11,6 +11,7 @@
     "go": "npm run docker:up && npm run dev:stop && npm run dev:bg",
     "share": "node scripts/share.mjs",
     "status": "node scripts/status.mjs",
+    "update": "node scripts/update.mjs",
     "url": "node scripts/url.mjs",
     "otp": "node scripts/otp.mjs",
     "build": "prisma generate && next build",
