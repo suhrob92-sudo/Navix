@@ -748,7 +748,7 @@ shart emas.
 Termuxda:
 
 ```bash
-cd ~/Navix
+cd /workspaces/Navix
 openssl rand -base64 48   # JWT_ACCESS_SECRET uchun
 openssl rand -base64 48   # JWT_REFRESH_SECRET uchun
 ```
