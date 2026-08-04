@@ -33,7 +33,7 @@
     "restaurant:assign": "tsx scripts/assign-restaurant.ts",
     "env:setup": "node scripts/env-setup.mjs",
     "deploy:check": "node scripts/deploy-check.mjs",
-    "deploy:db": "prisma migrate deploy && tsx prisma/seed.ts",
+    "deploy:db": "node scripts/deploy-db.mjs",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "docker:up": "docker compose up -d",

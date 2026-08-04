@@ -798,16 +798,16 @@ yerda topgan ancha oson.
 
 ### 4-qadam. Bazani tayyorlash
 
-Jadvallar va boshlang'ich ma'lumotlarni bulutdagi bazaga yozamiz:
-
 ```bash
-set -a && source .env.production && set +a
 npm run deploy:db
 ```
 
-`set -a && source ...` — bu qator `.env.production` dagi qiymatlarni
-vaqtincha ishlatadi. Terminalni yopsangiz ular yo'qoladi, ya'ni lokal
-ishingiz buzilmaydi.
+Bu buyruq bulutdagi bazada jadvallarni yaratadi va boshlang'ich
+ma'lumotlarni (rollar, ruxsatlar, xizmat provayderlari, restoranlar)
+yozadi.
+
+Bajarishdan oldin **qaysi bazaga yozayotganini ekranda ko'rsatadi** —
+lokal bazani adashib o'zgartirib qo'yish mumkin emas.
 
 ### 5-qadam. Vercel
 
@@ -851,7 +851,6 @@ ma'lumotlar saytda ko'rinmaydi va aksincha. Yangi migratsiya yozsangiz,
 uni bulutdagi bazaga ham qo'llash kerak:
 
 ```bash
-set -a && source .env.production && set +a
 npm run deploy:db
 ```
 
@@ -915,6 +914,7 @@ Navix/
 │   ├── update.mjs           # Kodni xavfsiz yangilash
 │   ├── env-setup.mjs        # Production sozlamalarini yozish
 │   ├── deploy-check.mjs     # Production tayyorligini tekshirish
+│   ├── deploy-db.mjs        # Bulutdagi bazani tayyorlash
 │   └── lib/tunnel.mjs       # Ommaviy havola (Cloudflare tunneli)
 ├── vercel.json              # Vercel sozlamalari (region, funksiya muddati)
 ├── docker-compose.yml       # Lokal PostgreSQL + Redis

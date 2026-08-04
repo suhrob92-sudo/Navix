@@ -20,6 +20,25 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+/**
+ * Node'ning ortiqcha ogohlantirishlarini bostiramiz.
+ *
+ * `pg` kutubxonasi har ishga tushganda 12 qatorlik inglizcha
+ * ogohlantirish chiqaradi: kelajakdagi versiyada `sslmode=require`
+ * boshqacha talqin qilinishi haqida. Bizga bu tegishli emas —
+ * hozirgi holatda ulanish ENG QATTIQ rejimda tekshiriladi
+ * (`verify-full`), ya'ni xavfsizroq tomonga.
+ *
+ * Telefon ekranida esa u butun natijani surib yuboradi va
+ * foydalanuvchi "xato chiqdi" deb o'ylaydi.
+ */
+process.removeAllListeners('warning');
+
+process.on('warning', (warning) => {
+  if (warning.message.includes('SSL modes')) return;
+  console.info(`  ⚠️  ${warning.message.split('\n')[0]}`);
+});
+
 const ROOT = process.cwd();
 
 /** Tekshiruv natijalari. */
@@ -472,7 +491,13 @@ for (const file of ['vercel.json', 'prisma/schema.prisma', 'package.json']) {
 const migrationsDir = path.join(ROOT, 'prisma', 'migrations');
 
 if (fs.existsSync(migrationsDir)) {
-  const count = fs.readdirSync(migrationsDir).filter((name) => !name.startsWith('.')).length;
+  // Har bir migratsiya — alohida PAPKA. Papka yonidagi
+  // "migration_lock.toml" fayli migratsiya emas, uni sanamaymiz —
+  // aks holda son Prisma aytadigan sondan farq qilib, chalkashtiradi.
+  const count = fs
+    .readdirSync(migrationsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.')).length;
+
   ok('Migratsiyalar', `${count} ta`);
 } else {
   bad("Migratsiyalar papkasi yo'q", 'git pull bajaring');
