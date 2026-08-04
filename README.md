@@ -3,7 +3,7 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 10-bosqich yakunlandi.
+> **Holat:** 11-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
@@ -11,8 +11,8 @@ kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada
 > **bildirishnomalar**, **AI Yordamchi** — oddiy tilda yozilgan
 > buyruqni tushunib, to'lov va o'tkazmani bajaradi, **admin panel**
 > (xizmatlar, foydalanuvchilar, pulni qaytarish, audit jurnali) va
-> **ovqat yetkazish** — restoranlar, menyu, savat, buyurtma va bekor
-> qilish.
+> **ovqat yetkazish** — restoranlar, menyu, savat, buyurtma, bekor
+> qilish va **restoran kabineti** (buyurtma holatini boshqarish).
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -63,32 +63,33 @@ npm run dev
 
 ## Foydali buyruqlar
 
-| Buyruq                | Nima qiladi                                                       |
-| --------------------- | ----------------------------------------------------------------- |
-| `npm run dev`         | Ishlab chiqish serverini ishga tushiradi                          |
-| `npm run go`          | Baza + Redis + serverni birdan ishga tushiradi                    |
-| `npm run status`      | Server, baza, Redis va jadvallar mosligini tekshiradi             |
-| `npm run dev:bg`      | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi)            |
-| `npm run dev:stop`    | Fondagi serverni toʻxtatadi                                       |
-| `npm run dev:log`     | Server logini jonli koʻrsatadi                                    |
-| `npm run share`       | Ommaviy havola ochadi (GitHub yoki Cloudflare tunneli)            |
-| `npm run url`         | Ochiq havolani qayta chiqaradi (yangisini ochmaydi)               |
-| `npm run otp`         | Oxirgi SMS tasdiqlash kodini topib beradi                         |
-| `npm run role:grant`  | Foydalanuvchiga rol beradi (birinchi adminni yaratish uchun)      |
-| `npm run build`       | Production uchun yig'adi                                          |
-| `npm run start`       | Yig'ilgan ilovani ishga tushiradi                                 |
-| `npm run verify`      | Turlar + lint + testlar — hammasini birdan tekshiradi             |
-| `npm run typecheck`   | TypeScript xatolarini tekshiradi                                  |
-| `npm run lint`        | Kod uslubini tekshiradi                                           |
-| `npm run test`        | Testlarni bir marta ishga tushiradi                               |
-| `npm run test:watch`  | Testlarni kuzatuv rejimida ishlatadi                              |
-| `npm run format`      | Kodni avtomatik formatlaydi                                       |
-| `npm run db:generate` | Prisma klientini sxemadan yaratadi (dev/build o'zi ham chaqiradi) |
-| `npm run db:studio`   | Bazani brauzerda ko'rish oynasini ochadi                          |
-| `npm run db:migrate`  | Yangi migratsiya yaratadi va qo'llaydi                            |
-| `npm run db:seed`     | Boshlang'ich ma'lumotlarni yozadi                                 |
-| `npm run docker:up`   | PostgreSQL va Redis'ni ko'taradi                                  |
-| `npm run docker:down` | Konteynerlarni to'xtatadi                                         |
+| Buyruq                      | Nima qiladi                                                       |
+| --------------------------- | ----------------------------------------------------------------- |
+| `npm run dev`               | Ishlab chiqish serverini ishga tushiradi                          |
+| `npm run go`                | Baza + Redis + serverni birdan ishga tushiradi                    |
+| `npm run status`            | Server, baza, Redis va jadvallar mosligini tekshiradi             |
+| `npm run dev:bg`            | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi)            |
+| `npm run dev:stop`          | Fondagi serverni toʻxtatadi                                       |
+| `npm run dev:log`           | Server logini jonli koʻrsatadi                                    |
+| `npm run share`             | Ommaviy havola ochadi (GitHub yoki Cloudflare tunneli)            |
+| `npm run url`               | Ochiq havolani qayta chiqaradi (yangisini ochmaydi)               |
+| `npm run otp`               | Oxirgi SMS tasdiqlash kodini topib beradi                         |
+| `npm run role:grant`        | Foydalanuvchiga rol beradi (birinchi adminni yaratish uchun)      |
+| `npm run restaurant:assign` | Restoranni egasiga biriktiradi (MERCHANT roli bilan)              |
+| `npm run build`             | Production uchun yig'adi                                          |
+| `npm run start`             | Yig'ilgan ilovani ishga tushiradi                                 |
+| `npm run verify`            | Turlar + lint + testlar — hammasini birdan tekshiradi             |
+| `npm run typecheck`         | TypeScript xatolarini tekshiradi                                  |
+| `npm run lint`              | Kod uslubini tekshiradi                                           |
+| `npm run test`              | Testlarni bir marta ishga tushiradi                               |
+| `npm run test:watch`        | Testlarni kuzatuv rejimida ishlatadi                              |
+| `npm run format`            | Kodni avtomatik formatlaydi                                       |
+| `npm run db:generate`       | Prisma klientini sxemadan yaratadi (dev/build o'zi ham chaqiradi) |
+| `npm run db:studio`         | Bazani brauzerda ko'rish oynasini ochadi                          |
+| `npm run db:migrate`        | Yangi migratsiya yaratadi va qo'llaydi                            |
+| `npm run db:seed`           | Boshlang'ich ma'lumotlarni yozadi                                 |
+| `npm run docker:up`         | PostgreSQL va Redis'ni ko'taradi                                  |
+| `npm run docker:down`       | Konteynerlarni to'xtatadi                                         |
 
 ---
 
@@ -660,6 +661,7 @@ Navix/
 │   │   ├── notification/    # Bildirishnomalar
 │   │   ├── assistant/       # AI Yordamchi (niyat tahlili, slot to'ldirish)
 │   │   ├── food/            # Ovqat yetkazish (restoran, menyu, buyurtma)
+│   │   ├── merchant/        # Restoran kabineti (buyurtma holati, menyu)
 │   │   └── admin/           # Admin panel (xizmatlar, foydalanuvchilar)
 │   ├── config/
 │   │   ├── modules.ts       # SUPER APP MODULLAR REYESTRI
@@ -682,6 +684,7 @@ Navix/
 │       └── utils.ts         # Yordamchi funksiyalar
 ├── scripts/                 # Yordamchi skriptlar (share, url, otp, dev:stop)
 │   ├── grant-role.ts        # Foydalanuvchiga rol berish (birinchi admin)
+│   ├── assign-restaurant.ts # Restoranni egasiga biriktirish
 │   └── lib/tunnel.mjs       # Ommaviy havola (Cloudflare tunneli)
 ├── docker-compose.yml       # Lokal PostgreSQL + Redis
 ├── Dockerfile               # Production image
@@ -825,6 +828,18 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 | POST  | `/orders`             | Buyurtma berish                      |
 | GET   | `/orders/{id}`        | Bitta buyurtma                       |
 | POST  | `/orders/{id}/cancel` | Bekor qilish va pulni qaytarish      |
+
+**Restoran kabineti** (`/api/v1/merchant/...`)
+
+| Metod | Manzil                   | Tavsif                                  |
+| ----- | ------------------------ | --------------------------------------- |
+| GET   | `/restaurants`           | Mening restoranlarim va ko'rsatkichlar  |
+| PATCH | `/restaurants/{id}`      | Ochish/yopish, yetkazish vaqti          |
+| GET   | `/restaurants/{id}/menu` | Restoran menyusi                        |
+| PATCH | `/menu-items/{id}`       | Taom mavjudligi yoki narxi              |
+| GET   | `/orders`                | Kelgan buyurtmalar (standart — faollar) |
+| GET   | `/orders/{id}`           | Bitta buyurtma                          |
+| PATCH | `/orders/{id}`           | Holatni o'zgartirish yoki rad etish     |
 
 ---
 
@@ -1042,6 +1057,7 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **8-bosqich** — Admin panel: xizmatlar, foydalanuvchilar, tranzaksiyalar, statistika
 - [x] **9-bosqich** — Pulni qaytarish, rol boshqaruvi, audit jurnali
 - [x] **10-bosqich** — Ovqat yetkazish: restoranlar, menyu, savat, buyurtma
-- [ ] **11-bosqich** — Restoran kabineti: buyurtma holatini boshqarish
-- [ ] **12-bosqich** — Taksi moduli (xarita API kaliti kerak)
-- [ ] **13-bosqich** — Real to'lov integratsiyasi (Payme / Click)
+- [x] **11-bosqich** — Restoran kabineti: buyurtma holatini boshqarish
+- [ ] **12-bosqich** — AI Yordamchiga ovqat modulini ulash
+- [ ] **13-bosqich** — Taksi moduli (xarita API kaliti kerak)
+- [ ] **14-bosqich** — Real to'lov integratsiyasi (Payme / Click)

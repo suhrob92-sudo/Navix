@@ -39,6 +39,19 @@ const SAMPLES = {
     restaurantName: 'Milliy Taomlar',
     amountTiyin: 9_500_000,
   },
+  'food.order_status_changed': {
+    orderId: '7c2f1b90-4f5e-4d1a-9c3e-2b8a6d5e4f10',
+    orderNumber: 'NVX-F-20260803-A1B2C3',
+    restaurantName: 'Milliy Taomlar',
+    status: 'PREPARING',
+  },
+  'food.order_rejected': {
+    orderId: '7c2f1b90-4f5e-4d1a-9c3e-2b8a6d5e4f10',
+    orderNumber: 'NVX-F-20260803-A1B2C3',
+    restaurantName: 'Milliy Taomlar',
+    amountTiyin: 9_500_000,
+    reason: 'mahsulot tugadi',
+  },
   'security.password_changed': { revokedSessions: 3 },
 } as const;
 

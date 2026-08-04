@@ -52,6 +52,10 @@ export const AuditAction = {
   FOOD_ORDER_CREATED: 'food.order.created',
   FOOD_ORDER_CANCELLED: 'food.order.cancelled',
 
+  // Restoran kabineti.
+  MERCHANT_ORDER_STATUS_CHANGED: 'merchant.order.status_changed',
+  MERCHANT_ORDER_REJECTED: 'merchant.order.rejected',
+
   ADMIN_PROVIDER_CREATED: 'admin.provider.created',
   ADMIN_PROVIDER_UPDATED: 'admin.provider.updated',
   ADMIN_USER_STATUS_CHANGED: 'admin.user.status_changed',

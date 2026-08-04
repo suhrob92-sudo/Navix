@@ -29,6 +29,7 @@
     "db:push": "prisma db push",
     "db:seed": "prisma generate && tsx prisma/seed.ts",
     "role:grant": "tsx scripts/grant-role.ts",
+    "restaurant:assign": "tsx scripts/assign-restaurant.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "docker:up": "docker compose up -d",

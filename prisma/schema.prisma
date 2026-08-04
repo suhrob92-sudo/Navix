@@ -191,6 +191,7 @@ model User {
   savedAccounts SavedAccount[]
   payments      ServicePayment[]
   foodOrders    FoodOrder[]
+  restaurants   Restaurant[]
 
   @@index([status])
   @@index([createdAt])
@@ -420,6 +421,13 @@ model Address {
 model Restaurant {
   id String @id @default(uuid()) @db.Uuid
 
+  /// Restoran EGASI — u kabinetga kirib buyurtmalarni boshqaradi.
+  ///
+  /// Ixtiyoriy: seed bilan yaratilgan restoranlarda ega bo'lmasligi
+  /// mumkin (ular hali hech kimga biriktirilmagan). Ega o'chirilsa
+  /// restoran qolaveradi — shuning uchun `SetNull`.
+  ownerId String? @db.Uuid
+
   /// Manzildagi barqaror nom: "milliy-taomlar".
   slug        String  @unique @db.VarChar(60)
   name        String  @db.VarChar(120)
@@ -449,11 +457,13 @@ model Restaurant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  owner      User?          @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   categories MenuCategory[]
   items      MenuItem[]
   orders     FoodOrder[]
 
   @@index([isActive, sortOrder])
+  @@index([ownerId])
   @@map("restaurants")
 }
 

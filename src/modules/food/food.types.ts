@@ -139,3 +139,65 @@ export const FOOD_ORDER_FLOW: readonly FoodOrderStatusName[] = [
   'DELIVERING',
   'DELIVERED',
 ] as const;
+
+/**
+ * Holatlar avtomati (state machine) — RUXSAT ETILGAN o'tishlar jadvali.
+ *
+ * ── Nima uchun jadval, `if` lar emas ──────────────────────────────────
+ * Bu qoidalar UCH joyda kerak: serverda (tekshirish), restoran
+ * kabinetida (qaysi tugmani ko'rsatish) va testda. Uchtasida alohida
+ * yozilsa, ular ertaga bir-biridan farq qila boshlaydi.
+ *
+ * ── Nima uchun qat'iy ─────────────────────────────────────────────────
+ * Buyurtma ORQAGA qaytmaydi va bosqichni SAKRAB o'tmaydi:
+ *  - "Yetkazildi" dan "Tayyorlanmoqda" ga qaytish — mijoz uchun
+ *    tushunarsiz va hisobotni buzadi;
+ *  - "Qabul qilindi" dan to'g'ridan-to'g'ri "Yetkazildi" ga sakrash
+ *    esa oshxona bosqichini yashiradi.
+ *
+ * Yakuniy holatlarda (`DELIVERED`, `CANCELLED`) ro'yxat bo'sh — ular
+ * o'zgarmaydi.
+ */
+export const FOOD_ORDER_TRANSITIONS: Record<FoodOrderStatusName, readonly FoodOrderStatusName[]> = {
+  PENDING: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['PREPARING', 'CANCELLED'],
+  PREPARING: ['DELIVERING'],
+  DELIVERING: ['DELIVERED'],
+  DELIVERED: [],
+  CANCELLED: [],
+};
+
+/** Shu o'tishga ruxsat berilganmi. */
+export function canTransition(from: FoodOrderStatusName, to: FoodOrderStatusName): boolean {
+  return FOOD_ORDER_TRANSITIONS[from].includes(to);
+}
+
+/**
+ * Restoran uchun KEYINGI mantiqiy qadam.
+ *
+ * Kabinetdagi asosiy tugma shu qiymatdan quriladi — xodim o'ylab
+ * o'tirmasligi kerak, bitta katta tugma bo'lsa yetarli.
+ */
+export function nextStatus(current: FoodOrderStatusName): FoodOrderStatusName | null {
+  const index = FOOD_ORDER_FLOW.indexOf(current);
+  if (index === -1 || index === FOOD_ORDER_FLOW.length - 1) return null;
+
+  const candidate = FOOD_ORDER_FLOW[index + 1];
+
+  return canTransition(current, candidate) ? candidate : null;
+}
+
+/** Restoran shu bosqichda buyurtmani rad eta oladimi. */
+export function canRestaurantReject(status: FoodOrderStatusName): boolean {
+  return canTransition(status, 'CANCELLED');
+}
+
+/** Tugma yozuvi: "Tayyorlashni boshlash", "Yo'lga chiqarish"... */
+export const FOOD_ORDER_ACTION_LABELS: Record<FoodOrderStatusName, string> = {
+  PENDING: 'Buyurtmani qabul qilish',
+  CONFIRMED: 'Tayyorlashni boshlash',
+  PREPARING: "Yo'lga chiqarish",
+  DELIVERING: 'Yetkazildi deb belgilash',
+  DELIVERED: '',
+  CANCELLED: '',
+};

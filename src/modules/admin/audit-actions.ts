@@ -31,6 +31,10 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'payment.service.refunded': 'Pulni qaytardi',
   'food.order.created': 'Ovqat buyurtma qildi',
   'food.order.cancelled': 'Buyurtmani bekor qildi',
+  'merchant.order.status_changed': "Buyurtma holatini o'zgartirdi",
+  'merchant.order.rejected': 'Buyurtmani rad etdi',
+  'merchant.restaurant.assigned': 'Restoran biriktirildi',
+  'merchant.restaurant.unassigned': 'Restoran olib tashlandi',
 
   'admin.provider.created': "Yangi xizmat qo'shdi",
   'admin.provider.updated': 'Xizmatni tahrirladi',
@@ -64,6 +68,7 @@ export const AUDIT_GROUP_ACTIONS: Record<Exclude<AuditFilterGroup, 'ALL'>, reado
     'payment.service.refunded',
     'food.order.created',
     'food.order.cancelled',
+    'merchant.order.rejected',
   ],
   ADMIN: [
     'admin.provider.created',
@@ -71,6 +76,7 @@ export const AUDIT_GROUP_ACTIONS: Record<Exclude<AuditFilterGroup, 'ALL'>, reado
     'admin.user.status_changed',
     'admin.role.granted',
     'admin.role.revoked',
+    'merchant.order.status_changed',
   ],
   AUTH: [
     'user.registered',

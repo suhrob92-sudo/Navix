@@ -36,6 +36,19 @@ export interface NotificationEventData {
     restaurantName: string;
     amountTiyin: number;
   };
+  'food.order_status_changed': {
+    orderId: string;
+    orderNumber: string;
+    restaurantName: string;
+    status: 'CONFIRMED' | 'PREPARING' | 'DELIVERING' | 'DELIVERED';
+  };
+  'food.order_rejected': {
+    orderId: string;
+    orderNumber: string;
+    restaurantName: string;
+    amountTiyin: number;
+    reason: string;
+  };
   'security.password_changed': { revokedSessions: number };
 }
 
@@ -53,6 +66,21 @@ export interface NotificationTemplate {
 type TemplateBuilders = {
   [Event in NotificationEventName]: (data: NotificationEventData[Event]) => NotificationTemplate;
 };
+
+/** Buyurtma bosqichlari uchun sarlavhalar. */
+const FOOD_STATUS_TITLES = {
+  CONFIRMED: 'Buyurtma qabul qilindi',
+  PREPARING: 'Ovqat tayyorlanmoqda',
+  DELIVERING: "Kuryer yo'lda",
+  DELIVERED: 'Buyurtma yetkazildi',
+} as const;
+
+const FOOD_STATUS_BODIES = {
+  CONFIRMED: 'buyurtmangizni qabul qildi.',
+  PREPARING: 'oshxona buyurtmangizni tayyorlashni boshladi.',
+  DELIVERING: 'kuryer buyurtmangiz bilan yo\'lga chiqdi.',
+  DELIVERED: 'buyurtmangiz yetkazib berildi. Yoqimli ishtaha!',
+} as const;
 
 /**
  * Matn qoidalari:
@@ -110,6 +138,24 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
   'food.order_cancelled': ({ orderId, restaurantName, amountTiyin }) => ({
     title: 'Buyurtma bekor qilindi',
     body: `${restaurantName} buyurtmasi bekor qilindi. ${formatTiyin(amountTiyin)} hamyoningizga qaytarildi.`,
+    actionUrl: `/orders/${orderId}`,
+    sourceModule: 'food',
+  }),
+
+  /**
+   * Har bosqichda xabar yuboriladi: mijoz ovqat qayerdaligini bilmasa,
+   * u restoranga qo'ng'iroq qiladi yoki ilovani qayta-qayta ochadi.
+   */
+  'food.order_status_changed': ({ orderId, restaurantName, status }) => ({
+    title: FOOD_STATUS_TITLES[status],
+    body: `${restaurantName}: ${FOOD_STATUS_BODIES[status]}`,
+    actionUrl: `/orders/${orderId}`,
+    sourceModule: 'food',
+  }),
+
+  'food.order_rejected': ({ orderId, restaurantName, amountTiyin, reason }) => ({
+    title: 'Restoran buyurtmani rad etdi',
+    body: `${restaurantName} buyurtmangizni qabul qila olmadi (${reason}). ${formatTiyin(amountTiyin)} hamyoningizga qaytarildi.`,
     actionUrl: `/orders/${orderId}`,
     sourceModule: 'food',
   }),
