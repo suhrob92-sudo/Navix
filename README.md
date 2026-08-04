@@ -69,6 +69,7 @@ npm run dev
 | `npm run dev`               | Ishlab chiqish serverini ishga tushiradi                          |
 | `npm run go`                | Baza + Redis + serverni birdan ishga tushiradi                    |
 | `npm run status`            | Server, baza, Redis va jadvallar mosligini tekshiradi             |
+| `npm run update`            | Kodni xavfsiz yangilaydi (git pull + npm install)                 |
 | `npm run dev:bg`            | Serverni FONDA ishga tushiradi (terminal boʻsh qoladi)            |
 | `npm run dev:stop`          | Fondagi serverni toʻxtatadi                                       |
 | `npm run dev:log`           | Server logini jonli koʻrsatadi                                    |
@@ -752,8 +753,13 @@ ekranga chiqaradi. Ikkalasi faqat bitta so'z bilan farq qiladi
 
 ```bash
 cd /workspaces/Navix
+npm run update
 npm run env:setup
 ```
+
+> `npm run update` — oddiy `git pull` o'rniga. U `package-lock.json`
+> tufayli chiqadigan "Your local changes would be overwritten" xatosini
+> o'zi hal qiladi va kutubxonalarni ham o'rnatadi.
 
 Skript ketma-ket ikkita manzilni so'raydi — Neon va Upstash. Har birini
 nusxalab tashlaysiz, xolos.
@@ -906,6 +912,7 @@ Navix/
 ├── scripts/                 # Yordamchi skriptlar (share, url, otp, dev:stop)
 │   ├── grant-role.ts        # Foydalanuvchiga rol berish (birinchi admin)
 │   ├── assign-restaurant.ts # Restoranni egasiga biriktirish
+│   ├── update.mjs           # Kodni xavfsiz yangilash
 │   ├── env-setup.mjs        # Production sozlamalarini yozish
 │   ├── deploy-check.mjs     # Production tayyorligini tekshirish
 │   └── lib/tunnel.mjs       # Ommaviy havola (Cloudflare tunneli)
