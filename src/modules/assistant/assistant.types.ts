@@ -28,6 +28,28 @@ export interface AssistantSlots {
   /** O'tkazma qabul qiluvchisi. */
   phone?: string;
   recipientName?: string;
+
+  /**
+   * Tanlangan taom — foydalanuvchi variantlardan birini bosmaguncha
+   * saqlanadigan ro'yxat.
+   *
+   * Bu yerdagi narx faqat MATNDA ko'rsatish uchun. Buyurtma yaratilganda
+   * `createFoodOrder()` narxni bazadan qaytadan o'qiydi, shuning uchun
+   * holatni tahrirlab arzonga ovqat olib bo'lmaydi.
+   */
+  foodOptions?: FoodOptionSlot[];
+  /** Tanlangan taom ID'si. */
+  menuItemId?: string;
+  /** Nechta dona. */
+  quantity?: number;
+}
+
+/** Ro'yxatdan tanlash uchun saqlanadigan variant. */
+export interface FoodOptionSlot {
+  menuItemId: string;
+  name: string;
+  restaurantName: string;
+  priceSom: number;
 }
 
 export interface AssistantState {
@@ -55,7 +77,23 @@ export type AssistantAction =
       amountSom: number;
     }
   | { kind: 'confirm_transfer'; phone: string; recipientName: string; amountSom: number }
-  | { kind: 'confirm_topup'; amountSom: number; method: 'CARD' };
+  | { kind: 'confirm_topup'; amountSom: number; method: 'CARD' }
+  | {
+      kind: 'confirm_food_order';
+      restaurantId: string;
+      restaurantName: string;
+      addressId: string;
+      addressLine: string;
+      itemName: string;
+      menuItemId: string;
+      quantity: number;
+      /** Taomlar narxi — yetkazishsiz. */
+      subtotalSom: number;
+      deliveryFeeSom: number;
+      /** Hamyondan yechiladigan yakuniy summa. */
+      amountSom: number;
+      deliveryMinutes: number;
+    };
 
 export interface AssistantReply {
   /** Yordamchining javob matni. */

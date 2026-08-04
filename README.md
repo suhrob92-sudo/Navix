@@ -3,16 +3,17 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 11-bosqich yakunlandi.
+> **Holat:** 12-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
 > internet, mobil aloqa, TV — 14 ta provayder, saqlangan hisoblar, chek),
-> **bildirishnomalar**, **AI Yordamchi** — oddiy tilda yozilgan
-> buyruqni tushunib, to'lov va o'tkazmani bajaradi, **admin panel**
-> (xizmatlar, foydalanuvchilar, pulni qaytarish, audit jurnali) va
-> **ovqat yetkazish** — restoranlar, menyu, savat, buyurtma, bekor
-> qilish va **restoran kabineti** (buyurtma holatini boshqarish).
+> **bildirishnomalar**, **admin panel** (xizmatlar, foydalanuvchilar,
+> pulni qaytarish, audit jurnali), **ovqat yetkazish** — restoranlar,
+> menyu, savat, buyurtma, bekor qilish, **restoran kabineti**
+> (buyurtma holatini boshqarish) va **AI Yordamchi** — oddiy tilda
+> yozilgan buyruqni tushunib to'lov, o'tkazma **va ovqat buyurtmasini**
+> tayyorlaydi.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -453,6 +454,41 @@ Foydalanuvchi oddiy tilda yozadi, yordamchi buyruqni tayyorlaydi:
 
 Hammasi bitta jumlada ham bo'ladi: `gazga 1234567890 hisobiga 45 ming to'la`.
 
+### Ovqat buyurtmasi
+
+12-bosqichda yordamchi ovqat moduliga ulandi — endi buyurtmani suhbat
+ichida berish mumkin:
+
+```
+👤 och qoldim
+🤖 Hozir ochiq restoranlar:
+   • Non & Kofe — Shirinlik, 25 daqiqa, eng kam 30 000 so'm
+   • Milliy Taomlar — Milliy, 45 daqiqa, eng kam 40 000 so'm
+   Nima yegingiz kelyapti? Taom nomini yozing.
+
+👤 2 ta lag'mon buyur
+🤖 Milliy Taomlar — 2 ta "Lag'mon". Buyurtma beramizmi?
+   94 000 so'm · Taomlar 84 000 · Yetkazish 10 000    [Tasdiqlash]
+```
+
+Bir nechta restoranda bir xil taom bo'lsa, ro'yxat ko'rsatiladi va
+bitta bosishda tanlanadi:
+
+```
+👤 kabob buyur
+🤖 4 ta variant topildi. Qaysi birini buyuraman?
+   [1. Jigar kabob — Choyxona Navruz · 34 000 so'm]
+   [2. Tovuq kabob — Choyxona Navruz · 36 000 so'm]
+```
+
+Yordamchi tasdiqlashdan OLDIN to'rt narsani tekshiradi va muammoni
+o'zi tushuntiradi: restoran ochiqmi, taom mavjudmi, eng kam buyurtma
+summasiga yetadimi (yetmasa — "kamida 7 ta olsangiz bo'ladi") va
+hamyonda pul bormi.
+
+"Buyurtmam qayerda?" degan savolga holat va taxminiy vaqt bilan
+javob beradi.
+
 ### Nima uchun til modeli (LLM) emas
 
 LLM kuchli, lekin pul bilan ishlaydigan buyruqda uchta jiddiy kamchiligi
@@ -465,17 +501,40 @@ ishlatiladi: natija har doim bir xil, bepul va internetsiz ham ishlaydi.
 Til modeli keyinchalik FAQAT tushunilmagan matnlar uchun qo'shiladi —
 oqimning qolgan qismi o'zgarmaydi.
 
+### Apostrof muammosi — o'zbek tiliga xos
+
+Bazada `Lag'mon`, odam esa `lagmon` deb yozadi. Klaviatura turlicha:
+`Lag'mon`, `Lagʻmon`, `Lag\`mon`, `Lagmon` — hammasi bir xil taom.
+To'g'ridan-to'g'ri solishtirilsa hech qachon topilmaydi.
+
+Yechim: `toSearchText()` (`src/lib/search.ts`) ikkala tomonni ham bitta
+ko'rinishga keltiradi. Baza tomonida natija `searchName` ustuniga
+yozilib, indekslanadi — qidiruv tez va bir xil ishlaydi.
+
+Qidiruv so'z BOSHIDAN solishtiriladi: "burger" so'zi "Burgerlar"
+bo'limini topadi, lekin "osh" so'zi "kartOSHka" ni topmaydi. O'zbek
+tilida qo'shimchalar so'z oxiriga qo'shilgani uchun bu tabiiy ishlaydi.
+
 ### Uchta xavfsizlik qoidasi
 
 1. **Yordamchi pulni o'zi harakatlantirmaydi.** U faqat buyruq tayyorlaydi;
    foydalanuvchi tugmani bosgach, mijoz odatdagi endpointga murojaat qiladi.
    Shunda balans, chegara va takroriy so'rov tekshiruvlari o'z joyida
-   ishlaydi va ularni chetlab o'tib bo'lmaydi.
+   ishlaydi va ularni chetlab o'tib bo'lmaydi. Ovqat buyurtmasi ham
+   xuddi shu yo'ldan — `POST /api/v1/food/orders` — o'tadi.
 2. **Tasdiqlashda aniq summa va qabul qiluvchi katta yozilgan** — bosishdan
-   oldin nima bo'layotgani ko'rinib turadi.
+   oldin nima bo'layotgani ko'rinib turadi. Ovqatda manzil ham to'liq
+   yoziladi: ovqat qayerga borishini bilish shart.
 3. **Telefon raqami summa deb o'qilmaydi.** "901234567 ga 50000 yubor"
    buyrug'ida 901 234 567 so'm o'tkazilishi mumkin edi — raqam summadan
-   oldin ajratiladi va test buni doimiy tekshiradi.
+   oldin ajratiladi va test buni doimiy tekshiradi. Xuddi shunday,
+   "2 ta lag'mon" dagi 2 — bu dona, summa emas.
+
+Suhbat holati mijozda saqlanadi (server holatsiz). Holatni tahrirlab
+arzonga ovqat olib bo'lmaydi: narx buyurtma yaratilganda bazadan
+qaytadan o'qiladi. `assistant.schemas.test.ts` esa holatning har bir
+maydoni API sxemasidan o'tishini tekshiradi — bu haqiqiy xatodan
+keyin qo'shilgan qo'riqchi.
 
 ---
 
@@ -659,7 +718,7 @@ Navix/
 │   │   ├── wallet/          # Hamyon: balans, to'ldirish, o'tkazma
 │   │   ├── payment/         # Xizmat to'lovlari (kommunal, internet...)
 │   │   ├── notification/    # Bildirishnomalar
-│   │   ├── assistant/       # AI Yordamchi (niyat tahlili, slot to'ldirish)
+│   │   ├── assistant/       # AI Yordamchi (niyat tahlili, slot to'ldirish, ovqat oqimi)
 │   │   ├── food/            # Ovqat yetkazish (restoran, menyu, buyurtma)
 │   │   ├── merchant/        # Restoran kabineti (buyurtma holati, menyu)
 │   │   └── admin/           # Admin panel (xizmatlar, foydalanuvchilar)
@@ -681,6 +740,7 @@ Navix/
 │       ├── prisma.ts        # Baza klienti
 │       ├── redis.ts         # Kesh klienti
 │       ├── logger.ts        # Jurnal yozuvchi
+│       ├── search.ts        # Qidiruv normalizatsiyasi (apostrof muammosi)
 │       └── utils.ts         # Yordamchi funksiyalar
 ├── scripts/                 # Yordamchi skriptlar (share, url, otp, dev:stop)
 │   ├── grant-role.ts        # Foydalanuvchiga rol berish (birinchi admin)
@@ -901,7 +961,7 @@ Sinovda 5 ta bir vaqtdagi so'rovdan aynan bittasi o'tdi.
 
 Hozircha to'lov o'tishi bilan buyurtma `CONFIRMED` bo'ladi. Keyingi
 bosqichlarni restoran o'zgartiradi — buning uchun **restoran kabineti**
-kerak, u alohida bosqichda yoziladi.
+kerak (11-bosqich).
 
 ### Restoranlar qayerdan keladi
 
@@ -1058,6 +1118,6 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **9-bosqich** — Pulni qaytarish, rol boshqaruvi, audit jurnali
 - [x] **10-bosqich** — Ovqat yetkazish: restoranlar, menyu, savat, buyurtma
 - [x] **11-bosqich** — Restoran kabineti: buyurtma holatini boshqarish
-- [ ] **12-bosqich** — AI Yordamchiga ovqat modulini ulash
+- [x] **12-bosqich** — AI Yordamchiga ovqat modulini ulash: suhbat ichida buyurtma, holat savoli
 - [ ] **13-bosqich** — Taksi moduli (xarita API kaliti kerak)
 - [ ] **14-bosqich** — Real to'lov integratsiyasi (Payme / Click)

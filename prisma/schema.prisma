@@ -435,6 +435,13 @@ model Restaurant {
   /// Oshxona turi: "Milliy", "Fast food", "Yapon".
   cuisine     String  @db.VarChar(60)
 
+  /// Qidiruv uchun tayyorlangan nom: "Do'stlik Kafe" → "dostlik kafe".
+  ///
+  /// `toSearchText()` (src/lib/search.ts) natijasi. Nom o'zgarganda
+  /// SHU USTUN HAM yangilanishi shart — invariantni buzmaslik uchun
+  /// nom faqat seed orqali yoziladi.
+  searchName String @db.VarChar(200)
+
   /// Yetkazib berish narxi va eng kam buyurtma — TIYINDA.
   deliveryFee     BigInt
   minOrder        BigInt
@@ -464,6 +471,7 @@ model Restaurant {
 
   @@index([isActive, sortOrder])
   @@index([ownerId])
+  @@index([searchName])
   @@map("restaurants")
 }
 
@@ -496,6 +504,10 @@ model MenuItem {
   /// Narx TIYINDA.
   price       BigInt
 
+  /// Qidiruv uchun tayyorlangan nom: "Lag'mon" → "lagmon".
+  /// Izohi `Restaurant.searchName` da.
+  searchName String @db.VarChar(200)
+
   /// Tugab qolgan bo'lsa `false` — menyuda ko'rinadi, lekin tanlab bo'lmaydi.
   isAvailable Boolean @default(true)
   sortOrder   Int     @default(100)
@@ -509,6 +521,8 @@ model MenuItem {
 
   @@index([restaurantId, isAvailable])
   @@index([categoryId, sortOrder])
+  /// AI yordamchi menyudan taom qidiradi — indekssiz bu butun jadvalni o'qirdi.
+  @@index([searchName])
   @@map("menu_items")
 }
 

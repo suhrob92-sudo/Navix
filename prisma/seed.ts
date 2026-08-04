@@ -8,6 +8,7 @@ import { PrismaClient, RoleName, ServiceCategory } from '../src/generated/prisma
 import { Permission, ROLE_PERMISSIONS, Role } from '../src/config/rbac';
 import { SERVICE_PROVIDERS } from '../src/config/service-providers';
 import { RESTAURANTS } from '../src/config/restaurants';
+import { toSearchText } from '../src/lib/search';
 
 /**
  * Boshlang'ich ma'lumotlarni bazaga yozadi (seed).
@@ -176,6 +177,9 @@ async function seedRestaurants(prisma: PrismaClient): Promise<void> {
   for (const restaurant of RESTAURANTS) {
     const data = {
       name: restaurant.name,
+      // Qidiruv ustuni HAR DOIM nom bilan birga yoziladi — ikkalasi
+      // ajralib qolsa qidiruv jimgina noto'g'ri ishlay boshlaydi.
+      searchName: toSearchText(restaurant.name),
       description: restaurant.description,
       cuisine: restaurant.cuisine,
       deliveryFee: BigInt(restaurant.deliveryFeeSom) * 100n,
@@ -212,6 +216,7 @@ async function seedRestaurants(prisma: PrismaClient): Promise<void> {
           restaurantId: saved.id,
           categoryId: savedCategory.id,
           name: item.name,
+          searchName: toSearchText(item.name),
           description: item.description ?? null,
           price: BigInt(item.priceSom) * 100n,
           sortOrder: (itemIndex + 1) * 10,

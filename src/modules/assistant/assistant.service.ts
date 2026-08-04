@@ -2,6 +2,7 @@ import { MAX_TOP_UP_SOM, MIN_TOP_UP_SOM, formatTiyin } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { matchModuleByIntent, ModuleStatus } from '@/config/modules';
 import { Intent, parseMessage, type IntentName } from '@/modules/assistant/intent';
+import { handleFoodOrder, handleFoodStatus } from '@/modules/assistant/assistant.food-flow';
 import { getWalletSummary } from '@/modules/wallet/wallet.service';
 import { listSavedAccounts } from '@/modules/payment/payment.service';
 import type {
@@ -43,7 +44,16 @@ function reply(
 /** Suhbat tugadi — holat tozalanadi. */
 const EMPTY_STATE: AssistantState = { slots: {} };
 
-const DEFAULT_SUGGESTIONS = ['Balansim qancha', "Kommunal to'la", "Hisobni to'ldir", 'Nima qila olasan'];
+const DEFAULT_SUGGESTIONS = ['Balansim qancha', "Kommunal to'la", 'Ovqat buyur', 'Nima qila olasan'];
+
+/**
+ * Ovqat buyurtmasida summa CHEGARA sifatida tushuniladi.
+ *
+ * "50 minggacha nimadir" — bu narx chegarasi. Lekin "2 ta osh" dagi
+ * 2 ni ham summa deb o'qib qo'ymaslik uchun quyi chegara qo'yamiz:
+ * hech qanday taom 1 000 so'mdan arzon emas.
+ */
+const MIN_FOOD_BUDGET_SOM = 1_000;
 
 // ── Alohida niyatlar ──────────────────────────────────────────────────
 
@@ -68,6 +78,8 @@ function handleHelp(): AssistantReply {
       '• Hisobni to\'ldiraman — "50 ming to\'ldir"\n' +
       '• Kommunal to\'lovni bajaraman — "gazga 50 ming to\'la"\n' +
       '• Pul o\'tkazaman — "901234567 ga 20 ming yubor"\n' +
+      '• Ovqat buyurtma qilaman — "2 ta lag\'mon buyur"\n' +
+      '• Buyurtmangiz qayerdaligini aytaman — "buyurtmam qayerda"\n' +
       '• Tarixni ko\'rsataman — "to\'lovlar tarixi"\n\n' +
       'Shunchaki oddiy tilda yozing.',
     { suggestions: DEFAULT_SUGGESTIONS },
@@ -324,6 +336,7 @@ export async function respond(
     ...(parsed.amountSom !== null ? { amountSom: parsed.amountSom } : {}),
     ...(parsed.phone !== null ? { phone: parsed.phone } : {}),
     ...(parsed.accountNumber !== null ? { accountNumber: parsed.accountNumber } : {}),
+    ...(parsed.quantity !== null ? { quantity: parsed.quantity } : {}),
   };
 
   /**
@@ -362,6 +375,21 @@ export async function respond(
         category: parsed.category,
       });
 
+    case Intent.FOOD_STATUS:
+      return handleFoodStatus(userId);
+
+    case Intent.FOOD_ORDER:
+      return handleFoodOrder({
+        userId,
+        slots,
+        foodQuery: parsed.foodQuery,
+        quantity: parsed.quantity,
+        ordinal: parsed.ordinal,
+        // Kichik son — bu soni, narx chegarasi emas.
+        maxPriceSom:
+          parsed.amountSom !== null && parsed.amountSom >= MIN_FOOD_BUDGET_SOM ? parsed.amountSom : null,
+      });
+
     default:
       return handleUnknown(message);
   }
@@ -370,8 +398,9 @@ export async function respond(
 /** Bosh sahifada ko'rsatiladigan boshlang'ich taklif. */
 export function getGreeting(): AssistantReply {
   return reply(
-    "Salom! Men Navix yordamchisiman. To'lov qilish, pul o'tkazish yoki balansni bilish uchun " +
-      'oddiy tilda yozing — masalan "gazga 50 ming to\'la".',
+    "Salom! Men Navix yordamchisiman. To'lov qilish, pul o'tkazish, ovqat buyurtma qilish yoki " +
+      'balansni bilish uchun oddiy tilda yozing — masalan "gazga 50 ming to\'la" yoki ' +
+      '"2 ta lag\'mon buyur".',
     { suggestions: DEFAULT_SUGGESTIONS },
   );
 }

@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { Intent, extractAmount, extractPhone, normalize, parseMessage } from '@/modules/assistant/intent';
+import {
+  Intent,
+  extractAmount,
+  extractFoodQuery,
+  extractOrdinal,
+  extractPhone,
+  extractQuantity,
+  normalize,
+  parseMessage,
+} from '@/modules/assistant/intent';
 
 describe('normalize', () => {
   it('apostrofning barcha turlarini olib tashlaydi', () => {
@@ -174,5 +183,146 @@ describe('parseMessage — birga ishlashi', () => {
     expect(result.intent).toBe(Intent.UNKNOWN);
     expect(result.amountSom).toBeNull();
     expect(result.phone).toBeNull();
+  });
+});
+
+describe('extractFoodQuery', () => {
+  it("buyruq so'zlarini olib tashlaydi", () => {
+    // Faqat taom nomi qolishi kerak — qolgani menyuda yo'q.
+    expect(extractFoodQuery('menga 2 ta lagmon buyur')).toBe('lagmon');
+    expect(extractFoodQuery('bir porsiya osh buyurtma qil')).toBe('osh');
+  });
+
+  it('sinonimni bazadagi so\'zga almashtiradi', () => {
+    expect(extractFoodQuery('pizza istayman')).toBe('pitsa');
+    expect(extractFoodQuery('sushi buyur')).toBe('rol');
+    expect(extractFoodQuery('qahva ichgim keldi')).toContain('kofe');
+  });
+
+  it("bir xil so'zni ikki marta qaytarmaydi", () => {
+    // "pizza" sinonim orqali "pitsa" ga aylanadi va takrorlanadi.
+    expect(extractFoodQuery('pizza pitsa')).toBe('pitsa');
+  });
+
+  it("taom aytilmagan bo'lsa null qaytaradi", () => {
+    expect(extractFoodQuery('och qoldim')).toBeNull();
+    expect(extractFoodQuery('ovqat buyur')).toBeNull();
+  });
+
+  it('raqamlarni qidiruvga qo\'shmaydi', () => {
+    expect(extractFoodQuery('3 ta burger')).toBe('burger');
+  });
+});
+
+describe('extractQuantity', () => {
+  it.each([
+    ['2 ta lagmon', 2],
+    ['3 dona somsa', 3],
+    ['1 porsiya osh', 1],
+    ['10ta burger', 10],
+  ])('"%s" → %s', (text, expected) => {
+    expect(extractQuantity(text)).toBe(expected);
+  });
+
+  it("son aytilmagan bo'lsa null qaytaradi", () => {
+    expect(extractQuantity('lagmon buyur')).toBeNull();
+  });
+
+  /**
+   * "50 ming to'la" — bu summa, dona emas. "ta" qo'shimchasi
+   * bo'lmagani uchun e'tiborga olinmaydi.
+   */
+  it("summani dona deb o'qimaydi", () => {
+    expect(extractQuantity('50 ming tola')).toBeNull();
+  });
+});
+
+describe('extractOrdinal', () => {
+  it("ro'yxatdan tanlovni tushunadi", () => {
+    expect(extractOrdinal("1. Lag'mon — Milliy Taomlar · 42 000 so'm")).toBe(1);
+    expect(extractOrdinal('2) Burger')).toBe(2);
+    expect(extractOrdinal('3')).toBe(3);
+    expect(extractOrdinal('  2  ')).toBe(2);
+  });
+
+  /**
+   * Eng muhim tekshiruv: "2 ta osh" — bu tanlov emas, SONI.
+   * Aralashtirilsa foydalanuvchi butunlay boshqa taom oladi.
+   */
+  it('sonni tanlov deb olmaydi', () => {
+    expect(extractOrdinal('2 ta osh')).toBeNull();
+    expect(extractOrdinal('50 ming toldir')).toBeNull();
+  });
+});
+
+describe('parseMessage — ovqat', () => {
+  it.each([
+    ['ovqat buyur', Intent.FOOD_ORDER],
+    ['och qoldim', Intent.FOOD_ORDER],
+    ['lagmon buyur', Intent.FOOD_ORDER],
+    ['2 ta burger', Intent.FOOD_ORDER],
+    ['pitsa istayman', Intent.FOOD_ORDER],
+    ['buyurtmam qayerda', Intent.FOOD_STATUS],
+    ['ovqatim qachon keladi', Intent.FOOD_STATUS],
+  ])('"%s" → %s', (text, expected) => {
+    expect(parseMessage(text).intent).toBe(expected);
+  });
+
+  /**
+   * "buyurtmam qayerda" gapida "buyurtma" so'zi bor. Tartib
+   * noto'g'ri bo'lsa, yordamchi yangi buyurtma bera boshlardi.
+   */
+  it('holat savolini yangi buyurtma deb tushunmaydi', () => {
+    expect(parseMessage('buyurtmam qayerda').intent).toBe(Intent.FOOD_STATUS);
+    expect(parseMessage('buyurtma ber').intent).toBe(Intent.FOOD_ORDER);
+  });
+
+  /**
+   * "osh" juda qisqa so'z. Agar boshidan solishtirilsa,
+   * "hisobni OSHir" ham ovqat bo'lib qolardi.
+   */
+  it("qisqa taom nomi boshqa so'z ichida topilmaydi", () => {
+    expect(parseMessage('osh buyur').intent).toBe(Intent.FOOD_ORDER);
+    expect(parseMessage('limitni oshir').intent).not.toBe(Intent.FOOD_ORDER);
+  });
+
+  /**
+   * "ovqat yetkazib yubor" — "yubor" so'zi bor, lekin bu pul
+   * o'tkazma emas. "ovqatga to'la" ham kommunal to'lov emas.
+   */
+  it('ovqat pul buyruqlari bilan chalkashmaydi', () => {
+    expect(parseMessage('ovqat yetkazib yubor').intent).toBe(Intent.FOOD_ORDER);
+    expect(parseMessage('ovqatga tola').intent).toBe(Intent.FOOD_ORDER);
+    expect(parseMessage('901234567 ga 50 ming yubor').intent).toBe(Intent.TRANSFER);
+    expect(parseMessage('kommunal tola').intent).toBe(Intent.PAY_SERVICE);
+  });
+
+  it('soni va taom nomi birga ajratiladi', () => {
+    const result = parseMessage("2 ta lag'mon buyur");
+
+    expect(result.intent).toBe(Intent.FOOD_ORDER);
+    expect(result.quantity).toBe(2);
+    expect(result.foodQuery).toBe('lagmon');
+    // Eng muhimi: 2 — bu dona, summa emas.
+    expect(result.amountSom).toBeNull();
+  });
+
+  it('narx chegarasini tushunadi', () => {
+    const result = parseMessage('50 minggacha shirinlik buyur');
+
+    expect(result.intent).toBe(Intent.FOOD_ORDER);
+    expect(result.amountSom).toBe(50_000);
+    expect(result.foodQuery).toBe('shirinlik');
+  });
+
+  it("ro'yxatdan tanlash matnini tushunadi", () => {
+    const result = parseMessage("1. Lag'mon — Milliy Taomlar · 42 000 so'm");
+
+    expect(result.ordinal).toBe(1);
+  });
+
+  it("ovqat bo'lmagan buyruqda menyu qidirilmaydi", () => {
+    expect(parseMessage('gazga 50 ming tola').foodQuery).toBeNull();
+    expect(parseMessage('balansim qancha').foodQuery).toBeNull();
   });
 });

@@ -45,11 +45,12 @@ const GREETING: ChatMessage = {
   id: 'greeting',
   author: 'assistant',
   text:
-    "Salom! Men Navix yordamchisiman. To'lov qilish, pul o'tkazish yoki balansni bilish uchun " +
-    'oddiy tilda yozing — masalan "gazga 50 ming to\'la".',
+    "Salom! Men Navix yordamchisiman. To'lov qilish, pul o'tkazish, ovqat buyurtma qilish yoki " +
+    'balansni bilish uchun oddiy tilda yozing — masalan "gazga 50 ming to\'la" yoki ' +
+    '"2 ta lag\'mon buyur".',
 };
 
-const STARTER_PROMPTS = ['Balansim qancha', "Kommunal to'la", "Hisobni to'ldir", 'Nima qila olasan'];
+const STARTER_PROMPTS = ['Balansim qancha', "Kommunal to'la", 'Ovqat buyur', 'Nima qila olasan'];
 
 export function AssistantContent() {
   const router = useRouter();
@@ -155,6 +156,39 @@ export function AssistantContent() {
             author: 'assistant',
             text: "Chekni ko'rishingiz mumkin.",
             action: { kind: 'navigate', href: `/payments/receipt/${result.id}`, label: 'Chekni ochish' },
+            actionState: 'pending',
+          },
+        ]);
+      } else if (action.kind === 'confirm_food_order') {
+        /**
+         * Buyurtma ODATDAGI endpoint orqali beriladi — savat sahifasi
+         * ham xuddi shu yo'ldan yuradi. Narx, eng kam buyurtma va
+         * restoran ochiqligi serverda qaytadan tekshiriladi.
+         */
+        // Javob `{ order: ... }` ichida keladi — savat sahifasi ham
+        // xuddi shu endpointdan xuddi shunday o'qiydi.
+        const { order } = await request<{ order: { id: string; orderNumber: string } }>(
+          '/api/v1/food/orders',
+          {
+            method: 'POST',
+            body: {
+              restaurantId: action.restaurantId,
+              addressId: action.addressId,
+              items: [{ menuItemId: action.menuItemId, quantity: action.quantity }],
+              idempotencyKey,
+            },
+          },
+        );
+
+        finish('done', `Buyurtma qabul qilindi: ${order.orderNumber}`);
+
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-order-${order.id}`,
+            author: 'assistant',
+            text: `Taxminan ${action.deliveryMinutes} daqiqada yetkaziladi. Holatini kuzatib borishingiz mumkin.`,
+            action: { kind: 'navigate', href: `/orders/${order.id}`, label: "Buyurtmani ko'rish" },
             actionState: 'pending',
           },
         ]);
@@ -315,7 +349,14 @@ interface ConfirmCardProps {
 function ConfirmCard({ action, actionState, resultText, isBusy, onConfirm, onCancel }: ConfirmCardProps) {
   if (action.kind === 'none' || action.kind === 'navigate') return null;
 
-  const rows: { label: string; value: string }[] = [];
+  /**
+   * `wrap` — uzun qiymat kesilmasin.
+   *
+   * Manzil eng muhim maydon: ovqat QAYERGA borishini foydalanuvchi
+   * tasdiqlashdan oldin to'liq o'qishi kerak. Qolgan qiymatlar qisqa,
+   * ular bir qatorga sig'adi.
+   */
+  const rows: { label: string; value: string; wrap?: boolean }[] = [];
   let amountSom = 0;
 
   if (action.kind === 'confirm_topup') {
@@ -325,6 +366,15 @@ function ConfirmCard({ action, actionState, resultText, isBusy, onConfirm, onCan
     amountSom = action.amountSom;
     rows.push({ label: 'Kimga', value: action.recipientName });
     rows.push({ label: 'Raqam', value: action.phone });
+  } else if (action.kind === 'confirm_food_order') {
+    amountSom = action.amountSom;
+    rows.push({ label: 'Taom', value: `${action.quantity} × ${action.itemName}` });
+    rows.push({ label: 'Restoran', value: action.restaurantName });
+    rows.push({ label: 'Manzil', value: action.addressLine, wrap: true });
+    // Yetkazish haqi alohida ko'rsatiladi: umumiy summa nimadan
+    // iboratligi foydalanuvchiga tushunarli bo'lishi kerak.
+    rows.push({ label: 'Taomlar', value: formatTiyin(action.subtotalSom * 100) });
+    rows.push({ label: 'Yetkazish', value: formatTiyin(action.deliveryFeeSom * 100) });
   } else {
     amountSom = action.amountSom;
     rows.push({ label: 'Xizmat', value: action.providerName });
@@ -357,7 +407,9 @@ function ConfirmCard({ action, actionState, resultText, isBusy, onConfirm, onCan
         {rows.map((row) => (
           <div key={row.label} className="flex justify-between gap-3">
             <dt className="text-muted-foreground shrink-0">{row.label}</dt>
-            <dd className="truncate font-medium">{row.value}</dd>
+            <dd className={cn('font-medium', row.wrap ? 'text-right leading-relaxed' : 'truncate')}>
+              {row.value}
+            </dd>
           </div>
         ))}
       </dl>

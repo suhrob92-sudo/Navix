@@ -5,6 +5,7 @@ import { AuditAction, recordAudit } from '@/lib/audit';
 import { logger } from '@/lib/logger';
 import { formatTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
+import { toSearchText } from '@/lib/search';
 import type { ServiceColor } from '@/config/modules';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { chargeWallet, getOrCreateWallet, refundWallet } from '@/modules/wallet/wallet.service';
@@ -78,23 +79,42 @@ function toRestaurantItem(row: RestaurantRow): RestaurantListItem {
   };
 }
 
+/**
+ * Qidiruv shartini yig'adi.
+ *
+ * ── Nima uchun `searchName` ustuni ────────────────────────────────────
+ * Odam "lagmon" deb yozadi, bazada esa "Lag'mon" turadi. To'g'ridan-
+ * to'g'ri solishtirsak — hech qachon topilmaydi. Shuning uchun ikkala
+ * tomon ham `toSearchText()` dan o'tkaziladi (baza tomonida bu natija
+ * yozishda `searchName` ga saqlanadi).
+ *
+ * `cuisine` — qisqa ro'yxatdan tanlangan qiymat ("Milliy", "Yapon"),
+ * apostrof bo'lmaydi, shuning uchun u odatdagidek solishtiriladi.
+ */
+function buildSearchFilter(search: string): Prisma.RestaurantWhereInput {
+  const needle = toSearchText(search);
+
+  // Faqat tinish belgisi kiritilgan bo'lsa hech narsa qidirmaymiz.
+  if (needle.length === 0) return {};
+
+  return {
+    OR: [
+      { searchName: { contains: needle } },
+      { cuisine: { contains: search, mode: 'insensitive' } },
+      // Taom nomi bo'yicha ham topilsin: "lag'mon" deb qidirgan
+      // odam uni sotadigan restoranni ko'rishi kerak.
+      { items: { some: { searchName: { contains: needle } } } },
+    ],
+  };
+}
+
 /** Faol restoranlar. Yopiqlari ham ko'rinadi, lekin oxirida turadi. */
 export async function listRestaurants(query: RestaurantQuery): Promise<RestaurantListItem[]> {
   const restaurants = await prisma.restaurant.findMany({
     where: {
       isActive: true,
       ...(query.cuisine ? { cuisine: query.cuisine } : {}),
-      ...(query.search
-        ? {
-            OR: [
-              { name: { contains: query.search, mode: 'insensitive' as const } },
-              { cuisine: { contains: query.search, mode: 'insensitive' as const } },
-              // Taom nomi bo'yicha ham topilsin: "lag'mon" deb qidirgan
-              // odam uni sotadigan restoranni ko'rishi kerak.
-              { items: { some: { name: { contains: query.search, mode: 'insensitive' as const } } } },
-            ],
-          }
-        : {}),
+      ...(query.search ? buildSearchFilter(query.search) : {}),
     },
     select: RESTAURANT_SELECT,
     // Ochiqlar birinchi: yopiq restorandan buyurtma berib bo'lmaydi.
