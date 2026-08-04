@@ -78,6 +78,7 @@ npm run dev
 | `npm run env:setup`         | Production sozlamalarini savol-javob bilan yozadi                 |
 | `npm run deploy:check`      | Production tayyorligini tekshiradi (baza, Redis, kalitlar)        |
 | `npm run deploy:db`         | Bulutdagi bazaga migratsiya va boshlang'ich ma'lumotlarni yozadi  |
+| `npm run deploy:vars`       | Vercel'ga qo'yiladigan o'zgaruvchilarni tayyor holda chiqaradi    |
 | `npm run otp`               | Oxirgi SMS tasdiqlash kodini topib beradi                         |
 | `npm run role:grant`        | Foydalanuvchiga rol beradi (birinchi adminni yaratish uchun)      |
 | `npm run restaurant:assign` | Restoranni egasiga biriktiradi (MERCHANT roli bilan)              |
@@ -813,8 +814,16 @@ lokal bazani adashib o'zgartirib qo'yish mumkin emas.
 
 1. [vercel.com/new](https://vercel.com/new) → **Continue with GitHub**
 2. `Navix` omborini tanlang → **Import**
-3. **Environment Variables** bo'limiga `.env.production` dagi
-   qiymatlarni bitta-bitta ko'chiring
+3. **Environment Variables** bo'limini oching. Terminalda:
+
+   ```bash
+   npm run deploy:vars
+   ```
+
+   Chiqqan matnni to'liq nusxalab, birinchi katakka tashlang — Vercel
+   uni o'zi qatorlarga ajratadi. `NODE_ENV` qo'shilmaydi: uni Vercel
+   o'zi qo'yadi.
+
 4. **Deploy** tugmasini bosing
 
 2-3 daqiqada tayyor bo'ladi va manzil beriladi.
@@ -915,6 +924,7 @@ Navix/
 │   ├── env-setup.mjs        # Production sozlamalarini yozish
 │   ├── deploy-check.mjs     # Production tayyorligini tekshirish
 │   ├── deploy-db.mjs        # Bulutdagi bazani tayyorlash
+│   ├── deploy-vars.mjs      # Vercel o'zgaruvchilarini chiqarish
 │   └── lib/tunnel.mjs       # Ommaviy havola (Cloudflare tunneli)
 ├── vercel.json              # Vercel sozlamalari (region, funksiya muddati)
 ├── docker-compose.yml       # Lokal PostgreSQL + Redis
