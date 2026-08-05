@@ -68,24 +68,38 @@ if (useProduction) {
     .replace(/^https?:\/\//, '')
     .replace(/\/+$/, '');
 
-  console.info(`\n⏳ ${host} loglari o'qilmoqda...`);
-
   /**
-   * `--json` MUHIM: usiz Vercel CLI xabarni terminal kengligiga
+   * Urinishlar tartibi MUHIM.
+   *
+   * Avval MANZILSIZ so'raymiz: bunda Vercel bog'langan loyihaning
+   * o'zining oxirgi deploy'ini oladi. Bu eng ishonchli yo'l, chunki
+   * hech narsani taxmin qilmaydi.
+   *
+   * Faqat u ishlamasa `.env.production` dagi manzilga murojaat
+   * qilamiz. Aks holda o'sha manzil eskirgan bo'lsa (masalan Vercel
+   * boshqa manzil bergan bo'lsa) skript butunlay ishlamay qolardi —
+   * aynan shunday xato uchradi.
+   *
+   * `--json` ham MUHIM: usiz Vercel CLI xabarni terminal kengligiga
    * qarab qisqartiradi va kod aynan kesilgan qismda qolib ketadi
-   * ("{"level":…"). JSON rejimida esa to'liq matn keladi.
+   * ("{"level":…"). JSON rejimida to'liq matn keladi.
    */
   const attempts = [
-    ['vercel', 'logs', host, '--json'],
-    ['vercel', 'logs', host],
+    { label: 'bog\'langan loyiha', args: ['vercel', 'logs', '--json'] },
+    { label: host, args: ['vercel', 'logs', host, '--json'] },
+    { label: host, args: ['vercel', 'logs', host] },
   ];
 
   let output = '';
+  let usedLabel = host;
 
-  for (const args of attempts) {
-    const result = spawnSync('npx', args, { encoding: 'utf8', timeout: 90_000 });
+  for (const attempt of attempts) {
+    console.info(`\n⏳ ${attempt.label} loglari o'qilmoqda...`);
+
+    const result = spawnSync('npx', attempt.args, { encoding: 'utf8', timeout: 90_000 });
 
     output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+    usedLabel = attempt.label;
 
     if (findLatestCode(output)) break;
   }
@@ -102,13 +116,17 @@ if (useProduction) {
 
     fail(
       'Kod topilmadi',
-      "   Vercel loglari qisqa muddat saqlanadi. Saytda \"Yangi kod so'rash\"\n" +
-        '   tugmasini bosing va DARHOL shu buyruqni qaytadan bajaring:\n\n' +
-        '      npm run otp -- --prod',
+      `   Tekshirilgan manzil: ${host}\n\n` +
+        "   Sabablari:\n" +
+        "   1. Vercel loglari qisqa muddat saqlanadi. Saytda \"Yangi kod\n" +
+        '      so\'rash" tugmasini bosing va DARHOL buyruqni qaytaring.\n' +
+        `   2. ".env.production" dagi NEXT_PUBLIC_APP_URL noto'g'ri bo'lishi\n` +
+        '      mumkin. Haqiqiy manzilni bilish uchun:  npx vercel ls\n' +
+        '      Tuzatish uchun:  npm run env:setup',
     );
   }
 
-  show(code, host);
+  show(code, usedLabel);
   process.exit(0);
 }
 
