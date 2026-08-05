@@ -184,7 +184,7 @@ export const APP_MODULES: readonly AppModule[] = [
     href: '/marketplace',
     icon: Store,
     category: ModuleCategory.COMMERCE,
-    status: ModuleStatus.PLANNED,
+    status: ModuleStatus.LIVE,
     color: 'blue',
     quickOrder: 3,
     aiIntents: ['mahsulot qidir', 'marketplace och', 'sotib olmoqchiman'],

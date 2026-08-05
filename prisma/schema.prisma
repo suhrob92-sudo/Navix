@@ -135,6 +135,26 @@ enum FoodOrderStatus {
   CANCELLED
 }
 
+/// Marketplace buyurtmasining holati.
+///
+/// Ovqatdan FARQ QILADI va bu ataylab: ovqat 45 daqiqada yetkaziladi,
+/// mahsulot esa kunlab yo'lda bo'ladi. Shuning uchun bosqichlar ham
+/// boshqacha — "tayyorlanmoqda" o'rniga "yig'ilmoqda" va "jo'natildi".
+enum MarketOrderStatus {
+  /// Yaratildi, sotuvchi hali javob bermagan.
+  PENDING
+  /// Sotuvchi qabul qildi.
+  CONFIRMED
+  /// Omborda yig'ilmoqda va qadoqlanmoqda.
+  PACKING
+  /// Yo'lga chiqarildi.
+  SHIPPED
+  /// Yetkazib berildi.
+  DELIVERED
+  /// Bekor qilindi (pul qaytarilgan, zaxira tiklangan).
+  CANCELLED
+}
+
 enum AddressType {
   HOME
   WORK
@@ -192,6 +212,8 @@ model User {
   payments      ServicePayment[]
   foodOrders    FoodOrder[]
   restaurants   Restaurant[]
+  shops         Shop[]               @relation("ShopOwner")
+  marketOrders  MarketOrder[]
 
   @@index([status])
   @@index([createdAt])
@@ -402,8 +424,9 @@ model Address {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  foodOrders FoodOrder[]
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodOrders   FoodOrder[]
+  marketOrders MarketOrder[]
 
   @@index([userId])
   @@index([city])
@@ -779,4 +802,188 @@ model AuditLog {
   @@index([resourceType, resourceId])
   @@index([action])
   @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// MARKETPLACE
+// ---------------------------------------------------------------------------
+
+/// Savdo maydonchasidagi do'kon.
+///
+/// `Restaurant` ga o'xshaydi, lekin ikkita muhim farqi bor:
+///  - do'konda YETKAZISH MUDDATI kunlarda o'lchanadi, daqiqalarda emas;
+///  - do'kon "ochiq/yopiq" emas, "faol/nofaol" bo'ladi — onlayn savdo
+///    ish vaqtiga bog'liq emas.
+model Shop {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Do'kon EGASI — u kabinetga kirib buyurtmalarni boshqaradi.
+  /// Ega o'chirilsa do'kon qolaveradi (`SetNull`).
+  ownerId String? @db.Uuid
+
+  /// Manzildagi barqaror nom: "texnomart".
+  slug        String @unique @db.VarChar(60)
+  name        String @db.VarChar(120)
+  description String @db.VarChar(255)
+
+  /// Qidiruv uchun tayyorlangan nom. Izohi `Restaurant.searchName` da.
+  searchName String @db.VarChar(200)
+
+  /// Yetkazib berish narxi va eng kam buyurtma — TIYINDA.
+  deliveryFee BigInt
+  minOrder    BigInt
+  /// Taxminiy yetkazish muddati (KUN).
+  deliveryDays Int
+
+  rating      Decimal @default(0) @db.Decimal(2, 1)
+  ratingCount Int     @default(0)
+
+  /// Interfeysdagi rang kaliti (`ServiceColor`).
+  color String @db.VarChar(20)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner    User?         @relation("ShopOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  products Product[]
+  orders   MarketOrder[]
+
+  @@index([isActive, sortOrder])
+  @@index([ownerId])
+  @@index([searchName])
+  @@map("shops")
+}
+
+/// Mahsulot toifasi: "Telefonlar", "Kiyim", "Kitoblar".
+///
+/// ── Nima uchun do'konga BOG'LIQ EMAS ──────────────────────────────────
+/// Menyu bo'limi ("Salatlar") faqat o'sha restoranga tegishli. Toifa esa
+/// butun maydoncha bo'ylab umumiy: foydalanuvchi "telefon" izlaganda
+/// BARCHA do'konlardagi telefonlarni ko'rishi kerak. Shuning uchun toifa
+/// alohida jadval va do'kon bilan bog'lanmagan.
+model ProductCategory {
+  id String @id @default(uuid()) @db.Uuid
+
+  slug String @unique @db.VarChar(60)
+  name String @db.VarChar(80)
+  /// Interfeysdagi ikonka kaliti (`lucide-react` nomi).
+  icon String @db.VarChar(40)
+
+  sortOrder Int @default(100)
+
+  createdAt DateTime @default(now())
+
+  products Product[]
+
+  @@index([sortOrder])
+  @@map("product_categories")
+}
+
+/// Sotuvdagi mahsulot.
+model Product {
+  id         String @id @default(uuid()) @db.Uuid
+  shopId     String @db.Uuid
+  categoryId String @db.Uuid
+
+  /// Manzildagi barqaror nom: "samsung-galaxy-a55".
+  slug        String  @unique @db.VarChar(80)
+  name        String  @db.VarChar(160)
+  description String? @db.VarChar(1000)
+
+  /// Narx TIYINDA.
+  price BigInt
+  /// Chegirmadan oldingi narx — faqat ko'rsatish uchun.
+  oldPrice BigInt?
+
+  /// Qidiruv uchun tayyorlangan nom. Izohi `Restaurant.searchName` da.
+  searchName String @db.VarChar(220)
+
+  /// ── ZAXIRA — marketplace'ning eng nozik joyi ────────────────────────
+  /// Restoran yana lag'mon pishira oladi, do'konda esa 3 ta telefon bo'lsa
+  /// to'rtinchisini sota olmaydi. Buyurtma berilganda bu son SHART BILAN
+  /// kamaytiriladi (`stock >= quantity`), aks holda ikki xaridor bir vaqtda
+  /// oxirgi mahsulotni sotib olardi.
+  stock Int @default(0)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shop       Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  category   ProductCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems MarketOrderItem[]
+
+  @@index([shopId, isActive])
+  @@index([categoryId, sortOrder])
+  @@index([searchName])
+  /// Narx bo'yicha saralash va filtrlash uchun.
+  @@index([isActive, price])
+  @@map("products")
+}
+
+/// Marketplace buyurtmasi.
+///
+/// Manzil MATN sifatida ham saqlanadi — sababi `FoodOrder` da yozilgan.
+model MarketOrder {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId    String  @db.Uuid
+  shopId    String  @db.Uuid
+  addressId String? @db.Uuid
+
+  /// Foydalanuvchi ko'rsatadigan raqam: NVX-M-20260805-A1B2C3.
+  orderNumber String            @unique @db.VarChar(40)
+  status      MarketOrderStatus @default(PENDING)
+
+  /// Summalar TIYINDA. `total = subtotal + deliveryFee`.
+  subtotal    BigInt
+  deliveryFee BigInt
+  total       BigInt
+
+  deliveryAddress String  @db.VarChar(400)
+  deliveryNote    String? @db.VarChar(255)
+
+  walletTransactionId String? @db.Uuid
+  cancelReason        String? @db.VarChar(255)
+  refundTransactionId String? @db.Uuid
+
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+  shippedAt   DateTime?
+  deliveredAt DateTime?
+  cancelledAt DateTime?
+
+  user    User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  shop    Shop              @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  address Address?          @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  items   MarketOrderItem[]
+
+  @@index([userId, createdAt])
+  @@index([shopId, status])
+  @@index([status])
+  @@map("market_orders")
+}
+
+/// Buyurtmadagi bitta qator — nom va narx NUSXA qilinadi.
+/// Sababi `FoodOrderItem` da yozilgan.
+model MarketOrderItem {
+  id        String  @id @default(uuid()) @db.Uuid
+  orderId   String  @db.Uuid
+  productId String? @db.Uuid
+
+  name      String @db.VarChar(160)
+  unitPrice BigInt
+  quantity  Int
+  lineTotal BigInt
+
+  order   MarketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("market_order_items")
 }

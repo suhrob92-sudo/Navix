@@ -1,0 +1,181 @@
+'use client';
+
+import { Store, Truck } from 'lucide-react';
+import Link from 'next/link';
+import { useState } from 'react';
+
+import { AppHeader } from '@/components/app/app-header';
+import { MarketCartBar } from '@/components/market/market-cart-bar';
+import { ProductCard } from '@/components/market/product-card';
+import { QuantityStepper } from '@/components/market/quantity-stepper';
+import { Alert } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useApiQuery } from '@/hooks/use-api';
+import { formatTiyin } from '@/lib/money';
+import { MAX_ITEM_QUANTITY } from '@/modules/market/market.schemas';
+import { stockLabel, stockState, type ProductResponse } from '@/modules/market/market.types';
+import { useMarketCart } from '@/modules/market/use-market-cart';
+
+export interface ProductContentProps {
+  slug: string;
+}
+
+/**
+ * Mahsulot sahifasi.
+ *
+ * ── Nima uchun miqdor SHU YERDA tanlanadi ─────────────────────────────
+ * Ovqatda har bosishda bittadan qo'shilardi — taom arzon va odam
+ * odatda 1-2 ta oladi. Mahsulotda esa "3 ta futbolka" odatiy holat,
+ * savatga borib sonini o'zgartirish esa ortiqcha qadam.
+ */
+export function ProductContent({ slug }: ProductContentProps) {
+  const cart = useMarketCart();
+  const { data, isLoading, error } = useApiQuery<ProductResponse>(`/api/v1/market/products/${slug}`);
+
+  const [quantity, setQuantity] = useState(1);
+  const [conflictShop, setConflictShop] = useState<string | null>(null);
+  const [added, setAdded] = useState(false);
+
+  const product = data?.product ?? null;
+  const related = data?.related ?? [];
+
+  const state = product ? stockState(product.stock) : 'out';
+  const isOut = state === 'out';
+
+  /** Omborda bor sondan ham, bir buyurtmadagi chegaradan ham oshmaydi. */
+  const maxQuantity = product ? Math.min(product.stock, MAX_ITEM_QUANTITY) : 0;
+
+  function handleAdd() {
+    if (!product) return;
+
+    const result = cart.add(product.shop, product.id, quantity);
+
+    if (!result.ok) {
+      setConflictShop(result.conflictWith);
+      return;
+    }
+
+    setAdded(true);
+  }
+
+  return (
+    <>
+      <AppHeader title={product?.name ?? 'Mahsulot'} showBack backHref="/marketplace" />
+
+      <div className="space-y-5 px-4 pt-4 pb-4">
+        {isLoading && (
+          <>
+            <Skeleton className="h-32 rounded-2xl" />
+            <Skeleton className="h-24 rounded-2xl" />
+          </>
+        )}
+
+        {!isLoading && error && (
+          <Alert variant="error" title="Mahsulotni yuklab bo'lmadi">
+            {error}
+          </Alert>
+        )}
+
+        {product && (
+          <>
+            <div className="bg-card border-border animate-fade-up rounded-2xl border p-4">
+              <h1 className="text-base leading-snug font-semibold">{product.name}</h1>
+
+              <div className="mt-3 flex items-baseline gap-3">
+                <span className="text-2xl font-semibold tabular-nums">{formatTiyin(product.price)}</span>
+
+                {product.oldPrice !== null && product.oldPrice > product.price && (
+                  <span className="text-muted-foreground text-sm line-through tabular-nums">
+                    {formatTiyin(product.oldPrice)}
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-3 flex items-center gap-2">
+                <Badge variant={isOut ? 'destructive' : state === 'low' ? 'warning' : 'success'}>
+                  {stockLabel(product.stock)}
+                </Badge>
+                <Link href={`/marketplace/c/${product.category.slug}`} className="text-primary text-xs font-medium">
+                  {product.category.name}
+                </Link>
+              </div>
+
+              {product.description && (
+                <p className="text-muted-foreground mt-3 text-sm leading-relaxed">{product.description}</p>
+              )}
+            </div>
+
+            <section className="bg-card border-border rounded-2xl border p-4">
+              <Link href={`/marketplace/s/${product.shop.slug}`} className="flex items-center gap-3">
+                <span className="bg-secondary inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
+                  <Store className="size-5" aria-hidden="true" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{product.shop.name}</span>
+                  <span className="text-muted-foreground block text-xs">Do&apos;konga o&apos;tish</span>
+                </span>
+              </Link>
+
+              <p className="text-muted-foreground mt-3 flex items-start gap-2 text-xs leading-relaxed">
+                <Truck className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                {`${product.shop.deliveryDays} kunda yetkaziladi · yetkazish ${formatTiyin(product.shopDeliveryFee)} · eng kam buyurtma ${formatTiyin(product.shopMinOrder)}`}
+              </p>
+            </section>
+
+            {/* Savatga qo'shish */}
+            {isOut ? (
+              <Alert variant="warning" title="Mahsulot tugagan">
+                Bu mahsulot hozir sotuvda yo&apos;q. Do&apos;kon zaxirani to&apos;ldirganda qaytadan paydo
+                bo&apos;ladi.
+              </Alert>
+            ) : (
+              <div className="flex items-center gap-3">
+                <QuantityStepper
+                  value={quantity}
+                  onChange={(next) => setQuantity(Math.max(1, Math.min(next, maxQuantity)))}
+                  max={maxQuantity}
+                  label={product.name}
+                />
+
+                <Button fullWidth size="lg" onClick={handleAdd}>
+                  {added ? 'Savatga qo\'shildi' : "Savatga qo'shish"}
+                </Button>
+              </div>
+            )}
+
+            {related.length > 0 && (
+              <section>
+                <h2 className="mb-3 text-sm font-semibold">O&apos;xshash mahsulotlar</h2>
+                <div className="grid grid-cols-2 gap-3">
+                  {related.map((item, index) => (
+                    <ProductCard key={item.id} product={item} index={index} />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
+        )}
+      </div>
+
+      <ConfirmDialog
+        open={conflictShop !== null}
+        title="Savatda boshqa do'kon bor"
+        description={`Savatingizda "${conflictShop}" mahsulotlari bor. Har do'kon alohida yetkaziladi, shuning uchun savat tozalanadi.`}
+        confirmLabel="Savatni tozalash"
+        onConfirm={() => {
+          if (product) {
+            cart.replaceShop(product.shop, product.id, quantity);
+            setAdded(true);
+          }
+          setConflictShop(null);
+        }}
+        onCancel={() => setConflictShop(null)}
+      />
+
+      <MarketCartBar />
+    </>
+  );
+}

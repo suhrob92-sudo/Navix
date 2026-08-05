@@ -49,6 +49,19 @@ export interface NotificationEventData {
     amountTiyin: number;
     reason: string;
   };
+  'market.order_created': {
+    orderId: string;
+    orderNumber: string;
+    shopName: string;
+    amountTiyin: number;
+    deliveryDays: number;
+  };
+  'market.order_cancelled': {
+    orderId: string;
+    orderNumber: string;
+    shopName: string;
+    amountTiyin: number;
+  };
   'security.password_changed': { revokedSessions: number };
 }
 
@@ -158,6 +171,20 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
     body: `${restaurantName} buyurtmangizni qabul qila olmadi (${reason}). ${formatTiyin(amountTiyin)} hamyoningizga qaytarildi.`,
     actionUrl: `/orders/${orderId}`,
     sourceModule: 'food',
+  }),
+
+  'market.order_created': ({ orderId, shopName, amountTiyin, deliveryDays }) => ({
+    title: 'Buyurtma qabul qilindi',
+    body: `${shopName} buyurtmangizni qabul qildi. ${formatTiyin(amountTiyin)} to'landi, taxminan ${deliveryDays} kunda yetkaziladi.`,
+    actionUrl: `/marketplace/orders/${orderId}`,
+    sourceModule: 'market',
+  }),
+
+  'market.order_cancelled': ({ orderId, shopName, amountTiyin }) => ({
+    title: 'Buyurtma bekor qilindi',
+    body: `${shopName} buyurtmasi bekor qilindi. ${formatTiyin(amountTiyin)} hamyoningizga qaytarildi.`,
+    actionUrl: `/marketplace/orders/${orderId}`,
+    sourceModule: 'market',
   }),
 
   'security.password_changed': ({ revokedSessions }) => ({

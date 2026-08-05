@@ -51,6 +51,8 @@ export const AuditAction = {
   // Ovqat yetkazish.
   FOOD_ORDER_CREATED: 'food.order.created',
   FOOD_ORDER_CANCELLED: 'food.order.cancelled',
+  MARKET_ORDER_CREATED: 'market.order.created',
+  MARKET_ORDER_CANCELLED: 'market.order.cancelled',
 
   // Restoran kabineti.
   MERCHANT_ORDER_STATUS_CHANGED: 'merchant.order.status_changed',

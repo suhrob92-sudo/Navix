@@ -3,7 +3,7 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 13-bosqich yakunlandi.
+> **Holat:** 14-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
@@ -13,7 +13,8 @@ kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada
 > menyu, savat, buyurtma, bekor qilish, **restoran kabineti**
 > (buyurtma holatini boshqarish) va **AI Yordamchi** — oddiy tilda
 > yozilgan buyruqni tushunib to'lov, o'tkazma **va ovqat buyurtmasini**
-> tayyorlaydi.
+> tayyorlaydi, hamda **Marketplace** — do'konlar, toifalar, mahsulot
+> qidiruvi, savat va zaxira nazorati.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -935,6 +936,7 @@ Navix/
 │   │   ├── notification/    # Bildirishnomalar
 │   │   ├── assistant/       # AI Yordamchi (niyat tahlili, slot to'ldirish, ovqat oqimi)
 │   │   ├── food/            # Ovqat yetkazish (restoran, menyu, buyurtma)
+│   │   ├── market/          # Marketplace (do'kon, mahsulot, zaxira)
 │   │   ├── merchant/        # Restoran kabineti (buyurtma holati, menyu)
 │   │   └── admin/           # Admin panel (xizmatlar, foydalanuvchilar)
 │   ├── config/
@@ -942,6 +944,7 @@ Navix/
 │   │   ├── rbac.ts          # Rollar va ruxsatlar
 │   │   ├── service-providers.ts # To'lov xizmatlari (seed manbasi)
 │   │   ├── restaurants.ts   # Restoranlar va menyu (seed manbasi)
+│   │   ├── marketplace.ts   # Do'konlar va mahsulotlar (seed manbasi)
 │   │   ├── app-nav.ts       # Ilova navigatsiyasi
 │   │   ├── admin-nav.ts     # Admin panel navigatsiyasi
 │   │   ├── cabinet-nav.ts   # Kabinet navigatsiyasi
@@ -1193,6 +1196,67 @@ hammasi bazadan o'qiladi.
 
 ---
 
+## Marketplace
+
+Do'konlar, toifalar, mahsulot qidiruvi, savat va buyurtma. Ovqat
+modulining tuzilishi qayta ishlatilgan, lekin **uchta jiddiy farqi** bor.
+
+### 1. Zaxira — bu modulning eng nozik joyi
+
+Restoran yana lag'mon pishira oladi. Do'konda esa 3 ta telefon bo'lsa,
+to'rtinchisini sotib bo'lmaydi.
+
+Shuning uchun zaxira SHART BILAN kamaytiriladi:
+
+```sql
+UPDATE products SET stock = stock - N
+WHERE id = ? AND stock >= N
+```
+
+Bu qator PostgreSQL'da atomar. Ikki xaridor bir vaqtda oxirgi
+mahsulotni olishga urinsa, ikkinchisining `UPDATE` i **0 qator**
+o'zgartiradi va biz buni ko'rib xato qaytaramiz.
+
+"Avval o'qib, keyin yozish" yo'li bu yerda ISHLAMAYDI — o'qish bilan
+yozish orasida boshqa so'rov ulgurib qoladi. Bu hamyondagi `SELECT ...
+FOR UPDATE` bilan bir xil muammo, faqat boshqa yechim bilan.
+
+Tekshirildi: omborda 3 ta bo'lganda 5 ta bir vaqtdagi buyurtmadan
+**roppa-rosa 3 tasi** o'tdi, zaxira aniq nolga tushdi va hech qachon
+manfiyga ketmadi.
+
+### 2. Bekor qilish oynasi kengroq
+
+Ovqatda chegara "tayyorlanmoqda" dan oldin: oshxona ovqatni tayyorlay
+boshlagach mahsulot sarflangan bo'ladi.
+
+Mahsulot esa yig'ilayotgan bo'lsa ham hali omborda turadi — uni javonga
+qaytarish mumkin. Shuning uchun bekor qilish **"yo'lga chiqarildi"
+gacha** ruxsat etiladi.
+
+Bekor qilinganda ikki narsa qaytadi: **pul** va **zaxira**.
+
+### 3. Toifa do'konga bog'liq emas
+
+Menyu bo'limi ("Salatlar") faqat o'sha restoranga tegishli. Mahsulot
+toifasi esa butun maydonchaga umumiy: "telefon" izlagan odam BARCHA
+do'konlardagi telefonlarni ko'rishi kerak.
+
+Shuning uchun katalogda avval **toifalar**, keyin do'konlar turadi —
+ovqatdagidek "avval joyni tanla" emas.
+
+### Buyurtma bosqichlari
+
+```
+Qabul qilinmoqda → Qabul qilindi → Yig'ilmoqda → Yo'lga chiqarildi → Yetkazildi
+```
+
+Ovqatdan farq qiladi va bu ataylab: ovqat 45 daqiqada keladi, mahsulot
+kunlab yo'lda bo'ladi. Buyurtma sahifasida bosqichlar chizig'i bor —
+"hozir qaysi bosqichdamiz" degan savolga bir qarashda javob beradi.
+
+---
+
 ## Shaxsiy kabinet
 
 Kirgan foydalanuvchi `/dashboard` sahifasiga tushadi. Kabinet sahifalari:
@@ -1342,5 +1406,6 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **11-bosqich** — Restoran kabineti: buyurtma holatini boshqarish
 - [x] **12-bosqich** — AI Yordamchiga ovqat modulini ulash: suhbat ichida buyurtma, holat savoli
 - [x] **13-bosqich** — Doimiy manzil: Vercel'ga chiqarish (Neon + Upstash)
-- [ ] **14-bosqich** — Taksi moduli (xarita API kaliti kerak)
-- [ ] **15-bosqich** — Real to'lov integratsiyasi (Payme / Click)
+- [x] **14-bosqich** — Marketplace: do'konlar, toifalar, mahsulotlar, savat, zaxira nazorati
+- [ ] **15-bosqich** — Taksi moduli (xarita API kaliti kerak)
+- [ ] **16-bosqich** — Real to'lov integratsiyasi (Payme / Click)

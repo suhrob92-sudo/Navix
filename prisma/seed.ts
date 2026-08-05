@@ -8,6 +8,7 @@ import { PrismaClient, RoleName, ServiceCategory } from '../src/generated/prisma
 import { Permission, ROLE_PERMISSIONS, Role } from '../src/config/rbac';
 import { SERVICE_PROVIDERS } from '../src/config/service-providers';
 import { RESTAURANTS } from '../src/config/restaurants';
+import { PRODUCT_CATEGORIES, SHOPS } from '../src/config/marketplace';
 import { toSearchText } from '../src/lib/search';
 
 /**
@@ -237,6 +238,96 @@ async function seedRestaurants(prisma: PrismaClient): Promise<void> {
   console.info(`✅ ${RESTAURANTS.length} ta restoran va ${itemCount} ta taom yozildi`);
 }
 
+/**
+ * Marketplace: toifalar, do'konlar va mahsulotlar.
+ *
+ * ── Nima uchun toifalar ALOHIDA yoziladi ──────────────────────────────
+ * Menyu bo'limi restoranga tegishli, mahsulot toifasi esa butun
+ * maydonchaga umumiy. Shuning uchun avval toifalar yoziladi, keyin
+ * mahsulotlar ularga bog'lanadi.
+ *
+ * ── Zaxira qayta yozilmaydi ───────────────────────────────────────────
+ * `stock` faqat mahsulot BIRINCHI marta yaratilganda qo'yiladi. Aks
+ * holda seed'ni qayta ishga tushirish sotilgan mahsulotlarni "tiklab"
+ * yuborardi va hisob buzilardi.
+ */
+async function seedMarketplace(prisma: PrismaClient): Promise<void> {
+  const categoryIdBySlug = new Map<string, string>();
+
+  for (const category of PRODUCT_CATEGORIES) {
+    const data = {
+      name: category.name,
+      icon: category.icon,
+      sortOrder: category.sortOrder,
+    };
+
+    const saved = await prisma.productCategory.upsert({
+      where: { slug: category.slug },
+      update: data,
+      create: { slug: category.slug, ...data },
+    });
+
+    categoryIdBySlug.set(category.slug, saved.id);
+  }
+
+  let productCount = 0;
+
+  for (const shop of SHOPS) {
+    const shopData = {
+      name: shop.name,
+      searchName: toSearchText(shop.name),
+      description: shop.description,
+      deliveryFee: BigInt(shop.deliveryFeeSom) * 100n,
+      minOrder: BigInt(shop.minOrderSom) * 100n,
+      deliveryDays: shop.deliveryDays,
+      rating: shop.rating,
+      ratingCount: shop.ratingCount,
+      color: shop.color,
+      sortOrder: shop.sortOrder,
+      isActive: true,
+    };
+
+    const savedShop = await prisma.shop.upsert({
+      where: { slug: shop.slug },
+      update: shopData,
+      create: { slug: shop.slug, ...shopData },
+    });
+
+    for (const [index, product] of shop.products.entries()) {
+      const categoryId = categoryIdBySlug.get(product.categorySlug);
+
+      if (!categoryId) {
+        throw new Error(`"${product.slug}" mahsulotining toifasi topilmadi: ${product.categorySlug}`);
+      }
+
+      const shared = {
+        shopId: savedShop.id,
+        categoryId,
+        name: product.name,
+        searchName: toSearchText(product.name),
+        description: product.description ?? null,
+        price: BigInt(product.priceSom) * 100n,
+        oldPrice: product.oldPriceSom === undefined ? null : BigInt(product.oldPriceSom) * 100n,
+        sortOrder: (index + 1) * 10,
+        isActive: true,
+      };
+
+      await prisma.product.upsert({
+        where: { slug: product.slug },
+        // Zaxira YANGILANMAYDI — yuqoridagi izohga qarang.
+        update: shared,
+        create: { slug: product.slug, ...shared, stock: product.stock },
+      });
+
+      productCount += 1;
+    }
+  }
+
+  console.info(
+    `✅ ${PRODUCT_CATEGORIES.length} ta toifa, ${SHOPS.length} ta do'kon va ${productCount} ta mahsulot yozildi`,
+  );
+}
+
 async function main(): Promise<void> {
   const prisma = createClient();
 
@@ -247,6 +338,7 @@ async function main(): Promise<void> {
     await seedRolePermissions(prisma);
     await seedServiceProviders(prisma);
     await seedRestaurants(prisma);
+    await seedMarketplace(prisma);
     console.info('🎉 Tayyor!');
   } finally {
     await prisma.$disconnect();

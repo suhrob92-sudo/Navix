@@ -31,6 +31,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'payment.service.refunded': 'Pulni qaytardi',
   'food.order.created': 'Ovqat buyurtma qildi',
   'food.order.cancelled': 'Buyurtmani bekor qildi',
+  'market.order.created': 'Marketplace buyurtmasi berdi',
+  'market.order.cancelled': 'Marketplace buyurtmasini bekor qildi',
   'merchant.order.status_changed': "Buyurtma holatini o'zgartirdi",
   'merchant.order.rejected': 'Buyurtmani rad etdi',
   'merchant.restaurant.assigned': 'Restoran biriktirildi',
@@ -68,6 +70,8 @@ export const AUDIT_GROUP_ACTIONS: Record<Exclude<AuditFilterGroup, 'ALL'>, reado
     'payment.service.refunded',
     'food.order.created',
     'food.order.cancelled',
+    'market.order.created',
+    'market.order.cancelled',
     'merchant.order.rejected',
   ],
   ADMIN: [

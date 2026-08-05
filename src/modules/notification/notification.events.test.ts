@@ -52,6 +52,19 @@ const SAMPLES = {
     amountTiyin: 9_500_000,
     reason: 'mahsulot tugadi',
   },
+  'market.order_created': {
+    orderId: '9d4a2c71-6b8e-4f2a-8d1c-3e7b5a9f2c40',
+    orderNumber: 'NVX-M-20260805-X9Y8Z7',
+    shopName: 'Texnomart',
+    amountTiyin: 429_000_000,
+    deliveryDays: 2,
+  },
+  'market.order_cancelled': {
+    orderId: '9d4a2c71-6b8e-4f2a-8d1c-3e7b5a9f2c40',
+    orderNumber: 'NVX-M-20260805-X9Y8Z7',
+    shopName: 'Texnomart',
+    amountTiyin: 429_000_000,
+  },
   'security.password_changed': { revokedSessions: 3 },
 } as const;
 
