@@ -45,12 +45,12 @@ const GREETING: ChatMessage = {
   id: 'greeting',
   author: 'assistant',
   text:
-    "Salom! Men Navix yordamchisiman. To'lov qilish, pul o'tkazish, ovqat buyurtma qilish yoki " +
-    'balansni bilish uchun oddiy tilda yozing — masalan "gazga 50 ming to\'la" yoki ' +
-    '"2 ta lag\'mon buyur".',
+    "Salom! Men Navix yordamchisiman. To'lov, pul o'tkazish, ovqat va mahsulot buyurtmasi — " +
+    'hammasini oddiy tilda yozing. Masalan "gazga 50 ming to\'la", "2 ta lag\'mon buyur" ' +
+    'yoki "telefon qidir".',
 };
 
-const STARTER_PROMPTS = ['Balansim qancha', "Kommunal to'la", 'Ovqat buyur', 'Nima qila olasan'];
+const STARTER_PROMPTS = ['Balansim qancha', 'Ovqat buyur', 'Telefon qidir', 'Nima qila olasan'];
 
 export function AssistantContent() {
   const router = useRouter();
@@ -189,6 +189,41 @@ export function AssistantContent() {
             author: 'assistant',
             text: `Taxminan ${action.deliveryMinutes} daqiqada yetkaziladi. Holatini kuzatib borishingiz mumkin.`,
             action: { kind: 'navigate', href: `/orders/${order.id}`, label: "Buyurtmani ko'rish" },
+            actionState: 'pending',
+          },
+        ]);
+      } else if (action.kind === 'confirm_market_order') {
+        /**
+         * Marketplace buyurtmasi ham ODATDAGI endpoint orqali beriladi.
+         * Narx, ZAXIRA va eng kam buyurtma serverda qaytadan
+         * tekshiriladi — yordamchi ularni chetlab o'ta olmaydi.
+         */
+        const { order } = await request<{ order: { id: string; orderNumber: string } }>(
+          '/api/v1/market/orders',
+          {
+            method: 'POST',
+            body: {
+              shopId: action.shopId,
+              addressId: action.addressId,
+              items: [{ productId: action.productId, quantity: action.quantity }],
+              idempotencyKey,
+            },
+          },
+        );
+
+        finish('done', `Buyurtma qabul qilindi: ${order.orderNumber}`);
+
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-market-${order.id}`,
+            author: 'assistant',
+            text: `Taxminan ${action.deliveryDays} kunda yetkaziladi. Holatini kuzatib borishingiz mumkin.`,
+            action: {
+              kind: 'navigate',
+              href: `/marketplace/orders/${order.id}`,
+              label: "Buyurtmani ko'rish",
+            },
             actionState: 'pending',
           },
         ]);
@@ -374,6 +409,13 @@ function ConfirmCard({ action, actionState, resultText, isBusy, onConfirm, onCan
     // Yetkazish haqi alohida ko'rsatiladi: umumiy summa nimadan
     // iboratligi foydalanuvchiga tushunarli bo'lishi kerak.
     rows.push({ label: 'Taomlar', value: formatTiyin(action.subtotalSom * 100) });
+    rows.push({ label: 'Yetkazish', value: formatTiyin(action.deliveryFeeSom * 100) });
+  } else if (action.kind === 'confirm_market_order') {
+    amountSom = action.amountSom;
+    rows.push({ label: 'Mahsulot', value: `${action.quantity} × ${action.itemName}` });
+    rows.push({ label: "Do'kon", value: action.shopName });
+    rows.push({ label: 'Manzil', value: action.addressLine, wrap: true });
+    rows.push({ label: 'Mahsulotlar', value: formatTiyin(action.subtotalSom * 100) });
     rows.push({ label: 'Yetkazish', value: formatTiyin(action.deliveryFeeSom * 100) });
   } else {
     amountSom = action.amountSom;

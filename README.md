@@ -3,7 +3,7 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 14-bosqich yakunlandi.
+> **Holat:** 15-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
@@ -12,9 +12,9 @@ kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada
 > pulni qaytarish, audit jurnali), **ovqat yetkazish** — restoranlar,
 > menyu, savat, buyurtma, bekor qilish, **restoran kabineti**
 > (buyurtma holatini boshqarish) va **AI Yordamchi** — oddiy tilda
-> yozilgan buyruqni tushunib to'lov, o'tkazma **va ovqat buyurtmasini**
-> tayyorlaydi, hamda **Marketplace** — do'konlar, toifalar, mahsulot
-> qidiruvi, savat va zaxira nazorati.
+> yozilgan buyruqni tushunib to'lov, o'tkazma, **ovqat buyurtmasi va
+> Marketplace xaridini** tayyorlaydi, hamda **Marketplace** — do'konlar,
+> toifalar, mahsulot qidiruvi, savat va zaxira nazorati.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -516,8 +516,44 @@ o'zi tushuntiradi: restoran ochiqmi, taom mavjudmi, eng kam buyurtma
 summasiga yetadimi (yetmasa — "kamida 7 ta olsangiz bo'ladi") va
 hamyonda pul bormi.
 
-"Buyurtmam qayerda?" degan savolga holat va taxminiy vaqt bilan
-javob beradi.
+### Marketplace xaridi
+
+15-bosqichda yordamchi Marketplace'ga ham ulandi — endi bitta suhbat
+ichida ham ovqat, ham mahsulot olish mumkin:
+
+```
+👤 telefon olmoqchiman
+🤖 3 ta mahsulot topildi. Qaysi birini olamiz?
+   [1. Galaxy A55 8/256GB — Texnomart · 3 490 000 so'm]
+   [2. Redmi Note 14 6/128GB — Texnomart · 2 690 000 so'm]
+
+👤 (2-tugma bosildi)
+🤖 Texnomart — 1 ta "Redmi Note 14 6/128GB". Buyurtma beramizmi?
+   2 715 000 so'm · Mahsulot 2 690 000 · Yetkazish 25 000   [Tasdiqlash]
+```
+
+Javob zaxirani hisobga oladi: mahsulot tugagan bo'lsa buyurtma
+tayyorlanmaydi, kam qolgan bo'lsa "atigi 2 ta qolgan" deb ogohlantiradi.
+Do'konning eng kam summasiga yetmasa, yordamchi YETMAYOTGAN SUMMANI
+aytadi ("yana 310 000 so'mlik mahsulot qo'shing") — chunki ovqatdan farqli
+o'laroq mahsulotni "yana 7 ta oling" deyish mantiqsiz.
+
+### Ovqatmi yoki mahsulotmi — qaror KATALOG bo'yicha
+
+Bu bosqichdagi eng qiyin joy: "buyur", "olaman", "kerak" so'zlarini
+ikkala modul ham ishlatadi. `telefon olaman` va `lag'mon olaman` —
+grammatik jihatdan bir xil jumla.
+
+So'zlar ro'yxatiga tayanish ishlamaydi: har yangi mahsulot toifasida
+ro'yxatni yangilash kerak bo'ladi va ertami-kechmi unutiladi. Shuning
+uchun yordamchi ikkala katalogdan ham qidiradi va qarorni MA'LUMOT
+qabul qiladi — qayerda natija topilsa, o'sha modul javob beradi
+(`handleShopping()`). Topilgan natija `prefetched` orqali keyingi
+bosqichga uzatiladi, shuning uchun qidiruv ikki marta bajarilmaydi.
+
+"Buyurtmam qayerda?" degan savolga yordamchi IKKALA moduldan ham eng
+oxirgi buyurtmani oladi va yangirog'i haqida javob beradi — foydalanuvchi
+"ovqat" yoki "mahsulot" deb aniqlashtirishi shart emas.
 
 ### Nima uchun til modeli (LLM) emas
 
@@ -550,8 +586,11 @@ tilida qo'shimchalar so'z oxiriga qo'shilgani uchun bu tabiiy ishlaydi.
 1. **Yordamchi pulni o'zi harakatlantirmaydi.** U faqat buyruq tayyorlaydi;
    foydalanuvchi tugmani bosgach, mijoz odatdagi endpointga murojaat qiladi.
    Shunda balans, chegara va takroriy so'rov tekshiruvlari o'z joyida
-   ishlaydi va ularni chetlab o'tib bo'lmaydi. Ovqat buyurtmasi ham
-   xuddi shu yo'ldan — `POST /api/v1/food/orders` — o'tadi.
+   ishlaydi va ularni chetlab o'tib bo'lmaydi. Ovqat buyurtmasi
+   (`POST /api/v1/food/orders`) va Marketplace xaridi
+   (`POST /api/v1/market/orders`) ham xuddi shu yo'ldan o'tadi —
+   zaxirani kamaytirish va pulni yechish o'sha yerda, bitta
+   tranzaksiyada bajariladi.
 2. **Tasdiqlashda aniq summa va qabul qiluvchi katta yozilgan** — bosishdan
    oldin nima bo'layotgani ko'rinib turadi. Ovqatda manzil ham to'liq
    yoziladi: ovqat qayerga borishini bilish shart.
@@ -1407,5 +1446,6 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **12-bosqich** — AI Yordamchiga ovqat modulini ulash: suhbat ichida buyurtma, holat savoli
 - [x] **13-bosqich** — Doimiy manzil: Vercel'ga chiqarish (Neon + Upstash)
 - [x] **14-bosqich** — Marketplace: do'konlar, toifalar, mahsulotlar, savat, zaxira nazorati
-- [ ] **15-bosqich** — Taksi moduli (xarita API kaliti kerak)
-- [ ] **16-bosqich** — Real to'lov integratsiyasi (Payme / Click)
+- [x] **15-bosqich** — AI Yordamchiga Marketplace'ni ulash: suhbat ichida xarid, zaxira nazorati
+- [ ] **16-bosqich** — Taksi moduli (xarita API kaliti kerak)
+- [ ] **17-bosqich** — Real to'lov integratsiyasi (Payme / Click)

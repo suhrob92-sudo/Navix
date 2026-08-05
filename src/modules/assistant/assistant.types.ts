@@ -42,13 +42,31 @@ export interface AssistantSlots {
   menuItemId?: string;
   /** Nechta dona. */
   quantity?: number;
+
+  /**
+   * Marketplace variantlari — ovqatdan ALOHIDA saqlanadi.
+   *
+   * Bitta ro'yxatga qo'shib yuborish mumkin edi, lekin unda "2-chi"
+   * degan tanlov qaysi katalogga tegishli ekani noaniq bo'lardi.
+   */
+  productOptions?: MarketOptionSlot[];
+  /** Tanlangan mahsulot ID'si. */
+  productId?: string;
 }
 
-/** Ro'yxatdan tanlash uchun saqlanadigan variant. */
+/** Ro'yxatdan tanlash uchun saqlanadigan variant (ovqat). */
 export interface FoodOptionSlot {
   menuItemId: string;
   name: string;
   restaurantName: string;
+  priceSom: number;
+}
+
+/** Ro'yxatdan tanlash uchun saqlanadigan variant (marketplace). */
+export interface MarketOptionSlot {
+  productId: string;
+  name: string;
+  shopName: string;
   priceSom: number;
 }
 
@@ -93,6 +111,22 @@ export type AssistantAction =
       /** Hamyondan yechiladigan yakuniy summa. */
       amountSom: number;
       deliveryMinutes: number;
+    }
+  | {
+      kind: 'confirm_market_order';
+      shopId: string;
+      shopName: string;
+      addressId: string;
+      addressLine: string;
+      itemName: string;
+      productId: string;
+      quantity: number;
+      /** Mahsulotlar narxi — yetkazishsiz. */
+      subtotalSom: number;
+      deliveryFeeSom: number;
+      /** Hamyondan yechiladigan yakuniy summa. */
+      amountSom: number;
+      deliveryDays: number;
     };
 
 export interface AssistantReply {

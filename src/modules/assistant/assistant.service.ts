@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma';
 import { matchModuleByIntent, ModuleStatus } from '@/config/modules';
 import { Intent, parseMessage, type IntentName } from '@/modules/assistant/intent';
 import { handleFoodOrder, handleFoodStatus } from '@/modules/assistant/assistant.food-flow';
+import { handleMarketOrder, handleMarketStatus } from '@/modules/assistant/assistant.market-flow';
+import { findDishes } from '@/modules/assistant/assistant.food';
+import { findProducts } from '@/modules/assistant/assistant.market';
+import { getLatestMarketOrder } from '@/modules/assistant/assistant.market';
+import { getLatestFoodOrder } from '@/modules/assistant/assistant.food';
 import { getWalletSummary } from '@/modules/wallet/wallet.service';
 import { listSavedAccounts } from '@/modules/payment/payment.service';
 import type {
@@ -44,7 +49,7 @@ function reply(
 /** Suhbat tugadi — holat tozalanadi. */
 const EMPTY_STATE: AssistantState = { slots: {} };
 
-const DEFAULT_SUGGESTIONS = ['Balansim qancha', "Kommunal to'la", 'Ovqat buyur', 'Nima qila olasan'];
+const DEFAULT_SUGGESTIONS = ['Balansim qancha', 'Ovqat buyur', 'Telefon qidir', 'Nima qila olasan'];
 
 /**
  * Ovqat buyurtmasida summa CHEGARA sifatida tushuniladi.
@@ -79,6 +84,7 @@ function handleHelp(): AssistantReply {
       '• Kommunal to\'lovni bajaraman — "gazga 50 ming to\'la"\n' +
       '• Pul o\'tkazaman — "901234567 ga 20 ming yubor"\n' +
       '• Ovqat buyurtma qilaman — "2 ta lag\'mon buyur"\n' +
+      '• Marketplace\'dan mahsulot topaman — "telefon qidir"\n' +
       '• Buyurtmangiz qayerdaligini aytaman — "buyurtmam qayerda"\n' +
       '• Tarixni ko\'rsataman — "to\'lovlar tarixi"\n\n' +
       'Shunchaki oddiy tilda yozing.',
@@ -376,31 +382,140 @@ export async function respond(
       });
 
     case Intent.FOOD_STATUS:
-      return handleFoodStatus(userId);
+      return handleOrderStatus(userId);
 
     case Intent.FOOD_ORDER:
-      return handleFoodOrder({
-        userId,
-        slots,
-        foodQuery: parsed.foodQuery,
-        quantity: parsed.quantity,
-        ordinal: parsed.ordinal,
-        // Kichik son — bu soni, narx chegarasi emas.
-        maxPriceSom:
-          parsed.amountSom !== null && parsed.amountSom >= MIN_FOOD_BUDGET_SOM ? parsed.amountSom : null,
-      });
+      return handleShopping(userId, slots, parsed, 'food');
+
+    case Intent.MARKET_ORDER:
+      return handleShopping(userId, slots, parsed, 'market');
 
     default:
       return handleUnknown(message);
   }
 }
 
+/**
+ * "Buyurtmam qayerda?" — HAR IKKALA moduldan javob beradi.
+ *
+ * ── Nima uchun ikkalasi ham ────────────────────────────────────────────
+ * Foydalanuvchi "buyurtmam" deganda qaysi modulni nazarda tutayotganini
+ * aytmaydi. Faqat ovqatga qarasak, marketplace'dan buyurtma bergan odam
+ * "buyurtmangiz yo'q" degan noto'g'ri javob olardi.
+ *
+ * Shuning uchun ikkalasi ham so'raladi va ENG YANGISI haqida javob
+ * beriladi — odam odatda oxirgi buyurtmasini so'raydi.
+ */
+async function handleOrderStatus(userId: string): Promise<AssistantReply> {
+  const [food, market] = await Promise.all([getLatestFoodOrder(userId), getLatestMarketOrder(userId)]);
+
+  if (!food && !market) {
+    return reply("Hozircha buyurtmangiz yo'q. Nima buyurtma qilamiz?", {
+      suggestions: ["Lag'mon buyur", 'Telefon qidir', 'Nima buyursam'],
+    });
+  }
+
+  if (!market) return handleFoodStatus(userId);
+  if (!food) return handleMarketStatus(userId);
+
+  return food.createdAt >= market.createdAt ? handleFoodStatus(userId) : handleMarketStatus(userId);
+}
+
+/**
+ * Xarid suhbati — QAYSI KATALOG ekanini hal qiladi.
+ *
+ * ── Muammo ────────────────────────────────────────────────────────────
+ * "buyur" so'zi ikkala modulda ham ishlatiladi. "lag'mon buyur" —
+ * ovqat, "zaryadlagich buyur" — marketplace. Kalit so'zlar ro'yxati
+ * bilan bularni ajratib bo'lmaydi: dunyodagi barcha mahsulot nomini
+ * ro'yxatga yozib chiqish imkonsiz.
+ *
+ * ── Yechim: MA'LUMOT hal qiladi ───────────────────────────────────────
+ * Avval taxmin qilingan katalogdan qidiramiz. Hech narsa topilmasa —
+ * ikkinchisidan. Ya'ni oxirgi qarorni qo'lda yozilgan so'zlar emas,
+ * haqiqiy katalog qabul qiladi.
+ *
+ * Topilgan natija keyingi qadamga UZATILADI, shuning uchun qidiruv
+ * ikki marta bajarilmaydi.
+ */
+async function handleShopping(
+  userId: string,
+  slots: AssistantSlots,
+  parsed: ReturnType<typeof parseMessage>,
+  preferred: 'food' | 'market',
+): Promise<AssistantReply> {
+  const query = parsed.foodQuery;
+
+  // Kichik son — bu soni, narx chegarasi emas.
+  const maxPriceSom =
+    parsed.amountSom !== null && parsed.amountSom >= MIN_FOOD_BUDGET_SOM ? parsed.amountSom : null;
+
+  const common = { userId, slots, quantity: parsed.quantity, ordinal: parsed.ordinal, maxPriceSom };
+
+  /**
+   * Suhbat DAVOM ETAYOTGAN bo'lsa katalogni almashtirmaymiz: foydalanuvchi
+   * ro'yxatdan tanlayapti yoki sonini o'zgartiryapti, ya'ni qaysi katalog
+   * ekani allaqachon ma'lum.
+   */
+  const isContinuing =
+    parsed.ordinal !== null ||
+    (query === null && (slots.menuItemId !== undefined || slots.productId !== undefined));
+
+  if (isContinuing) {
+    const inMarket = slots.productId !== undefined || (slots.productOptions?.length ?? 0) > 0;
+
+    return inMarket
+      ? handleMarketOrder({ ...common, query })
+      : handleFoodOrder({ ...common, foodQuery: query });
+  }
+
+  if (query === null) {
+    // Nom aytilmagan: "och qoldim" → ovqat, "nima sotib olsam" → market.
+    return preferred === 'market'
+      ? handleMarketOrder({ ...common, query })
+      : handleFoodOrder({ ...common, foodQuery: query });
+  }
+
+  const priceFilter = maxPriceSom === null ? {} : { maxPriceSom };
+
+  if (preferred === 'food') {
+    const dishes = await findDishes({ query, ...priceFilter });
+
+    if (dishes.length > 0) {
+      return handleFoodOrder({ ...common, foodQuery: query, prefetched: dishes });
+    }
+
+    const products = await findProducts({ query, ...priceFilter });
+
+    if (products.length > 0) {
+      return handleMarketOrder({ ...common, query, prefetched: products });
+    }
+
+    // Ikkalasida ham yo'q — ovqat javobini beramiz (niyat shunday edi).
+    return handleFoodOrder({ ...common, foodQuery: query, prefetched: dishes });
+  }
+
+  const products = await findProducts({ query, ...priceFilter });
+
+  if (products.length > 0) {
+    return handleMarketOrder({ ...common, query, prefetched: products });
+  }
+
+  const dishes = await findDishes({ query, ...priceFilter });
+
+  if (dishes.length > 0) {
+    return handleFoodOrder({ ...common, foodQuery: query, prefetched: dishes });
+  }
+
+  return handleMarketOrder({ ...common, query, prefetched: products });
+}
+
 /** Bosh sahifada ko'rsatiladigan boshlang'ich taklif. */
 export function getGreeting(): AssistantReply {
   return reply(
-    "Salom! Men Navix yordamchisiman. To'lov qilish, pul o'tkazish, ovqat buyurtma qilish yoki " +
-      'balansni bilish uchun oddiy tilda yozing — masalan "gazga 50 ming to\'la" yoki ' +
-      '"2 ta lag\'mon buyur".',
+    "Salom! Men Navix yordamchisiman. To'lov, pul o'tkazish, ovqat va mahsulot buyurtmasi — " +
+      'hammasini oddiy tilda yozing. Masalan "gazga 50 ming to\'la", "2 ta lag\'mon buyur" ' +
+      'yoki "telefon qidir".',
     { suggestions: DEFAULT_SUGGESTIONS },
   );
 }

@@ -32,6 +32,14 @@ export const foodOptionSchema = z.object({
   priceSom: z.number().int().nonnegative().max(100_000_000),
 });
 
+/** Marketplace varianti — mahsulot nomi uzunroq bo'lishi mumkin. */
+export const marketOptionSchema = z.object({
+  productId: z.uuid(),
+  name: z.string().max(160),
+  shopName: z.string().max(120),
+  priceSom: z.number().int().nonnegative().max(1_000_000_000),
+});
+
 /**
  * Suhbat holati — mijozda saqlanadi va har so'rovda qaytib keladi.
  *
@@ -51,6 +59,9 @@ export const assistantSlotsSchema = z.object({
   foodOptions: z.array(foodOptionSchema).max(MAX_DISH_OPTIONS).optional(),
   menuItemId: z.uuid().optional(),
   quantity: z.number().int().positive().max(MAX_ITEM_QUANTITY).optional(),
+  // Marketplace suhbati
+  productOptions: z.array(marketOptionSchema).max(MAX_DISH_OPTIONS).optional(),
+  productId: z.uuid().optional(),
 });
 
 export const assistantStateSchema = z.object({

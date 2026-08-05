@@ -326,3 +326,82 @@ describe('parseMessage — ovqat', () => {
     expect(parseMessage('balansim qancha').foodQuery).toBeNull();
   });
 });
+
+describe('parseMessage — marketplace', () => {
+  it.each([
+    ['telefon qidir', Intent.MARKET_ORDER],
+    ['noutbuk kerak', Intent.MARKET_ORDER],
+    ['kitob sotib ol', Intent.MARKET_ORDER],
+    ['mahsulot qidiraman', Intent.MARKET_ORDER],
+    ['katalogni och', Intent.MARKET_ORDER],
+  ])('"%s" → %s', (text, expected) => {
+    expect(parseMessage(text).intent).toBe(expected);
+  });
+
+  /**
+   * ENG MUHIM TEKSHIRUV.
+   *
+   * "buyur" so'zi ikkala modulda ham ishlatiladi. Ajratish ANIQ NOM
+   * orqali bo'ladi: "lag'mon" — ovqat, "telefon" — mahsulot.
+   */
+  it('bir xil buyruqni nomga qarab ajratadi', () => {
+    expect(parseMessage("lag'mon buyur").intent).toBe(Intent.FOOD_ORDER);
+    expect(parseMessage('telefon buyur').intent).toBe(Intent.MARKET_ORDER);
+  });
+
+  it('nom aytilmasa umumiy buyruqqa qaraydi', () => {
+    expect(parseMessage('ovqat buyur').intent).toBe(Intent.FOOD_ORDER);
+    expect(parseMessage('mahsulot sotib ol').intent).toBe(Intent.MARKET_ORDER);
+  });
+
+  /**
+   * "telefonga to'la" — bu mobil aloqa to'lovi, mahsulot emas.
+   * Aniq so'z solishtiruvi ("telefon" ≠ "telefonga") shuni saqlaydi.
+   */
+  it("mobil to'lov mahsulot bilan chalkashmaydi", () => {
+    expect(parseMessage("telefonga to'la").intent).toBe(Intent.PAY_SERVICE);
+    expect(parseMessage("telefonga 10 ming sol").category).toBe('MOBILE');
+  });
+
+  it('marketplace buyruqlarida ham qidiruv matni ajratiladi', () => {
+    const result = parseMessage('menga 2 ta futbolka sotib ol');
+
+    expect(result.intent).toBe(Intent.MARKET_ORDER);
+    expect(result.quantity).toBe(2);
+    expect(result.foodQuery).toBe('futbolka');
+    expect(result.amountSom).toBeNull();
+  });
+
+  it('narx chegarasini tushunadi', () => {
+    const result = parseMessage('500 minggacha krossovka qidir');
+
+    expect(result.intent).toBe(Intent.MARKET_ORDER);
+    expect(result.amountSom).toBe(500_000);
+    expect(result.foodQuery).toBe('krossovka');
+  });
+
+  it("ro'yxatdan tanlash matnini tushunadi", () => {
+    const result = parseMessage('2. Redmi Note 14 6/128GB — Texnomart · 2 690 000 so\'m');
+
+    expect(result.ordinal).toBe(2);
+  });
+
+  /**
+   * Ro'yxatda yo'q nom: "zaryadlagich" PRODUCT_WORDS da bor, lekin
+   * "quvvat banki" yo'q. Bunday holatda niyat FOOD_ORDER bo'lib qoladi
+   * va katalogni `assistant.service.ts` hal qiladi.
+   */
+  it("noma'lum nomda buyruq so'ziga qaraydi", () => {
+    const result = parseMessage('quvvat banki buyur');
+
+    expect(result.intent).toBe(Intent.FOOD_ORDER);
+    expect(result.foodQuery).toContain('quvvat');
+  });
+
+  it('pul buyruqlari buzilmadi', () => {
+    expect(parseMessage('balansim qancha').intent).toBe(Intent.BALANCE);
+    expect(parseMessage('kommunal tola').intent).toBe(Intent.PAY_SERVICE);
+    expect(parseMessage('901234567 ga 50 ming yubor').intent).toBe(Intent.TRANSFER);
+    expect(parseMessage("hisobni to'ldir").intent).toBe(Intent.TOPUP);
+  });
+});

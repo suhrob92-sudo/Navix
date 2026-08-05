@@ -158,6 +158,14 @@ export interface FoodOrderParams {
   ordinal: number | null;
   /** "50 minggacha" — narx chegarasi. */
   maxPriceSom: number | null;
+  /**
+   * Oldindan topilgan natijalar.
+   *
+   * `assistant.service.ts` qaysi katalogda qidirishni hal qilish uchun
+   * menyuni allaqachon so'ragan bo'lishi mumkin. Natijani qayta
+   * so'ramaslik uchun shu yerga uzatiladi.
+   */
+  prefetched?: DishMatch[];
 }
 
 /**
@@ -187,10 +195,12 @@ export async function handleFoodOrder(params: FoodOrderParams): Promise<Assistan
   }
 
   // 4. Menyudan qidiramiz.
-  const dishes = await findDishes({
-    query: params.foodQuery,
-    ...(params.maxPriceSom === null ? {} : { maxPriceSom: params.maxPriceSom }),
-  });
+  const dishes =
+    params.prefetched ??
+    (await findDishes({
+      query: params.foodQuery,
+      ...(params.maxPriceSom === null ? {} : { maxPriceSom: params.maxPriceSom }),
+    }));
 
   if (dishes.length === 0) {
     return notFound(params.foodQuery, params.maxPriceSom);

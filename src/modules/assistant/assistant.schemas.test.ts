@@ -37,6 +37,15 @@ const FULL_SLOTS: Required<AssistantSlots> = {
   ],
   menuItemId: '3f2504e0-4f89-41d3-9a0c-0305e82c3303',
   quantity: 2,
+  productOptions: [
+    {
+      productId: '3f2504e0-4f89-41d3-9a0c-0305e82c3304',
+      name: 'Samsung Galaxy A55 8/256GB',
+      shopName: 'Texnomart',
+      priceSom: 4_290_000,
+    },
+  ],
+  productId: '3f2504e0-4f89-41d3-9a0c-0305e82c3305',
 };
 
 describe('assistantSlotsSchema', () => {

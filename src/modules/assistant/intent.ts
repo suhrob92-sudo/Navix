@@ -33,6 +33,8 @@ export const Intent = {
   FOOD_ORDER: 'FOOD_ORDER',
   /** "Buyurtmam qayerda?" — yetkazish holati. */
   FOOD_STATUS: 'FOOD_STATUS',
+  /** Marketplace'dan mahsulot sotib olish. */
+  MARKET_ORDER: 'MARKET_ORDER',
   /** Yordam — nima qila olasan. */
   HELP: 'HELP',
   /** Tushunilmadi. */
@@ -53,7 +55,14 @@ export interface ParsedMessage {
   category: 'UTILITY' | 'INTERNET' | 'MOBILE' | 'TV' | null;
   /** Hisob raqami (kommunal shaxsiy hisob, shartnoma raqami). */
   accountNumber: string | null;
-  /** Menyudan qidiriladigan matn: "lagmon", "burger", "shirinlik". */
+  /**
+   * Katalogdan qidiriladigan matn: "lagmon", "telefon", "kitob".
+   *
+   * Nomi tarixiy — u avval faqat menyu uchun edi. Endi MARKETPLACE
+   * uchun ham ishlatiladi: ajratish qoidasi ikkalasida ham bir xil
+   * (buyruq so'zlarini olib tashlash), farqi esa qaysi katalogda
+   * qidirilishida.
+   */
   foodQuery: string | null;
   /** "2 ta lag'mon" — nechta dona. */
   quantity: number | null;
@@ -295,6 +304,58 @@ const DISH_WORDS = [
 ];
 
 /**
+ * Marketplace'ga ishora qiluvchi UMUMIY so'zlar.
+ *
+ * FOOD_WORDS dan keyin tekshiriladi: "ovqat sotib ol" gapida ikkalasi
+ * ham bor, lekin bu baribir ovqat.
+ */
+const MARKET_WORDS = [
+  'sotib ol',
+  'sotib olmoqchi',
+  'xarid qil',
+  'mahsulot',
+  'marketplace',
+  'katalog',
+  'dokon',
+  'magazin',
+];
+
+/**
+ * Mahsulot nomlari — TO'LIQ so'z sifatida solishtiriladi.
+ *
+ * `DISH_WORDS` bilan bir xil vazifa: "bu gap marketplace haqida" degan
+ * xulosa uchun. Haqiqiy qidiruv baza ustidan boradi.
+ */
+const PRODUCT_WORDS = [
+  'telefon',
+  'smartfon',
+  'noutbuk',
+  'kompyuter',
+  'monitor',
+  'sichqoncha',
+  'klaviatura',
+  'quloqchin',
+  'zaryadlagich',
+  'kitob',
+  'roman',
+  'daftar',
+  'kiyim',
+  'futbolka',
+  'kurtka',
+  'palto',
+  'krossovka',
+  'poyabzal',
+  'sumka',
+  'changyutgich',
+  'dazmol',
+  'muzlatgich',
+  'konstruktor',
+  'krem',
+  'shampun',
+  'vitamin',
+];
+
+/**
  * Sinonimlar: foydalanuvchi so'zi → BAZADA BOR so'z.
  *
  * Faqat haqiqatan ham boshqacha atalgan narsalar. Qo'shimchali
@@ -354,6 +415,24 @@ const FOOD_STOP_WORDS = new Set([
   'yetkazib',
   'restoran',
   'restorandan',
+  'sotib',
+  'ol',
+  'olaman',
+  'olsam',
+  'olmoqchi',
+  'olmoqchiman',
+  'olib',
+  'nima',
+  'nimadir',
+  'xarid',
+  'mahsulot',
+  'dokon',
+  'dokondan',
+  'katalog',
+  'qidir',
+  'qidiraman',
+  'topib',
+  'kerakli',
 ]);
 
 /**
@@ -439,7 +518,7 @@ export function extractOrdinal(rawText: string): number | null {
  * "hisobni to'ldir" ham "to'la" so'ziga o'xshaydi, shuning uchun
  * TOPUP tekshiruvi PAY_SERVICE dan oldin turadi.
  */
-const INTENT_KEYWORDS: { intent: IntentName; words: string[] }[] = [
+const PHRASE_INTENTS: { intent: IntentName; words: string[] }[] = [
   { intent: Intent.HELP, words: ['yordam', 'nima qila olasan', 'nimalar qila', 'qanday ishlaysan'] },
   /**
    * FOOD_STATUS — FOOD_ORDER dan OLDIN: "buyurtmam qayerda" gapida
@@ -462,15 +541,19 @@ const INTENT_KEYWORDS: { intent: IntentName; words: string[] }[] = [
     ],
   },
   { intent: Intent.BALANCE, words: ['balans', 'qancha pulim', 'qancha pul', 'hisobimda', 'mablag'] },
-  /**
-   * FOOD_ORDER — TRANSFER va PAY_SERVICE dan OLDIN:
-   *  · "ovqat yetkazib yubor" — bu pul o'tkazma emas;
-   *  · "ovqatga to'la"        — bu kommunal to'lov emas.
-   *
-   * Lekin BALANCE dan KEYIN: "ovqatga qancha pulim bor" savolida
-   * odam baribir balansni so'rayapti.
-   */
+];
+
+/**
+ * Umumiy buyruqlar — aniq nom aytilmaganda ishlaydi.
+ *
+ * FOOD_ORDER va MARKET_ORDER bu yerda TRANSFER va PAY_SERVICE dan
+ * OLDIN turadi:
+ *  · "ovqat yetkazib yubor" — bu pul o'tkazma emas;
+ *  · "ovqatga to'la"        — bu kommunal to'lov emas.
+ */
+const COMMAND_INTENTS: { intent: IntentName; words: string[] }[] = [
   { intent: Intent.FOOD_ORDER, words: FOOD_WORDS },
+  { intent: Intent.MARKET_ORDER, words: MARKET_WORDS },
   {
     intent: Intent.TOPUP,
     words: ['hisobni toldir', 'hisobimni toldir', 'balansni toldir', 'hamyonni toldir', 'pul sol', 'toldir'],
@@ -516,9 +599,10 @@ export function parseMessage(rawText: string): ParsedMessage {
 
   const intent = detectIntent(text);
 
-  // Ovqat niyatida bo'lgandagina menyu so'zlarini ajratamiz — boshqa
+  // Xarid niyatida bo'lgandagina katalog so'zlarini ajratamiz — boshqa
   // buyruqlarda bu ortiqcha ish va noto'g'ri natija berardi.
-  const foodQuery = intent === Intent.FOOD_ORDER ? extractFoodQuery(withoutPhone) : null;
+  const isShopping = intent === Intent.FOOD_ORDER || intent === Intent.MARKET_ORDER;
+  const foodQuery = isShopping ? extractFoodQuery(withoutPhone) : null;
 
   return { intent, amountSom, phone, providerCode, category, accountNumber, foodQuery, quantity, ordinal };
 }
@@ -530,9 +614,31 @@ export function parseMessage(rawText: string): ParsedMessage {
  * nomlari (to'liq so'z sifatida) tekshiriladi.
  */
 function detectIntent(text: string): IntentName {
-  const byKeyword = INTENT_KEYWORDS.find((entry) => matchWords(text, entry.words))?.intent;
+  /**
+   * ── Tartib MUHIM ────────────────────────────────────────────────────
+   *
+   * 1. Aniq iboralar ("buyurtmam qayerda") — ular eng ma'noli;
+   * 2. ANIQ NOM: "lagmon" yoki "telefon". Aniq nom umumiy buyruqdan
+   *    kuchliroq: "telefon buyur" da "buyur" ikkala modulda ham bor,
+   *    "telefon" esa faqat bittasida;
+   * 3. Umumiy buyruqlar ("ovqat", "sotib ol") — nom aytilmagan holat;
+   * 4. Pul buyruqlari.
+   *
+   * ── Nima uchun ro'yxatlar TO'LIQ yechim emas ────────────────────────
+   * "zaryadlagich buyur" da hech qanday nom ro'yxatda yo'q. Bunday
+   * holatda niyat FOOD_ORDER bo'lib qoladi, lekin menyudan hech narsa
+   * topilmaydi — shunda `assistant.service.ts` KATALOGDAN qidiradi.
+   *
+   * Ya'ni oxirgi qarorni qo'lda yozilgan so'zlar emas, MA'LUMOT
+   * qabul qiladi. Ro'yxat faqat tez yo'lni ochadi.
+   */
+  const byPhrase = PHRASE_INTENTS.find((entry) => matchWords(text, entry.words))?.intent;
+  if (byPhrase) return byPhrase;
 
-  if (byKeyword) return byKeyword;
+  if (matchExactWords(text, DISH_WORDS)) return Intent.FOOD_ORDER;
+  if (matchExactWords(text, PRODUCT_WORDS)) return Intent.MARKET_ORDER;
 
-  return matchExactWords(text, DISH_WORDS) ? Intent.FOOD_ORDER : Intent.UNKNOWN;
+  const byCommand = COMMAND_INTENTS.find((entry) => matchWords(text, entry.words))?.intent;
+
+  return byCommand ?? Intent.UNKNOWN;
 }
