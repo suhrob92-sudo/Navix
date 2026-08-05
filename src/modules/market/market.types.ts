@@ -20,6 +20,8 @@ export interface ShopListItem {
   slug: string;
   name: string;
   description: string;
+  /** Hozir buyurtma qabul qilyaptimi (sotuvchi boshqaradi). */
+  isOpen: boolean;
   /** Summalar TIYINDA. */
   deliveryFee: number;
   minOrder: number;

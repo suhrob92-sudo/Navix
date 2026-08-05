@@ -65,6 +65,19 @@ const SAMPLES = {
     shopName: 'Texnomart',
     amountTiyin: 429_000_000,
   },
+  'market.order_status_changed': {
+    orderId: '9d4a2c71-6b8e-4f2a-8d1c-3e7b5a9f2c40',
+    orderNumber: 'NVX-M-20260805-X9Y8Z7',
+    shopName: 'Texnomart',
+    status: 'PACKING',
+  },
+  'market.order_rejected': {
+    orderId: '9d4a2c71-6b8e-4f2a-8d1c-3e7b5a9f2c40',
+    orderNumber: 'NVX-M-20260805-X9Y8Z7',
+    shopName: 'Texnomart',
+    amountTiyin: 429_000_000,
+    reason: 'omborda topilmadi',
+  },
   'security.password_changed': { revokedSessions: 3 },
 } as const;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, LayoutGrid, LogOut, ShieldCheck, Store, Wallet } from 'lucide-react';
+import { ChevronRight, LayoutGrid, LogOut, ShieldCheck, ShoppingBag, Store, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -52,6 +52,7 @@ export function ProfileContent() {
    */
   const isAdmin = hasPermission(user?.roles ?? [], Permission.PLATFORM_ADMIN_ACCESS);
   const isMerchant = hasPermission(user?.roles ?? [], Permission.MERCHANT_DASHBOARD_ACCESS);
+  const isSeller = hasPermission(user?.roles ?? [], Permission.SELLER_DASHBOARD_ACCESS);
 
   const { data, isLoading, error } = useApiQuery<ProfileResponse>('/api/v1/profile');
   const wallet = useApiQuery<WalletSummary>('/api/v1/wallet');
@@ -177,6 +178,25 @@ export function ProfileContent() {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">Restoran kabineti</p>
               <p className="text-muted-foreground text-xs">Buyurtmalar, menyu va tushum</p>
+            </div>
+
+            <ChevronRight className="text-muted-foreground size-5 shrink-0" aria-hidden="true" />
+          </Link>
+        )}
+
+        {/* Sotuvchi kabineti — faqat do'kon egalariga */}
+        {isSeller && (
+          <Link
+            href="/seller"
+            className="bg-card border-border flex items-center gap-3 rounded-2xl border p-4 transition-transform active:scale-[0.99]"
+          >
+            <span className="inline-flex size-11 items-center justify-center rounded-xl bg-violet-100 text-violet-600 dark:bg-violet-400/15 dark:text-violet-400">
+              <ShoppingBag className="size-5" aria-hidden="true" />
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Sotuvchi kabineti</p>
+              <p className="text-muted-foreground text-xs">Buyurtmalar, ombor va tushum</p>
             </div>
 
             <ChevronRight className="text-muted-foreground size-5 shrink-0" aria-hidden="true" />

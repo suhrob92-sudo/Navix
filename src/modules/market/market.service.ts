@@ -59,6 +59,7 @@ const SHOP_SELECT = {
   slug: true,
   name: true,
   description: true,
+  isOpen: true,
   deliveryFee: true,
   minOrder: true,
   deliveryDays: true,
@@ -76,6 +77,7 @@ function toShopItem(row: ShopRow): ShopListItem {
     slug: row.slug,
     name: row.name,
     description: row.description,
+    isOpen: row.isOpen,
     deliveryFee: tiyinToNumber(row.deliveryFee),
     minOrder: tiyinToNumber(row.minOrder),
     deliveryDays: row.deliveryDays,
@@ -418,11 +420,23 @@ export async function createMarketOrder(
   // 2. Do'kon.
   const shop = await prisma.shop.findFirst({
     where: { id: input.shopId, isActive: true },
-    select: { id: true, name: true, deliveryFee: true, minOrder: true, deliveryDays: true },
+    select: { id: true, name: true, isOpen: true, deliveryFee: true, minOrder: true, deliveryDays: true },
   });
 
   if (!shop) {
     throw new NotFoundError("Do'kon");
+  }
+
+  /**
+   * Yopiq do'kon buyurtma qabul qilmaydi.
+   *
+   * `isActive` (admin) dan farqli: yopiq do'kon katalogda ko'rinadi va
+   * mahsulotlari o'qiladi — xaridor keyinroq qaytib kelishi uchun.
+   * Buyurtma esa aynan shu yerda to'xtatiladi, ya'ni pul yechilishidan
+   * OLDIN.
+   */
+  if (!shop.isOpen) {
+    throw new ConflictError(`${shop.name} hozir buyurtma qabul qilmayapti. Birozdan keyin urinib ko'ring.`);
   }
 
   // 3. Mahsulotlar — faqat shu do'konniki va faollari.
@@ -528,15 +542,24 @@ export async function createMarketOrder(
         shopId: shop.id,
         addressId: address.id,
         orderNumber,
-        // To'lov o'tgani — do'kon buyurtmani qabul qilgani demak
-        // (hozircha simulyatsiya; sotuvchi kabineti keyingi bosqichda).
-        status: MarketOrderStatus.CONFIRMED,
+        /**
+         * Buyurtma DO'KON TASDIG'INI kutadi.
+         *
+         * 14-bosqichda bu qator `CONFIRMED` edi: sotuvchi kabineti hali
+         * yo'q edi va buyurtmani hech kim qabul qilmasdi, shuning uchun
+         * to'lov o'tgani qabul qilingan deb hisoblanardi.
+         *
+         * 16-bosqichda kabinet paydo bo'ldi — endi qabul qilish
+         * HAQIQIY amal: sotuvchi omborni ko'radi va o'zi tasdiqlaydi.
+         * Aks holda xaridor "qabul qilindi" degan yozuvni ko'rib
+         * turadi, do'kon esa buyurtmadan bexabar qoladi.
+         */
+        status: MarketOrderStatus.PENDING,
         subtotal,
         deliveryFee: shop.deliveryFee,
         total,
         deliveryAddress: formatAddressLine(address),
         deliveryNote: input.deliveryNote ?? null,
-        confirmedAt: new Date(),
         items: { create: lines },
       },
       select: { id: true },

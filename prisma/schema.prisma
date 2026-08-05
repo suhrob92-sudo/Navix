@@ -841,8 +841,18 @@ model Shop {
   /// Interfeysdagi rang kaliti (`ServiceColor`).
   color String @db.VarChar(20)
 
-  isActive  Boolean @default(true)
-  sortOrder Int     @default(100)
+  /// Ro'yxatda ko'rinadimi (ADMIN boshqaradi).
+  isActive Boolean @default(true)
+
+  /// Hozir buyurtma qabul qilyaptimi (SOTUVCHI boshqaradi).
+  ///
+  /// `isActive` dan farqi egalikda: do'kon ta'tilga chiqqanda yoki
+  /// omborni sanayotganda o'zini vaqtincha yopadi. Yopiq do'kon
+  /// ro'yxatda ko'rinadi va mahsulotlari o'qiladi, lekin yangi
+  /// buyurtma qabul qilmaydi — restorandagi `isOpen` bilan bir xil.
+  isOpen Boolean @default(true)
+
+  sortOrder Int @default(100)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -899,6 +909,11 @@ model Product {
   oldPrice BigInt?
 
   /// Qidiruv uchun tayyorlangan nom. Izohi `Restaurant.searchName` da.
+  ///
+  /// Menyudan farqi: mahsulot nomini SOTUVCHI yozadi (sotuvchi kabineti),
+  /// shuning uchun bu ustun seed'da emas, `seller.service.ts` da
+  /// `toSearchText(name)` orqali to'ldiriladi. Nom o'zgarganda u ham
+  /// birga yoziladi — invariant bitta joyda saqlanadi.
   searchName String @db.VarChar(220)
 
   /// ── ZAXIRA — marketplace'ning eng nozik joyi ────────────────────────

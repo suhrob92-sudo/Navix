@@ -56,6 +56,18 @@ export const Permission = {
   // Biznes
   MERCHANT_DASHBOARD_ACCESS: 'business:dashboard:access',
   MERCHANT_STAFF_MANAGE: 'business:staff:manage',
+  /**
+   * Sotuvchi kabineti — Marketplace do'koni.
+   *
+   * Restoran kabinetidan ALOHIDA ruxsat: ikkalasi ham `MERCHANT` roliga
+   * beriladi, lekin kabinetlar boshqa modullar bilan ishlaydi va
+   * kelajakda faqat bittasi berilishi mumkin (masalan do'kon egasi
+   * restoran buyurtmalarini ko'rmasligi kerak).
+   *
+   * Haqiqiy chegara baribir EGALIKDA: kabinet faqat `shop.ownerId`
+   * mos kelgan do'konlarni ko'rsatadi.
+   */
+  SELLER_DASHBOARD_ACCESS: 'business:shop:access',
 } as const;
 
 export type PermissionValue = (typeof Permission)[keyof typeof Permission];
@@ -106,6 +118,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
     Permission.ORDER_MANAGE,
     Permission.MERCHANT_DASHBOARD_ACCESS,
     Permission.MERCHANT_STAFF_MANAGE,
+    Permission.SELLER_DASHBOARD_ACCESS,
   ],
 
   /**
@@ -134,6 +147,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
     Permission.CATALOG_PRODUCT_MANAGE,
     Permission.ORDER_MANAGE,
     Permission.MERCHANT_DASHBOARD_ACCESS,
+    Permission.SELLER_DASHBOARD_ACCESS,
   ],
 
   [Role.SUPER_ADMIN]: Object.values(Permission),

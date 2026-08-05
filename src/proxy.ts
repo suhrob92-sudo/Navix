@@ -36,6 +36,7 @@ const PROTECTED_PREFIXES = [
   '/orders',
   '/marketplace',
   '/merchant',
+  '/seller',
   /**
    * Admin panel.
    *

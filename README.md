@@ -3,7 +3,7 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 15-bosqich yakunlandi.
+> **Holat:** 16-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
@@ -13,8 +13,10 @@ kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada
 > menyu, savat, buyurtma, bekor qilish, **restoran kabineti**
 > (buyurtma holatini boshqarish) va **AI Yordamchi** — oddiy tilda
 > yozilgan buyruqni tushunib to'lov, o'tkazma, **ovqat buyurtmasi va
-> Marketplace xaridini** tayyorlaydi, hamda **Marketplace** — do'konlar,
-> toifalar, mahsulot qidiruvi, savat va zaxira nazorati.
+> Marketplace xaridini** tayyorlaydi, **Marketplace** — do'konlar,
+> toifalar, mahsulot qidiruvi, savat va zaxira nazorati, hamda
+> **sotuvchi kabineti** — do'kon egasi mahsulot qo'shadi, omborni
+> yuritadi va buyurtmalarni o'zi boshqaradi.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -84,6 +86,7 @@ npm run dev
 | `npm run otp`               | Oxirgi SMS kodini topadi (lokal). Internet uchun: `-- --prod`      |
 | `npm run role:grant`        | Foydalanuvchiga rol beradi (birinchi adminni yaratish uchun)       |
 | `npm run restaurant:assign` | Restoranni egasiga biriktiradi (MERCHANT roli bilan)               |
+| `npm run shop:assign`       | Marketplace do'konini egasiga biriktiradi (MERCHANT roli bilan)    |
 | `npm run build`             | Production uchun yig'adi                                           |
 | `npm run start`             | Yig'ilgan ilovani ishga tushiradi                                  |
 | `npm run verify`            | Turlar + lint + testlar — hammasini birdan tekshiradi              |
@@ -977,6 +980,7 @@ Navix/
 │   │   ├── food/            # Ovqat yetkazish (restoran, menyu, buyurtma)
 │   │   ├── market/          # Marketplace (do'kon, mahsulot, zaxira)
 │   │   ├── merchant/        # Restoran kabineti (buyurtma holati, menyu)
+│   │   ├── seller/          # Sotuvchi kabineti (ombor, mahsulot, buyurtma)
 │   │   └── admin/           # Admin panel (xizmatlar, foydalanuvchilar)
 │   ├── config/
 │   │   ├── modules.ts       # SUPER APP MODULLAR REYESTRI
@@ -1165,6 +1169,19 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 | GET   | `/orders/{id}`           | Bitta buyurtma                          |
 | PATCH | `/orders/{id}`           | Holatni o'zgartirish yoki rad etish     |
 
+**Sotuvchi kabineti** (`/api/v1/seller/...`)
+
+| Metod | Manzil                 | Tavsif                                  |
+| ----- | ---------------------- | --------------------------------------- |
+| GET   | `/shops`               | Mening do'konlarim va ko'rsatkichlar    |
+| PATCH | `/shops/{id}`          | Ochish/yopish, yetkazish muddati        |
+| GET   | `/shops/{id}/products` | Ombor: mahsulotlar va toifalar          |
+| POST  | `/shops/{id}/products` | Yangi mahsulot qo'shish                 |
+| PATCH | `/products/{id}`       | Narx, zaxira, tavsif, sotuvdagi holati  |
+| GET   | `/orders`              | Kelgan buyurtmalar (standart — faollar) |
+| GET   | `/orders/{id}`         | Bitta buyurtma                          |
+| PATCH | `/orders/{id}`         | Holatni o'zgartirish yoki rad etish     |
+
 ---
 
 ## Ovqat yetkazish
@@ -1293,6 +1310,110 @@ Qabul qilinmoqda → Qabul qilindi → Yig'ilmoqda → Yo'lga chiqarildi → Yet
 Ovqatdan farq qiladi va bu ataylab: ovqat 45 daqiqada keladi, mahsulot
 kunlab yo'lda bo'ladi. Buyurtma sahifasida bosqichlar chizig'i bor —
 "hozir qaysi bosqichdamiz" degan savolga bir qarashda javob beradi.
+
+> **16-bosqichda o'zgardi.** Ilgari buyurtma darhol "Qabul qilindi"
+> bo'lardi: sotuvchi kabineti yo'q edi va uni hech kim ko'rmasdi.
+> Endi buyurtma **"Qabul qilinmoqda"** holatida boshlanadi va uni
+> do'kon o'zi tasdiqlaydi. Aks holda xaridor "qabul qilindi" degan
+> yozuvni ko'rib turardi, do'kon esa buyurtmadan bexabar qolardi.
+
+---
+
+## Sotuvchi kabineti
+
+Manzil: `/seller`. Ilova ichida esa **Profil → Sotuvchi kabineti**
+(havola faqat do'kon egalariga ko'rinadi).
+
+Do'konni biriktirish — buyruq orqali, chunki bu biznes qarori
+(shartnoma imzolanadi, hujjatlar tekshiriladi):
+
+```bash
+npm run shop:assign -- texnomart 901234567
+npm run shop:assign -- texnomart 901234567 remove
+```
+
+Buyruq do'konni foydalanuvchiga bog'laydi va unga `MERCHANT` rolini
+beradi. Yangi rol faqat **qayta kirgandan keyin** ishlaydi.
+
+### Restoran kabinetidan uchta farqi
+
+**1. Ombor — bu kabinetning yuragi.** Restoran menyusida faqat
+"bor/yo'q" bor. Do'konda esa aniq SON turadi va u pul bilan bir
+qatorda o'zgaradi.
+
+Kun davomida eng ko'p takrorlanadigan amal bitta: "bitta sotildi"
+yoki "yangi partiya keldi". Shuning uchun kartochkada **"−" va "+"**
+tugmalari bor — bitta bosish, bitta so'rov. Katta o'zgarish uchun
+forma ochiladi.
+
+Tugagan mahsulotlar ro'yxatda **tepada** turadi: sotuvchi kabinetga
+aynan shular uchun kiradi. Kabinet ularni alohida ham sanaydi —
+tugagan tovar ko'rinmaydigan yo'qotish, chunki buyurtma kelmagani
+uchun hech qanday signal bo'lmaydi.
+
+**2. Yangi mahsulot qo'shish.** Restoranga menyu bir marta kiritiladi.
+Do'kon esa har hafta yangi tovar keltiradi — buni dasturchidan
+so'rab bo'lmaydi.
+
+Manzil (`slug`) va qidiruv ustuni (`searchName`) so'rovda **yo'q**:
+ikkalasini ham server nomdan hisoblaydi.
+
+- `slug` UNIQUE. Ikki do'kon "Redmi Note 14" sotsa, ikkalasi ham bitta
+  manzilga da'vogar bo'ladi — shuning uchun band bo'lsa oxiriga son
+  qo'shiladi va urinish takrorlanadi. Yakuniy hakam — bazadagi
+  cheklovning o'zi.
+- `searchName` esa `toSearchText(name)` dan keladi. Nom o'zgarganda u
+  ham birga yoziladi, aks holda mahsulot yangi nomi bo'yicha
+  qidiruvda topilmay qolardi. Manzil esa ATAYLAB o'zgarmaydi —
+  tashqarida ulashilgan havolalar buzilmasligi kerak.
+
+**3. Rad etish zaxirani ham tiklaydi.** Ovqat rad etilganda
+qaytariladigan narsa faqat pul. Mahsulotda esa ikkalasi:
+
+- pul qaytib, zaxira tiklanmasa — tovar javonda turadi, lekin bazada
+  "sotilgan" va uni hech kim sotib ololmaydi;
+- zaxira tiklanib, pul qaytmasa — xaridor tovarsiz ham, pulsiz ham
+  qoladi.
+
+Shuning uchun ikkalasi **bitta tranzaksiyada**: yo hammasi, yo hech
+narsa. Idempotentlik kaliti buyurtma ID'sidan hisoblanadi
+(`market-refund-{orderId}`) va ustun bazada UNIQUE — takroriy bosish
+ikkinchi marta pul qaytarmaydi.
+
+### Do'konni vaqtincha yopish
+
+`isActive` va `isOpen` — ikki xil kalit va bu ataylab:
+
+| Kalit      | Kim boshqaradi | Nima bo'ladi                                    |
+| ---------- | -------------- | ----------------------------------------------- |
+| `isActive` | Admin          | Do'kon katalogdan butunlay chiqadi              |
+| `isOpen`   | Sotuvchi       | Katalogda qoladi, lekin buyurtma qabul qilmaydi |
+
+Yopiq do'kon mahsulotlari o'qiladi — xaridor keyinroq qaytib kelishi
+uchun. Buyurtma esa pul yechilishidan OLDIN to'xtatiladi. AI Yordamchi
+ham yopiq do'konni umuman taklif qilmaydi: u tayyor buyruq beradi,
+bosilgach darhol rad javobini olish yomon tajriba bo'lardi.
+
+### Egalik har bir amalda tekshiriladi
+
+Tekshiruv mijoz yuborgan `shopId` ga emas, **tokendagi
+foydalanuvchiga** tayanadi: har so'rovda `shop.ownerId = userId`
+sharti qo'yiladi. Mahsulot tahrirlashda esa manzilda do'kon ID'si
+umuman yo'q — egalik mahsulotning o'zidan tekshiriladi
+(`product.shop.ownerId = userId`).
+
+Begona ID "sizniki emas" emas, **"topilmadi"** qaytaradi: boshqa
+do'kon mavjudligini ham oshkor qilmaymiz.
+
+### Raqobatdan himoya
+
+Bitta do'konda bir necha xodim ishlashi mumkin. Holat `updateMany`
+orqali, ESKI holat sharti bilan yoziladi: ikki xodim bir vaqtda bossa,
+ikkinchisi "holat o'zgardi, sahifani yangilang" xabarini oladi.
+
+Tekshirildi: bir vaqtda 5 ta tasdiqlashdan **roppa-rosa bittasi**
+o'tdi; 5 ta rad etishdan ham bittasi o'tdi va pul **bir marta**
+qaytdi.
 
 ---
 
@@ -1447,5 +1568,6 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **13-bosqich** — Doimiy manzil: Vercel'ga chiqarish (Neon + Upstash)
 - [x] **14-bosqich** — Marketplace: do'konlar, toifalar, mahsulotlar, savat, zaxira nazorati
 - [x] **15-bosqich** — AI Yordamchiga Marketplace'ni ulash: suhbat ichida xarid, zaxira nazorati
-- [ ] **16-bosqich** — Taksi moduli (xarita API kaliti kerak)
-- [ ] **17-bosqich** — Real to'lov integratsiyasi (Payme / Click)
+- [x] **16-bosqich** — Sotuvchi kabineti: mahsulot qo'shish, ombor, buyurtma holati, rad etish
+- [ ] **17-bosqich** — Taksi moduli (xarita API kaliti kerak)
+- [ ] **18-bosqich** — Real to'lov integratsiyasi (Payme / Click)

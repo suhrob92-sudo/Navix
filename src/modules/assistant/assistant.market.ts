@@ -121,7 +121,14 @@ export async function findProducts(params: FindProductsParams): Promise<ProductM
   const rows = await prisma.product.findMany({
     where: {
       isActive: true,
-      shop: { isActive: true },
+      /**
+       * Yopiq do'kon taklif qilinmaydi.
+       *
+       * Katalogda uni ko'rish mumkin (xaridor keyin qaytib keladi),
+       * lekin yordamchi TAYYOR buyruq beradi — bosilgach darhol rad
+       * javobini olish yomon tajriba bo'lardi.
+       */
+      shop: { isActive: true, isOpen: true },
       ...(params.inStockOnly === false ? {} : { stock: { gt: 0 } }),
       ...(params.maxPriceSom === undefined ? {} : { price: { lte: somToTiyin(params.maxPriceSom) } }),
       OR: words.flatMap((word) => [
@@ -157,7 +164,7 @@ export async function findProducts(params: FindProductsParams): Promise<ProductM
  */
 export async function findProductById(productId: string): Promise<ProductMatch | null> {
   const row = await prisma.product.findFirst({
-    where: { id: productId, isActive: true, shop: { isActive: true } },
+    where: { id: productId, isActive: true, shop: { isActive: true, isOpen: true } },
     select: PRODUCT_SELECT,
   });
 

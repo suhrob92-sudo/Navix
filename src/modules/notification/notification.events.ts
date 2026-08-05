@@ -62,6 +62,19 @@ export interface NotificationEventData {
     shopName: string;
     amountTiyin: number;
   };
+  'market.order_status_changed': {
+    orderId: string;
+    orderNumber: string;
+    shopName: string;
+    status: 'CONFIRMED' | 'PACKING' | 'SHIPPED' | 'DELIVERED';
+  };
+  'market.order_rejected': {
+    orderId: string;
+    orderNumber: string;
+    shopName: string;
+    amountTiyin: number;
+    reason: string;
+  };
   'security.password_changed': { revokedSessions: number };
 }
 
@@ -93,6 +106,21 @@ const FOOD_STATUS_BODIES = {
   PREPARING: 'oshxona buyurtmangizni tayyorlashni boshladi.',
   DELIVERING: 'kuryer buyurtmangiz bilan yo\'lga chiqdi.',
   DELIVERED: 'buyurtmangiz yetkazib berildi. Yoqimli ishtaha!',
+} as const;
+
+/** Marketplace bosqichlari uchun sarlavhalar. */
+const MARKET_STATUS_TITLES = {
+  CONFIRMED: 'Buyurtma qabul qilindi',
+  PACKING: "Buyurtma yig'ilmoqda",
+  SHIPPED: "Buyurtma yo'lga chiqdi",
+  DELIVERED: 'Buyurtma yetkazildi',
+} as const;
+
+const MARKET_STATUS_BODIES = {
+  CONFIRMED: 'buyurtmangizni qabul qildi.',
+  PACKING: 'buyurtmangizni omborda yig\'moqda.',
+  SHIPPED: "buyurtmangiz yo'lga chiqarildi.",
+  DELIVERED: 'buyurtmangiz yetkazib berildi. Xaridingiz muborak!',
 } as const;
 
 /**
@@ -173,9 +201,17 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
     sourceModule: 'food',
   }),
 
+  /**
+   * Buyurtma YUBORILDI — hali qabul qilinmadi.
+   *
+   * 16-bosqichgacha bu yerda "qabul qilindi" deb yozilardi, chunki
+   * buyurtmani hech kim ko'rmasdi. Endi do'kon uni o'zi tasdiqlaydi va
+   * xaridor tasdiqni ALOHIDA xabar bilan biladi — aks holda ikkita
+   * xabar bir xil narsani aytardi.
+   */
   'market.order_created': ({ orderId, shopName, amountTiyin, deliveryDays }) => ({
-    title: 'Buyurtma qabul qilindi',
-    body: `${shopName} buyurtmangizni qabul qildi. ${formatTiyin(amountTiyin)} to'landi, taxminan ${deliveryDays} kunda yetkaziladi.`,
+    title: 'Buyurtma yuborildi',
+    body: `${shopName} buyurtmangizni ko'rib chiqmoqda. ${formatTiyin(amountTiyin)} to'landi, taxminan ${deliveryDays} kunda yetkaziladi.`,
     actionUrl: `/marketplace/orders/${orderId}`,
     sourceModule: 'market',
   }),
@@ -183,6 +219,28 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
   'market.order_cancelled': ({ orderId, shopName, amountTiyin }) => ({
     title: 'Buyurtma bekor qilindi',
     body: `${shopName} buyurtmasi bekor qilindi. ${formatTiyin(amountTiyin)} hamyoningizga qaytarildi.`,
+    actionUrl: `/marketplace/orders/${orderId}`,
+    sourceModule: 'market',
+  }),
+
+  /**
+   * Marketplace bosqichlari.
+   *
+   * Ovqatdan farqi vaqtda: ovqat 40 daqiqada keladi, mahsulot esa
+   * kunlab yo'lda bo'ladi. Shuning uchun har bosqich haqida xabar
+   * berish bu yerda YANADA muhim — xaridor "buyurtmam unutildimi"
+   * degan shubhaga tushmasligi kerak.
+   */
+  'market.order_status_changed': ({ orderId, shopName, status }) => ({
+    title: MARKET_STATUS_TITLES[status],
+    body: `${shopName}: ${MARKET_STATUS_BODIES[status]}`,
+    actionUrl: `/marketplace/orders/${orderId}`,
+    sourceModule: 'market',
+  }),
+
+  'market.order_rejected': ({ orderId, shopName, amountTiyin, reason }) => ({
+    title: "Do'kon buyurtmani rad etdi",
+    body: `${shopName} buyurtmangizni bajara olmadi (${reason}). ${formatTiyin(amountTiyin)} hamyoningizga qaytarildi.`,
     actionUrl: `/marketplace/orders/${orderId}`,
     sourceModule: 'market',
   }),

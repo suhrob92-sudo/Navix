@@ -58,6 +58,16 @@ export const AuditAction = {
   MERCHANT_ORDER_STATUS_CHANGED: 'merchant.order.status_changed',
   MERCHANT_ORDER_REJECTED: 'merchant.order.rejected',
 
+  // Sotuvchi kabineti (Marketplace).
+  //
+  // Zaxira o'zgarishi ham yoziladi: "omborda 10 ta bor edi, endi 0"
+  // degan savol nizoda eng ko'p so'raladi va javobi faqat shu yerda.
+  SELLER_ORDER_STATUS_CHANGED: 'seller.order.status_changed',
+  SELLER_ORDER_REJECTED: 'seller.order.rejected',
+  SELLER_PRODUCT_CREATED: 'seller.product.created',
+  SELLER_PRODUCT_UPDATED: 'seller.product.updated',
+  SELLER_SHOP_UPDATED: 'seller.shop.updated',
+
   ADMIN_PROVIDER_CREATED: 'admin.provider.created',
   ADMIN_PROVIDER_UPDATED: 'admin.provider.updated',
   ADMIN_USER_STATUS_CHANGED: 'admin.user.status_changed',

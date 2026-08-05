@@ -31,6 +31,7 @@
     "db:seed": "prisma generate && tsx prisma/seed.ts",
     "role:grant": "tsx scripts/grant-role.ts",
     "restaurant:assign": "tsx scripts/assign-restaurant.ts",
+    "shop:assign": "tsx scripts/assign-shop.ts",
     "env:setup": "node scripts/env-setup.mjs",
     "deploy:check": "node scripts/deploy-check.mjs",
     "deploy:db": "node scripts/deploy-db.mjs",
