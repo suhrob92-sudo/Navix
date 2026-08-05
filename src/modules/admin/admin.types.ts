@@ -10,7 +10,14 @@ import type { ServiceCategoryName } from '@/modules/payment/payment.types';
 
 export type UserStatusName = 'PENDING_VERIFICATION' | 'ACTIVE' | 'SUSPENDED' | 'DEACTIVATED';
 
-export type TransactionTypeName = 'TOP_UP' | 'WITHDRAWAL' | 'PAYMENT' | 'REFUND' | 'TRANSFER' | 'BONUS';
+export type TransactionTypeName =
+  | 'TOP_UP'
+  | 'WITHDRAWAL'
+  | 'PAYMENT'
+  | 'REFUND'
+  | 'TRANSFER'
+  | 'BONUS'
+  | 'EARNING';
 
 export type TransactionStatusName = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REVERSED';
 
@@ -238,6 +245,7 @@ export const TRANSACTION_TYPE_LABELS: Record<TransactionTypeName, string> = {
   REFUND: 'Qaytarish',
   TRANSFER: "O'tkazma",
   BONUS: 'Bonus',
+  EARNING: 'Daromad',
 };
 
 export const TRANSACTION_STATUS_LABELS: Record<TransactionStatusName, string> = {

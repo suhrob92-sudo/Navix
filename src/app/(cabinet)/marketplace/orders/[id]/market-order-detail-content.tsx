@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { OrderCourierCard } from '@/components/app/order-courier-card';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -173,6 +174,9 @@ export function MarketOrderDetailContent({ orderId }: MarketOrderDetailContentPr
                 </div>
               </dl>
             </section>
+
+            {/* Kuryer — topshiriq olingandan keyin paydo bo'ladi */}
+            {order.courier && <OrderCourierCard courier={order.courier} />}
 
             {/* Do'kon va manzil */}
             <section className="bg-card border-border rounded-2xl border p-4">

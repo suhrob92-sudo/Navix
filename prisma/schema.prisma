@@ -73,6 +73,13 @@ enum TransactionType {
   TRANSFER
   /// Bonus / cashback.
   BONUS
+  /// Ishlab topilgan pul — kuryer yetkazish haqi, haydovchi safari.
+  ///
+  /// `TOP_UP` dan farqi manbada: to'ldirishni foydalanuvchi o'zi
+  /// qiladi, daromadni esa platforma yozadi. Tarixda ular alohida
+  /// ko'rinishi kerak — kuryer "bugun qancha ishladim?" degan savolga
+  /// javob topa olsin.
+  EARNING
 }
 
 /// Pulning yo'nalishi. Turdan TAXMIN QILIB bo'lmaydi: o'tkazmada
@@ -214,6 +221,7 @@ model User {
   restaurants   Restaurant[]
   shops         Shop[]               @relation("ShopOwner")
   marketOrders  MarketOrder[]
+  deliveries    Delivery[]           @relation("CourierDeliveries")
 
   @@index([status])
   @@index([createdAt])
@@ -593,6 +601,8 @@ model FoodOrder {
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
   address    Address?   @relation(fields: [addressId], references: [id], onDelete: SetNull)
   items      FoodOrderItem[]
+  /// Kuryer topshirig'i — restoran "yo'lga chiqarish" bosgach yaratiladi.
+  delivery   Delivery?
 
   @@index([userId, createdAt])
   @@index([status])
@@ -977,6 +987,8 @@ model MarketOrder {
   shop    Shop              @relation(fields: [shopId], references: [id], onDelete: Restrict)
   address Address?          @relation(fields: [addressId], references: [id], onDelete: SetNull)
   items   MarketOrderItem[]
+  /// Kuryer topshirig'i — do'kon "yo'lga chiqarish" bosgach yaratiladi.
+  delivery Delivery?
 
   @@index([userId, createdAt])
   @@index([shopId, status])
@@ -1001,4 +1013,84 @@ model MarketOrderItem {
 
   @@index([orderId])
   @@map("market_order_items")
+}
+
+// ---------------------------------------------------------------------------
+// Kuryer (Courier)
+// ---------------------------------------------------------------------------
+
+enum DeliveryStatus {
+  /// Umumiy ro'yxatda turibdi — istalgan kuryer olishi mumkin.
+  OFFERED
+  /// Kuryer o'ziga oldi, hali olib chiqmagan.
+  ACCEPTED
+  /// Buyurtma kuryerning qo'lida, yo'lda.
+  PICKED_UP
+  /// Mijozga topshirildi.
+  DELIVERED
+  /// Buyurtma bekor qilingani uchun yetkazish ham bekor bo'ldi.
+  CANCELLED
+}
+
+/// Bitta yetkazish topshirig'i.
+///
+/// ── Nima uchun ALOHIDA jadval ─────────────────────────────────────────
+/// `courierId` ni to'g'ridan-to'g'ri `food_orders` va `market_orders` ga
+/// qo'shish mumkin edi. Lekin unda kuryerga tegishli hamma narsa
+/// (qachon oldi, qachon olib chiqdi, qancha ishladi) IKKI jadvalda
+/// takrorlanardi va har yangi modul — taksi, dorixona — uchinchi
+/// nusxani talab qilardi.
+///
+/// Bu jadval esa "yetkazish" tushunchasini bir joyda saqlaydi: kuryer
+/// kabineti bitta manbadan o'qiydi, buyurtma turi esa unga deyarli
+/// ahamiyatsiz.
+///
+/// ── Nima uchun IKKITA ixtiyoriy havola ────────────────────────────────
+/// Yetkazish yo ovqat, yo mahsulot buyurtmasiga tegishli — hech qachon
+/// ikkalasiga birdan emas va hech qachon hech qaysisiga emas. Buni
+/// Prisma sxemasida ifodalab bo'lmaydi, shuning uchun migratsiyada
+/// PostgreSQL `CHECK` cheklovi qo'yilgan: aynan BITTASI to'lgan
+/// bo'lishi shart. Qoidani baza qo'riqlaydi, dastur emas.
+model Delivery {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Kim yetkazadi. `null` — hali hech kim olmagan (umumiy ro'yxat).
+  ///
+  /// Kuryer o'chirilsa topshiriq qolaveradi va qaytadan taklif
+  /// qilinadi — shuning uchun `SetNull`.
+  courierId String? @db.Uuid
+
+  /// Aynan bitta buyurtmaga tegishli — `@unique` shuni kafolatlaydi.
+  foodOrderId   String? @unique @db.Uuid
+  marketOrderId String? @unique @db.Uuid
+
+  status DeliveryStatus @default(OFFERED)
+
+  /// Kuryer topadigan haq — TIYINDA.
+  ///
+  /// Buyurtmadagi `deliveryFee` dan NUSXA olinadi: restoran ertaga
+  /// tarifni oshirsa, kelishilgan haq o'zgarmasligi kerak.
+  feeTiyin BigInt
+
+  /// Yetkazilgach yozilgan daromad tranzaksiyasi.
+  payoutTransactionId String? @db.Uuid
+
+  /// Kuryer bekor qilsa yoki buyurtma bekor bo'lsa — sababi.
+  cancelReason String? @db.VarChar(255)
+
+  createdAt   DateTime  @default(now())
+  acceptedAt  DateTime?
+  pickedUpAt  DateTime?
+  deliveredAt DateTime?
+  cancelledAt DateTime?
+
+  courier     User?        @relation("CourierDeliveries", fields: [courierId], references: [id], onDelete: SetNull)
+  foodOrder   FoodOrder?   @relation(fields: [foodOrderId], references: [id], onDelete: Cascade)
+  marketOrder MarketOrder? @relation(fields: [marketOrderId], references: [id], onDelete: Cascade)
+
+  /// Umumiy ro'yxat: "egasiz va taklif qilingan" — eng tez-tez so'rov.
+  @@index([status, createdAt])
+  /// Kuryerning o'z topshiriqlari.
+  @@index([courierId, status])
+  @@map("deliveries")
 }

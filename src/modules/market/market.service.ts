@@ -15,6 +15,7 @@ import type {
   MarketOrderQuery,
   ProductQuery,
 } from '@/modules/market/market.schemas';
+import type { OrderCourierView } from '@/modules/food/food.types';
 import type {
   MarketOrderView,
   ProductCategoryView,
@@ -307,7 +308,34 @@ const ORDER_SELECT = {
     select: { id: true, name: true, unitPrice: true, quantity: true, lineTotal: true },
     orderBy: { name: 'asc' as const },
   },
+  delivery: {
+    select: {
+      status: true,
+      courier: { select: { firstName: true, lastName: true, phone: true } },
+    },
+  },
 } as const;
+
+/**
+ * Buyurtma sahifasida ko'rinadigan kuryer.
+ *
+ * Izohi `food.service.ts` dagi bilan bir xil: topshiriq ochilgan,
+ * lekin hali hech kim olmagan bo'lsa `null` qaytadi.
+ */
+function toCourierView(
+  delivery: {
+    status: string;
+    courier: { firstName: string | null; lastName: string | null; phone: string } | null;
+  } | null,
+): OrderCourierView | null {
+  if (!delivery?.courier) return null;
+
+  return {
+    name: [delivery.courier.firstName, delivery.courier.lastName].filter(Boolean).join(' ') || null,
+    phone: delivery.courier.phone,
+    status: delivery.status as OrderCourierView['status'],
+  };
+}
 
 type OrderRow = Prisma.MarketOrderGetPayload<{ select: typeof ORDER_SELECT }>;
 
@@ -340,6 +368,7 @@ function toOrderView(row: OrderRow): MarketOrderView {
       quantity: item.quantity,
       lineTotal: tiyinToNumber(item.lineTotal),
     })),
+    courier: toCourierView(row.delivery),
   };
 }
 

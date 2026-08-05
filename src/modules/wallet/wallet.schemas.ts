@@ -81,11 +81,12 @@ export const TRANSACTION_TYPE_FILTERS = [
   { value: 'PAYMENT', label: "To'lovlar" },
   { value: 'TRANSFER', label: "O'tkazmalar" },
   { value: 'REFUND', label: 'Qaytarilgan' },
+  { value: 'EARNING', label: 'Daromad' },
 ] as const;
 
 /** GET /api/v1/wallet/transactions */
 export const transactionQuerySchema = paginationQuerySchema.extend({
-  type: z.enum(['ALL', 'TOP_UP', 'WITHDRAWAL', 'PAYMENT', 'REFUND', 'TRANSFER', 'BONUS']).default('ALL'),
+  type: z.enum(['ALL', 'TOP_UP', 'WITHDRAWAL', 'PAYMENT', 'REFUND', 'TRANSFER', 'BONUS', 'EARNING']).default('ALL'),
 });
 
 export type TransactionQuery = z.infer<typeof transactionQuerySchema>;

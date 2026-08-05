@@ -1,4 +1,5 @@
 import type { ServiceColor } from '@/config/modules';
+import type { OrderCourierView } from '@/modules/food/food.types';
 
 /**
  * Marketplace — brauzer tomonidagi turlar va qoidalar.
@@ -103,6 +104,8 @@ export interface MarketOrderView {
     deliveryDays: number;
   };
   items: MarketOrderItemView[];
+  /** Yetkazayotgan kuryer — topshiriq ochilgach paydo bo'ladi. */
+  courier: OrderCourierView | null;
 }
 
 export interface ShopsResponse {

@@ -75,6 +75,22 @@ export interface NotificationEventData {
     amountTiyin: number;
     reason: string;
   };
+  'delivery.courier_assigned': {
+    orderUrl: string;
+    orderNumber: string;
+    courierName: string;
+    courierPhone: string;
+  };
+  'delivery.picked_up': {
+    orderUrl: string;
+    orderNumber: string;
+    courierName: string;
+  };
+  'courier.delivery_paid': {
+    deliveryId: string;
+    orderNumber: string;
+    amountTiyin: number;
+  };
   'security.password_changed': { revokedSessions: number };
 }
 
@@ -169,9 +185,10 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
     sourceModule: 'payments',
   }),
 
+  /** Yuborildi — restoran tasdig'i ALOHIDA xabar bilan keladi. */
   'food.order_created': ({ orderId, restaurantName, amountTiyin, deliveryMinutes }) => ({
-    title: 'Buyurtma qabul qilindi',
-    body: `${restaurantName} buyurtmangizni qabul qildi. ${formatTiyin(amountTiyin)} to'landi, taxminan ${deliveryMinutes} daqiqada yetkaziladi.`,
+    title: 'Buyurtma yuborildi',
+    body: `${restaurantName} buyurtmangizni ko'rib chiqmoqda. ${formatTiyin(amountTiyin)} to'landi, taxminan ${deliveryMinutes} daqiqada yetkaziladi.`,
     actionUrl: `/orders/${orderId}`,
     sourceModule: 'food',
   }),
@@ -243,6 +260,35 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
     body: `${shopName} buyurtmangizni bajara olmadi (${reason}). ${formatTiyin(amountTiyin)} hamyoningizga qaytarildi.`,
     actionUrl: `/marketplace/orders/${orderId}`,
     sourceModule: 'market',
+  }),
+
+  /**
+   * Kuryer topildi.
+   *
+   * Matnda TELEFON RAQAMI bor va bu ataylab: mijoz ko'pincha
+   * "domofon ishlamayapti" deb qo'ng'iroq qilishi kerak bo'ladi va
+   * o'sha paytda ilovani ochib qidirishga vaqt bo'lmaydi.
+   */
+  'delivery.courier_assigned': ({ orderUrl, courierName, courierPhone }) => ({
+    title: 'Kuryer topildi',
+    body: `${courierName} buyurtmangizni yetkazadi. Aloqa: ${courierPhone}`,
+    actionUrl: orderUrl,
+    sourceModule: 'delivery',
+  }),
+
+  'delivery.picked_up': ({ orderUrl, courierName }) => ({
+    title: "Kuryer yo'lda",
+    body: `${courierName} buyurtmangizni olib chiqdi va yo'lga chiqdi.`,
+    actionUrl: orderUrl,
+    sourceModule: 'delivery',
+  }),
+
+  /** Kuryerning O'ZIGA — topshirilgach haq yozildi. */
+  'courier.delivery_paid': ({ orderNumber, amountTiyin }) => ({
+    title: 'Yetkazish haqi yozildi',
+    body: `${orderNumber} buyurtmasi uchun ${formatTiyin(amountTiyin)} hamyoningizga qo'shildi.`,
+    actionUrl: '/wallet',
+    sourceModule: 'delivery',
   }),
 
   'security.password_changed': ({ revokedSessions }) => ({

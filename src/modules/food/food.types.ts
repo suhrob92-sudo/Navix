@@ -1,4 +1,5 @@
 import type { ServiceColor } from '@/config/modules';
+import type { DeliveryStatusName } from '@/modules/courier/courier.types';
 
 /**
  * Ovqat moduli — brauzer tomonidagi turlar.
@@ -74,6 +75,20 @@ export interface FoodOrderView {
     deliveryMinutes: number;
   };
   items: FoodOrderItemView[];
+  /**
+   * Yetkazayotgan kuryer — topshiriq ochilgach paydo bo'ladi.
+   *
+   * Telefon raqami ATAYLAB ko'rsatiladi: "domofon ishlamayapti" degan
+   * holatda mijoz qo'ng'iroq qila olishi kerak.
+   */
+  courier: OrderCourierView | null;
+}
+
+/** Buyurtma sahifasida ko'rinadigan kuryer ma'lumoti. */
+export interface OrderCourierView {
+  name: string | null;
+  phone: string;
+  status: DeliveryStatusName;
 }
 
 export interface RestaurantsResponse {

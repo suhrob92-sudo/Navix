@@ -10,6 +10,7 @@ import type { ServiceColor } from '@/config/modules';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { refundWallet } from '@/modules/wallet/wallet.service';
 import { canTransition, type FoodOrderStatusName } from '@/modules/food/food.types';
+import { assertDeliveryNotPending, createFoodDelivery } from '@/modules/courier/courier.service';
 import type {
   MerchantOrderQuery,
   UpdateMenuItemInput,
@@ -452,6 +453,7 @@ export async function updateMerchantOrderStatus(
       orderNumber: true,
       status: true,
       total: true,
+      deliveryFee: true,
       userId: true,
       restaurant: { select: { name: true } },
     },
@@ -477,19 +479,37 @@ export async function updateMerchantOrderStatus(
 
   const now = new Date();
 
-  const updated = await prisma.foodOrder.updateMany({
-    // Eski holat sharti — raqobatdan himoya.
-    where: { id: order.id, status: order.status },
-    data: {
-      status: to as FoodOrderStatus,
-      ...(to === 'CONFIRMED' ? { confirmedAt: now } : {}),
-      ...(to === 'DELIVERED' ? { deliveredAt: now } : {}),
-    },
-  });
+  /**
+   * Holat o'zgarishi va kuryer topshirig'i BITTA tranzaksiyada.
+   *
+   * "Yo'lga chiqarish" bosilganda topshiriq ochiladi. Agar buyurtma
+   * "yo'lda" bo'lib topshiriq yaratilmasa, uni hech bir kuryer
+   * ko'rmasdi va buyurtma jimgina osilib qolardi.
+   */
+  await prisma.$transaction(async (tx) => {
+    if (to === 'DELIVERED') {
+      // Yetkazilganini KURYER tasdiqlaydi — 17-bosqichdan beri.
+      await assertDeliveryNotPending(tx, { foodOrderId: order.id });
+    }
 
-  if (updated.count === 0) {
-    throw new ConflictError("Buyurtma holati o'zgardi. Sahifani yangilang.");
-  }
+    const updated = await tx.foodOrder.updateMany({
+      // Eski holat sharti — raqobatdan himoya.
+      where: { id: order.id, status: order.status },
+      data: {
+        status: to as FoodOrderStatus,
+        ...(to === 'CONFIRMED' ? { confirmedAt: now } : {}),
+        ...(to === 'DELIVERED' ? { deliveredAt: now } : {}),
+      },
+    });
+
+    if (updated.count === 0) {
+      throw new ConflictError("Buyurtma holati o'zgardi. Sahifani yangilang.");
+    }
+
+    if (to === 'DELIVERING') {
+      await createFoodDelivery(tx, { id: order.id, deliveryFee: order.deliveryFee });
+    }
+  });
 
   await recordAudit({
     actorId: userId,

@@ -3,7 +3,7 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 16-bosqich yakunlandi.
+> **Holat:** 17-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
@@ -14,9 +14,10 @@ kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada
 > (buyurtma holatini boshqarish) va **AI Yordamchi** — oddiy tilda
 > yozilgan buyruqni tushunib to'lov, o'tkazma, **ovqat buyurtmasi va
 > Marketplace xaridini** tayyorlaydi, **Marketplace** — do'konlar,
-> toifalar, mahsulot qidiruvi, savat va zaxira nazorati, hamda
-> **sotuvchi kabineti** — do'kon egasi mahsulot qo'shadi, omborni
-> yuritadi va buyurtmalarni o'zi boshqaradi.
+> toifalar, mahsulot qidiruvi, savat va zaxira nazorati, **sotuvchi
+> kabineti** — do'kon egasi mahsulot qo'shadi, omborni yuritadi va
+> buyurtmalarni o'zi boshqaradi, hamda **kuryer moduli** — yetkazish
+> topshirig'i, umumiy ro'yxatdan ish olish va avtomatik haq.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -87,6 +88,7 @@ npm run dev
 | `npm run role:grant`        | Foydalanuvchiga rol beradi (birinchi adminni yaratish uchun)       |
 | `npm run restaurant:assign` | Restoranni egasiga biriktiradi (MERCHANT roli bilan)               |
 | `npm run shop:assign`       | Marketplace do'konini egasiga biriktiradi (MERCHANT roli bilan)    |
+| `npm run courier:assign`    | Foydalanuvchiga KURYER rolini beradi                               |
 | `npm run build`             | Production uchun yig'adi                                           |
 | `npm run start`             | Yig'ilgan ilovani ishga tushiradi                                  |
 | `npm run verify`            | Turlar + lint + testlar — hammasini birdan tekshiradi              |
@@ -981,6 +983,7 @@ Navix/
 │   │   ├── market/          # Marketplace (do'kon, mahsulot, zaxira)
 │   │   ├── merchant/        # Restoran kabineti (buyurtma holati, menyu)
 │   │   ├── seller/          # Sotuvchi kabineti (ombor, mahsulot, buyurtma)
+│   │   ├── courier/         # Kuryer moduli (topshiriq, bosqichlar, haq)
 │   │   └── admin/           # Admin panel (xizmatlar, foydalanuvchilar)
 │   ├── config/
 │   │   ├── modules.ts       # SUPER APP MODULLAR REYESTRI
@@ -1182,6 +1185,16 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 | GET   | `/orders/{id}`         | Bitta buyurtma                          |
 | PATCH | `/orders/{id}`         | Holatni o'zgartirish yoki rad etish     |
 
+**Kuryer kabineti** (`/api/v1/courier/...`)
+
+| Metod | Manzil                    | Tavsif                                     |
+| ----- | ------------------------- | ------------------------------------------ |
+| GET   | `/overview`               | Kunlik daromad va qo'ldagi topshiriqlar    |
+| GET   | `/deliveries`             | Topshiriqlar (`status=AVAILABLE` — umumiy) |
+| GET   | `/deliveries/{id}`        | Bitta topshiriq                            |
+| POST  | `/deliveries/{id}/accept` | Topshiriqni o'ziga olish                   |
+| PATCH | `/deliveries/{id}`        | Olib chiqish, topshirish yoki voz kechish  |
+
 ---
 
 ## Ovqat yetkazish
@@ -1316,6 +1329,10 @@ kunlab yo'lda bo'ladi. Buyurtma sahifasida bosqichlar chizig'i bor —
 > Endi buyurtma **"Qabul qilinmoqda"** holatida boshlanadi va uni
 > do'kon o'zi tasdiqlaydi. Aks holda xaridor "qabul qilindi" degan
 > yozuvni ko'rib turardi, do'kon esa buyurtmadan bexabar qolardi.
+>
+> **17-bosqichda ovqat ham shu tartibga o'tdi** — ikkala modulda
+> bitta qoida. Bundan tashqari yakuniy **"Yetkazildi"** ni endi
+> kabinet emas, KURYER qo'yadi.
 
 ---
 
@@ -1414,6 +1431,116 @@ ikkinchisi "holat o'zgardi, sahifani yangilang" xabarini oladi.
 Tekshirildi: bir vaqtda 5 ta tasdiqlashdan **roppa-rosa bittasi**
 o'tdi; 5 ta rad etishdan ham bittasi o'tdi va pul **bir marta**
 qaytdi.
+
+---
+
+## Kuryer moduli
+
+Manzil: `/courier`. Ilova ichida esa **Profil → Kuryer kabineti**
+(havola faqat kuryerlarga ko'rinadi).
+
+Kuryerga hech narsa biriktirilmaydi — u umumiy ro'yxatdan ish oladi.
+Shuning uchun faqat ROL beriladi:
+
+```bash
+npm run courier:assign -- 901234567
+npm run courier:assign -- 901234567 remove
+```
+
+### Qanday ishlaydi
+
+```
+Restoran "Yo'lga chiqarish"  ─┐
+                              ├─→  Topshiriq (EGASIZ)  →  Kuryer oladi
+Do'kon   "Yo'lga chiqarish"  ─┘         ↓
+                                   Olib chiqdi  →  Topshirdi
+                                                      ↓
+                                  Buyurtma "Yetkazildi" + haq yozildi
+```
+
+Ikkala modul bitta ro'yxatga tushadi: kuryer uchun ovqat bilan
+mahsulotning farqi deyarli yo'q — ikkalasini ham bir joydan olib,
+boshqa joyga eltish kerak.
+
+### Nima uchun ALOHIDA jadval
+
+`courierId` ni to'g'ridan-to'g'ri `food_orders` va `market_orders` ga
+qo'shish mumkin edi. Lekin unda kuryerga tegishli hamma narsa —
+qachon oldi, qachon olib chiqdi, qancha ishladi — **ikki jadvalda**
+takrorlanardi va har yangi modul uchinchi nusxani talab qilardi.
+
+`deliveries` jadvali "yetkazish" tushunchasini bir joyda saqlaydi.
+Buyurtma turi kuryer kabinetiga deyarli ahamiyatsiz.
+
+**Aynan bitta buyurtma** qoidasini baza qo'riqlaydi:
+
+```sql
+CHECK (("foodOrderId" IS NULL) <> ("marketOrderId" IS NULL))
+```
+
+Buni Prisma sxemasida ifodalab bo'lmaydi — ikkala ustun ham
+ixtiyoriy ko'rinadi. Dasturda tekshirish esa yetarli emas: ertaga
+qo'lda yozilgan SQL uni chetlab o'tishi mumkin.
+
+### Egalik ish jarayonida TUG'ILADI
+
+Do'kon va restoranda egalik oldindan ma'lum va o'zgarmaydi. Kuryerda
+esa topshiriq **egasiz** paydo bo'ladi va uni birinchi ulgurgan
+kuryer oladi. Shuning uchun olish — raqobatli amal:
+
+```sql
+UPDATE deliveries SET "courierId" = ?, status = 'ACCEPTED'
+WHERE id = ? AND "courierId" IS NULL AND status = 'OFFERED'
+```
+
+Nol qator o'zgarsa — kimdir ulgurgan. Tekshirildi: bir vaqtda 3 ta
+urinishdan **roppa-rosa bittasi** o'tdi.
+
+### Mijozning raqami — faqat egasiga
+
+Umumiy ro'yxatni har bir kuryer ko'radi. Agar javobda telefon bo'lsa,
+buyurtma bermagan o'nlab odam mijozning raqamini olardi. Ekranda
+yashirish yetarli emas — javobni to'g'ridan-to'g'ri o'qish mumkin.
+
+Shuning uchun raqam **serverda** kesiladi va faqat topshiriqni olgan
+kuryerga ochiladi. Manzil esa qoladi: kuryer "bu yo'nalish menga
+to'g'ri keladimi" degan qarorni usiz qabul qila olmaydi.
+
+### Voz kechish — bu jadvaldagi yagona "orqaga qadam"
+
+Buyurtma orqaga qaytmaydi. Topshiriq esa qaytadi: kuryerning
+mototsikli buzilishi mumkin va mijoz kutib qolgandan ko'ra boshqa
+kuryer olgani yaxshiroq.
+
+Lekin faqat buyurtma **hali olinmagan** bo'lsa. Mahsulot kuryerning
+qo'lida bo'lsa, uni javonga qaytarib bo'lmaydi.
+
+### Haq — `EARNING`, `REFUND` emas
+
+Yetkazilgach kuryerga haq yoziladi. U alohida tur:
+
+| Tur       | Ma'nosi                                              |
+| --------- | ---------------------------------------------------- |
+| `REFUND`  | "sizning pulingiz qaytarildi" — avval chiqim bo'lgan |
+| `EARNING` | "siz ishlab topdingiz" — hech qanday chiqim yo'q     |
+
+Kuryerning daromadi tarixda qaytarilgan pul bo'lib ko'rinsa, "bugun
+qancha ishladim?" degan savolga javob topib bo'lmasdi.
+
+Topshiriqning yakunlanishi, buyurtmaning yopilishi va haqning
+yozilishi — **bitta tranzaksiyada**. Topshiriq yopilib buyurtma
+"yo'lda" qolsa, mijoz hech qachon "yetkazildi" ni ko'rmaydi;
+buyurtma yopilib haq yozilmasa, kuryer bepul ishlagan bo'ladi.
+
+### Nima uchun xaritasiz
+
+Jonli kuzatuv xarita API kalitini talab qiladi va u pullik. Lekin
+yetkazishning asosiy qismi kalitsiz ham ishlaydi: kim oldi, nima
+olib ketilyapti, qayerga, mijozning telefoni va har bosqichdagi
+xabar.
+
+Xarita keyinchalik shu poydevor ustiga qo'shiladi — bosqichlar va
+jadval o'zgarmaydi.
 
 ---
 
@@ -1569,5 +1696,6 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **14-bosqich** — Marketplace: do'konlar, toifalar, mahsulotlar, savat, zaxira nazorati
 - [x] **15-bosqich** — AI Yordamchiga Marketplace'ni ulash: suhbat ichida xarid, zaxira nazorati
 - [x] **16-bosqich** — Sotuvchi kabineti: mahsulot qo'shish, ombor, buyurtma holati, rad etish
-- [ ] **17-bosqich** — Taksi moduli (xarita API kaliti kerak)
-- [ ] **18-bosqich** — Real to'lov integratsiyasi (Payme / Click)
+- [x] **17-bosqich** — Kuryer moduli: yetkazish topshirig'i, umumiy ro'yxat, avtomatik haq
+- [ ] **18-bosqich** — Taksi moduli (xarita API kaliti kerak)
+- [ ] **19-bosqich** — Real to'lov integratsiyasi (Payme / Click)

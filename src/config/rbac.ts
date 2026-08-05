@@ -46,6 +46,15 @@ export const Permission = {
   // Yetkazib berish
   DELIVERY_ORDER_CREATE: 'delivery:order:create',
   DELIVERY_ORDER_ACCEPT: 'delivery:order:accept',
+  /**
+   * Kuryer kabineti.
+   *
+   * `DELIVERY_ORDER_ACCEPT` dan alohida: qabul qilish — bitta AMAL,
+   * kabinet esa butun bo'lim (topshiriqlar, daromad, tarix). Ertaga
+   * dispetcher roli qo'shilsa, u kabinetni ko'radi-yu topshiriqni
+   * o'ziga ola olmaydi.
+   */
+  COURIER_DASHBOARD_ACCESS: 'delivery:dashboard:access',
 
   // Savdo
   CATALOG_PRODUCT_READ: 'commerce:product:read',
@@ -110,7 +119,11 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
 
   [Role.DRIVER]: [...CUSTOMER_PERMISSIONS, Permission.TAXI_RIDE_ACCEPT],
 
-  [Role.COURIER]: [...CUSTOMER_PERMISSIONS, Permission.DELIVERY_ORDER_ACCEPT],
+  [Role.COURIER]: [
+    ...CUSTOMER_PERMISSIONS,
+    Permission.DELIVERY_ORDER_ACCEPT,
+    Permission.COURIER_DASHBOARD_ACCESS,
+  ],
 
   [Role.MERCHANT]: [
     ...CUSTOMER_PERMISSIONS,

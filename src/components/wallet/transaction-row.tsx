@@ -1,6 +1,7 @@
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  Bike,
   CreditCard,
   Gift,
   RotateCcw,
@@ -11,15 +12,33 @@ import {
 import { formatRelativeUz } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
-import { TRANSACTION_TYPE_LABELS, type WalletTransaction } from '@/modules/wallet/wallet.types';
+import {
+  TRANSACTION_TYPE_LABELS,
+  type WalletTransaction,
+  type WalletTransactionType,
+} from '@/modules/wallet/wallet.types';
 
 /**
- * Amal ikonkalari.
+ * Ikonkalar jadvalidagi kalit.
  *
  * O'tkazma ikkiga ajratilgan: turi bir xil bo'lsa ham, yuboruvchi uchun
  * strelka yuqoriga (chiqim), qabul qiluvchi uchun pastga (kirim) qaraydi.
  */
-const TYPE_ICONS: Record<string, LucideIcon> = {
+type IconKey = Exclude<WalletTransactionType, 'TRANSFER'> | 'TRANSFER_in' | 'TRANSFER_out';
+
+/**
+ * Amal ikonkalari.
+ *
+ * ── Nima uchun kalit turi ANIQ ────────────────────────────────────────
+ * Ilgari bu `Record<string, LucideIcon>` edi. Shu sababli yangi amal
+ * turi (`EARNING`) qo'shilganda TypeScript jimgina o'tkazib yubordi,
+ * ijro paytida esa `Icon` `undefined` bo'lib butun tarix sahifasi
+ * ishlamay qoldi — xato haqiqiy brauzer sinovida topildi.
+ *
+ * Endi kalit turi aniq: yangi tur qo'shilib, ikonkasi yozilmasa,
+ * loyiha KOMPILYATSIYA bo'lmaydi.
+ */
+const TYPE_ICONS: Record<IconKey, LucideIcon> = {
   TOP_UP: CreditCard,
   WITHDRAWAL: ArrowUpRight,
   PAYMENT: ShoppingBag,
@@ -27,10 +46,10 @@ const TYPE_ICONS: Record<string, LucideIcon> = {
   TRANSFER_in: ArrowDownLeft,
   TRANSFER_out: ArrowUpRight,
   BONUS: Gift,
+  EARNING: Bike,
 };
 
-/** Ikonkalar jadvalidagi kalit. */
-function iconKey(transaction: WalletTransaction): string {
+function iconKey(transaction: WalletTransaction): IconKey {
   return transaction.type === 'TRANSFER' ? `TRANSFER_${transaction.direction}` : transaction.type;
 }
 
@@ -41,7 +60,9 @@ export interface TransactionRowProps {
 
 /** Tarixdagi bitta qator. */
 export function TransactionRow({ transaction, className }: TransactionRowProps) {
-  const Icon = TYPE_ICONS[iconKey(transaction)];
+  // Noma'lum tur kelsa ham sahifa ishlashda davom etsin: bazadagi eski
+  // yozuvda kutilmagan qiymat bo'lishi mumkin.
+  const Icon = TYPE_ICONS[iconKey(transaction)] ?? CreditCard;
   const isIncoming = transaction.direction === 'in';
   const isFailed = transaction.status === 'FAILED' || transaction.status === 'REVERSED';
 

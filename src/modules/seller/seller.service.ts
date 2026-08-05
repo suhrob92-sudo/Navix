@@ -12,6 +12,7 @@ import type { ServiceColor } from '@/config/modules';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { refundWallet } from '@/modules/wallet/wallet.service';
 import { canTransition, type MarketOrderStatusName } from '@/modules/market/market.types';
+import { assertDeliveryNotPending, createMarketDelivery } from '@/modules/courier/courier.service';
 import type {
   CreateSellerProductInput,
   SellerOrderQuery,
@@ -689,6 +690,7 @@ export async function updateSellerOrderStatus(
       orderNumber: true,
       status: true,
       total: true,
+      deliveryFee: true,
       userId: true,
       shop: { select: { name: true } },
       items: { select: { productId: true, quantity: true } },
@@ -715,20 +717,38 @@ export async function updateSellerOrderStatus(
 
   const now = new Date();
 
-  const updated = await prisma.marketOrder.updateMany({
-    // Eski holat sharti — raqobatdan himoya.
-    where: { id: order.id, status: order.status },
-    data: {
-      status: to as MarketOrderStatus,
-      ...(to === 'CONFIRMED' ? { confirmedAt: now } : {}),
-      ...(to === 'SHIPPED' ? { shippedAt: now } : {}),
-      ...(to === 'DELIVERED' ? { deliveredAt: now } : {}),
-    },
-  });
+  /**
+   * Holat o'zgarishi va kuryer topshirig'i BITTA tranzaksiyada.
+   *
+   * "Yo'lga chiqarish" bosilganda topshiriq ochiladi. Agar buyurtma
+   * yo'lga chiqib topshiriq yaratilmasa, uni hech bir kuryer
+   * ko'rmasdi va buyurtma jimgina osilib qolardi.
+   */
+  await prisma.$transaction(async (tx) => {
+    if (to === 'DELIVERED') {
+      // Yetkazilganini KURYER tasdiqlaydi — 17-bosqichdan beri.
+      await assertDeliveryNotPending(tx, { marketOrderId: order.id });
+    }
 
-  if (updated.count === 0) {
-    throw new ConflictError("Buyurtma holati o'zgardi. Sahifani yangilang.");
-  }
+    const updated = await tx.marketOrder.updateMany({
+      // Eski holat sharti — raqobatdan himoya.
+      where: { id: order.id, status: order.status },
+      data: {
+        status: to as MarketOrderStatus,
+        ...(to === 'CONFIRMED' ? { confirmedAt: now } : {}),
+        ...(to === 'SHIPPED' ? { shippedAt: now } : {}),
+        ...(to === 'DELIVERED' ? { deliveredAt: now } : {}),
+      },
+    });
+
+    if (updated.count === 0) {
+      throw new ConflictError("Buyurtma holati o'zgardi. Sahifani yangilang.");
+    }
+
+    if (to === 'SHIPPED') {
+      await createMarketDelivery(tx, { id: order.id, deliveryFee: order.deliveryFee });
+    }
+  });
 
   await recordAudit({
     actorId: userId,

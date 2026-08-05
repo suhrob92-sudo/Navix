@@ -18,6 +18,7 @@ import type {
 import type {
   FoodOrderView,
   MenuCategoryView,
+  OrderCourierView,
   RestaurantDetail,
   RestaurantListItem,
 } from '@/modules/food/food.types';
@@ -186,7 +187,35 @@ const ORDER_SELECT = {
     select: { id: true, name: true, unitPrice: true, quantity: true, lineTotal: true },
     orderBy: { name: 'asc' as const },
   },
+  delivery: {
+    select: {
+      status: true,
+      courier: { select: { firstName: true, lastName: true, phone: true } },
+    },
+  },
 } as const;
+
+/**
+ * Buyurtma sahifasida ko'rinadigan kuryer.
+ *
+ * Topshiriq ochilgan, lekin hali hech kim olmagan bo'lsa `null`
+ * qaytadi: "kuryer kutilmoqda" degan holatni ko'rsatish uchun
+ * bosqichlar chizig'ining o'zi yetarli, bo'sh ism esa chalg'itardi.
+ */
+function toCourierView(
+  delivery: {
+    status: string;
+    courier: { firstName: string | null; lastName: string | null; phone: string } | null;
+  } | null,
+): OrderCourierView | null {
+  if (!delivery?.courier) return null;
+
+  return {
+    name: [delivery.courier.firstName, delivery.courier.lastName].filter(Boolean).join(' ') || null,
+    phone: delivery.courier.phone,
+    status: delivery.status as OrderCourierView['status'],
+  };
+}
 
 type OrderRow = Prisma.FoodOrderGetPayload<{ select: typeof ORDER_SELECT }>;
 
@@ -218,6 +247,7 @@ function toOrderView(row: OrderRow): FoodOrderView {
       quantity: item.quantity,
       lineTotal: tiyinToNumber(item.lineTotal),
     })),
+    courier: toCourierView(row.delivery),
   };
 }
 
@@ -371,15 +401,24 @@ export async function createFoodOrder(
         restaurantId: restaurant.id,
         addressId: address.id,
         orderNumber,
-        // To'lov o'tgani — restoran buyurtmani qabul qilgani demak
-        // (hozircha simulyatsiya; real integratsiyada PENDING qoladi).
-        status: FoodOrderStatus.CONFIRMED,
+        /**
+         * Buyurtma RESTORAN TASDIG'INI kutadi.
+         *
+         * Bu qator uzoq vaqt `CONFIRMED` bo'lib turdi — o'shanda
+         * to'lov o'tgani qabul qilingan deb hisoblanardi. Natijada
+         * restoran kabinetidagi "Buyurtmani qabul qilish" tugmasi
+         * hech qachon ko'rinmasdi va oshxona yangi buyurtmani
+         * "kutilmoqda" ro'yxatida ko'ra olmasdi.
+         *
+         * Marketplace 16-bosqichda shu tartibga o'tdi; endi ovqat ham
+         * xuddi shunday ishlaydi — ikkala modulda bitta qoida.
+         */
+        status: FoodOrderStatus.PENDING,
         subtotal,
         deliveryFee: restaurant.deliveryFee,
         total,
         deliveryAddress: formatAddressLine(address),
         deliveryNote: input.deliveryNote ?? null,
-        confirmedAt: new Date(),
         items: { create: lines },
       },
       select: { id: true },

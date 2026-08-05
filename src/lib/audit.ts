@@ -68,6 +68,15 @@ export const AuditAction = {
   SELLER_PRODUCT_UPDATED: 'seller.product.updated',
   SELLER_SHOP_UPDATED: 'seller.shop.updated',
 
+  // Kuryer.
+  //
+  // Yetkazish — moliyaviy amal: yakunlanganda kuryerga haq yoziladi.
+  // "Kim topshirdi va qachon" degan savol nizoda birinchi so'raladi.
+  COURIER_DELIVERY_ACCEPTED: 'courier.delivery.accepted',
+  COURIER_DELIVERY_PICKED_UP: 'courier.delivery.picked_up',
+  COURIER_DELIVERY_COMPLETED: 'courier.delivery.completed',
+  COURIER_DELIVERY_RELEASED: 'courier.delivery.released',
+
   ADMIN_PROVIDER_CREATED: 'admin.provider.created',
   ADMIN_PROVIDER_UPDATED: 'admin.provider.updated',
   ADMIN_USER_STATUS_CHANGED: 'admin.user.status_changed',

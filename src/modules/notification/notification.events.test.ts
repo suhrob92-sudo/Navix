@@ -78,6 +78,22 @@ const SAMPLES = {
     amountTiyin: 429_000_000,
     reason: 'omborda topilmadi',
   },
+  'delivery.courier_assigned': {
+    orderUrl: '/orders/7c2f1b90-4f5e-4d1a-9c3e-2b8a6d5e4f10',
+    orderNumber: 'NVX-F-20260803-A1B2C3',
+    courierName: 'Jasur Toshmatov',
+    courierPhone: '+998 90 123 45 67',
+  },
+  'delivery.picked_up': {
+    orderUrl: '/orders/7c2f1b90-4f5e-4d1a-9c3e-2b8a6d5e4f10',
+    orderNumber: 'NVX-F-20260803-A1B2C3',
+    courierName: 'Jasur Toshmatov',
+  },
+  'courier.delivery_paid': {
+    deliveryId: '5a1b3c7d-9e2f-4a6b-8c1d-7e3f5a9b2c48',
+    orderNumber: 'NVX-F-20260803-A1B2C3',
+    amountTiyin: 1_000_000,
+  },
   'security.password_changed': { revokedSessions: 3 },
 } as const;
 

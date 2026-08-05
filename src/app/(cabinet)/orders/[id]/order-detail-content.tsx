@@ -4,6 +4,7 @@ import { Check, MapPin, MessageSquare, UtensilsCrossed } from 'lucide-react';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { OrderCourierCard } from '@/components/app/order-courier-card';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -139,6 +140,9 @@ export function OrderDetailContent({ orderId }: OrderDetailContentProps) {
                 </div>
               </dl>
             </section>
+
+            {/* Kuryer — topshiriq olingandan keyin paydo bo'ladi */}
+            {order.courier && <OrderCourierCard courier={order.courier} />}
 
             {/* Manzil */}
             <section className="bg-card border-border rounded-2xl border p-4">

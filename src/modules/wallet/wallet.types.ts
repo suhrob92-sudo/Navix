@@ -6,7 +6,14 @@
  * javob shakli shu yerda alohida tasvirlangan.
  */
 
-export type WalletTransactionType = 'TOP_UP' | 'WITHDRAWAL' | 'PAYMENT' | 'REFUND' | 'TRANSFER' | 'BONUS';
+export type WalletTransactionType =
+  | 'TOP_UP'
+  | 'WITHDRAWAL'
+  | 'PAYMENT'
+  | 'REFUND'
+  | 'TRANSFER'
+  | 'BONUS'
+  | 'EARNING';
 
 export type WalletTransactionStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REVERSED';
 
@@ -51,4 +58,5 @@ export const TRANSACTION_TYPE_LABELS: Record<WalletTransactionType, string> = {
   REFUND: 'Qaytarildi',
   TRANSFER: "O'tkazma",
   BONUS: 'Bonus',
+  EARNING: 'Daromad',
 };
