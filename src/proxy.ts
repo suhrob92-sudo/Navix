@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { PROTECTED_PREFIXES } from '@/config/protected-routes';
 import { REFRESH_COOKIE_NAME } from '@/modules/auth/auth.cookies';
 
 /**
@@ -21,34 +22,6 @@ import { REFRESH_COOKIE_NAME } from '@/modules/auth/auth.cookies';
  * yuklab o'tirmasdan darhol kirish sahifasiga yuboramiz. Shunda foydalanuvchi
  * bo'sh skeletni ko'rmaydi.
  */
-
-/** Kirish talab qiladigan sahifalar. */
-const PROTECTED_PREFIXES = [
-  '/dashboard',
-  '/welcome',
-  '/profile',
-  '/addresses',
-  '/devices',
-  '/notifications',
-  '/security',
-  '/wallet',
-  '/payments',
-  '/food',
-  '/orders',
-  '/marketplace',
-  '/merchant',
-  '/seller',
-  '/courier',
-  /**
-   * Admin panel.
-   *
-   * Bu yerda faqat "kirganmi?" tekshiriladi — ROL tekshiruvi bo'lmaydi,
-   * chunki rol tokenda va uni ochish uchun maxfiy kalit kerak (bu fayl
-   * har so'rovda ishlaydi, tez bo'lishi shart). Haqiqiy himoya
-   * `/api/v1/admin/*` endpointlarida: `requirePermission()`.
-   */
-  '/admin',
-];
 
 /** Kirgan foydalanuvchiga keraksiz sahifalar (kirish, ro'yxatdan o'tish). */
 const GUEST_ONLY_PATHS = ['/auth/login', '/auth/register'];

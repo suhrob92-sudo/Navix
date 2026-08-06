@@ -1,5 +1,7 @@
 import type { NextConfig } from 'next';
 
+import { protectedPathPatterns } from './src/config/protected-routes';
+
 /**
  * Xavfsizlik sarlavhalari (security headers).
  * Bular brauzerga "bu saytga qanday munosabatda bo'lish" kerakligini aytadi
@@ -66,7 +68,36 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['@prisma/adapter-pg', 'ioredis', 'pino', 'pino-pretty'],
 
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/:path*', headers: securityHeaders },
+
+      /**
+       * Kirish talab qiladigan sahifalarning HTML'i KESHLANMAYDI.
+       *
+       * ── Nima uchun ────────────────────────────────────────────────────
+       * Bu sahifalar "qobiq": serverda skelet chiziladi, ma'lumot esa
+       * brauzerdagi JavaScript orqali keladi.
+       *
+       * Yangi versiya chiqarilganda JavaScript fayllarining nomi
+       * o'zgaradi. Brauzerda ESKI HTML qolsa, u endi mavjud bo'lmagan
+       * fayllarni so'raydi (404) — JavaScript ishga tushmaydi va
+       * foydalanuvchi ABADIY skeletni ko'radi.
+       *
+       * Bu xato production'da haqiqatan yuz berdi: sahifa "qotib
+       * qolgandek" ko'rindi, jurnalda esa birorta API so'rovi yo'q edi —
+       * chunki so'rov qiladigan JavaScript umuman ishga tushmagan.
+       *
+       * `no-store` — brauzer ham, CDN ham saqlamaydi. Qobiq bir necha
+       * kilobayt, shuning uchun narxi arzimas; zarari esa katta edi.
+       *
+       * `private` — bu sahifalar SHAXSIY: umumiy keshda (masalan
+       * korporativ proksida) saqlanib, boshqa odamga ko'rinmasligi kerak.
+       */
+      ...protectedPathPatterns().map((source) => ({
+        source,
+        headers: [{ key: 'Cache-Control', value: 'private, no-store, max-age=0, must-revalidate' }],
+      })),
+    ];
   },
 };
 
