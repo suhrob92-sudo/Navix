@@ -3,7 +3,7 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 19-bosqich yakunlandi.
+> **Holat:** 20-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
@@ -20,7 +20,9 @@ kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada
 > topshirig'i, umumiy ro'yxatdan ish olish va avtomatik haq, **ovoz
 > bilan boshqarish** va yangi foydalanuvchi uchun **tanishtiruv**, hamda
 > **ish qidirish** — vakansiyalar katalogi, qidiruv va filtrlar, ariza
-> yuborish va arizalar tarixi.
+> yuborish va arizalar tarixi, hamda **ish beruvchi kabineti** — kompaniya
+> vakansiya joylaydi, nomzodlarni ko'rib chiqadi va suhbatga taklif
+> qiladi.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -92,6 +94,7 @@ npm run dev
 | `npm run restaurant:assign` | Restoranni egasiga biriktiradi (MERCHANT roli bilan)               |
 | `npm run shop:assign`       | Marketplace do'konini egasiga biriktiradi (MERCHANT roli bilan)    |
 | `npm run courier:assign`    | Foydalanuvchiga KURYER rolini beradi                               |
+| `npm run company:assign`    | Kompaniyani egasiga biriktiradi (EMPLOYER roli bilan)              |
 | `npm run build`             | Production uchun yig'adi                                           |
 | `npm run start`             | Yig'ilgan ilovani ishga tushiradi                                  |
 | `npm run verify`            | Turlar + lint + testlar — hammasini birdan tekshiradi              |
@@ -1076,6 +1079,7 @@ Navix/
 │   │   ├── seller/          # Sotuvchi kabineti (ombor, mahsulot, buyurtma)
 │   │   ├── courier/         # Kuryer moduli (topshiriq, bosqichlar, haq)
 │   │   ├── job/             # Ish qidirish (vakansiya, filtr, ariza)
+│   │   ├── employer/        # Ish beruvchi kabineti (e'lon, nomzod, qaror)
 │   │   ├── onboarding/      # Tanishtiruv slaydlari
 │   │   └── admin/           # Admin panel (xizmatlar, foydalanuvchilar)
 │   ├── config/
@@ -1104,6 +1108,7 @@ Navix/
 ├── scripts/                 # Yordamchi skriptlar (share, url, otp, dev:stop)
 │   ├── grant-role.ts        # Foydalanuvchiga rol berish (birinchi admin)
 │   ├── assign-restaurant.ts # Restoranni egasiga biriktirish
+│   ├── assign-company.ts    # Kompaniyani egasiga biriktirish (EMPLOYER roli)
 │   ├── update.mjs           # Kodni xavfsiz yangilash
 │   ├── env-setup.mjs        # Production sozlamalarini yozish
 │   ├── deploy-check.mjs     # Production tayyorligini tekshirish
@@ -1301,6 +1306,18 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 | GET   | `/applications`               | Mening arizalarim (`status=ACTIVE` — javob kutilayotganlar) |
 | POST  | `/applications`               | Ariza yuborish (telefon profildan olinadi)   |
 | POST  | `/applications/{id}/withdraw` | Arizani qaytarib olish                       |
+
+**Ish beruvchi kabineti** (`/api/v1/employer/...`)
+
+| Metod | Manzil               | Tavsif                                              |
+| ----- | -------------------- | --------------------------------------------------- |
+| GET   | `/companies`         | Mening kompaniyalarim va ko'rsatkichlar             |
+| GET   | `/vacancies`         | Mening e'lonlarim (ochiq va yopiq)                  |
+| POST  | `/vacancies`         | Yangi e'lon joylash                                 |
+| GET   | `/vacancies/{id}`    | Bitta e'lon                                         |
+| PATCH | `/vacancies/{id}`    | Tahrirlash, yopish yoki qayta ochish                |
+| GET   | `/applications`      | Kelgan arizalar (`status=PENDING` — javob kutayotganlar) |
+| PATCH | `/applications/{id}` | Qaror: ko'rildi, suhbatga taklif yoki rad etish     |
 
 ---
 
@@ -1756,6 +1773,94 @@ bo'limida).
 
 ---
 
+## Ish beruvchi kabineti
+
+Manzil: `/employer`. Kompaniya egasi shu yerda e'lon joylaydi va
+nomzodlarni ko'rib chiqadi.
+
+Kabinet OCHILADI, lekin o'zi ochilmaydi: kompaniya biriktirilishi
+kerak.
+
+```
+npm run company:assign -- texnomart 901234567
+```
+
+Bu buyruq kompaniyani odamga biriktiradi va `EMPLOYER` rolini
+beradi. Ilovadan chiqib qaytadan kirish shart — rol kirish tokeniga
+yoziladi.
+
+### Nima uchun buyruq orqali, ilova ichidan emas
+
+Bu kabinet nomzodlarning TELEFON RAQAMLARINI ochadi. "O'zim ish
+beruvchiman" deb tugma bosib bunday huquqni olish mumkin
+bo'lmasligi kerak — kompaniya haqiqiyligi tekshiriladi va shartnoma
+imzolanadi.
+
+Restoran va do'kon biriktirish bilan bir xil mantiq.
+
+### Nima uchun ALOHIDA rol
+
+`MERCHANT` roli allaqachon bor edi va unga qo'shib qo'yish oson
+edi. Lekin mahsulot sotadigan do'kon bilan odam yollaydigan
+kompaniya — ikki xil biznes.
+
+Bitta ruxsat ikkinchisini ochib yuborsa, har bir do'kon egasi
+begona kompaniyaning nomzodlari ro'yxatini ko'radigan bo'lardi.
+Shuning uchun `EMPLOYER` alohida rol va unda savdo ruxsatlari
+umuman yo'q.
+
+### Uchta chegara
+
+**1. Egalik har bir amalda tekshiriladi.** Tekshiruv mijoz yuborgan
+ID'ga emas, tokendagi foydalanuvchiga tayanadi: har so'rovda
+`company.ownerId = userId` sharti qo'yiladi. Begona ID "topilmadi"
+qaytaradi — boshqa kompaniya mavjudligini ham oshkor qilmaymiz.
+
+**2. Telefon raqami faqat e'lon egasiga.** Nomzodning raqami
+`vacancy.company.ownerId` tekshiruvidan o'tgandan keyingina
+qaytariladi. Har bir qaror auditga yoziladi: aynan o'sha daqiqada
+ish beruvchi raqamni ko'rgan bo'ladi, va shikoyat kelsa "kim,
+qachon, kimning ma'lumotini ochdi" degan savolga javob shu yerdan
+topiladi.
+
+**3. Qarorni qaytarib bo'lmaydi.** "Suhbatga taklif" va "rad etish"
+— yakuniy javob. Nomzod allaqachon xabar olgan, shuning uchun uni
+jimgina o'zgartirish mumkin emas. Buni `APPLICATION_TRANSITIONS`
+jadvali hal qiladi — nomzod tomonidagi bilan AYNI jadval.
+
+Ish beruvchi `WITHDRAWN` holatini qo'ya olmaydi: arizani faqat
+nomzodning o'zi qaytarib oladi. Aks holda noqulay nomzodni "o'zi
+qaytarib olgan" qilib ko'rsatib qo'yish mumkin bo'lardi.
+
+### E'lon O'CHIRILMAYDI, yopiladi
+
+O'chirish tugmasi ataylab yo'q. U bilan birga arizalar ham
+yo'qolardi — nomzodlar esa javob kutib turishibdi.
+
+Yopilgan e'lon katalogdan chiqadi, arizalar joyida qoladi va
+ularga javob berish mumkin.
+
+### Nomzodga qachon xabar boradi
+
+| Qaror              | Xabar |
+| ------------------ | ----- |
+| Ko'rib chiqilmoqda | yo'q  |
+| Suhbatga taklif    | ha    |
+| Rad etildi         | ha    |
+
+"Ko'rib chiqilmoqda" — bu hali javob emas. Har ochilganda xabar
+yuborilsa, nomzodning bildirishnomalari foydasiz matnga to'lib
+ketardi va haqiqiy javob ular orasida ko'rinmay qolardi.
+
+Rad javobi esa YUBORILADI. Jimlik eng yomon javob: nomzod haftalab
+kutadi va boshqa ish qidirmaydi.
+
+Suhbatga taklifda ish beruvchining izohi xabar matniga qo'shiladi —
+odatda aynan u yerda "ertaga soat 10 da keling" deb yoziladi va uni
+yashirish xabarni foydasiz qilardi.
+
+---
+
 ## Shaxsiy kabinet
 
 Kirgan foydalanuvchi `/dashboard` sahifasiga tushadi. Kabinet sahifalari:
@@ -1966,7 +2071,7 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **17-bosqich** — Kuryer moduli: yetkazish topshirig'i, umumiy ro'yxat, avtomatik haq
 - [x] **18-bosqich** — AI Yordamchi: tanishtiruv, ovoz bilan boshqarish, rost javoblar
 - [x] **19-bosqich** — Ish qidirish: vakansiyalar, qidiruv va filtrlar, ariza, arizalar tarixi
-- [ ] **20-bosqich** — Ish beruvchi kabineti: vakansiya joylash, arizalarni ko'rib chiqish
+- [x] **20-bosqich** — Ish beruvchi kabineti: vakansiya joylash, nomzodlar, suhbatga taklif
 - [ ] **21-bosqich** — SMS xizmati (Eskiz.uz) — busiz begona odam ro'yxatdan o'ta olmaydi
 - [ ] **22-bosqich** — Taksi moduli (xarita API kaliti kerak)
 - [ ] **23-bosqich** — Real to'lov integratsiyasi (Payme / Click)

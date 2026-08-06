@@ -50,6 +50,7 @@ export const PROTECTED_PREFIXES = [
   '/merchant',
   '/seller',
   '/courier',
+  '/employer',
   /**
    * Admin panel.
    *

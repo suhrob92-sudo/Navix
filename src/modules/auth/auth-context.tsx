@@ -150,8 +150,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Tashqi tizim (server) bilan sinxronlash: holat faqat asinxron so'rov
     // tugagach o'zgaradi, shuning uchun ketma-ket (cascading) render bo'lmaydi.
-    // Lint qoidasi asinxron chegarani ko'ra olmaydi, shuning uchun o'chiramiz.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh().finally(() => {
       if (!cancelled) setIsLoading(false);
     });

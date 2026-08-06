@@ -77,6 +77,22 @@ export const Permission = {
    * mos kelgan do'konlarni ko'rsatadi.
    */
   SELLER_DASHBOARD_ACCESS: 'business:shop:access',
+
+  /**
+   * Ish beruvchi kabineti.
+   *
+   * Sotuvchi kabinetidan ALOHIDA va bu ataylab: mahsulot sotadigan
+   * do'kon bilan odam yollaydigan kompaniya — ikki xil biznes.
+   * Bittasiga ruxsat berish ikkinchisini ochib yubormasligi kerak,
+   * aks holda har bir do'kon egasi begona kompaniyaning nomzodlari
+   * ro'yxatini ko'radigan bo'lardi.
+   *
+   * Haqiqiy chegara baribir EGALIKDA: kabinet faqat
+   * `company.ownerId` mos kelgan kompaniyalarni ko'rsatadi.
+   */
+  EMPLOYER_DASHBOARD_ACCESS: 'business:employer:access',
+  /** Vakansiya joylash va tahrirlash. */
+  EMPLOYER_VACANCY_MANAGE: 'business:vacancy:manage',
 } as const;
 
 export type PermissionValue = (typeof Permission)[keyof typeof Permission];
@@ -90,6 +106,8 @@ export const Role = {
   COURIER: 'COURIER',
   /** Sotuvchi / do'kon egasi. */
   MERCHANT: 'MERCHANT',
+  /** Ish beruvchi — kompaniya nomidan vakansiya joylaydi. */
+  EMPLOYER: 'EMPLOYER',
   /** Qo'llab-quvvatlash xodimi. */
   SUPPORT: 'SUPPORT',
   /** Platforma administratori. */
@@ -135,6 +153,18 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
   ],
 
   /**
+   * Ish beruvchida SAVDO ruxsatlari yo'q.
+   *
+   * U mahsulot ham sotmaydi, buyurtma ham boshqarmaydi — faqat
+   * vakansiya joylaydi va arizalarni ko'rib chiqadi.
+   */
+  [Role.EMPLOYER]: [
+    ...CUSTOMER_PERMISSIONS,
+    Permission.EMPLOYER_DASHBOARD_ACCESS,
+    Permission.EMPLOYER_VACANCY_MANAGE,
+  ],
+
+  /**
    * Qo'llab-quvvatlash xodimi admin panelga kiradi, lekin faqat
    * KO'RISH uchun: provayder tahrirlash va bloklash unda yo'q.
    */
@@ -161,6 +191,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
     Permission.ORDER_MANAGE,
     Permission.MERCHANT_DASHBOARD_ACCESS,
     Permission.SELLER_DASHBOARD_ACCESS,
+    Permission.EMPLOYER_DASHBOARD_ACCESS,
+    Permission.EMPLOYER_VACANCY_MANAGE,
   ],
 
   [Role.SUPER_ADMIN]: Object.values(Permission),

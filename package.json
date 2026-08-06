@@ -33,6 +33,7 @@
     "restaurant:assign": "tsx scripts/assign-restaurant.ts",
     "shop:assign": "tsx scripts/assign-shop.ts",
     "courier:assign": "tsx scripts/assign-courier.ts",
+    "company:assign": "tsx scripts/assign-company.ts",
     "env:setup": "node scripts/env-setup.mjs",
     "deploy:check": "node scripts/deploy-check.mjs",
     "deploy:db": "node scripts/deploy-db.mjs",

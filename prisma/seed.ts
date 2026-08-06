@@ -31,6 +31,7 @@ const ROLE_DESCRIPTIONS: Record<RoleName, string> = {
   DRIVER: 'Taksi haydovchisi — safar buyurtmalarini qabul qiladi',
   COURIER: 'Kuryer — yetkazib berish buyurtmalarini bajaradi',
   MERCHANT: "Sotuvchi — do'kon va mahsulotlarni boshqaradi",
+  EMPLOYER: "Ish beruvchi — vakansiya joylaydi va nomzodlarni ko'rib chiqadi",
   SUPPORT: "Qo'llab-quvvatlash xodimi — murojaatlarni hal qiladi",
   ADMIN: 'Administrator — platformani boshqaradi',
   SUPER_ADMIN: 'Bosh administrator — barcha ruxsatlarga ega',
@@ -62,6 +63,9 @@ const PERMISSION_DESCRIPTIONS: Record<string, string> = {
   [Permission.ORDER_MANAGE]: 'Buyurtmalarni boshqarish',
   [Permission.MERCHANT_DASHBOARD_ACCESS]: 'Biznes kabinetga kirish',
   [Permission.MERCHANT_STAFF_MANAGE]: 'Biznes xodimlarini boshqarish',
+  [Permission.SELLER_DASHBOARD_ACCESS]: 'Sotuvchi kabinetiga kirish',
+  [Permission.EMPLOYER_DASHBOARD_ACCESS]: 'Ish beruvchi kabinetiga kirish',
+  [Permission.EMPLOYER_VACANCY_MANAGE]: 'Vakansiya joylash va tahrirlash',
 };
 
 function createClient(): PrismaClient {

@@ -96,6 +96,19 @@ export interface NotificationEventData {
     vacancyTitle: string;
     companyName: string;
   };
+  'job.application_invited': {
+    applicationId: string;
+    vacancyTitle: string;
+    companyName: string;
+    /** Ish beruvchining izohi — bo'lmasligi mumkin. */
+    note: string | null;
+  };
+  'job.application_rejected': {
+    applicationId: string;
+    vacancyTitle: string;
+    companyName: string;
+    note: string | null;
+  };
   'security.password_changed': { revokedSessions: number };
 }
 
@@ -306,6 +319,37 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
   'job.application_sent': ({ vacancyTitle, companyName }) => ({
     title: 'Ariza yuborildi',
     body: `${companyName} — "${vacancyTitle}" lavozimiga arizangiz yuborildi. Javobni shu yerda kuting.`,
+    actionUrl: '/jobs/applications',
+    sourceModule: 'jobs',
+  }),
+
+  /**
+   * Suhbatga taklif — moduldagi eng kutilgan xabar.
+   *
+   * Ish beruvchining izohi bo'lsa, u MATNGA qo'shiladi: odatda
+   * aynan shu yerda "ertaga soat 10 da keling" deb yoziladi va uni
+   * yashirish xabarni foydasiz qilardi.
+   */
+  'job.application_invited': ({ vacancyTitle, companyName, note }) => ({
+    title: 'Sizni suhbatga taklif qilishdi',
+    body: note
+      ? `${companyName} — "${vacancyTitle}". ${note}`
+      : `${companyName} — "${vacancyTitle}" lavozimi bo'yicha siz bilan bog'lanishadi.`,
+    actionUrl: '/jobs/applications',
+    sourceModule: 'jobs',
+  }),
+
+  /**
+   * Rad javobi ham YUBORILADI.
+   *
+   * Jimlik eng yomon javob: nomzod haftalab kutadi va boshqa ish
+   * qidirmaydi. Aniq javob esa uni oldinga qo'yib yuboradi.
+   */
+  'job.application_rejected': ({ vacancyTitle, companyName, note }) => ({
+    title: 'Ariza bo\'yicha javob keldi',
+    body: note
+      ? `${companyName} — "${vacancyTitle}". ${note}`
+      : `${companyName} — "${vacancyTitle}" lavozimiga bu safar boshqa nomzod tanlandi. Boshqa e'lonlarni ko'rib chiqing.`,
     actionUrl: '/jobs/applications',
     sourceModule: 'jobs',
   }),

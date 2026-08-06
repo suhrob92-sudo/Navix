@@ -99,6 +99,18 @@ const SAMPLES = {
     vacancyTitle: 'Frontend dasturchi (React)',
     companyName: 'Navix Tech',
   },
+  'job.application_invited': {
+    applicationId: '2b8c4f61-7a3d-4e5b-9c2f-1d6e8a4b7c93',
+    vacancyTitle: 'Frontend dasturchi (React)',
+    companyName: 'Navix Tech',
+    note: 'Ertaga soat 10:00 da ofisimizga keling.',
+  },
+  'job.application_rejected': {
+    applicationId: '2b8c4f61-7a3d-4e5b-9c2f-1d6e8a4b7c93',
+    vacancyTitle: 'Frontend dasturchi (React)',
+    companyName: 'Navix Tech',
+    note: null,
+  },
   'security.password_changed': { revokedSessions: 3 },
 } as const;
 

@@ -1,6 +1,16 @@
 'use client';
 
-import { Bike, ChevronRight, LayoutGrid, LogOut, ShieldCheck, ShoppingBag, Store, Wallet } from 'lucide-react';
+import {
+  Bike,
+  Briefcase,
+  ChevronRight,
+  LayoutGrid,
+  LogOut,
+  ShieldCheck,
+  ShoppingBag,
+  Store,
+  Wallet,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -54,6 +64,7 @@ export function ProfileContent() {
   const isMerchant = hasPermission(user?.roles ?? [], Permission.MERCHANT_DASHBOARD_ACCESS);
   const isSeller = hasPermission(user?.roles ?? [], Permission.SELLER_DASHBOARD_ACCESS);
   const isCourier = hasPermission(user?.roles ?? [], Permission.COURIER_DASHBOARD_ACCESS);
+  const isEmployer = hasPermission(user?.roles ?? [], Permission.EMPLOYER_DASHBOARD_ACCESS);
 
   const { data, isLoading, error } = useApiQuery<ProfileResponse>('/api/v1/profile');
   const wallet = useApiQuery<WalletSummary>('/api/v1/wallet');
@@ -217,6 +228,25 @@ export function ProfileContent() {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium">Kuryer kabineti</p>
               <p className="text-muted-foreground text-xs">Topshiriqlar va kunlik daromad</p>
+            </div>
+
+            <ChevronRight className="text-muted-foreground size-5 shrink-0" aria-hidden="true" />
+          </Link>
+        )}
+
+        {/* Ish beruvchi kabineti — faqat kompaniya egalariga */}
+        {isEmployer && (
+          <Link
+            href="/employer"
+            className="bg-card border-border flex items-center gap-3 rounded-2xl border p-4 transition-transform active:scale-[0.99]"
+          >
+            <span className="inline-flex size-11 items-center justify-center rounded-xl bg-sky-100 text-sky-600 dark:bg-sky-400/15 dark:text-sky-400">
+              <Briefcase className="size-5" aria-hidden="true" />
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium">Ish beruvchi kabineti</p>
+              <p className="text-muted-foreground text-xs">E&apos;lonlar va nomzodlar</p>
             </div>
 
             <ChevronRight className="text-muted-foreground size-5 shrink-0" aria-hidden="true" />

@@ -85,6 +85,20 @@ export const AuditAction = {
   JOB_APPLICATION_SENT: 'job.application.sent',
   JOB_APPLICATION_WITHDRAWN: 'job.application.withdrawn',
 
+  /**
+   * Ish beruvchining amallari.
+   *
+   * `REVIEWED` alohida yoziladi: aynan shu daqiqada ish beruvchi
+   * nomzodning telefon raqamini KO'RGAN bo'ladi. Shikoyat kelsa,
+   * "kim, qachon, kimning ma'lumotini ochdi" degan savolga javob
+   * shu yerdan topiladi.
+   */
+  JOB_VACANCY_CREATED: 'job.vacancy.created',
+  JOB_VACANCY_UPDATED: 'job.vacancy.updated',
+  JOB_APPLICATION_REVIEWED: 'job.application.reviewed',
+  EMPLOYER_ASSIGNED: 'employer.assigned',
+  EMPLOYER_UNASSIGNED: 'employer.unassigned',
+
   ADMIN_PROVIDER_CREATED: 'admin.provider.created',
   ADMIN_PROVIDER_UPDATED: 'admin.provider.updated',
   ADMIN_USER_STATUS_CHANGED: 'admin.user.status_changed',
