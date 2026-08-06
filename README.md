@@ -3,7 +3,7 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 18-bosqich yakunlandi.
+> **Holat:** 19-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
@@ -17,9 +17,10 @@ kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada
 > toifalar, mahsulot qidiruvi, savat va zaxira nazorati, **sotuvchi
 > kabineti** — do'kon egasi mahsulot qo'shadi, omborni yuritadi va
 > buyurtmalarni o'zi boshqaradi, **kuryer moduli** — yetkazish
-> topshirig'i, umumiy ro'yxatdan ish olish va avtomatik haq, hamda
-> **ovoz bilan boshqarish** va yangi foydalanuvchi uchun
-> **tanishtiruv**.
+> topshirig'i, umumiy ro'yxatdan ish olish va avtomatik haq, **ovoz
+> bilan boshqarish** va yangi foydalanuvchi uchun **tanishtiruv**, hamda
+> **ish qidirish** — vakansiyalar katalogi, qidiruv va filtrlar, ariza
+> yuborish va arizalar tarixi.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -1074,6 +1075,7 @@ Navix/
 │   │   ├── merchant/        # Restoran kabineti (buyurtma holati, menyu)
 │   │   ├── seller/          # Sotuvchi kabineti (ombor, mahsulot, buyurtma)
 │   │   ├── courier/         # Kuryer moduli (topshiriq, bosqichlar, haq)
+│   │   ├── job/             # Ish qidirish (vakansiya, filtr, ariza)
 │   │   ├── onboarding/      # Tanishtiruv slaydlari
 │   │   └── admin/           # Admin panel (xizmatlar, foydalanuvchilar)
 │   ├── config/
@@ -1082,6 +1084,8 @@ Navix/
 │   │   ├── service-providers.ts # To'lov xizmatlari (seed manbasi)
 │   │   ├── restaurants.ts   # Restoranlar va menyu (seed manbasi)
 │   │   ├── marketplace.ts   # Do'konlar va mahsulotlar (seed manbasi)
+│   │   ├── jobs.ts          # Kompaniyalar va vakansiyalar (seed manbasi)
+│   │   ├── protected-routes.ts # Kirish talab qiladigan sahifalar (yagona ro'yxat)
 │   │   ├── app-nav.ts       # Ilova navigatsiyasi
 │   │   ├── admin-nav.ts     # Admin panel navigatsiyasi
 │   │   ├── cabinet-nav.ts   # Kabinet navigatsiyasi
@@ -1285,6 +1289,18 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 | GET   | `/deliveries/{id}`        | Bitta topshiriq                            |
 | POST  | `/deliveries/{id}/accept` | Topshiriqni o'ziga olish                   |
 | PATCH | `/deliveries/{id}`        | Olib chiqish, topshirish yoki voz kechish  |
+
+**Ish qidirish** (`/api/v1/jobs/...`)
+
+| Metod | Manzil                        | Tavsif                                       |
+| ----- | ----------------------------- | -------------------------------------------- |
+| GET   | `/categories`                 | Yo'nalishlar (har birida nechta vakansiya)   |
+| GET   | `/cities`                     | Vakansiya bor shaharlar (filtr uchun)        |
+| GET   | `/vacancies`                  | Qidiruv, filtrlar va saralash                |
+| GET   | `/vacancies/{slug}`           | Bitta vakansiya va o'xshash e'lonlar         |
+| GET   | `/applications`               | Mening arizalarim (`status=ACTIVE` — javob kutilayotganlar) |
+| POST  | `/applications`               | Ariza yuborish (telefon profildan olinadi)   |
+| POST  | `/applications/{id}/withdraw` | Arizani qaytarib olish                       |
 
 ---
 
@@ -1635,6 +1651,111 @@ jadval o'zgarmaydi.
 
 ---
 
+## Ish qidirish
+
+Manzil: `/jobs`. Oqim: **vakansiyalar → qidiruv va filtr → e'lon →
+ariza → arizalarim**.
+
+Bu modulda **pul yo'q** — va bu tasodif emas. Ovqat, Marketplace va
+kuryerda har amal hamyonga tegardi, shuning uchun u yerlarda
+idempotentlik kaliti, tranzaksiya va pulni qaytarish mexanizmi kerak
+edi. Bu yerda ular ataylab qo'shilmadi: keraksiz murakkablik kodni
+tushunishni qiyinlashtiradi.
+
+### Maosh — eng muhim raqam
+
+Ish qidiruvchi e'lonni ochishdan oldin bitta savolga javob qidiradi:
+qancha to'lanadi. Shuning uchun maosh kartochkada eng katta yozilgan.
+
+To'rtta holat bor va har biri boshqacha o'qiladi:
+
+| Bazadagi qiymat            | Ekranda                       |
+| -------------------------- | ----------------------------- |
+| `salaryMin` va `salaryMax` | `3 000 000 – 5 000 000 so'm`  |
+| faqat `salaryMin`          | `3 000 000 so'mdan`           |
+| faqat `salaryMax`          | `5 000 000 so'mgacha`         |
+| ikkalasi ham `null`        | `Kelishilgan`                 |
+
+Oxirgi qator eng muhimi. Agar `null` o'rniga nol chizilsa, ekranda
+"0 so'm" paydo bo'lardi — ya'ni "bepul ishlang". Shuning uchun buni
+bitta funksiya bajaradi (`formatSalary`) va u test bilan qo'riqlanadi.
+
+Maosh boshqa hamma joydagi kabi **tiyinda** saqlanadi. Filtrda esa
+so'mda so'raladi: manzil satrida `minSalarySom=3000000` yozuvi
+odamga tushunarli, `300000000` esa yo'q.
+
+Maosh bo'yicha saralashda "Kelishilgan" e'lonlar **oxirida** turadi —
+aks holda ular eng qimmat e'lonlar bilan aralashib, ro'yxat
+ma'nosini yo'qotardi.
+
+### Bitta e'longa bitta ariza
+
+Nomzod bir e'longa o'nlab ariza yuborishi mumkin edi: tugmani ikki
+marta bosish yoki ikkita ochiq varaq yetarli. Buni dasturda
+tekshirish esa yetmaydi — ikki so'rov bir vaqtda kelsa, ikkalasi ham
+"hali yo'q" deb ko'radi.
+
+Shuning uchun qoidani **baza** qo'riqlaydi:
+
+```prisma
+@@unique([vacancyId, userId])
+```
+
+Ikkinchi yozuv UNIQUE xatosiga uchraydi va biz uni tushunarli
+xabarga aylantiramiz: *"Siz bu vakansiyaga allaqachon ariza
+yuborgansiz"*. Bu — hamyondagi idempotentlik kaliti bilan bir xil
+naqsh.
+
+Arizani qaytarib olganda yozuv **o'chirilmaydi**, holati
+`WITHDRAWN` ga o'zgaradi. Shunda cheklov kuchda qoladi va nomzod
+yubor-qaytar qilib ish beruvchini bezovta qila olmaydi.
+
+### Telefon raqami so'rovdan KELMAYDI
+
+Ariza yuborishda mijozdan faqat qisqa xat qabul qilinadi. Kim
+yuborayotgani tokendan, telefon raqami esa profildan olinadi.
+
+Aks holda begona odam nomidan ariza yuborish yoki boshqa odamning
+raqamini yozib, uni keraksiz qo'ng'iroqqa ko'mib tashlash mumkin
+bo'lardi. Buni test alohida qo'riqlaydi: `contactPhone` va `userId`
+so'rov tanasidan **tashlab yuboriladi**.
+
+Raqam ariza yozuviga nusxa qilinadi: nomzod keyinchalik uni
+o'zgartirsa ham, ish beruvchi ariza kelgan paytdagi raqamga
+qo'ng'iroq qiladi.
+
+Ariza oynasida bu ochiq yoziladi — foydalanuvchi nima
+ulashayotganini bilib turishi kerak.
+
+### Ariza holatlari
+
+| Holat       | Ma'nosi              | Kimning amali |
+| ----------- | -------------------- | ------------- |
+| `SENT`      | Yuborildi            | nomzod        |
+| `VIEWED`    | Ko'rib chiqilmoqda   | ish beruvchi  |
+| `INVITED`   | Suhbatga taklif      | ish beruvchi  |
+| `REJECTED`  | Rad etildi           | ish beruvchi  |
+| `WITHDRAWN` | Qaytarib olindi      | nomzod        |
+
+Oxirgi uchtasi — **yakuniy**. Ulardan hech qayerga chiqib
+bo'lmaydi: aks holda ish beruvchi "suhbatga taklif" ni jimgina "rad
+etildi" ga o'zgartirib qo'yishi mumkin bo'lardi va nomzod nima
+bo'lganini tushunmasdi.
+
+Nomzod arizani faqat javob kelmagunicha qaytarib ola oladi.
+
+### Vakansiyalar qayerdan keladi
+
+`src/config/jobs.ts` — 8 ta yo'nalish, 5 ta kompaniya va 11 ta
+vakansiya. Restoran va do'konlar kabi, bu ham seed manbasi:
+`npm run db:seed` uni bazaga yozadi.
+
+Qidiruv apostrofga bog'liq emas: `o'qituvchi` ham, `oqituvchi` ham
+bir xil natija beradi (sababi quyidagi "Apostrof muammosi"
+bo'limida).
+
+---
+
 ## Shaxsiy kabinet
 
 Kirgan foydalanuvchi `/dashboard` sahifasiga tushadi. Kabinet sahifalari:
@@ -1709,6 +1830,24 @@ token saqlash XSS hujumida uni o'g'irlanishiga olib keladi. Refresh token esa
 Har safar `/refresh` chaqirilganda refresh token ham yangisiga almashtiriladi.
 Agar eski token qayta ishlatilsa — bu o'g'irlik belgisi, shuning uchun sessiya
 darhol bekor qilinadi.
+
+**19-bosqichda topilgan xato.** Bu himoya to'g'ri, lekin u brauzer
+tomonida bitta shartni talab qiladi: yangilash so'rovi bir vaqtda
+**faqat bitta** bo'lishi kerak. Aks holda:
+
+```
+1-so'rov  →  yangi token oldi        (eskisi yaroqsiz bo'ldi)
+2-so'rov  →  ESKI token bilan keldi  →  "o'g'irlik!" → sessiya yopildi
+```
+
+Natijada foydalanuvchi hech narsa qilmasdan tizimdan chiqib qolardi.
+Xato brauzer sinovida ushlandi: `/jobs` sahifasi uchta so'rovni bir
+vaqtda yuboradi (yo'nalishlar, shaharlar, vakansiyalar) va token
+eskirgan paytda uchalasi ham yangilashni boshlab yubordi.
+
+Yechim `AuthProvider` da: yangilash so'rovi bitta va qolgan
+chaqiruvlar o'sha so'rovning natijasini kutadi. Serverdagi himoya
+o'z kuchida qoldi — u haqiqiy o'g'irlikni baribir ushlaydi.
 
 ### Himoya choralari
 
@@ -1789,5 +1928,8 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **16-bosqich** — Sotuvchi kabineti: mahsulot qo'shish, ombor, buyurtma holati, rad etish
 - [x] **17-bosqich** — Kuryer moduli: yetkazish topshirig'i, umumiy ro'yxat, avtomatik haq
 - [x] **18-bosqich** — AI Yordamchi: tanishtiruv, ovoz bilan boshqarish, rost javoblar
-- [ ] **19-bosqich** — Taksi moduli (xarita API kaliti kerak)
-- [ ] **20-bosqich** — Real to'lov integratsiyasi (Payme / Click)
+- [x] **19-bosqich** — Ish qidirish: vakansiyalar, qidiruv va filtrlar, ariza, arizalar tarixi
+- [ ] **20-bosqich** — Ish beruvchi kabineti: vakansiya joylash, arizalarni ko'rib chiqish
+- [ ] **21-bosqich** — SMS xizmati (Eskiz.uz) — busiz begona odam ro'yxatdan o'ta olmaydi
+- [ ] **22-bosqich** — Taksi moduli (xarita API kaliti kerak)
+- [ ] **23-bosqich** — Real to'lov integratsiyasi (Payme / Click)

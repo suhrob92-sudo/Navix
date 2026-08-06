@@ -94,6 +94,11 @@ const SAMPLES = {
     orderNumber: 'NVX-F-20260803-A1B2C3',
     amountTiyin: 1_000_000,
   },
+  'job.application_sent': {
+    applicationId: '2b8c4f61-7a3d-4e5b-9c2f-1d6e8a4b7c93',
+    vacancyTitle: 'Frontend dasturchi (React)',
+    companyName: 'Navix Tech',
+  },
   'security.password_changed': { revokedSessions: 3 },
 } as const;
 

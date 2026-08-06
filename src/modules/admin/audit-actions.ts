@@ -50,6 +50,9 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'courier.delivery.picked_up': 'Kuryer buyurtmani olib chiqdi',
   'courier.delivery.completed': 'Kuryer yetkazib berdi',
   'courier.delivery.released': "Kuryer topshiriqdan voz kechdi",
+  'job.application.sent': 'Ish uchun ariza yubordi',
+  'job.application.withdrawn': 'Arizani qaytarib oldi',
+
   'courier.assigned': 'Kuryer roli berildi',
   'courier.unassigned': 'Kuryer roli olib tashlandi',
 

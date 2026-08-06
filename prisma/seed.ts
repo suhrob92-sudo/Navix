@@ -9,6 +9,7 @@ import { Permission, ROLE_PERMISSIONS, Role } from '../src/config/rbac';
 import { SERVICE_PROVIDERS } from '../src/config/service-providers';
 import { RESTAURANTS } from '../src/config/restaurants';
 import { PRODUCT_CATEGORIES, SHOPS } from '../src/config/marketplace';
+import { COMPANIES, JOB_CATEGORIES } from '../src/config/jobs';
 import { toSearchText } from '../src/lib/search';
 
 /**
@@ -328,6 +329,86 @@ async function seedMarketplace(prisma: PrismaClient): Promise<void> {
   );
 }
 
+/**
+ * Ish qidirish katalogi.
+ *
+ * Tuzilishi `seedMarketplace` bilan bir xil: avval yo'nalishlar, keyin
+ * kompaniyalar va ularning vakansiyalari. Farqi maoshda — u IXTIYORIY
+ * va ko'rsatilmagan bo'lsa `null` yoziladi ("Kelishilgan").
+ */
+async function seedJobs(prisma: PrismaClient): Promise<void> {
+  const categoryIdBySlug = new Map<string, string>();
+
+  for (const category of JOB_CATEGORIES) {
+    const data = { name: category.name, icon: category.icon, sortOrder: category.sortOrder };
+
+    const saved = await prisma.jobCategory.upsert({
+      where: { slug: category.slug },
+      update: data,
+      create: { slug: category.slug, ...data },
+    });
+
+    categoryIdBySlug.set(category.slug, saved.id);
+  }
+
+  let vacancyCount = 0;
+
+  for (const company of COMPANIES) {
+    const companyData = {
+      name: company.name,
+      searchName: toSearchText(company.name),
+      description: company.description,
+      industry: company.industry,
+      city: company.city,
+      color: company.color,
+      sortOrder: company.sortOrder,
+      isActive: true,
+    };
+
+    const savedCompany = await prisma.company.upsert({
+      where: { slug: company.slug },
+      update: companyData,
+      create: { slug: company.slug, ...companyData },
+    });
+
+    for (const vacancy of company.vacancies) {
+      const categoryId = categoryIdBySlug.get(vacancy.categorySlug);
+
+      if (!categoryId) {
+        throw new Error(`"${vacancy.slug}" vakansiyasining yo'nalishi topilmadi: ${vacancy.categorySlug}`);
+      }
+
+      const vacancyData = {
+        companyId: savedCompany.id,
+        categoryId,
+        title: vacancy.title,
+        searchName: toSearchText(vacancy.title),
+        description: vacancy.description,
+        // Ko'rsatilmagan maosh `null` bo'ladi — nol EMAS.
+        salaryMin: vacancy.salaryMinSom === undefined ? null : BigInt(vacancy.salaryMinSom) * 100n,
+        salaryMax: vacancy.salaryMaxSom === undefined ? null : BigInt(vacancy.salaryMaxSom) * 100n,
+        employmentType: vacancy.employmentType,
+        experienceLevel: vacancy.experienceLevel,
+        city: vacancy.city,
+        sortOrder: vacancy.sortOrder,
+        isActive: true,
+      };
+
+      await prisma.vacancy.upsert({
+        where: { slug: vacancy.slug },
+        update: vacancyData,
+        create: { slug: vacancy.slug, ...vacancyData },
+      });
+
+      vacancyCount += 1;
+    }
+  }
+
+  console.info(
+    `✅ ${JOB_CATEGORIES.length} ta yo'nalish, ${COMPANIES.length} ta kompaniya va ${vacancyCount} ta vakansiya yozildi`,
+  );
+}
+
 async function main(): Promise<void> {
   const prisma = createClient();
 
@@ -339,6 +420,7 @@ async function main(): Promise<void> {
     await seedServiceProviders(prisma);
     await seedRestaurants(prisma);
     await seedMarketplace(prisma);
+    await seedJobs(prisma);
     console.info('🎉 Tayyor!');
   } finally {
     await prisma.$disconnect();

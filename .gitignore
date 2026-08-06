@@ -51,3 +51,7 @@ dev.log
 
 # Yordamchi vositalar keshi (cloudflared, tunnel loglari)
 /.cache
+
+# Next.js dev/build har safar qayta yaratadigan AI qoidalari fayllari
+AGENTS.md
+CLAUDE.md

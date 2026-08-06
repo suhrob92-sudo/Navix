@@ -222,6 +222,8 @@ model User {
   shops         Shop[]               @relation("ShopOwner")
   marketOrders  MarketOrder[]
   deliveries    Delivery[]           @relation("CourierDeliveries")
+  companies     Company[]            @relation("CompanyOwner")
+  applications  JobApplication[]
 
   @@index([status])
   @@index([createdAt])
@@ -1105,4 +1107,199 @@ model Delivery {
   /// Kuryerning o'z topshiriqlari.
   @@index([courierId, status])
   @@map("deliveries")
+}
+
+// ---------------------------------------------------------------------------
+// Ish qidirish (Jobs)
+// ---------------------------------------------------------------------------
+
+/// Bandlik turi.
+enum EmploymentType {
+  /// To'liq stavka.
+  FULL_TIME
+  /// Yarim stavka.
+  PART_TIME
+  /// Shartnoma asosida, muddatli.
+  CONTRACT
+  /// Amaliyot / stajirovka.
+  INTERNSHIP
+  /// Masofaviy ish.
+  REMOTE
+}
+
+/// Talab qilinadigan tajriba.
+enum ExperienceLevel {
+  /// Tajribasiz ham bo'ladi.
+  NONE
+  JUNIOR
+  MIDDLE
+  SENIOR
+}
+
+/// Arizaning holati.
+///
+/// Ovqat va buyurtma holatlaridan FARQI: bu yerda pul yo'q, shuning
+/// uchun "bekor qilish" ham pulni qaytarmaydi. Lekin tartib bir xil —
+/// faqat oldinga harakat va ikkita yakuniy holat.
+enum ApplicationStatus {
+  /// Nomzod yubordi, ish beruvchi hali ko'rmagan.
+  SENT
+  /// Ish beruvchi ochib ko'rdi.
+  VIEWED
+  /// Suhbatga taklif qilindi.
+  INVITED
+  /// Rad etildi.
+  REJECTED
+  /// Nomzod o'zi qaytarib oldi.
+  WITHDRAWN
+}
+
+/// Ish beruvchi tashkilot.
+///
+/// Tuzilishi `Shop` bilan bir xil: egasi bor (kabinet keyingi
+/// bosqichda), qidiruv uchun tayyorlangan nomi bor va u ro'yxatdan
+/// vaqtincha olinishi mumkin.
+model Company {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Kompaniya EGASI — u kabinetda vakansiya joylaydi.
+  /// Ega o'chirilsa kompaniya qolaveradi.
+  ownerId String? @db.Uuid
+
+  slug        String @unique @db.VarChar(60)
+  name        String @db.VarChar(120)
+  description String @db.VarChar(400)
+
+  /// Qidiruv uchun tayyorlangan nom. Izohi `Restaurant.searchName` da.
+  searchName String @db.VarChar(200)
+
+  /// Faoliyat sohasi: "IT", "Savdo", "Qurilish".
+  industry String @db.VarChar(60)
+  /// Asosiy shahar.
+  city     String @db.VarChar(80)
+
+  /// Interfeysdagi rang kaliti (`ServiceColor`).
+  color String @db.VarChar(20)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner     User?     @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  vacancies Vacancy[]
+
+  @@index([isActive, sortOrder])
+  @@index([ownerId])
+  @@index([searchName])
+  @@map("companies")
+}
+
+/// Kasb yo'nalishi: "IT va dasturlash", "Savdo", "Ta'lim".
+///
+/// `ProductCategory` bilan bir xil sabab: yo'nalish KOMPANIYAGA emas,
+/// butun maydonchaga tegishli. "Dasturchi" izlagan odam BARCHA
+/// kompaniyalardagi vakansiyalarni ko'rishi kerak.
+model JobCategory {
+  id String @id @default(uuid()) @db.Uuid
+
+  slug String @unique @db.VarChar(60)
+  name String @db.VarChar(80)
+  /// Interfeysdagi ikonka kaliti (`lucide-react` nomi).
+  icon String @db.VarChar(40)
+
+  sortOrder Int @default(100)
+
+  createdAt DateTime @default(now())
+
+  vacancies Vacancy[]
+
+  @@index([sortOrder])
+  @@map("job_categories")
+}
+
+/// Bo'sh ish o'rni.
+model Vacancy {
+  id         String @id @default(uuid()) @db.Uuid
+  companyId  String @db.Uuid
+  categoryId String @db.Uuid
+
+  slug        String @unique @db.VarChar(90)
+  title       String @db.VarChar(160)
+  description String @db.VarChar(4000)
+
+  /// Qidiruv uchun tayyorlangan sarlavha. Izohi `Product.searchName` da.
+  searchName String @db.VarChar(220)
+
+  /// ── MAOSH — TIYINDA, ikkalasi ham IXTIYORIY ─────────────────────────
+  /// O'zbekistonda e'lonlarning katta qismi "kelishilgan holda" deb
+  /// yoziladi. Nolni "bepul ish" deb ko'rsatib bo'lmaydi, shuning uchun
+  /// bo'sh qiymat `null` bo'ladi va interfeysda "Kelishilgan" chiqadi.
+  ///
+  /// Faqat pastki chegara ham bo'lishi mumkin ("2 mln dan").
+  salaryMin BigInt?
+  salaryMax BigInt?
+
+  employmentType  EmploymentType  @default(FULL_TIME)
+  experienceLevel ExperienceLevel @default(NONE)
+
+  city String @db.VarChar(80)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category     JobCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  applications JobApplication[]
+
+  @@index([companyId, isActive])
+  @@index([categoryId, sortOrder])
+  @@index([searchName])
+  @@index([isActive, createdAt])
+  @@map("vacancies")
+}
+
+/// Nomzodning arizasi.
+///
+/// ── Nima uchun BITTA vakansiyaga BITTA ariza ──────────────────────────
+/// `@@unique([vacancyId, userId])` — nomzod bir e'longa o'nlab ariza
+/// yubora olmaydi. Bu ish beruvchini spamdan himoya qiladi va
+/// "qaysi arizasi haqiqiy?" degan savolni butunlay yo'q qiladi.
+///
+/// Qoidani BAZA qo'riqlaydi: ikki so'rov bir vaqtda kelsa ham
+/// ikkinchisi UNIQUE xatosiga uchraydi.
+model JobApplication {
+  id        String @id @default(uuid()) @db.Uuid
+  vacancyId String @db.Uuid
+  userId    String @db.Uuid
+
+  status ApplicationStatus @default(SENT)
+
+  /// Nomzodning qisqa xati.
+  coverNote String? @db.VarChar(1000)
+
+  /// ── Aloqa raqami NUSXA qilinadi ─────────────────────────────────────
+  /// Nomzod keyinchalik profilidagi raqamini o'zgartirishi mumkin.
+  /// Ish beruvchi esa ariza kelgan paytdagi raqamga qo'ng'iroq qiladi —
+  /// buyurtmadagi manzil bilan bir xil sabab.
+  contactPhone String @db.VarChar(20)
+
+  /// Ish beruvchining javobi (taklif matni yoki rad etish sababi).
+  employerNote String? @db.VarChar(500)
+
+  createdAt DateTime  @default(now())
+  viewedAt  DateTime?
+  decidedAt DateTime?
+
+  vacancy Vacancy @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([vacancyId, userId])
+  @@index([userId, createdAt])
+  @@index([vacancyId, status])
+  @@map("job_applications")
 }

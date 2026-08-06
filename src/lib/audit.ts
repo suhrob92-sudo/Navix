@@ -77,6 +77,14 @@ export const AuditAction = {
   COURIER_DELIVERY_COMPLETED: 'courier.delivery.completed',
   COURIER_DELIVERY_RELEASED: 'courier.delivery.released',
 
+  // Ish qidirish.
+  //
+  // Pul yo'q, lekin SHAXSIY MA'LUMOT bor: ariza bilan birga nomzodning
+  // telefon raqami ish beruvchiga ochiladi. "Kim, qachon, qaysi e'longa
+  // yubordi" degan yozuv shuning uchun saqlanadi.
+  JOB_APPLICATION_SENT: 'job.application.sent',
+  JOB_APPLICATION_WITHDRAWN: 'job.application.withdrawn',
+
   ADMIN_PROVIDER_CREATED: 'admin.provider.created',
   ADMIN_PROVIDER_UPDATED: 'admin.provider.updated',
   ADMIN_USER_STATUS_CHANGED: 'admin.user.status_changed',

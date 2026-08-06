@@ -253,11 +253,12 @@ export const APP_MODULES: readonly AppModule[] = [
   {
     id: 'jobs',
     name: 'Ish qidirish',
-    description: 'Vakansiyalar, rezyume va tezkor arizalar.',
+    description: 'Vakansiyalar, qidiruv va tezkor ariza.',
     href: '/jobs',
     icon: Briefcase,
     category: ModuleCategory.WORK,
-    status: ModuleStatus.PLANNED,
+    /** 19-bosqichda ishga tushdi. */
+    status: ModuleStatus.LIVE,
     color: 'green',
     quickOrder: 5,
     aiIntents: ['ish top', 'vakansiya qidir', 'ishga joylash', 'rezyume'],

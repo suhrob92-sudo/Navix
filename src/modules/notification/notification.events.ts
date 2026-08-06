@@ -91,6 +91,11 @@ export interface NotificationEventData {
     orderNumber: string;
     amountTiyin: number;
   };
+  'job.application_sent': {
+    applicationId: string;
+    vacancyTitle: string;
+    companyName: string;
+  };
   'security.password_changed': { revokedSessions: number };
 }
 
@@ -289,6 +294,20 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
     body: `${orderNumber} buyurtmasi uchun ${formatTiyin(amountTiyin)} hamyoningizga qo'shildi.`,
     actionUrl: '/wallet',
     sourceModule: 'delivery',
+  }),
+
+  /**
+   * Ariza yuborilgani tasdiqlanadi.
+   *
+   * Nima uchun kerak: ariza yuborilgandan keyin javob KUNLAB kelmasligi
+   * mumkin. Tasdiq bo'lmasa, nomzod "yuborildimi?" deb ikkilanadi va
+   * ko'pincha qayta yuborishga urinadi.
+   */
+  'job.application_sent': ({ vacancyTitle, companyName }) => ({
+    title: 'Ariza yuborildi',
+    body: `${companyName} — "${vacancyTitle}" lavozimiga arizangiz yuborildi. Javobni shu yerda kuting.`,
+    actionUrl: '/jobs/applications',
+    sourceModule: 'jobs',
   }),
 
   'security.password_changed': ({ revokedSessions }) => ({

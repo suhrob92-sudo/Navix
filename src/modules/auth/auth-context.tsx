@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { apiRequest } from '@/lib/api-client';
 import type { RoleValue } from '@/config/rbac';
@@ -82,23 +82,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
+  /**
+   * Ayni damda bajarilayotgan yangilash so'rovi.
+   *
+   * ── Nima uchun kerak (HAQIQIY XATO) ─────────────────────────────────
+   * Server har yangilashda refresh token'ni ALMASHTIRADI va eskisini
+   * darhol yaroqsiz qiladi. Bundan tashqari eski token ikkinchi marta
+   * ishlatilsa, buni O'G'IRLIK deb hisoblab butun sessiyani yopadi —
+   * bu to'g'ri himoya.
+   *
+   * Muammo shundaki, ikkita yangilash BIR VAQTDA boshlanishi mumkin:
+   *
+   *   1-so'rov  →  yangi token oldi  (eskisi yaroqsiz bo'ldi)
+   *   2-so'rov  →  ESKI token bilan keldi  →  "o'g'irlik!" → sessiya yopildi
+   *
+   * Natijada foydalanuvchi hech narsa qilmasdan tizimdan chiqib qolardi.
+   * Buni brauzer sinovida ko'rdik: `/jobs` sahifasi uchta so'rovni
+   * bir vaqtda yuboradi va aynan shu holat yuz berdi.
+   *
+   * Yechim: bir vaqtda FAQAT BITTA so'rov ketadi. Qolgan chaqiruvlar
+   * o'sha so'rovning natijasini kutadi. Server tomonidagi himoya esa
+   * o'z kuchida qoladi — u haqiqiy o'g'irlikni baribir ushlaydi.
+   */
+  const inFlightRef = useRef<Promise<string | null> | null>(null);
+
   const refresh = useCallback(async (): Promise<string | null> => {
-    try {
-      const tokens = await apiRequest<RefreshResponse>('/api/v1/auth/refresh', { method: 'POST' });
-      const me = await apiRequest<MeResponse>('/api/v1/auth/me', { accessToken: tokens.accessToken });
+    if (inFlightRef.current) return inFlightRef.current;
 
-      setSessionState({
-        accessToken: tokens.accessToken,
-        user: me.user,
-        expiresAtMs: Date.now() + tokens.expiresInSeconds * 1000,
-      });
+    const pending = (async () => {
+      try {
+        const tokens = await apiRequest<RefreshResponse>('/api/v1/auth/refresh', { method: 'POST' });
+        const me = await apiRequest<MeResponse>('/api/v1/auth/me', { accessToken: tokens.accessToken });
 
-      return tokens.accessToken;
-    } catch {
-      // Refresh token yo'q yoki eskirgan — bu normal holat (mehmon foydalanuvchi).
-      setSessionState(null);
-      return null;
-    }
+        setSessionState({
+          accessToken: tokens.accessToken,
+          user: me.user,
+          expiresAtMs: Date.now() + tokens.expiresInSeconds * 1000,
+        });
+
+        return tokens.accessToken;
+      } catch {
+        // Refresh token yo'q yoki eskirgan — bu normal holat (mehmon foydalanuvchi).
+        setSessionState(null);
+        return null;
+      } finally {
+        inFlightRef.current = null;
+      }
+    })();
+
+    inFlightRef.current = pending;
+
+    return pending;
   }, []);
 
   const logout = useCallback(async () => {
