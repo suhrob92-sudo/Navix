@@ -2,14 +2,10 @@
 
 import { Briefcase } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Permission, hasPermission } from '@/config/rbac';
-import { useAuth } from '@/modules/auth/auth-context';
+import { useAuthGate } from '@/modules/auth/auth-gate';
 
 /**
  * Ish beruvchi kabinetini faqat ruxsati borlarga ochadi.
@@ -20,25 +16,10 @@ import { useAuth } from '@/modules/auth/auth-context';
  * ma'lumot serverdan kelmaydi.
  */
 export function RequireEmployer({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, isAuthenticated } = useAuth();
-  const router = useRouter();
+  const { screen, user } = useAuthGate();
 
-  useEffect(() => {
-    if (isLoading || isAuthenticated) return;
-
-    const next = `${window.location.pathname}${window.location.search}`;
-    router.replace(`/auth/login?next=${encodeURIComponent(next)}`);
-  }, [isAuthenticated, isLoading, router]);
-
-  if (isLoading || !isAuthenticated) {
-    return (
-      <div className="space-y-3 px-4 pt-6">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-28 rounded-2xl" />
-        <Skeleton className="h-28 rounded-2xl" />
-      </div>
-    );
-  }
+  // Kirish tekshiruvi tugamagan yoki aloqa yo'q — umumiy ekran.
+  if (screen) return <>{screen}</>;
 
   if (!user || !hasPermission(user.roles, Permission.EMPLOYER_DASHBOARD_ACCESS)) {
     return (

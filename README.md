@@ -379,6 +379,67 @@ qoladi va keyin har safar Termux'dan ishlaganda ham ishlaydi:
 | `.devcontainer/devcontainer.json` + `forwardPorts` | **Codespace umuman ishga tushmay qoladi.** GitHub standart sozlamasida Docker allaqachon bor; o'z faylimizda `docker-in-docker` qo'shilsa ikkalasi to'qnashadi va `failed to start vs code remote server` xatosi chiqadi. Shu sababli loyihada devcontainer fayli **yo'q**                                                                                              |
 | Saqlangan PID'ni tekshirmasdan `kill` qilish       | **Begona jarayon o'ladi.** Operatsion tizim PID raqamlarini qayta ishlatadi: codespace qayta ishga tushgach eski PID boshqa jarayonga tegishli bo'ladi. Shu sabab `npm run go` bir marta o'zini to'xtatib qo'ygan (`Terminated`). Endi `scripts/lib/tunnel.mjs` PID'ni o'ldirishdan oldin `/proc/<pid>/cmdline` orqali uning haqiqatan `cloudflared` ekanini tekshiradi |
 
+### Sahifa skelet holatida qotib qolsa
+
+Ekranda kulrang to'rtburchaklar turadi, hech narsa yuklanmaydi va
+hech qanday xabar ham yo'q.
+
+**Bu xato TUZATILDI.** Endi bunday holatda ilova aniq ekran
+ko'rsatadi: *"Serverga ulanib bo'lmadi"* va ikkita tugma. Agar
+sizda hali eski versiya bo'lsa, `npm run update` bajaring.
+
+Quyida sabab yozilgan — chunki u ikki xil bo'lgan va ikkalasi ham
+bir xil ko'rinardi.
+
+#### 1-sabab: baza yoki server javob bermayapti
+
+Codespace qayta ishga tushganda Docker konteynerlari o'chib qoladi.
+Terminalda Prisma xatosi ko'rinadi (`DatabaseNotReachable`, `P1001`).
+
+Ilova esa serverdan javob kutib turaverardi. Javob umuman
+kelmaganda `fetch` **abadiy** kutishi mumkin — shuning uchun skelet
+hech qachon yo'qolmasdi.
+
+Yechim: `npm run go` — baza, Redis va serverni birdan ko'taradi.
+
+#### 2-sabab: cheksiz aylanish (eng nozigi)
+
+Sessiya bekor qilingan, lekin cookie brauzerda qolgan bo'lsa:
+
+```
+brauzer  →  "sessiyam yaroqsiz"  →  /auth/login
+proxy    →  "cookie bor-ku!"     →  /dashboard
+brauzer  →  "sessiyam yaroqsiz"  →  /auth/login  ...
+```
+
+Manzil satri o'zgarib turadi-yu, ekranda doim skelet. Bu holat
+baza o'chganda ham yuz berardi: yangilash so'rovi xato qaytarardi,
+ilova esa buni "sessiya yo'q" deb tushunardi.
+
+#### To'rt qatlamli yechim
+
+| Qatlam | Nima qiladi |
+| ------ | ----------- |
+| So'rov muddati | Har bir so'rov eng ko'pi bilan **20 soniya** kutadi, keyin xato beradi. Abadiy kutish endi mumkin emas |
+| Holatni ajratish | `refresh()` uch xil javob beradi: `ok`, `guest` (sessiya yo'q), `offline` (serverga yetib bo'lmadi). Faqat `guest` da kirish sahifasiga yuboriladi |
+| Cookie tozalash | Server 401 qaytarganda cookie ham o'chiriladi — proxy endi qaytarib urmaydi. Aylanishning ildizi shu yerda uziladi |
+| Oxirgi himoya | 15 soniyadan keyin ham skelet tursa, u avtomatik "aloqa yo'q" ekraniga aylanadi |
+
+Aloqa tiklanganda sahifa **o'zi ochiladi**: ilova 3, 6, 12 va 30
+soniyada qayta urinib ko'radi (oraliq atayin o'sib boradi — har
+soniyada so'rov yuborish qiynalayotgan serverni yanada bo'g'ardi).
+Telefon internetga qaytgan zahoti ham darhol tekshiradi.
+
+**Nima uchun bu ilgari qilinmagan?** Birinchi marta sahifa qotib
+qolganda sabab BOSHQA edi: brauzer keshidagi eski HTML yo'q bo'lib
+ketgan JavaScript fayllarini so'rayotgan edi, ya'ni JavaScript
+umuman ishga tushmagan. Unday holatda JavaScript'dagi hech qanday
+himoya yordam bermasdi — shuning uchun u safar kesh sozlamasi
+tuzatilgan (`src/config/protected-routes.ts`).
+
+Bu safar esa JavaScript ishlayapti, faqat javob kutmoqda. Shuning
+uchun endi vaqt chegarasi haqiqatan ham yordam beradi.
+
 ### Aloqa uzilib qolsa
 
 Mobil internetda SSH aloqasi uzilishi normal holat:

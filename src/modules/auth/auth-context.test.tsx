@@ -12,10 +12,32 @@ import { AuthProvider, useAuth } from '@/modules/auth/auth-context';
  */
 const apiRequest = vi.hoisted(() => vi.fn());
 
+/**
+ * `vi.hoisted` — bu blok fayl boshiga ko'chiriladi.
+ *
+ * `vi.mock` ham yuqoriga ko'chadi, shuning uchun unda ishlatiladigan
+ * har narsa undan OLDIN tayyor bo'lishi kerak. Oddiy `class` bunday
+ * ishlamaydi va "Cannot access before initialization" xatosi chiqadi.
+ */
+const FakeApiError = vi.hoisted(
+  () =>
+    class FakeApiError extends Error {
+      status: number;
+
+      constructor(status: number, message = 'xato') {
+        super(message);
+        this.status = status;
+      }
+    },
+);
+
 vi.mock('@/lib/api-client', () => ({
   apiRequest,
-  ApiClientError: class ApiClientError extends Error {},
+  ApiClientError: FakeApiError,
   toUserMessage: (error: unknown) => String(error),
+  // Haqiqiysi bilan bir xil qoida: 0 va 5xx — serverga yetib bo'lmadi.
+  isServerUnreachable: (error: unknown) =>
+    error instanceof FakeApiError ? error.status === 0 || error.status >= 500 : error instanceof TypeError,
 }));
 
 const USER = {
@@ -123,7 +145,7 @@ describe('sessiyani yangilash', () => {
   it('yangilash muvaffaqiyatsiz bo\'lsa sessiya tozalanadi', async () => {
     const { result } = await renderAuth();
 
-    apiRequest.mockRejectedValue(new Error('401'));
+    apiRequest.mockRejectedValue(new FakeApiError(401));
 
     await act(async () => {
       await result.current.refresh();
@@ -131,6 +153,64 @@ describe('sessiyani yangilash', () => {
 
     expect(result.current.isAuthenticated).toBe(false);
     expect(result.current.user).toBeNull();
+    expect(result.current.status).toBe('guest');
+  });
+
+  /**
+   * ENG MUHIM TEKSHIRUV.
+   *
+   * Server javob bermasa (baza o'chiq, tarmoq uzilgan), foydalanuvchi
+   * TIZIMDAN CHIQMAGAN. Ilgari bu holat ham "sessiya yo'q" deb
+   * qaralardi va odam kirish sahifasiga haydalardi — u yerdan esa
+   * `proxy.ts` uni qaytarib urardi. Natijada cheksiz aylanish va
+   * ekranda abadiy skelet.
+   */
+  it("server javob bermasa sessiya SAQLANADI", async () => {
+    const { result } = await renderAuth();
+
+    expect(result.current.isAuthenticated).toBe(true);
+
+    apiRequest.mockRejectedValue(new FakeApiError(500));
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(result.current.status).toBe('offline');
+    // Eng muhimi: odam tizimda qoldi.
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.user?.id).toBe('u1');
+  });
+
+  it("tarmoq uzilganda ham sessiya saqlanadi", async () => {
+    const { result } = await renderAuth();
+
+    apiRequest.mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(result.current.status).toBe('offline');
+    expect(result.current.isAuthenticated).toBe(true);
+  });
+
+  it("aloqa tiklansa holat 'ok' ga qaytadi", async () => {
+    const { result } = await renderAuth();
+
+    apiRequest.mockRejectedValue(new FakeApiError(500));
+    await act(async () => {
+      await result.current.refresh();
+    });
+    expect(result.current.status).toBe('offline');
+
+    respondSlowly();
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(result.current.status).toBe('ok');
+    expect(result.current.isAuthenticated).toBe(true);
   });
 
   it("xatodan keyin ham qulf ochiq qoladi", async () => {

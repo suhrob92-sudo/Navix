@@ -37,7 +37,27 @@ export default function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (GUEST_ONLY_PATHS.includes(pathname) && hasSessionCookie) {
+  /**
+   * Kirgan odam kirish sahifasini ochsa — uni ilovaga qaytaramiz.
+   *
+   * ── Lekin `?next=` bo'lsa TEGMAYMIZ (HAQIQIY XATO) ──────────────────
+   * `?next=` ni faqat ilovaning O'ZI qo'yadi: `<RequireAuth>` "sessiya
+   * yaroqsiz" degan xulosaga kelganda odamni shu manzilga yuboradi.
+   *
+   * Ilgari bu yerda shart yo'q edi va natijada cheksiz aylanish
+   * hosil bo'lardi:
+   *
+   *   brauzer  →  "sessiyam yaroqsiz"  →  /auth/login?next=/dashboard
+   *   proxy    →  "cookie bor-ku!"     →  /dashboard
+   *   brauzer  →  "sessiyam yaroqsiz"  →  /auth/login?next=/dashboard ...
+   *
+   * Ekranda esa abadiy skelet — sahifa "qotib qolgandek" bo'lardi.
+   *
+   * Cookie'ni tozalash bu xatoni ildizidan yechadi (`refresh` yo'lida
+   * qilingan), lekin bu shart ikkinchi qulf: server javob bermay
+   * qolsa ham aylanish qayta paydo bo'lmaydi.
+   */
+  if (GUEST_ONLY_PATHS.includes(pathname) && hasSessionCookie && !request.nextUrl.searchParams.has('next')) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 

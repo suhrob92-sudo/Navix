@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { apiRequest } from '@/lib/api-client';
+import { apiRequest, isServerUnreachable } from '@/lib/api-client';
 import type { RoleValue } from '@/config/rbac';
 
 /**
@@ -52,12 +52,31 @@ interface ActiveSession {
   expiresAtMs: number;
 }
 
+/**
+ * Sessiyani tiklash urinishining natijasi.
+ *
+ * ── Nima uchun UCHTA holat, ikkita emas ───────────────────────────────
+ * Ilgari `refresh()` faqat "token" yoki `null` qaytarardi. Shu sababli
+ * ikki BUTUNLAY boshqa holat bir xil ko'rinardi:
+ *
+ *   'guest'   — server aniq javob berdi: sessiya yo'q yoki tugagan;
+ *   'offline' — serverga umuman yetib bo'lmadi (baza o'chiq, tarmoq
+ *               uzilgan, muddat tugadi).
+ *
+ * Ikkinchi holatda foydalanuvchi TIZIMDAN CHIQMAGAN. Uni kirish
+ * sahifasiga haydash cheksiz aylanishga olib kelardi — aynan shu
+ * xato tufayli sahifa "qotib" qolardi (sabab `proxy.ts` da).
+ */
+export type AuthStatus = 'ok' | 'guest' | 'offline';
+
 interface AuthContextValue {
   user: AuthUser | null;
   accessToken: string | null;
   /** Boshlang'ich tekshiruv tugagunicha `true`. */
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** Oxirgi tekshiruv natijasi — sahifalar shunga qarab qaror qiladi. */
+  status: AuthStatus;
   setSession: (session: AuthSession) => void;
   logout: () => Promise<void>;
   /** Access token'ni yangilaydi; muvaffaqiyatsiz bo'lsa `null` qaytaradi. */
@@ -72,6 +91,7 @@ const REFRESH_MARGIN_SECONDS = 60;
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSessionState] = useState<ActiveSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [status, setStatus] = useState<AuthStatus>('ok');
 
   const setSession = useCallback((incoming: AuthSession) => {
     setSessionState({
@@ -79,6 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user: incoming.user,
       expiresAtMs: Date.now() + incoming.expiresInSeconds * 1000,
     });
+    setStatus('ok');
     setIsLoading(false);
   }, []);
 
@@ -119,11 +140,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           user: me.user,
           expiresAtMs: Date.now() + tokens.expiresInSeconds * 1000,
         });
+        setStatus('ok');
 
         return tokens.accessToken;
-      } catch {
-        // Refresh token yo'q yoki eskirgan — bu normal holat (mehmon foydalanuvchi).
+      } catch (error) {
+        /**
+         * Ikki holat farqlanadi.
+         *
+         * Serverga yetib bo'lmagan bo'lsa, sessiyani TOZALAMAYMIZ:
+         * foydalanuvchi tizimdan chiqmagan va aloqa tiklanganda
+         * hammasi joyiga tushishi kerak.
+         */
+        if (isServerUnreachable(error)) {
+          setStatus('offline');
+          return null;
+        }
+
+        // Server aniq javob berdi: refresh token yo'q yoki eskirgan.
         setSessionState(null);
+        setStatus('guest');
         return null;
       } finally {
         inFlightRef.current = null;
@@ -141,6 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       // Server javob bermasa ham brauzerdagi holatni tozalaymiz.
       setSessionState(null);
+      setStatus('guest');
     }
   }, [session?.accessToken]);
 
@@ -175,11 +211,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       accessToken: session?.accessToken ?? null,
       isLoading,
       isAuthenticated: session !== null,
+      status,
       setSession,
       logout,
       refresh,
     }),
-    [session, isLoading, setSession, logout, refresh],
+    [session, isLoading, status, setSession, logout, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
