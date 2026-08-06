@@ -242,6 +242,18 @@ model UserProfile {
   /// Marketing xabarnomalariga rozilik.
   marketingOptIn Boolean         @default(false)
 
+  /// Tanishtiruv (onboarding) qachon tugatilgan.
+  ///
+  /// ── Nima uchun BAZADA, brauzerda emas ───────────────────────────────
+  /// `localStorage` da saqlansa, foydalanuvchi boshqa telefondan yoki
+  /// brauzer tarixini tozalagandan keyin tanishtiruvni QAYTA ko'rardi.
+  /// Bu esa "ilova meni eslamaydi" degan taassurot qoldiradi.
+  ///
+  /// `null` — hali ko'rmagan. Sana saqlanadi, `true/false` emas:
+  /// keyinchalik "tanishtiruv o'zgardi, eskilarga qayta ko'rsatamiz"
+  /// degan qaror uchun sana kerak bo'ladi.
+  onboardedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

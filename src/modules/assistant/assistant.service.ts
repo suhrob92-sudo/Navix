@@ -1,7 +1,8 @@
 import { MAX_TOP_UP_SOM, MIN_TOP_UP_SOM, formatTiyin } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { matchModuleByIntent, ModuleStatus } from '@/config/modules';
-import { Intent, parseMessage, type IntentName } from '@/modules/assistant/intent';
+import { Intent, normalize, parseMessage, type IntentName } from '@/modules/assistant/intent';
+import { comingSoonReply, findPlannedModule } from '@/modules/assistant/assistant.modules';
 import { handleFoodOrder, handleFoodStatus } from '@/modules/assistant/assistant.food-flow';
 import { handleMarketOrder, handleMarketStatus } from '@/modules/assistant/assistant.market-flow';
 import { findDishes } from '@/modules/assistant/assistant.food';
@@ -294,6 +295,21 @@ async function handlePayService(
   );
 }
 
+/**
+ * Tushunildi, lekin modul HALI TAYYOR EMAS.
+ *
+ * Javob rost bo'lishi kerak: "tushunmadim" deyish foydalanuvchini
+ * boshqa so'z bilan qayta-qayta urinishga majbur qiladi va u har
+ * safar muvaffaqiyatsizlikka uchraydi.
+ */
+function handleComingSoon(normalizedText: string): AssistantReply {
+  const planned = findPlannedModule(normalizedText);
+
+  if (!planned) return handleUnknown(normalizedText);
+
+  return reply(comingSoonReply(planned), { suggestions: DEFAULT_SUGGESTIONS });
+}
+
 /** Tushunilmagan matn — modul qidirib ko'ramiz. */
 function handleUnknown(rawText: string): AssistantReply {
   const matched = matchModuleByIntent(rawText);
@@ -307,12 +323,7 @@ function handleUnknown(rawText: string): AssistantReply {
   }
 
   if (matched.status !== ModuleStatus.LIVE) {
-    return reply(
-      `Bu "${matched.name}" xizmatiga tegishli. U hozir ishlab chiqilmoqda, tez orada tayyor bo'ladi.`,
-      {
-        suggestions: DEFAULT_SUGGESTIONS,
-      },
-    );
+    return reply(comingSoonReply(matched), { suggestions: DEFAULT_SUGGESTIONS });
   }
 
   return reply(`"${matched.name}" xizmatini ochaman.`, {
@@ -389,6 +400,9 @@ export async function respond(
 
     case Intent.MARKET_ORDER:
       return handleShopping(userId, slots, parsed, 'market');
+
+    case Intent.COMING_SOON:
+      return handleComingSoon(normalize(message));
 
     default:
       return handleUnknown(message);

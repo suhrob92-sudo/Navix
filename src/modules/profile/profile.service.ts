@@ -1,5 +1,6 @@
 import { NotFoundError, UnauthorizedError, ValidationError } from '@/lib/api/errors';
 import { AuditAction, recordAudit } from '@/lib/audit';
+import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { hashPassword, verifyPassword } from '@/modules/auth/password.service';
@@ -35,6 +36,13 @@ export interface ProfilePayload {
     timezone: string;
     marketingOptIn: boolean;
   };
+  /**
+   * Tanishtiruv tugatilganmi.
+   *
+   * Bu `preferences` ichida emas: sozlama emas, HOLAT. Foydalanuvchi
+   * uni sozlamalar sahifasidan o'zgartirmaydi.
+   */
+  onboardedAt: Date | null;
 }
 
 const PROFILE_SELECT = {
@@ -55,6 +63,7 @@ const PROFILE_SELECT = {
       theme: true,
       timezone: true,
       marketingOptIn: true,
+      onboardedAt: true,
     },
   },
 } as const;
@@ -77,6 +86,7 @@ function toProfilePayload(user: {
     theme: string;
     timezone: string;
     marketingOptIn: boolean;
+    onboardedAt: Date | null;
   } | null;
 }): ProfilePayload {
   return {
@@ -99,7 +109,36 @@ function toProfilePayload(user: {
       timezone: user.profile?.timezone ?? 'Asia/Tashkent',
       marketingOptIn: user.profile?.marketingOptIn ?? false,
     },
+    onboardedAt: user.profile?.onboardedAt ?? null,
   };
+}
+
+/**
+ * Tanishtiruvni tugatilgan deb belgilaydi.
+ *
+ * `upsert` ishlatiladi: profil yozuvi hali bo'lmasligi mumkin
+ * (u faqat sozlama o'zgartirilganda yaratiladi).
+ *
+ * Takroriy chaqiruv xavfsiz — birinchi sana saqlanib qoladi va
+ * "qachon ko'rgan" degan ma'lumot buzilmaydi.
+ */
+export async function completeOnboarding(userId: string): Promise<ProfilePayload> {
+  const existing = await prisma.userProfile.findUnique({
+    where: { userId },
+    select: { onboardedAt: true },
+  });
+
+  if (!existing?.onboardedAt) {
+    await prisma.userProfile.upsert({
+      where: { userId },
+      update: { onboardedAt: new Date() },
+      create: { userId, onboardedAt: new Date() },
+    });
+
+    logger.info({ userId }, 'Tanishtiruv tugatildi');
+  }
+
+  return getProfile(userId);
 }
 
 /** Profil ma'lumotlarini qaytaradi. */

@@ -25,6 +25,7 @@ import { REFRESH_COOKIE_NAME } from '@/modules/auth/auth.cookies';
 /** Kirish talab qiladigan sahifalar. */
 const PROTECTED_PREFIXES = [
   '/dashboard',
+  '/welcome',
   '/profile',
   '/addresses',
   '/devices',

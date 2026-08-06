@@ -3,7 +3,7 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 17-bosqich yakunlandi.
+> **Holat:** 18-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
@@ -16,8 +16,10 @@ kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada
 > Marketplace xaridini** tayyorlaydi, **Marketplace** — do'konlar,
 > toifalar, mahsulot qidiruvi, savat va zaxira nazorati, **sotuvchi
 > kabineti** — do'kon egasi mahsulot qo'shadi, omborni yuritadi va
-> buyurtmalarni o'zi boshqaradi, hamda **kuryer moduli** — yetkazish
-> topshirig'i, umumiy ro'yxatdan ish olish va avtomatik haq.
+> buyurtmalarni o'zi boshqaradi, **kuryer moduli** — yetkazish
+> topshirig'i, umumiy ro'yxatdan ish olish va avtomatik haq, hamda
+> **ovoz bilan boshqarish** va yangi foydalanuvchi uchun
+> **tanishtiruv**.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -586,6 +588,94 @@ Qidiruv so'z BOSHIDAN solishtiriladi: "burger" so'zi "Burgerlar"
 bo'limini topadi, lekin "osh" so'zi "kartOSHka" ni topmaydi. O'zbek
 tilida qo'shimchalar so'z oxiriga qo'shilgani uchun bu tabiiy ishlaydi.
 
+### Ovoz bilan boshqarish
+
+Mikrofon tugmasini bosing, gapiring, qo'yib yuboring:
+
+```
+🎤 "Navix, telefon qidir"
+🤖 3 ta mahsulot topildi. Qaysi birini olamiz?
+```
+
+"Navix" so'zi buyruqning bir qismi emas — `stripWakeWord()`
+(`src/lib/voice.ts`) uni kesib tashlaydi. Aks holda u qidiruv matniga
+oqib ketardi va katalogda hech narsa topilmasdi.
+
+Kesish faqat gap BOSHIDAN bo'ladi: "menga navix haqida ayt" degan
+savol buzilmasligi kerak.
+
+#### Nima uchun "har doim quloq soladigan" rejim yo'q
+
+Haqiqiy chaqiruv so'zi (wake word) uchun mikrofon doim ochiq turishi
+kerak. Brauzerda bu ishlamaydi:
+
+- batareya bir necha soatda tugaydi;
+- har sahifa yangilanganda ruxsat qayta so'raladi;
+- fon rejimida brauzer mikrofonni o'chiradi.
+
+Buning uchun mobil ilova kerak. Shuning uchun hozir — tugma.
+
+#### Nima uchun bepul brauzer API'si
+
+`SpeechRecognition` kalitsiz va bepul ishlaydi. Pullik xizmat
+(Yandex SpeechKit) aniqroq, lekin karta va oylik to'lov talab
+qiladi.
+
+Kamchiligi bor va u yashirilmaydi: **`uz-UZ` ni hamma qurilma
+qo'llab-quvvatlamaydi**. Shuning uchun tillar RO'YXAT bo'lib
+beriladi (`SPEECH_LANGUAGES`): o'zbekcha ishlamasa, kod jimgina rus
+tiliga o'tadi.
+
+Almashtirish oson bo'lsin deb brauzer bilan butun muloqot bitta
+faylda (`use-speech-recognition.ts`), qaror qabul qiladigan sof
+mantiq esa boshqasida (`voice.ts`) — u to'liq test bilan qoplangan.
+
+#### Ovoz PUL harakatini bajarmaydi
+
+Bu eng muhim qoida:
+
+```
+Siz aytdingiz:   "ellik ming yubor"
+Telefon eshitdi: "besh yuz ming yubor"
+```
+
+Shuning uchun tanilgan matn **kiritish maydoniga** tushadi, yuborilmaydi.
+Foydalanuvchi uni ko'radi, kerak bo'lsa tuzatadi va tugmani o'zi bosadi.
+Tasdiqlash kartochkasi ham o'z joyida qoladi.
+
+### "Tushunmadim" o'rniga ROST javob
+
+Ilgari "taksi chaqir" deganda yordamchi "Buni hali tushunmadim"
+derdi. Bu yolg'on: u tushundi, shunchaki taksi moduli hali yozilmagan.
+Foydalanuvchi esa boshqa so'z bilan qayta-qayta urinardi.
+
+Endi javob rost:
+
+```
+👤 Navix, taksi chaqir
+🤖 Taksi moduli ustida ishlayapmiz — tez orada ochiladi.
+   Hozircha men ovqat, Marketplace, to'lovlar va hamyon bilan
+   yordam bera olaman.
+```
+
+Ro'yxat qo'lda yozilmagan: u `src/config/modules.ts` dagi
+`aiIntents` va `status` dan o'qiladi. Ya'ni yangi modul qo'shilsa —
+yordamchi uni avtomatik biladi; modul ishga tushib `LIVE` bo'lsa —
+"tez orada" javobi o'zi yo'qoladi.
+
+### Tanishtiruv (onboarding)
+
+Ro'yxatdan o'tgan foydalanuvchi avval 4 ta slaydni ko'radi
+(`/welcome`), keyin yordamchi uni suhbat ichida kutib oladi va
+birinchi qadam tugmalarini beradi.
+
+"O'tkazib yuborish" tugmasi ATAYLAB bor: majburiy tanishtiruv
+g'ashga tegadi va odam baribir bosib o'tadi. Chiqish yo'li ochiq
+bo'lsa, qolganlar matnni haqiqatan o'qiydi.
+
+Belgi bazada (`user_profiles.onboardedAt`), brauzerda emas —
+boshqa telefondan kirganda tanishtiruv qaytadan chiqmasligi kerak.
+
 ### Uchta xavfsizlik qoidasi
 
 1. **Yordamchi pulni o'zi harakatlantirmaydi.** U faqat buyruq tayyorlaydi;
@@ -984,6 +1074,7 @@ Navix/
 │   │   ├── merchant/        # Restoran kabineti (buyurtma holati, menyu)
 │   │   ├── seller/          # Sotuvchi kabineti (ombor, mahsulot, buyurtma)
 │   │   ├── courier/         # Kuryer moduli (topshiriq, bosqichlar, haq)
+│   │   ├── onboarding/      # Tanishtiruv slaydlari
 │   │   └── admin/           # Admin panel (xizmatlar, foydalanuvchilar)
 │   ├── config/
 │   │   ├── modules.ts       # SUPER APP MODULLAR REYESTRI
@@ -1697,5 +1788,6 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **15-bosqich** — AI Yordamchiga Marketplace'ni ulash: suhbat ichida xarid, zaxira nazorati
 - [x] **16-bosqich** — Sotuvchi kabineti: mahsulot qo'shish, ombor, buyurtma holati, rad etish
 - [x] **17-bosqich** — Kuryer moduli: yetkazish topshirig'i, umumiy ro'yxat, avtomatik haq
-- [ ] **18-bosqich** — Taksi moduli (xarita API kaliti kerak)
-- [ ] **19-bosqich** — Real to'lov integratsiyasi (Payme / Click)
+- [x] **18-bosqich** — AI Yordamchi: tanishtiruv, ovoz bilan boshqarish, rost javoblar
+- [ ] **19-bosqich** — Taksi moduli (xarita API kaliti kerak)
+- [ ] **20-bosqich** — Real to'lov integratsiyasi (Payme / Click)

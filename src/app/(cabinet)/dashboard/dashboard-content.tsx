@@ -3,6 +3,7 @@
 import { ArrowRight, MapPin, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 import { AiBanner } from '@/components/app/ai-banner';
 import { AppHeader } from '@/components/app/app-header';
@@ -66,6 +67,23 @@ export function DashboardContent() {
 
   const addresses = useApiQuery<AddressesResponse>('/api/v1/addresses');
   const wallet = useApiQuery<WalletSummary>('/api/v1/wallet');
+  const profile = useApiQuery<{ onboardedAt: string | null }>('/api/v1/profile');
+
+  /**
+   * Birinchi kirishda TANISHTIRUV ko'rsatiladi.
+   *
+   * ── Nima uchun bu yerda, `proxy.ts` da emas ─────────────────────────
+   * `proxy.ts` har so'rovda ishlaydi va tez bo'lishi shart — u bazaga
+   * murojaat qilmaydi, faqat cookie'ga qaraydi. "Tanishtiruvni
+   * ko'rganmi" degan javob esa faqat bazada bor.
+   *
+   * Shuning uchun tekshiruv bosh sahifada: kirishdan keyin
+   * foydalanuvchi baribir shu yerga tushadi.
+   */
+  useEffect(() => {
+    if (profile.isLoading || profile.error) return;
+    if (profile.data && profile.data.onboardedAt === null) router.replace('/welcome');
+  }, [profile.data, profile.isLoading, profile.error, router]);
 
   const displayName = user?.firstName ?? 'foydalanuvchi';
   const defaultAddress = addresses.data?.addresses.find((address) => address.isDefault);

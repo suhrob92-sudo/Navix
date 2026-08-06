@@ -1,12 +1,15 @@
 'use client';
 
-import { ArrowRight, Bot, Check, Send, TriangleAlert } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { ArrowRight, Bot, Check, Mic, Send, TriangleAlert, Volume2, VolumeX } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { useApiClient } from '@/hooks/use-api';
+import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
+import { useSpeechSynthesis } from '@/hooks/use-speech-synthesis';
 import { toUserMessage } from '@/lib/api-client';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
@@ -52,18 +55,61 @@ const GREETING: ChatMessage = {
 
 const STARTER_PROMPTS = ['Balansim qancha', 'Ovqat buyur', 'Telefon qidir', 'Nima qila olasan'];
 
+/**
+ * Tanishtiruvdan keyingi BIRINCHI xabar.
+ *
+ * ── Nima uchun slaydlardan farq qiladi ────────────────────────────────
+ * Slaydlar "Navix nima" ni aytadi. Bu yerda esa yordamchi ishni
+ * BOSHLASHNI taklif qiladi: quruq tanishuv emas, birinchi qadam.
+ *
+ * Odam nazariya o'qib emas, bitta tugmani bosib o'rganadi.
+ */
+const WELCOME_GREETING: ChatMessage = {
+  id: 'greeting',
+  author: 'assistant',
+  text:
+    "Tanishganimizdan xursandman! Endi birgalikda sinab ko'ramiz.\n\n" +
+    "Pastdagi tugmalardan birini bosing yoki mikrofonni bosib gapiring — " +
+    "masalan \"Navix, ovqat buyur\" deng.",
+};
+
+/** Yangi foydalanuvchiga ko'rsatiladigan birinchi qadamlar. */
+const WELCOME_PROMPTS = ['Nima qila olasan', 'Ovqat buyur', 'Balansim qancha', 'Telefon qidir'];
+
 export function AssistantContent() {
   const router = useRouter();
   const request = useApiClient();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([GREETING]);
-  const [suggestions, setSuggestions] = useState<string[]>([...STARTER_PROMPTS]);
+  /**
+   * `?welcome=1` — tanishtiruvdan kelgan yangi foydalanuvchi.
+   *
+   * Manzildan o'qiymiz, chunki bu bir martalik holat: uni holatga
+   * (state) yoki bazaga saqlash ortiqcha bo'lardi.
+   */
+  const isWelcome = useSearchParams().get('welcome') === '1';
+
+  const [messages, setMessages] = useState<ChatMessage[]>([isWelcome ? WELCOME_GREETING : GREETING]);
+  const [suggestions, setSuggestions] = useState<string[]>(isWelcome ? [...WELCOME_PROMPTS] : [...STARTER_PROMPTS]);
   const [state, setState] = useState<AssistantState>({ slots: {} });
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const counterRef = useRef(0);
+
+  const voice = useSpeechSynthesis();
+
+  /**
+   * Mikrofon matnni KIRITISH MAYDONIGA qo'yadi, o'zi yubormaydi.
+   *
+   * Bu ataylab: tanigich "ellik ming" ni "besh yuz ming" deb
+   * eshitishi mumkin. Foydalanuvchi matnni ko'rib, kerak bo'lsa
+   * tuzatib, keyin yuboradi. Pul harakati hech qachon eshitilgan
+   * so'zga ishonib bajarilmaydi.
+   */
+  const speech = useSpeechRecognition({
+    onResult: (text) => setInput((current) => (current.trim() ? `${current.trim()} ${text}` : text)),
+  });
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -99,6 +145,7 @@ export function AssistantContent() {
 
       setSuggestions(result.suggestions);
       setState(result.state);
+      voice.speak(result.text);
     } catch (caught) {
       setMessages((current) => [
         ...current,
@@ -284,6 +331,49 @@ export function AssistantContent() {
         </div>
       )}
 
+      {/*
+        Ovozli javob kaliti.
+
+        Sukut bo'yicha O'CHIQ: ko'p qurilmada o'zbekcha ovoz yo'q va
+        matn begona talaffuz bilan o'qiladi. Kerak bo'lganda
+        foydalanuvchi o'zi yoqadi, tanlov brauzerda saqlanadi.
+      */}
+      {voice.isSupported && (
+        <div className="flex justify-end px-4 pb-1">
+          <button
+            type="button"
+            onClick={voice.toggle}
+            aria-pressed={voice.isEnabled}
+            className={cn(
+              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+              voice.isEnabled ? 'border-primary text-primary' : 'border-border text-muted-foreground',
+            )}
+          >
+            {voice.isEnabled ? (
+              <Volume2 className="size-3.5" aria-hidden="true" />
+            ) : (
+              <VolumeX className="size-3.5" aria-hidden="true" />
+            )}
+            {voice.isEnabled ? 'Ovozli javob yoqilgan' : 'Ovozli javob'}
+          </button>
+        </div>
+      )}
+
+      {speech.error && (
+        <div className="px-4 pb-2">
+          <Alert variant="warning" onClick={speech.clearError}>
+            {speech.error}
+          </Alert>
+        </div>
+      )}
+
+      {/* Gapirilayotgan matn — jonli ko'rinadi, ishonch beradi */}
+      {speech.isListening && (
+        <p className="text-muted-foreground animate-fade-up px-4 pb-2 text-center text-sm" aria-live="polite">
+          {speech.interim || 'Tinglayapman...'}
+        </p>
+      )}
+
       <form
         onSubmit={handleSubmit}
         className="bg-background/95 sticky bottom-0 flex items-center gap-2 px-4 py-3 backdrop-blur-md"
@@ -292,10 +382,32 @@ export function AssistantContent() {
           type="text"
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder="Xabar yozing..."
+          placeholder={speech.isSupported ? "Yozing yoki mikrofonni bosing..." : 'Xabar yozing...'}
           aria-label="Xabar matni"
           className="bg-card border-border focus-visible:border-ring focus-visible:ring-ring h-12 min-w-0 flex-1 rounded-full border px-5 text-base outline-none focus-visible:ring-2"
         />
+
+        {/*
+          Mikrofon tugmasi FAQAT qo'llab-quvvatlanganda ko'rinadi.
+          Ishlamaydigan tugma foydalanuvchini aldaydi.
+        */}
+        {speech.isSupported && (
+          <button
+            type="button"
+            onClick={() => (speech.isListening ? speech.stop() : speech.start())}
+            aria-label={speech.isListening ? "Tinglashni to'xtatish" : 'Ovoz bilan aytish'}
+            aria-pressed={speech.isListening}
+            disabled={isThinking}
+            className={cn(
+              'inline-flex size-12 shrink-0 items-center justify-center rounded-full border transition-transform active:scale-95 disabled:opacity-50',
+              speech.isListening
+                ? 'border-destructive bg-destructive text-destructive-foreground animate-pulse'
+                : 'border-border bg-card hover:border-ring',
+            )}
+          >
+            <Mic className="size-5" aria-hidden="true" />
+          </button>
+        )}
 
         <button
           type="submit"

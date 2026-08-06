@@ -139,19 +139,33 @@ export const APP_MODULES: readonly AppModule[] = [
     status: ModuleStatus.PLANNED,
     color: 'amber',
     quickOrder: 1,
-    aiIntents: ['taxi chaqir', 'mashina chaqir', 'taksi buyurtma', 'meni olib ket'],
+    aiIntents: [
+      'taxi chaqir',
+      'taksi chaqir',
+      'taksi',
+      'mashina chaqir',
+      'taksi buyurtma',
+      'meni olib ket',
+      'mashina kerak',
+    ],
   },
   {
     id: 'courier',
     name: 'Kuryer',
-    description: 'Shahar ichida hujjat va buyumlarni tezkor yetkazing.',
+    description: "Buyurtmalarni yetkazing va har topshiriq uchun haq oling.",
     href: '/courier',
     icon: Package,
     category: ModuleCategory.MOBILITY,
-    status: ModuleStatus.PLANNED,
+    /**
+     * 17-bosqichda ishga tushdi.
+     *
+     * Bu modul MIJOZ uchun emas, KURYER uchun: u ovqat va Marketplace
+     * buyurtmalarini yetkazadi. Shuning uchun `quickOrder` yo'q —
+     * bosh sahifadagi tezkor xizmatlar mijozga mo'ljallangan.
+     */
+    status: ModuleStatus.LIVE,
     color: 'indigo',
-    quickOrder: 10,
-    aiIntents: ['kuryer chaqir', 'pochta yubor', 'buyum yetkaz'],
+    aiIntents: ['kuryer kabineti', 'topshiriqlarim', 'yetkazishlarim'],
   },
   {
     id: 'delivery',
@@ -191,14 +205,15 @@ export const APP_MODULES: readonly AppModule[] = [
   },
   {
     id: 'shop',
-    name: "Onlayn do'kon",
-    description: "O'z brendingiz uchun shaxsiy do'kon oching.",
-    href: '/shop',
+    name: 'Sotuvchi kabineti',
+    description: "O'z do'koningizni oching: mahsulot, ombor va buyurtmalar.",
+    href: '/seller',
     icon: ShoppingBag,
     category: ModuleCategory.COMMERCE,
-    status: ModuleStatus.PLANNED,
+    /** 16-bosqichda ishga tushdi. */
+    status: ModuleStatus.LIVE,
     color: 'blue',
-    aiIntents: ["do'kon och", "mahsulot qo'sh", "do'konim"],
+    aiIntents: ["do'konim", "mahsulot qo'sh", 'ombor', 'sotuvchi kabineti'],
   },
   {
     id: 'ads',

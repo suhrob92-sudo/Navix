@@ -16,6 +16,8 @@
  */
 
 import { toSearchText } from '@/lib/search';
+import { stripWakeWord } from '@/lib/voice';
+import { findPlannedModule } from '@/modules/assistant/assistant.modules';
 
 /** Foydalanuvchi nima qilmoqchi. */
 export const Intent = {
@@ -37,6 +39,14 @@ export const Intent = {
   MARKET_ORDER: 'MARKET_ORDER',
   /** Yordam — nima qila olasan. */
   HELP: 'HELP',
+  /**
+   * Tushunildi, lekin modul HALI TAYYOR EMAS.
+   *
+   * `UNKNOWN` dan farqi katta: "taksi chaqir" ni yordamchi tushunadi,
+   * shunchaki chaqiradigan taksi yo'q. "Tushunmadim" desa — yolg'on
+   * bo'lardi va foydalanuvchi boshqa so'z bilan qayta-qayta urinardi.
+   */
+  COMING_SOON: 'COMING_SOON',
   /** Tushunilmadi. */
   UNKNOWN: 'UNKNOWN',
 } as const;
@@ -570,7 +580,14 @@ const COMMAND_INTENTS: { intent: IntentName; words: string[] }[] = [
  * aks holda "901234567" raqami summa deb o'qilardi.
  */
 export function parseMessage(rawText: string): ParsedMessage {
-  const text = normalize(rawText);
+  /**
+   * Chaqiruv so'zi ("navix") buyruqning bir qismi emas.
+   *
+   * Ovoz bilan gapirganda odam odatda "Navix, lag'mon buyur" deydi.
+   * Kesilmasa, "navix" so'zi qidiruv matniga tushib ketardi va menyuda
+   * hech narsa topilmasdi.
+   */
+  const text = stripWakeWord(normalize(rawText));
 
   const phone = extractPhone(text);
 
@@ -639,6 +656,16 @@ function detectIntent(text: string): IntentName {
   if (matchExactWords(text, PRODUCT_WORDS)) return Intent.MARKET_ORDER;
 
   const byCommand = COMMAND_INTENTS.find((entry) => matchWords(text, entry.words))?.intent;
+  if (byCommand) return byCommand;
 
-  return byCommand ?? Intent.UNKNOWN;
+  /**
+   * Oxirgi urinish: bu hali TAYYOR BO'LMAGAN modulmi?
+   *
+   * Eng oxirida turadi va bu ataylab: ishlab turgan modul buyrug'i
+   * "tez orada" javobini olmasligi kerak. Masalan "kuryer chaqir"
+   * emas, "taksi chaqir" shu yerga tushadi.
+   */
+  if (findPlannedModule(text)) return Intent.COMING_SOON;
+
+  return Intent.UNKNOWN;
 }
