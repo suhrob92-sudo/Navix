@@ -379,6 +379,41 @@ qoladi va keyin har safar Termux'dan ishlaganda ham ishlaydi:
 | `.devcontainer/devcontainer.json` + `forwardPorts` | **Codespace umuman ishga tushmay qoladi.** GitHub standart sozlamasida Docker allaqachon bor; o'z faylimizda `docker-in-docker` qo'shilsa ikkalasi to'qnashadi va `failed to start vs code remote server` xatosi chiqadi. Shu sababli loyihada devcontainer fayli **yo'q**                                                                                              |
 | Saqlangan PID'ni tekshirmasdan `kill` qilish       | **Begona jarayon o'ladi.** Operatsion tizim PID raqamlarini qayta ishlatadi: codespace qayta ishga tushgach eski PID boshqa jarayonga tegishli bo'ladi. Shu sabab `npm run go` bir marta o'zini to'xtatib qo'ygan (`Terminated`). Endi `scripts/lib/tunnel.mjs` PID'ni o'ldirishdan oldin `/proc/<pid>/cmdline` orqali uning haqiqatan `cloudflared` ekanini tekshiradi |
 
+### "Ustun yo'q" yoki "Serverda kutilmagan xatolik" chiqsa
+
+Xato matnida shunga o'xshash gap bo'ladi:
+
+```
+The column `sessions.previousTokenHash` does not exist in the current database
+```
+
+**Sabab.** `git pull` yangi KODNI olib keladi, lekin BAZANI
+o'zgartirmaydi. Kodda yangi ustun paydo bo'lgan, bazada esa hali
+yo'q.
+
+**Bu endi o'z-o'zidan tuzaladi.** `npm run go` bazani kodga
+moslashtiradi (`npm run db:sync` orqali), Vercel esa har deploy'da
+migratsiyani o'zi qo'llaydi.
+
+Agar baribir chiqsa:
+
+```
+npm run db:sync     # lokal baza
+npm run deploy:db   # bulutdagi baza (Neon)
+```
+
+**Nima uchun ilgari avtomatik emasdi.** `npm run status` bu holatni
+aniqlardi va nima qilish kerakligini aytardi — lekin uni hech kim
+ishlatmaydi: odam `npm run go` yozadi va ishlashini kutadi.
+Tekshiruv ESLATMA emas, AMAL bo'lishi kerak ekan.
+
+Production'da esa oqibati og'irroq edi: Vercel yangi kodni chiqarardi,
+Neon esa eski holicha qolardi va sayt butunlay ishlamay qolardi. Endi
+`vercel.json` dagi `buildCommand` migratsiyani build paytida
+qo'llaydi. Migratsiya yiqilsa deploy ham to'xtaydi — bu ATAYLAB:
+buzuq saytdan ko'ra chiqmagan deploy yaxshiroq, eski versiya esa
+ishlashda davom etadi.
+
 ### Sahifa skelet holatida qotib qolsa
 
 Ekranda kulrang to'rtburchaklar turadi, hech narsa yuklanmaydi va

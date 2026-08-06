@@ -8,7 +8,7 @@
     "dev:bg": "nohup npm run dev > dev.log 2>&1 & npm run share",
     "dev:stop": "node scripts/dev-stop.mjs",
     "dev:log": "tail -f dev.log",
-    "go": "npm run docker:up && npm run dev:stop && npm run dev:bg",
+    "go": "npm run docker:up && npm run db:sync && npm run dev:stop && npm run dev:bg",
     "share": "node scripts/share.mjs",
     "status": "node scripts/status.mjs",
     "update": "node scripts/update.mjs",
@@ -45,7 +45,8 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "setup": "node scripts/setup.mjs",
-    "verify": "npm run typecheck && npm run lint && npm run test"
+    "verify": "npm run typecheck && npm run lint && npm run test",
+    "db:sync": "node scripts/db-sync.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
