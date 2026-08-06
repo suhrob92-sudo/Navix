@@ -1845,9 +1845,46 @@ Xato brauzer sinovida ushlandi: `/jobs` sahifasi uchta so'rovni bir
 vaqtda yuboradi (yo'nalishlar, shaharlar, vakansiyalar) va token
 eskirgan paytda uchalasi ham yangilashni boshlab yubordi.
 
-Yechim `AuthProvider` da: yangilash so'rovi bitta va qolgan
-chaqiruvlar o'sha so'rovning natijasini kutadi. Serverdagi himoya
-o'z kuchida qoldi — u haqiqiy o'g'irlikni baribir ushlaydi.
+Yechim ikki qatlamli.
+
+**1-qatlam — brauzerda.** `AuthProvider` bir vaqtda faqat bitta
+yangilash so'rovini yuboradi; qolgan chaqiruvlar o'sha so'rovning
+natijasini kutadi.
+
+**2-qatlam — serverda.** Birinchi qatlam bitta varaq ichida
+yetarli, lekin refresh token **cookie'da** saqlanadi va u barcha
+varaqlar uchun bitta. Ikkita varaq bir zumda yangilashni boshlasa,
+ular alohida brauzer holatiga ega — birinchi qatlam ularni
+birlashtira olmaydi.
+
+Shuning uchun serverda **qisqa muhlat** bor: bir oldingi token
+almashtirilgandan keyin **30 soniya** davomida qabul qilinadi.
+
+| Taqdim etilgan token          | Qaror     | Nima bo'ladi                          |
+| ----------------------------- | --------- | ------------------------------------- |
+| joriy token                   | `current` | oddiy almashtirish, cookie yangilanadi |
+| bir oldingi, 30 soniya ichida | `grace`   | access token beriladi, **cookie'ga tegilmaydi** |
+| notanish yoki eskiroq         | `unknown` | sessiya darhol yopiladi               |
+
+`grace` holatida cookie ataylab o'zgartirilmaydi: ikkita javob
+bir-birining cookie'sini bosib ketsa, oxirida qaysi token qolgani
+noaniq bo'lardi.
+
+Butun amal `SELECT ... FOR UPDATE` bilan **qulflanadi** — xuddi
+hamyondagi kabi. Qulfsiz ikkala so'rov bir xil holatni o'qib olib,
+ikkalasi ham "men birinchiman" deb token almashtirardi.
+
+**Himoya yo'qolmadi.** O'g'irlangan token faqat almashtirilgandan
+keyingi 30 soniya ichida ishlaydi; undan keyin sessiya baribir
+yopiladi. Qaror `classifyRefreshToken()` funksiyasida va u to'liq
+test bilan qoplangan.
+
+> **Yo'l-yo'lakay topilgan ikkinchi xato.** Dastlab sessiyani yopish
+> tranzaksiya ICHIDA yozilgandi. PostgreSQL xato tashlanganda
+> tranzaksiyadagi hamma narsani orqaga qaytaradi — ya'ni yopish ham
+> bekor bo'lardi va o'g'irlikdan himoya jimgina ishlamay qolardi.
+> Buni haqiqiy baza ustidagi tekshiruv ushladi; endi yopish
+> tranzaksiyadan tashqarida bajariladi.
 
 ### Himoya choralari
 

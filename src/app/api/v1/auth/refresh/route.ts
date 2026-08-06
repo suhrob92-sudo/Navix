@@ -55,7 +55,17 @@ export const POST = withApiHandler(async (request: NextRequest, { requestId }) =
    * qurilma qachon faol bo'lgan" degan savolga javob yo'qolmaydi.
    */
   const response = apiSuccess(tokens, { requestId });
-  setRefreshCookie(response, refreshToken);
+
+  /**
+   * `refreshToken` `null` bo'lsa cookie'ga TEGILMAYDI.
+   *
+   * Bu — bir vaqtda kelgan ikkinchi so'rov. Uning yonidagi so'rov
+   * allaqachon yangi tokenni cookie'ga yozgan; bu yerda qayta yozish
+   * ikkalasining javobini bir-biriga urishtirardi.
+   */
+  if (refreshToken !== null) {
+    setRefreshCookie(response, refreshToken);
+  }
 
   return response;
 });

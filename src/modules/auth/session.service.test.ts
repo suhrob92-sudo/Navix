@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { detectDeviceLabel } from '@/modules/auth/session.service';
+import { classifyRefreshToken, detectDeviceLabel } from '@/modules/auth/session.service';
 
 describe('detectDeviceLabel — qurilma nomini aniqlash', () => {
   it('iPhone Safari', () => {
@@ -41,5 +41,89 @@ describe('detectDeviceLabel — qurilma nomini aniqlash', () => {
     expect(detectDeviceLabel(null)).toBe("Noma'lum qurilma");
     expect(detectDeviceLabel(undefined)).toBe("Noma'lum qurilma");
     expect(detectDeviceLabel('')).toBe("Noma'lum qurilma");
+  });
+});
+
+describe('classifyRefreshToken — token qanday qabul qilinadi', () => {
+  const NOW = new Date('2026-08-06T12:00:30.000Z');
+  /** 5 soniya oldin almashtirilgan — muhlat ichida. */
+  const JUST_ROTATED = new Date('2026-08-06T12:00:25.000Z');
+  /** 5 daqiqa oldin almashtirilgan — muhlat allaqachon o'tgan. */
+  const LONG_AGO = new Date('2026-08-06T11:55:30.000Z');
+
+  const state = {
+    currentHash: 'hozirgi',
+    previousHash: 'oldingi',
+    rotatedAt: JUST_ROTATED,
+  };
+
+  it('joriy token — oddiy almashtirish', () => {
+    expect(classifyRefreshToken('hozirgi', state, NOW)).toBe('current');
+  });
+
+  /**
+   * ENG MUHIM TEKSHIRUV — 1.
+   *
+   * Refresh token cookie'da va u barcha varaqlar uchun bitta. Ikkita
+   * varaq bir vaqtda yangilashni boshlasa, ikkinchisi eski token
+   * bilan keladi. Bu o'g'irlik emas — foydalanuvchi hech narsa
+   * qilmagan.
+   */
+  it("bir necha soniya oldingi token — o'g'irlik emas", () => {
+    expect(classifyRefreshToken('oldingi', state, NOW)).toBe('grace');
+  });
+
+  /**
+   * ENG MUHIM TEKSHIRUV — 2.
+   *
+   * Himoya YO'QOLMASLIGI kerak: muhlat o'tgach eski token qabul
+   * qilinmaydi va sessiya yopiladi.
+   */
+  it("muhlat o'tgan eski token — sessiya yopiladi", () => {
+    expect(classifyRefreshToken('oldingi', { ...state, rotatedAt: LONG_AGO }, NOW)).toBe('unknown');
+  });
+
+  it('muhlat chegarasi: 30 soniya ichida qabul qilinadi', () => {
+    const rotatedAt = new Date(NOW.getTime() - 29_000);
+
+    expect(classifyRefreshToken('oldingi', { ...state, rotatedAt }, NOW)).toBe('grace');
+  });
+
+  it('muhlat chegarasi: 31 soniyada rad etiladi', () => {
+    const rotatedAt = new Date(NOW.getTime() - 31_000);
+
+    expect(classifyRefreshToken('oldingi', { ...state, rotatedAt }, NOW)).toBe('unknown');
+  });
+
+  it('butunlay notanish token — sessiya yopiladi', () => {
+    expect(classifyRefreshToken('begona', state, NOW)).toBe('unknown');
+  });
+
+  it("oldingi token yo'q bo'lsa faqat joriysi qabul qilinadi", () => {
+    const fresh = { currentHash: 'hozirgi', previousHash: null, rotatedAt: null };
+
+    expect(classifyRefreshToken('hozirgi', fresh, NOW)).toBe('current');
+    expect(classifyRefreshToken('oldingi', fresh, NOW)).toBe('unknown');
+  });
+
+  it("almashtirish vaqti yozilmagan bo'lsa muhlat berilmaydi", () => {
+    // Vaqtsiz muhlatni sanab bo'lmaydi — ishonchsiz holatda rad etamiz.
+    const broken = { currentHash: 'hozirgi', previousHash: 'oldingi', rotatedAt: null };
+
+    expect(classifyRefreshToken('oldingi', broken, NOW)).toBe('unknown');
+  });
+
+  it('soat orqaga surilgan bo\'lsa ham rad etiladi', () => {
+    // Kelajakdagi vaqt — ishonchsiz. Muhlat cho'zilib ketmasligi kerak.
+    const future = { ...state, rotatedAt: new Date(NOW.getTime() + 60_000) };
+
+    expect(classifyRefreshToken('oldingi', future, NOW)).toBe('unknown');
+  });
+
+  it("bo'sh satr joriy hash bilan adashtirilmaydi", () => {
+    const empty = { currentHash: '', previousHash: null, rotatedAt: null };
+
+    // Bu holat bo'lmasligi kerak, lekin bo'lsa ham hech narsa o'tmaydi.
+    expect(classifyRefreshToken('begona', empty, NOW)).toBe('unknown');
   });
 });
