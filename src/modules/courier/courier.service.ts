@@ -13,10 +13,12 @@ import { creditEarning, getOrCreateWallet } from '@/modules/wallet/wallet.servic
 import {
   MAX_ACTIVE_DELIVERIES,
   canTransition,
+  type CourierStats,
+  type DeliveryKind,
   type DeliveryStatusName,
   type DeliveryView,
-  type CourierStats,
 } from '@/modules/courier/courier.types';
+import { formatWeight } from '@/modules/parcel/parcel.types';
 import type { DeliveryQuery, UpdateDeliveryStatusInput } from '@/modules/courier/courier.schemas';
 
 /**
@@ -151,6 +153,23 @@ const DELIVERY_SELECT = {
       items: { select: { name: true, quantity: true }, orderBy: { name: 'asc' as const } },
     },
   },
+  parcel: {
+    select: {
+      id: true,
+      parcelNumber: true,
+      priceTiyin: true,
+      fromRegion: true,
+      fromAddress: true,
+      fromNote: true,
+      toRegion: true,
+      toAddress: true,
+      toNote: true,
+      recipientName: true,
+      recipientPhone: true,
+      description: true,
+      weightGrams: true,
+    },
+  },
 } as const;
 
 type DeliveryRow = Prisma.DeliveryGetPayload<{ select: typeof DELIVERY_SELECT }>;
@@ -178,25 +197,10 @@ function fullName(user: { firstName: string | null; lastName: string | null }): 
  * degan qarorni usiz qabul qila olmaydi.
  */
 function toDeliveryView(row: DeliveryRow): DeliveryView {
-  const source =
-    row.foodOrder !== null
-      ? {
-          kind: 'FOOD' as const,
-          order: row.foodOrder,
-          pickup: row.foodOrder.restaurant,
-          orderUrl: `/orders/${row.foodOrder.id}`,
-        }
-      : row.marketOrder !== null
-        ? {
-            kind: 'MARKET' as const,
-            order: row.marketOrder,
-            pickup: row.marketOrder.shop,
-            orderUrl: `/marketplace/orders/${row.marketOrder.id}`,
-          }
-        : null;
+  const source = resolveSource(row);
 
   if (!source) {
-    throw new ConflictError("Topshiriq buyurtmaga bog'lanmagan. Qo'llab-quvvatlashga murojaat qiling.");
+    throw new ConflictError("Topshiriq manbaga bog'lanmagan. Qo'llab-quvvatlashga murojaat qiling.");
   }
 
   const isClaimed = row.courierId !== null;
@@ -205,22 +209,108 @@ function toDeliveryView(row: DeliveryRow): DeliveryView {
     id: row.id,
     status: row.status,
     kind: source.kind,
-    orderNumber: source.order.orderNumber,
+    orderNumber: source.orderNumber,
     fee: tiyinToNumber(row.feeTiyin),
-    pickup: { name: source.pickup.name, color: source.pickup.color as ServiceColor },
-    dropoffAddress: source.order.deliveryAddress,
-    dropoffNote: source.order.deliveryNote,
-    customer: isClaimed
-      ? { name: fullName(source.order.user), phone: source.order.user.phone }
-      : { name: null, phone: '' },
-    items: source.order.items.map((item) => ({ name: item.name, quantity: item.quantity })),
-    orderTotal: tiyinToNumber(source.order.total),
+    pickup: source.pickup,
+    pickupAddress: source.pickupAddress,
+    dropoffAddress: source.dropoffAddress,
+    dropoffNote: source.dropoffNote,
+    customer: isClaimed ? source.customer : { name: null, phone: '' },
+    items: source.items,
+    orderTotal: source.orderTotal,
     createdAt: row.createdAt.toISOString(),
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
     pickedUpAt: row.pickedUpAt?.toISOString() ?? null,
     deliveredAt: row.deliveredAt?.toISOString() ?? null,
     orderUrl: source.orderUrl,
   };
+}
+
+interface DeliverySource {
+  kind: DeliveryKind;
+  orderNumber: string;
+  pickup: { name: string; color: ServiceColor };
+  pickupAddress: string | null;
+  dropoffAddress: string;
+  dropoffNote: string | null;
+  customer: { name: string | null; phone: string };
+  items: { name: string; quantity: number }[];
+  orderTotal: number;
+  orderUrl: string;
+}
+
+/**
+ * Uch xil manbani BITTA ko'rinishga keltiradi.
+ *
+ * ── Nima uchun alohida funksiya ───────────────────────────────────────
+ * Manbalar soni ikkitadan uchtaga chiqdi va ichma-ich shartlar
+ * o'qib bo'lmas holga keldi. Endi har bir manba o'z blokida —
+ * to'rtinchisi qo'shilsa ham shu tartib buzilmaydi.
+ */
+function resolveSource(row: DeliveryRow): DeliverySource | null {
+  if (row.foodOrder !== null) {
+    const order = row.foodOrder;
+
+    return {
+      kind: 'FOOD',
+      orderNumber: order.orderNumber,
+      pickup: { name: order.restaurant.name, color: order.restaurant.color as ServiceColor },
+      // Restoranning manzili kuryerga tanish — u ro'yxatda va bir joyda.
+      pickupAddress: null,
+      dropoffAddress: order.deliveryAddress,
+      dropoffNote: order.deliveryNote,
+      customer: { name: fullName(order.user), phone: order.user.phone },
+      items: order.items.map((item) => ({ name: item.name, quantity: item.quantity })),
+      orderTotal: tiyinToNumber(order.total),
+      orderUrl: `/orders/${order.id}`,
+    };
+  }
+
+  if (row.marketOrder !== null) {
+    const order = row.marketOrder;
+
+    return {
+      kind: 'MARKET',
+      orderNumber: order.orderNumber,
+      pickup: { name: order.shop.name, color: order.shop.color as ServiceColor },
+      pickupAddress: null,
+      dropoffAddress: order.deliveryAddress,
+      dropoffNote: order.deliveryNote,
+      customer: { name: fullName(order.user), phone: order.user.phone },
+      items: order.items.map((item) => ({ name: item.name, quantity: item.quantity })),
+      orderTotal: tiyinToNumber(order.total),
+      orderUrl: `/marketplace/orders/${order.id}`,
+    };
+  }
+
+  if (row.parcel !== null) {
+    const parcel = row.parcel;
+
+    /**
+     * Posilkada "sotuvchi" yo'q — olib ketish nuqtasi jo'natuvchining
+     * manzili. Shuning uchun `pickupAddress` aynan shu yerda to'ladi:
+     * usiz kuryer qayerga borishini bilmasdi.
+     *
+     * Mijoz sifatida esa QABUL QILUVCHI ko'rsatiladi — kuryer yetib
+     * borgach aynan unga qo'ng'iroq qiladi.
+     */
+    return {
+      kind: 'PARCEL',
+      orderNumber: parcel.parcelNumber,
+      pickup: { name: `Jo'natuvchi — ${parcel.fromRegion}`, color: 'pink' },
+      pickupAddress: parcel.fromNote
+        ? `${parcel.fromAddress} (${parcel.fromNote})`
+        : parcel.fromAddress,
+      dropoffAddress: `${parcel.toRegion}, ${parcel.toAddress}`,
+      dropoffNote: parcel.toNote,
+      customer: { name: parcel.recipientName, phone: parcel.recipientPhone },
+      items: [{ name: `${parcel.description} · ${formatWeight(parcel.weightGrams)}`, quantity: 1 }],
+      orderTotal: tiyinToNumber(parcel.priceTiyin),
+      orderUrl: `/delivery/${parcel.id}`,
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -570,19 +660,33 @@ async function completeDelivery(
       throw new ConflictError("Topshiriq holati o'zgardi. Sahifani yangilang.");
     }
 
-    // Buyurtmani ham yakunlaymiz — holat sharti bilan.
-    const finished = row.foodOrderId
-      ? await tx.foodOrder.updateMany({
-          where: { id: row.foodOrderId, status: FoodOrderStatus.DELIVERING },
-          data: { status: FoodOrderStatus.DELIVERED, deliveredAt: now },
-        })
-      : await tx.marketOrder.updateMany({
-          where: { id: row.marketOrderId ?? '', status: MarketOrderStatus.SHIPPED },
-          data: { status: MarketOrderStatus.DELIVERED, deliveredAt: now },
-        });
+    /**
+     * Buyurtmani ham yakunlaymiz — holat sharti bilan.
+     *
+     * ── POSILKADA buyurtma YO'Q ────────────────────────────────────────
+     * Ovqat va Marketplace'da yetkazish tugagach BUYURTMA holati ham
+     * "yetkazildi" ga o'tishi kerak. Posilkada esa yakunlanadigan
+     * buyurtma yo'q: uning holati aynan shu yetkazish yozuvi.
+     *
+     * Bu shart qo'shilmasa, posilka yetkazilganda kod bo'sh
+     * `marketOrderId` bilan buyurtma qidirib, baza xatosiga
+     * uchrardi — kuryer haqini ololmasdi. Xato haqiqiy baza
+     * ustidagi tekshiruvda ushlandi.
+     */
+    if (row.foodOrderId !== null || row.marketOrderId !== null) {
+      const finished = row.foodOrderId
+        ? await tx.foodOrder.updateMany({
+            where: { id: row.foodOrderId, status: FoodOrderStatus.DELIVERING },
+            data: { status: FoodOrderStatus.DELIVERED, deliveredAt: now },
+          })
+        : await tx.marketOrder.updateMany({
+            where: { id: row.marketOrderId!, status: MarketOrderStatus.SHIPPED },
+            data: { status: MarketOrderStatus.DELIVERED, deliveredAt: now },
+          });
 
-    if (finished.count === 0) {
-      throw new ConflictError("Buyurtma holati o'zgardi. Sahifani yangilang.");
+      if (finished.count === 0) {
+        throw new ConflictError("Buyurtma holati o'zgardi. Sahifani yangilang.");
+      }
     }
 
     const payout = await creditEarning(tx, {

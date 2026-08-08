@@ -109,6 +109,17 @@ export interface NotificationEventData {
     companyName: string;
     note: string | null;
   };
+  'parcel.created': {
+    parcelId: string;
+    parcelNumber: string;
+    toRegion: string;
+    amountTiyin: number;
+  };
+  'parcel.cancelled': {
+    parcelId: string;
+    parcelNumber: string;
+    refundTiyin: number;
+  };
   'security.password_changed': { revokedSessions: number };
 }
 
@@ -352,6 +363,26 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
       : `${companyName} — "${vacancyTitle}" lavozimiga bu safar boshqa nomzod tanlandi. Boshqa e'lonlarni ko'rib chiqing.`,
     actionUrl: '/jobs/applications',
     sourceModule: 'jobs',
+  }),
+
+  /**
+   * Jo'natma qabul qilindi.
+   *
+   * Kuzatuv raqami MATNGA yoziladi: foydalanuvchi uni qabul
+   * qiluvchiga yuboradi va u posilkani shu raqam bo'yicha so'raydi.
+   */
+  'parcel.created': ({ parcelId, parcelNumber, toRegion, amountTiyin }) => ({
+    title: "Posilka qabul qilindi",
+    body: `${parcelNumber} — ${toRegion} yo'nalishi. ${formatTiyin(amountTiyin)} yechildi. Kuryer tez orada olib ketadi.`,
+    actionUrl: `/delivery/${parcelId}`,
+    sourceModule: 'delivery',
+  }),
+
+  'parcel.cancelled': ({ parcelId, parcelNumber, refundTiyin }) => ({
+    title: 'Jo\'natma bekor qilindi',
+    body: `${parcelNumber} bekor qilindi. ${formatTiyin(refundTiyin)} hamyoningizga qaytarildi.`,
+    actionUrl: `/delivery/${parcelId}`,
+    sourceModule: 'delivery',
   }),
 
   'security.password_changed': ({ revokedSessions }) => ({

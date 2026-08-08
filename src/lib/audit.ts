@@ -99,6 +99,16 @@ export const AuditAction = {
   EMPLOYER_ASSIGNED: 'employer.assigned',
   EMPLOYER_UNASSIGNED: 'employer.unassigned',
 
+  /**
+   * Posilka — pul harakati bor, shuning uchun yozuv qoldiriladi.
+   *
+   * Bundan tashqari jo'natmada BEGONA odamning telefon raqami bor
+   * (qabul qiluvchi). "Kim, qachon, kimning raqamini kiritdi" degan
+   * savolga javob shu yerdan topiladi.
+   */
+  PARCEL_CREATED: 'parcel.created',
+  PARCEL_CANCELLED: 'parcel.cancelled',
+
   ADMIN_PROVIDER_CREATED: 'admin.provider.created',
   ADMIN_PROVIDER_UPDATED: 'admin.provider.updated',
   ADMIN_USER_STATUS_CHANGED: 'admin.user.status_changed',

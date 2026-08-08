@@ -225,6 +225,7 @@ model User {
   deliveries    Delivery[]           @relation("CourierDeliveries")
   companies     Company[]            @relation("CompanyOwner")
   applications  JobApplication[]
+  parcels       Parcel[]
 
   @@index([status])
   @@index([createdAt])
@@ -338,22 +339,22 @@ model Session {
   id     String @id @default(uuid()) @db.Uuid
   userId String @db.Uuid
 
-  refreshTokenHash String    @unique @db.VarChar(255)
+  refreshTokenHash  String    @unique @db.VarChar(255)
   /// Bir oldingi refresh token hash'i — qisqa muhlat uchun.
   ///
   /// Nima uchun kerakligi `session.service.ts` da batafsil yozilgan:
   /// bir vaqtda kelgan ikkinchi yangilash so'rovi eski token bilan
   /// keladi va usiz u O'G'IRLIK deb hisoblanardi.
-  previousTokenHash String? @db.VarChar(255)
+  previousTokenHash String?   @db.VarChar(255)
   /// Token oxirgi marta qachon almashtirilgan (muhlatni sanash uchun).
   rotatedAt         DateTime?
-  userAgent        String?   @db.VarChar(400)
-  ipAddress        String?   @db.VarChar(45)
+  userAgent         String?   @db.VarChar(400)
+  ipAddress         String?   @db.VarChar(45)
   /// Qurilma nomi ("iPhone 15", "Chrome / Windows").
-  deviceLabel      String?   @db.VarChar(120)
-  expiresAt        DateTime
-  revokedAt        DateTime?
-  lastUsedAt       DateTime  @default(now())
+  deviceLabel       String?   @db.VarChar(120)
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  lastUsedAt        DateTime  @default(now())
 
   createdAt DateTime @default(now())
 
@@ -483,11 +484,11 @@ model Restaurant {
   ownerId String? @db.Uuid
 
   /// Manzildagi barqaror nom: "milliy-taomlar".
-  slug        String  @unique @db.VarChar(60)
-  name        String  @db.VarChar(120)
-  description String  @db.VarChar(255)
+  slug        String @unique @db.VarChar(60)
+  name        String @db.VarChar(120)
+  description String @db.VarChar(255)
   /// Oshxona turi: "Milliy", "Fast food", "Yapon".
-  cuisine     String  @db.VarChar(60)
+  cuisine     String @db.VarChar(60)
 
   /// Qidiruv uchun tayyorlangan nom: "Do'stlik Kafe" → "dostlik kafe".
   ///
@@ -620,9 +621,9 @@ model FoodOrder {
   deliveredAt DateTime?
   cancelledAt DateTime?
 
-  user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
-  address    Address?   @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  user       User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  restaurant Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
+  address    Address?        @relation(fields: [addressId], references: [id], onDelete: SetNull)
   items      FoodOrderItem[]
   /// Kuryer topshirig'i — restoran "yo'lga chiqarish" bosgach yaratiladi.
   delivery   Delivery?
@@ -639,8 +640,8 @@ model FoodOrder {
 /// aks holda foydalanuvchi "men boshqa narx to'lagandim" deya olardi
 /// va biz isbotlay olmasdik.
 model FoodOrderItem {
-  id      String @id @default(uuid()) @db.Uuid
-  orderId String @db.Uuid
+  id         String  @id @default(uuid()) @db.Uuid
+  orderId    String  @db.Uuid
   /// Taom o'chirilsa ham qator qoladi.
   menuItemId String? @db.Uuid
 
@@ -863,8 +864,8 @@ model Shop {
   searchName String @db.VarChar(200)
 
   /// Yetkazib berish narxi va eng kam buyurtma — TIYINDA.
-  deliveryFee BigInt
-  minOrder    BigInt
+  deliveryFee  BigInt
+  minOrder     BigInt
   /// Taxminiy yetkazish muddati (KUN).
   deliveryDays Int
 
@@ -937,7 +938,7 @@ model Product {
   description String? @db.VarChar(1000)
 
   /// Narx TIYINDA.
-  price BigInt
+  price    BigInt
   /// Chegirmadan oldingi narx — faqat ko'rsatish uchun.
   oldPrice BigInt?
 
@@ -1006,10 +1007,10 @@ model MarketOrder {
   deliveredAt DateTime?
   cancelledAt DateTime?
 
-  user    User              @relation(fields: [userId], references: [id], onDelete: Restrict)
-  shop    Shop              @relation(fields: [shopId], references: [id], onDelete: Restrict)
-  address Address?          @relation(fields: [addressId], references: [id], onDelete: SetNull)
-  items   MarketOrderItem[]
+  user     User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  shop     Shop              @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  address  Address?          @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  items    MarketOrderItem[]
   /// Kuryer topshirig'i — do'kon "yo'lga chiqarish" bosgach yaratiladi.
   delivery Delivery?
 
@@ -1074,6 +1075,77 @@ enum DeliveryStatus {
 /// Prisma sxemasida ifodalab bo'lmaydi, shuning uchun migratsiyada
 /// PostgreSQL `CHECK` cheklovi qo'yilgan: aynan BITTASI to'lgan
 /// bo'lishi shart. Qoidani baza qo'riqlaydi, dastur emas.
+/// Foydalanuvchi jo'natgan posilka (yuk).
+///
+/// ── Ovqat/Marketplace buyurtmasidan FARQI ─────────────────────────────
+/// U yerlarda sotuvchi bor: restoran ovqat tayyorlaydi, do'kon tovarni
+/// yig'adi. Bu yerda sotuvchi YO'Q — foydalanuvchining o'zi jo'natadi
+/// va boshqa odam qabul qiladi.
+///
+/// ── Nima uchun bu yerda HOLAT (status) yo'q ───────────────────────────
+/// Posilkaning yo'li aynan yetkazish bosqichlari bilan bir xil:
+/// kuryer oldi → olib chiqdi → topshirdi. Alohida holat ustuni
+/// qo'shilsa, ikkita manba bitta haqiqatni aytardi va ular bir-biriga
+/// zid bo'lib qolishi mumkin edi.
+///
+/// Shuning uchun holat FAQAT `Delivery` da. Bu yerda esa o'zgarmas
+/// ma'lumot: kimdan, kimga, nima va qancha.
+model Parcel {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Kim jo'natdi.
+  senderId String @db.Uuid
+
+  /// Foydalanuvchi ko'rsatadigan raqam: NVX-P-20260806-A1B2C3.
+  parcelNumber String @unique @db.VarChar(40)
+
+  /// Qayerdan olinadi.
+  fromRegion  String  @db.VarChar(60)
+  fromAddress String  @db.VarChar(300)
+  fromNote    String? @db.VarChar(300)
+
+  /// Qayerga eltiladi.
+  toRegion  String  @db.VarChar(60)
+  toAddress String  @db.VarChar(300)
+  toNote    String? @db.VarChar(300)
+
+  /// Qabul qiluvchi — u ilovada bo'lmasligi ham mumkin.
+  recipientName  String @db.VarChar(120)
+  recipientPhone String @db.VarChar(20)
+
+  /// Ichida nima bor — kuryer ko'radi va mas'uliyatni biladi.
+  description String @db.VarChar(300)
+
+  /// Og'irlik GRAMMDA — butun son bo'lishi uchun.
+  ///
+  /// Kilogrammni kasr sifatida saqlash pulni float qilib saqlash bilan
+  /// bir xil xato: 0.1 + 0.2 hech qachon 0.3 bo'lmaydi.
+  weightGrams Int
+
+  /// Summalar TIYINDA.
+  ///
+  /// `priceTiyin` — mijoz to'lagani, `courierFeeTiyin` — kuryerga
+  /// tegadigan qismi. Ikkalasi ALOHIDA saqlanadi: tarif ertaga
+  /// o'zgarsa ham, kelishilgan summa o'zgarmasligi kerak.
+  priceTiyin      BigInt
+  courierFeeTiyin BigInt
+
+  /// To'lov tranzaksiyasi (hamyondan yechilgan).
+  walletTransactionId String? @db.Uuid
+
+  /// Bekor qilish sababi — mijoz yoki kuryer ko'rsatadi.
+  cancelReason String? @db.VarChar(255)
+
+  createdAt   DateTime  @default(now())
+  cancelledAt DateTime?
+
+  sender   User      @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  delivery Delivery?
+
+  @@index([senderId, createdAt])
+  @@map("parcels")
+}
+
 model Delivery {
   id String @id @default(uuid()) @db.Uuid
 
@@ -1083,9 +1155,14 @@ model Delivery {
   /// qilinadi — shuning uchun `SetNull`.
   courierId String? @db.Uuid
 
-  /// Aynan bitta buyurtmaga tegishli — `@unique` shuni kafolatlaydi.
+  /// Aynan bitta manbaga tegishli — `@unique` shuni kafolatlaydi.
+  ///
+  /// Uchtadan aynan bittasi to'ldiriladi. Buni Prisma sxemasida
+  /// ifodalab bo'lmaydi, shuning uchun hakam — bazadagi CHECK
+  /// cheklovi (`deliveries_exactly_one_source`).
   foodOrderId   String? @unique @db.Uuid
   marketOrderId String? @unique @db.Uuid
+  parcelId      String? @unique @db.Uuid
 
   status DeliveryStatus @default(OFFERED)
 
@@ -1110,6 +1187,7 @@ model Delivery {
   courier     User?        @relation("CourierDeliveries", fields: [courierId], references: [id], onDelete: SetNull)
   foodOrder   FoodOrder?   @relation(fields: [foodOrderId], references: [id], onDelete: Cascade)
   marketOrder MarketOrder? @relation(fields: [marketOrderId], references: [id], onDelete: Cascade)
+  parcel      Parcel?      @relation(fields: [parcelId], references: [id], onDelete: Cascade)
 
   /// Umumiy ro'yxat: "egasiz va taklif qilingan" — eng tez-tez so'rov.
   @@index([status, createdAt])

@@ -52,6 +52,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'courier.delivery.released': "Kuryer topshiriqdan voz kechdi",
   'job.application.sent': 'Ish uchun ariza yubordi',
   'job.application.withdrawn': 'Arizani qaytarib oldi',
+  'parcel.created': "Posilka jo'natdi",
+  'parcel.cancelled': 'Posilkani bekor qildi',
   'job.vacancy.created': 'Vakansiya joyladi',
   'job.vacancy.updated': "Vakansiyani o'zgartirdi",
   'job.application.reviewed': "Arizani ko'rib chiqdi",
@@ -98,6 +100,8 @@ export const AUDIT_GROUP_ACTIONS: Record<Exclude<AuditFilterGroup, 'ALL'>, reado
     'merchant.order.rejected',
     'seller.order.rejected',
     'courier.delivery.completed',
+    'parcel.created',
+    'parcel.cancelled',
   ],
   ADMIN: [
     'admin.provider.created',

@@ -3,7 +3,7 @@
 Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
 kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 20-bosqich yakunlandi.
+> **Holat:** 21-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
@@ -22,7 +22,8 @@ kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada
 > **ish qidirish** — vakansiyalar katalogi, qidiruv va filtrlar, ariza
 > yuborish va arizalar tarixi, hamda **ish beruvchi kabineti** — kompaniya
 > vakansiya joylaydi, nomzodlarni ko'rib chiqadi va suhbatga taklif
-> qiladi.
+> qiladi, hamda **yetkazib berish** — viloyatlararo posilka jo'natish,
+> jonli narx hisobi va kuzatuv.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -1226,6 +1227,7 @@ Navix/
 │   │   ├── seller/          # Sotuvchi kabineti (ombor, mahsulot, buyurtma)
 │   │   ├── courier/         # Kuryer moduli (topshiriq, bosqichlar, haq)
 │   │   ├── job/             # Ish qidirish (vakansiya, filtr, ariza)
+│   │   ├── parcel/          # Posilka jo'natish (tarif, kuzatuv)
 │   │   ├── employer/        # Ish beruvchi kabineti (e'lon, nomzod, qaror)
 │   │   ├── onboarding/      # Tanishtiruv slaydlari
 │   │   └── admin/           # Admin panel (xizmatlar, foydalanuvchilar)
@@ -1236,6 +1238,7 @@ Navix/
 │   │   ├── restaurants.ts   # Restoranlar va menyu (seed manbasi)
 │   │   ├── marketplace.ts   # Do'konlar va mahsulotlar (seed manbasi)
 │   │   ├── jobs.ts          # Kompaniyalar va vakansiyalar (seed manbasi)
+│   │   ├── delivery.ts      # Hududlar va posilka tarifi
 │   │   ├── protected-routes.ts # Kirish talab qiladigan sahifalar (yagona ro'yxat)
 │   │   ├── app-nav.ts       # Ilova navigatsiyasi
 │   │   ├── admin-nav.ts     # Admin panel navigatsiyasi
@@ -1453,6 +1456,16 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 | GET   | `/applications`               | Mening arizalarim (`status=ACTIVE` — javob kutilayotganlar) |
 | POST  | `/applications`               | Ariza yuborish (telefon profildan olinadi)   |
 | POST  | `/applications/{id}/withdraw` | Arizani qaytarib olish                       |
+
+**Yetkazib berish** (`/api/v1/parcels/...`)
+
+| Metod | Manzil          | Tavsif                                          |
+| ----- | --------------- | ----------------------------------------------- |
+| GET   | `/quote`        | Narxni oldindan hisoblash (hech narsa saqlanmaydi) |
+| GET   | `/`             | Mening jo'natmalarim                            |
+| POST  | `/`             | Yangi jo'natma — pul darhol yechiladi           |
+| GET   | `/{id}`         | Bitta jo'natma va holati                        |
+| POST  | `/{id}/cancel`  | Bekor qilish va pulni qaytarish                 |
 
 **Ish beruvchi kabineti** (`/api/v1/employer/...`)
 
@@ -2008,6 +2021,100 @@ yashirish xabarni foydasiz qilardi.
 
 ---
 
+## Yetkazib berish (posilka)
+
+Manzil: `/delivery`. Oqim: **yo'nalish → posilka → qabul qiluvchi →
+to'lov → kuzatuv**.
+
+### Ovqat va Marketplace'dan ENG KATTA farqi
+
+U yerlarda **sotuvchi** bor: restoran ovqat tayyorlaydi, do'kon
+tovarni yig'adi va ular buyurtmani qabul qilishi kerak.
+
+Bu yerda sotuvchi **yo'q**. Foydalanuvchi to'laydi va jo'natma
+darhol kuryerlarning umumiy ro'yxatiga tushadi — "qabul qilish"
+bosqichi umuman kerak emas.
+
+### Narx qanday hisoblanadi
+
+Aniq masofani bilish uchun xarita API kaliti kerak va u pullik.
+Shuning uchun narx masofaga emas, ikkita oddiy savolga tayanadi:
+
+| Savol | Ta'siri |
+| ----- | ------- |
+| Bir hudud ichidami yoki hududlararomi? | 15 000 yoki 35 000 so'm |
+| Og'irligi qancha? | 1 kg gacha bepul, keyin har kg uchun +5 000 so'm |
+
+**Nima uchun zona jadvali emas.** "Har hududga zona raqami berib,
+farqiga qarab hisoblash" degan vasvasa bor edi. Lekin u **yolg'on
+aniqlik** beradi: Andijon va Farg'ona yonma-yon, Andijon va Xorazm
+esa mamlakatning ikki chekkasida — zona raqami buni ajrata olmaydi.
+
+Yagona tarif esa halol: u hech narsani "aniq bilaman" demaydi va
+O'zbekistondagi haqiqiy pochta xizmatlari ham shunday ishlaydi.
+Xarita qo'shilganda narx funksiyasi almashtiriladi, jadval va
+bosqichlar o'zgarmaydi.
+
+Tarif `src/config/delivery.ts` da — so'mda yozilgan, chunki uni
+dasturchi emas, ilova egasi o'qiydi.
+
+**Narx mijozdan kelmaydi.** So'rovda summa yo'q va bo'lmasligi ham
+kerak: aks holda so'rovni tahrirlab Xorazmga 100 so'mga posilka
+jo'natish mumkin bo'lardi.
+
+### Og'irlik nima uchun GRAMMDA
+
+Kilogrammda so'ralsa kasr son kelardi (1.5 kg) va u bazada
+yaxlitlanib, narx bilan mos kelmay qolardi. Grammda esa hamma
+narsa butun son — bu pulni `BigInt` tiyinda saqlash bilan bir xil
+sabab.
+
+Qo'shimcha og'irlik **boshlangan** kilogramm bo'yicha sanaladi:
+1200 gramm — bu bitta qo'shimcha kilogramm. Aks holda 1999 gramm
+bepul ketardi va tarozidagi har gramm bahsga aylanardi.
+
+### Holat qayerda saqlanadi
+
+Posilkaning **o'z holati yo'q**. U `Delivery` jadvalidan o'qiladi.
+
+Ikkita holat ustuni bo'lganda ular ertaga bir-biridan ajralib
+qolardi: kuryer "yo'lda" derdi, posilka sahifasi esa "kuryer
+kutilmoqda". Bir haqiqatni ikki joyda saqlamaymiz.
+
+Shu sababli `deliveries` jadvalidagi CHECK cheklovi ham
+yangilandi — endi **uchta** manbadan aynan bittasi to'ldiriladi:
+
+```sql
+CHECK (
+  (CASE WHEN "foodOrderId"   IS NULL THEN 0 ELSE 1 END) +
+  (CASE WHEN "marketOrderId" IS NULL THEN 0 ELSE 1 END) +
+  (CASE WHEN "parcelId"      IS NULL THEN 0 ELSE 1 END) = 1
+)
+```
+
+### Bekor qilish
+
+Kuryer **olib chiqmaguncha** bekor qilish mumkin va pul to'liq
+qaytariladi. Posilka kuryerning qo'liga o'tgandan keyin esa
+"bekor qilish" ma'nosini yo'qotadi: buyum yo'lda va uni qaytarish
+alohida ish, alohida xarajat.
+
+Bekor qilishda holat **shartli** yangilanadi: shu oniyda kuryer
+topshiriqni olib qo'ygan bo'lishi mumkin.
+
+### Kuryer nimani ko'radi
+
+Kuryer kabinetida posilka uchinchi tur sifatida qo'shildi
+(`PARCEL`). Undagi farq — **olib ketish manzili**: restoran va
+do'konning manzili kuryerga tanish (ular ro'yxatda va bir joyda
+turadi), posilka esa har safar yangi manzildan olinadi.
+
+Qabul qiluvchining telefoni umumiy ro'yxatda **ko'rinmaydi** —
+faqat topshiriqni olgan kuryerga ochiladi. Bu ovqat va
+Marketplace'dagi bilan bir xil qoida.
+
+---
+
 ## Shaxsiy kabinet
 
 Kirgan foydalanuvchi `/dashboard` sahifasiga tushadi. Kabinet sahifalari:
@@ -2219,6 +2326,7 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **18-bosqich** — AI Yordamchi: tanishtiruv, ovoz bilan boshqarish, rost javoblar
 - [x] **19-bosqich** — Ish qidirish: vakansiyalar, qidiruv va filtrlar, ariza, arizalar tarixi
 - [x] **20-bosqich** — Ish beruvchi kabineti: vakansiya joylash, nomzodlar, suhbatga taklif
+- [x] **21-bosqich** — Yetkazib berish: posilka jo'natish, tarif, kuzatuv, bekor qilish
 - [ ] **21-bosqich** — SMS xizmati (Eskiz.uz) — busiz begona odam ro'yxatdan o'ta olmaydi
 - [ ] **22-bosqich** — Taksi moduli (xarita API kaliti kerak)
 - [ ] **23-bosqich** — Real to'lov integratsiyasi (Payme / Click)

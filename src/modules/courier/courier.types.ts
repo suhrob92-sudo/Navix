@@ -9,7 +9,7 @@ import type { ServiceColor } from '@/config/modules';
 export type DeliveryStatusName = 'OFFERED' | 'ACCEPTED' | 'PICKED_UP' | 'DELIVERED' | 'CANCELLED';
 
 /** Topshiriq qaysi moduldan kelgan. */
-export type DeliveryKind = 'FOOD' | 'MARKET';
+export type DeliveryKind = 'FOOD' | 'MARKET' | 'PARCEL';
 
 export interface DeliveryLine {
   name: string;
@@ -23,8 +23,16 @@ export interface DeliveryView {
   orderNumber: string;
   /** Kuryer topadigan haq — TIYINDA. */
   fee: number;
-  /** Qayerdan olinadi: restoran yoki do'kon. */
+  /** Qayerdan olinadi: restoran, do'kon yoki jo'natuvchining manzili. */
   pickup: { name: string; color: ServiceColor };
+  /**
+   * Olib ketish manzili — FAQAT posilkada to'ladi.
+   *
+   * Restoran va do'konning manzili kuryerga allaqachon tanish
+   * (ular ro'yxatda va bir joyda turadi). Posilka esa har safar
+   * yangi manzildan olinadi, shuning uchun uni ko'rsatish SHART.
+   */
+  pickupAddress: string | null;
   /** Qayerga eltiladi. */
   dropoffAddress: string;
   dropoffNote: string | null;
@@ -159,6 +167,7 @@ export const DELIVERY_ACTION_LABELS: Record<DeliveryStatusName, string> = {
 export const DELIVERY_KIND_LABELS: Record<DeliveryKind, string> = {
   FOOD: 'Ovqat',
   MARKET: 'Mahsulot',
+  PARCEL: 'Posilka',
 };
 
 /**

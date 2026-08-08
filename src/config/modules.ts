@@ -174,7 +174,7 @@ export const APP_MODULES: readonly AppModule[] = [
     href: '/delivery',
     icon: Bus,
     category: ModuleCategory.MOBILITY,
-    status: ModuleStatus.PLANNED,
+    status: ModuleStatus.LIVE,
     color: 'pink',
     quickOrder: 6,
     aiIntents: ["yuk jo'nat", 'posilka yubor', 'yetkazib berish'],

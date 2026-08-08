@@ -111,6 +111,17 @@ const SAMPLES = {
     companyName: 'Navix Tech',
     note: null,
   },
+  'parcel.created': {
+    parcelId: '7c1f9a52-3e4b-4d8a-9f2c-6b5e1a3d7c94',
+    parcelNumber: 'NVX-P-20260806-A1B2C3',
+    toRegion: 'Samarqand',
+    amountTiyin: 3_500_000,
+  },
+  'parcel.cancelled': {
+    parcelId: '7c1f9a52-3e4b-4d8a-9f2c-6b5e1a3d7c94',
+    parcelNumber: 'NVX-P-20260806-A1B2C3',
+    refundTiyin: 3_500_000,
+  },
   'security.password_changed': { revokedSessions: 3 },
 } as const;
 

@@ -46,6 +46,7 @@ export const PROTECTED_PREFIXES = [
   '/food',
   '/orders',
   '/marketplace',
+  '/delivery',
   '/jobs',
   '/merchant',
   '/seller',
