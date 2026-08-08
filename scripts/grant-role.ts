@@ -1,9 +1,8 @@
 // ".env" faylini o'qiydi — bu skript Next.js'dan tashqarida ishlaydi.
 import 'dotenv/config';
 
-import { PrismaPg } from '@prisma/adapter-pg';
-
-import { PrismaClient, RoleName } from '../src/generated/prisma/client';
+import { RoleName } from '../src/generated/prisma/client';
+import { connectDatabase, stripFlags } from './lib/db-target';
 import { normalizeUzPhone } from '../src/lib/phone';
 
 /**
@@ -26,16 +25,6 @@ import { normalizeUzPhone } from '../src/lib/phone';
 
 const DEFAULT_ROLE: RoleName = 'ADMIN';
 
-function createClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL;
-
-  if (!connectionString) {
-    throw new Error('DATABASE_URL topilmadi. ".env" faylini tekshiring.');
-  }
-
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
-}
-
 function printUsage(): void {
   console.error('Ishlatish: npm run role:grant -- <telefon> [ROL] [remove]');
   console.error('Namuna:    npm run role:grant -- 901234567 ADMIN');
@@ -43,7 +32,7 @@ function printUsage(): void {
 }
 
 async function main(): Promise<void> {
-  const [rawPhone, rawRole, action] = process.argv.slice(2);
+  const [rawPhone, rawRole, action] = stripFlags(process.argv.slice(2));
 
   if (!rawPhone) {
     printUsage();
@@ -66,7 +55,7 @@ async function main(): Promise<void> {
   }
 
   const isRemoving = action === 'remove';
-  const prisma = createClient();
+  const { prisma } = connectDatabase(process.argv);
 
   try {
     const user = await prisma.user.findUnique({

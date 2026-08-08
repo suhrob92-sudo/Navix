@@ -90,7 +90,7 @@ npm run dev
 | `npm run deploy:vars`       | Vercel o'zgaruvchilarini ekranga chiqaradi (qo'lda kiritish uchun) |
 | `npm run deploy:push-env`   | O'zgaruvchilarni Vercel'ga terminaldan yuboradi                    |
 | `npm run otp`               | Oxirgi SMS kodini topadi (lokal). Internet uchun: `-- --prod`      |
-| `npm run role:grant`        | Foydalanuvchiga rol beradi (birinchi adminni yaratish uchun)       |
+| `npm run role:grant`        | Foydalanuvchiga rol beradi (bulut uchun: `--prod`)                 |
 | `npm run restaurant:assign` | Restoranni egasiga biriktiradi (MERCHANT roli bilan)               |
 | `npm run shop:assign`       | Marketplace do'konini egasiga biriktiradi (MERCHANT roli bilan)    |
 | `npm run courier:assign`    | Foydalanuvchiga KURYER rolini beradi                               |
@@ -378,6 +378,31 @@ qoladi va keyin har safar Termux'dan ishlaganda ham ishlaydi:
 | `gh codespace ports forward 3000:3000`             | `ssh: unexpected packet` — Termux'da SSH kanali ochilmaydi                                                                                                                                                                                                                                                                                                              |
 | `.devcontainer/devcontainer.json` + `forwardPorts` | **Codespace umuman ishga tushmay qoladi.** GitHub standart sozlamasida Docker allaqachon bor; o'z faylimizda `docker-in-docker` qo'shilsa ikkalasi to'qnashadi va `failed to start vs code remote server` xatosi chiqadi. Shu sababli loyihada devcontainer fayli **yo'q**                                                                                              |
 | Saqlangan PID'ni tekshirmasdan `kill` qilish       | **Begona jarayon o'ladi.** Operatsion tizim PID raqamlarini qayta ishlatadi: codespace qayta ishga tushgach eski PID boshqa jarayonga tegishli bo'ladi. Shu sabab `npm run go` bir marta o'zini to'xtatib qo'ygan (`Terminated`). Endi `scripts/lib/tunnel.mjs` PID'ni o'ldirishdan oldin `/proc/<pid>/cmdline` orqali uning haqiqatan `cloudflared` ekanini tekshiradi |
+
+### Admin panel (yoki boshqa kabinet) havolasi ko'rinmasa
+
+Profil sahifasida "Admin panel" havolasi yo'q, `/admin` ni qo'lda
+ochsangiz "Bu bo'lim siz uchun yopiq" deydi.
+
+**Sabab deyarli har doim bitta: o'sha bazada rol berilmagan.**
+
+Rollar `user_role_assignments` jadvalida saqlanadi va u **har bazada
+alohida**. Lokal bazada admin qilingan odam Neon'dagi bazada oddiy
+foydalanuvchi bo'lib qolaveradi — kod esa ikkalasida bir xil.
+
+Tekshirish va tuzatish:
+
+```bash
+npm run role:grant -- <telefon> ADMIN          # lokal baza
+npm run role:grant -- <telefon> ADMIN --prod   # bulutdagi baza
+```
+
+Keyin **ilovadan chiqib, qaytadan kiring** — rollar kirish tokeni
+ichida saqlanadi.
+
+Havola ko'rinmasligi himoya EMAS: haqiqiy tekshiruv `/api/v1/admin/*`
+endpointlarida (`requirePermission`). Havolani yashirish shunchaki
+keraksiz tugmani ko'rsatmaslik uchun.
 
 ### "Ustun yo'q" yoki "Serverda kutilmagan xatolik" chiqsa
 
@@ -842,6 +867,32 @@ npm run role:grant -- 901234567 ADMIN remove # rolni olib tashlaydi
 
 Rol berilgandan keyin **ilovadan chiqib, qaytadan kiring** — rollar kirish
 tokeni (JWT) ichida saqlanadi va eski token hali eski rollarni ko'rsatadi.
+
+#### Bulutdagi baza uchun: `--prod`
+
+Rollar **har bazada alohida** yashaydi. Lokal bazada admin qilingan
+odam Neon'dagi bazada oddiy foydalanuvchi bo'lib qolaveradi.
+
+```bash
+npm run role:grant -- 901234567 ADMIN --prod
+```
+
+`--prod` bayrog'i `.env.production` faylidan bulut bazasining
+manzilini oladi. Skript qaysi bazaga tegayotganini har doim ekranga
+yozadi:
+
+```
+☁️  BULUTDAGI baza: ep-xxx.eu-central-1.aws.neon.tech/neondb
+```
+
+Bu bayroq biriktirish skriptlarida ham ishlaydi:
+
+```bash
+npm run restaurant:assign -- osh-markazi 901234567 --prod
+npm run shop:assign       -- texnomart   901234567 --prod
+npm run courier:assign    -- 901234567 --prod
+npm run company:assign    -- texnomart 901234567 --prod
+```
 
 ### Uchta xavfsizlik qoidasi
 

@@ -1,9 +1,7 @@
 // ".env" faylini o'qiydi — bu skript Next.js'dan tashqarida ishlaydi.
 import 'dotenv/config';
 
-import { PrismaPg } from '@prisma/adapter-pg';
-
-import { PrismaClient } from '../src/generated/prisma/client';
+import { connectDatabase, stripFlags } from './lib/db-target';
 import { normalizeUzPhone } from '../src/lib/phone';
 
 /**
@@ -24,23 +22,13 @@ import { normalizeUzPhone } from '../src/lib/phone';
  *   npm run courier:assign -- 901234567 remove
  */
 
-function createClient(): PrismaClient {
-  const connectionString = process.env.DATABASE_URL;
-
-  if (!connectionString) {
-    throw new Error('DATABASE_URL topilmadi. ".env" faylini tekshiring.');
-  }
-
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
-}
-
 function printUsage(): void {
   console.error('Ishlatish: npm run courier:assign -- <telefon> [remove]');
   console.error('Namuna:    npm run courier:assign -- 901234567');
 }
 
 async function main(): Promise<void> {
-  const [rawPhone, action] = process.argv.slice(2);
+  const [rawPhone, action] = stripFlags(process.argv.slice(2));
 
   if (!rawPhone) {
     printUsage();
@@ -55,7 +43,7 @@ async function main(): Promise<void> {
   }
 
   const isRemoving = action === 'remove';
-  const prisma = createClient();
+  const { prisma } = connectDatabase(process.argv);
 
   try {
     const user = await prisma.user.findUnique({
