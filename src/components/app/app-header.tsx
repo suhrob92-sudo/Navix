@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Bell } from 'lucide-react';
+import { ArrowLeft, Bell, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -11,6 +11,15 @@ import { cn } from '@/lib/utils';
 
 interface NotificationsResponse {
   unreadCount: number;
+}
+
+interface ConversationsCountResponse {
+  totalUnread: number;
+}
+
+/** Nishondagi son: 9 dan oshsa "9+" — aks holda u tugmadan chiqib ketardi. */
+function badgeText(count: number): string {
+  return count > 9 ? '9+' : String(count);
 }
 
 export interface AppHeaderProps {
@@ -45,6 +54,19 @@ export function AppHeader({ title, showBack = false, backHref, onBack, className
   });
   const unreadCount = data?.unreadCount ?? 0;
 
+  /**
+   * O'qilmagan xabarlar soni.
+   *
+   * ── Nima uchun eng kichik sahifa so'raladi ─────────────────────────
+   * Bizga faqat SON kerak, suhbatlar ro'yxati emas. `pageSize=1` bilan
+   * server bitta yozuv qaytaradi, umumiy son esa baribir to'g'ri
+   * hisoblanadi — mobil trafik bekorga sarflanmaydi.
+   */
+  const { data: chat } = useApiQuery<ConversationsCountResponse>('/api/v1/chat/conversations?pageSize=1', {
+    refreshIntervalMs: 45_000,
+  });
+  const unreadMessages = chat?.totalUnread ?? 0;
+
   return (
     <header className={cn('glass-chrome sticky top-0 z-40 border-b', className)}>
       <div className="mx-auto flex h-15 max-w-lg items-center justify-between px-4">
@@ -70,6 +92,32 @@ export function AppHeader({ title, showBack = false, backHref, onBack, className
         <div className="flex items-center gap-0.5">
           <ThemeToggle />
 
+          {/*
+            Suhbatlar — HAR BIR sahifada qo'l ostida.
+
+            ── Nima uchun pastki menyuda emas ───────────────────────────
+            Pastki menyuda beshta bo'lim bor va oltinchisi qo'shilsa,
+            barmoq bilan aniq bosish qiyinlashadi. Yuqori panel esa
+            "xabar keldi" belgisi uchun tabiiy joy — bildirishnoma
+            qo'ng'irog'i ham shu yerda turadi.
+          */}
+          <Link
+            href="/messages"
+            aria-label={unreadMessages > 0 ? `Suhbatlar, ${unreadMessages} ta o'qilmagan` : 'Suhbatlar'}
+            className="hover:bg-secondary/60 focus-visible:ring-ring relative inline-flex size-11 items-center justify-center rounded-lg transition-colors focus-visible:ring-2"
+          >
+            <MessageCircle className="size-5" aria-hidden="true" />
+
+            {unreadMessages > 0 && (
+              <span
+                className="bg-destructive text-destructive-foreground absolute top-2 right-2 inline-flex min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums"
+                aria-hidden="true"
+              >
+                {badgeText(unreadMessages)}
+              </span>
+            )}
+          </Link>
+
           <Link
             href="/notifications"
             aria-label={unreadCount > 0 ? `Bildirishnomalar, ${unreadCount} ta o'qilmagan` : 'Bildirishnomalar'}
@@ -82,7 +130,7 @@ export function AppHeader({ title, showBack = false, backHref, onBack, className
                 className="bg-destructive text-destructive-foreground absolute top-2 right-2 inline-flex min-w-4 items-center justify-center rounded-full px-1 text-[0.625rem] leading-4 font-semibold tabular-nums"
                 aria-hidden="true"
               >
-                {unreadCount > 9 ? '9+' : unreadCount}
+                {badgeText(unreadCount)}
               </span>
             )}
           </Link>
