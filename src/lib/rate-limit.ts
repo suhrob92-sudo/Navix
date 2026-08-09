@@ -96,15 +96,27 @@ export async function consumeRateLimit(
 }
 
 /**
- * Chegaradan oshsa darhol `RateLimitError` tashlaydi.
- * API route'larida shu funksiya ishlatiladi.
+ * Kirish TALAB QILINMAYDIGAN endpointlar uchun cheklovlar.
+ *
+ * Ular alohida ro'yxatda, chunki xavfi boshqacha: bu yerda parol
+ * taxmin qilinmaydi, lekin robot bazani soxta yozuvlar bilan
+ * to'ldirib tashlashi mumkin.
  */
-export async function enforceRateLimit(
-  scope: AuthRateLimitScope,
-  identifier: string,
-  message?: string,
-): Promise<void> {
-  const result = await consumeRateLimit(scope, identifier, AUTH_RATE_LIMITS[scope]);
+export const PUBLIC_RATE_LIMITS = {
+  /** Navbatga yozilish: bir IP'dan soatiga 5 marta. */
+  waitlist: { limit: 5, windowSeconds: 60 * 60 },
+} as const satisfies Record<string, RateLimitRule>;
+
+export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;
+
+/**
+ * Berilgan qoida bo'yicha cheklovni majburlaydi.
+ *
+ * `enforceRateLimit` va `enforcePublicRateLimit` ikkalasi shu yerga
+ * tayanadi — xato matni va soniyalarni ikki joyda yozib yurmaslik uchun.
+ */
+async function enforce(scope: string, identifier: string, rule: RateLimitRule, message?: string): Promise<void> {
+  const result = await consumeRateLimit(scope, identifier, rule);
 
   if (!result.allowed) {
     const minutes = Math.ceil(result.retryAfterSeconds / 60);
@@ -113,6 +125,27 @@ export async function enforceRateLimit(
       message ?? `Juda ko'p urinish. ${minutes} daqiqadan so'ng qayta urinib ko'ring.`,
     );
   }
+}
+
+/**
+ * Chegaradan oshsa darhol `RateLimitError` tashlaydi.
+ * API route'larida shu funksiya ishlatiladi.
+ */
+export async function enforceRateLimit(
+  scope: AuthRateLimitScope,
+  identifier: string,
+  message?: string,
+): Promise<void> {
+  return enforce(scope, identifier, AUTH_RATE_LIMITS[scope], message);
+}
+
+/** Ochiq endpointlar uchun — `PUBLIC_RATE_LIMITS` qoidalari bo'yicha. */
+export async function enforcePublicRateLimit(
+  scope: PublicRateLimitScope,
+  identifier: string,
+  message?: string,
+): Promise<void> {
+  return enforce(scope, identifier, PUBLIC_RATE_LIMITS[scope], message);
 }
 
 /** Hisoblagichni nolga qaytaradi (masalan muvaffaqiyatli kirishdan keyin). */

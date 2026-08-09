@@ -55,3 +55,7 @@ dev.log
 # Next.js dev/build har safar qayta yaratadigan AI qoidalari fayllari
 AGENTS.md
 CLAUDE.md
+
+# Navbat ro'yxati — SHAXSIY MA'LUMOT (telefon raqamlari).
+# Hech qachon repozitoriyga tushmasligi kerak.
+navbat.csv

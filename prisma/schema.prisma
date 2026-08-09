@@ -1671,3 +1671,57 @@ model TripBooking {
   @@index([userId, createdAt])
   @@map("trip_bookings")
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Navbat (Waitlist) — ilova ochilishidan oldingi ro'yxat
+// ─────────────────────────────────────────────────────────────────────
+
+/// Ilova ishga tushishini kutayotgan odam.
+///
+/// ── Nima uchun `User` emas ────────────────────────────────────────────
+/// Bu odam hali ro'yxatdan o'tmagan: parol ham, tasdiqlangan raqam ham
+/// yo'q. Uni `users` jadvaliga yozish "kirmagan foydalanuvchi" degan
+/// g'alati holat yaratardi va butun autentifikatsiya mantig'i shu
+/// holatni har joyda hisobga olishga majbur bo'lardi.
+///
+/// Ilova ochilganda bu ro'yxat SMS yuborish uchun ishlatiladi, keyin
+/// odam odatdagidek ro'yxatdan o'tadi.
+model WaitlistEntry {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Telefon raqami E.164 ko'rinishida: +998901234567.
+  ///
+  /// Yagona (`@unique`): bir odam ikki marta yozilsa, ikkinchisida unga
+  /// eski o'rni qaytariladi. Xato ko'rsatish o'rniga — chunki bu
+  /// foydalanuvchining aybi emas.
+  phone String  @unique @db.VarChar(20)
+  name  String? @db.VarChar(120)
+  city  String? @db.VarChar(80)
+
+  /// Qayerdan keldi: `instagram`, `telegram`, `tanish`.
+  ///
+  /// Manzildagi `?from=` dan olinadi. Reklama qayerda ishlaganini
+  /// bilish uchun kerak.
+  source String? @db.VarChar(60)
+
+  /// Navbatdagi o'rni.
+  ///
+  /// ── Nima uchun `autoincrement()` ────────────────────────────────────
+  /// "Hozirgi sonni sanab, ustiga bitta qo'shish" xavfli: ikki odam bir
+  /// vaqtda yozilsa, ikkalasi ham bir xil o'rinni olardi. Ketma-ketlik
+  /// (sequence) esa bazaning o'zida, atomik ishlaydi.
+  ///
+  /// Buning evaziga raqamlarda kamdan-kam bo'shliq paydo bo'lishi
+  /// mumkin (masalan 10 dan keyin 12): takroriy yozuv rad etilganda
+  /// ketma-ketlik baribir bir qadam oldinga siljiydi. Bu zararsiz —
+  /// o'rinlar baribir yagona va o'suvchi bo'lib qolaveradi.
+  position Int @unique @default(autoincrement())
+
+  ipAddress String? @db.VarChar(64)
+  userAgent String? @db.VarChar(300)
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("waitlist_entries")
+}

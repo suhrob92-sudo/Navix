@@ -30,6 +30,7 @@
     "db:push": "prisma db push",
     "db:seed": "prisma generate && tsx prisma/seed.ts",
     "role:grant": "tsx scripts/grant-role.ts",
+    "waitlist": "tsx scripts/waitlist.ts",
     "restaurant:assign": "tsx scripts/assign-restaurant.ts",
     "shop:assign": "tsx scripts/assign-shop.ts",
     "courier:assign": "tsx scripts/assign-courier.ts",

@@ -49,7 +49,9 @@ export function SiteFooter() {
           <p>
             © {currentYear} {siteConfig.name}. Barcha huquqlar himoyalangan.
           </p>
-          <p>{siteConfig.tagline}</p>
+          <Link href="/navbat" className="hover:text-foreground transition-colors">
+            Navbatga yozilish
+          </Link>
         </div>
       </Container>
     </footer>
