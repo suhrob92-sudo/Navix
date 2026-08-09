@@ -8,10 +8,12 @@ import {
   Settings,
   ShieldCheck,
   Smartphone,
-  Sparkles,
   User,
   Receipt,
 } from 'lucide-react';
+import type { ComponentType, SVGProps } from 'react';
+
+import { NavixMark } from '@/components/brand/navix-mark';
 
 /**
  * Ilovaning asosiy navigatsiyasi — pastki menyu.
@@ -21,10 +23,20 @@ import {
  * qolgan bo'limlar (manzillar, qurilmalar, xavfsizlik) Profil ichiga joylashgan.
  */
 
+/**
+ * Ikonka turi ataylab `LucideIcon` dan kengroq.
+ *
+ * Markazdagi tugmada lucide ikonkasi emas, brend belgisi (`NavixMark`)
+ * turadi. Tur tor bo'lganda panelda "agar markaz bo'lsa boshqacha chiz"
+ * degan shart yozishga to'g'ri kelardi va ro'yxat yagona manba bo'lmay
+ * qolardi. Lucide ikonkalari ham shu turga to'g'ri keladi.
+ */
+export type NavIcon = ComponentType<SVGProps<SVGSVGElement>>;
+
 export interface AppNavItem {
   href: string;
   label: string;
-  icon: LucideIcon;
+  icon: NavIcon;
   /** `true` bo'lsa faqat aynan shu manzilda faol hisoblanadi. */
   exact?: boolean;
   /** Markazdagi ko'tarilgan tugma (AI yordamchi). */
@@ -34,7 +46,7 @@ export interface AppNavItem {
 export const APP_NAV: readonly AppNavItem[] = [
   { href: '/dashboard', label: 'Bosh sahifa', icon: Home, exact: true },
   { href: '/search', label: 'Qidiruv', icon: Search },
-  { href: '/assistant', label: 'AI', icon: Sparkles, isCenter: true },
+  { href: '/assistant', label: 'AI', icon: NavixMark, isCenter: true },
   { href: '/orders', label: 'Buyurtmalar', icon: ClipboardList },
   { href: '/profile', label: 'Profil', icon: User },
 ] as const;

@@ -32,6 +32,23 @@
   --primary: oklch(0.52 0.25 268);
   --primary-foreground: oklch(0.99 0.005 268);
 
+  /*
+   * Brend BELGISI ranglari — mavzu bilan O'ZGARMAYDI.
+   *
+   * Qolgan ranglar qorong'i mavzuda almashadi: `--primary` yorishadi,
+   * `--primary-foreground` esa to'q bo'lib qoladi. Tugmalar uchun bu
+   * to'g'ri, LEKIN logotip uchun emas — Navix belgisi telefon ekranidagi
+   * ilova ikonkasi bilan bir xil bo'lishi shart: ko'k-binafsha doira,
+   * ichida OQ "N". Mavzuga qarab u to'q rangga aylansa, foydalanuvchi
+   * boshqa belgini ko'rgandek bo'lardi.
+   *
+   * Shu sababli faqat shu uch qiymat `.dark` blokida qayta e'lon
+   * qilinmaydi — ular ikkala mavzuda ham bir xil qoladi.
+   */
+  --brand-from: oklch(0.52 0.25 268);
+  --brand-to: oklch(0.62 0.19 305);
+  --brand-foreground: oklch(0.99 0.005 268);
+
   /* Ikkilamchi va sokin elementlar */
   --secondary: oklch(0.96 0.008 260);
   --secondary-foreground: oklch(0.25 0.015 260);
@@ -116,6 +133,9 @@
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-brand-from: var(--brand-from);
+  --color-brand-to: var(--brand-to);
+  --color-brand-foreground: var(--brand-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
