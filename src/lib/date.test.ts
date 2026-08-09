@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  dateKeyFromToday,
   formatRelativeUz,
   formatUzDate,
   formatUzDateTime,
   formatUzTime,
+  isoWeekday,
   startOfTashkentDay,
   startOfTashkentDaysAgo,
+  tashkentDateTime,
+  toDateKey,
 } from '@/lib/date';
 
 /**
@@ -167,5 +171,62 @@ describe('startOfTashkentDaysAgo', () => {
     const now = new Date('2026-08-03T06:03:00.000Z');
 
     expect(startOfTashkentDaysAgo(0, now).toISOString()).toBe(startOfTashkentDay(now).toISOString());
+  });
+});
+
+describe('toDateKey', () => {
+  it('sanadan kalit yasaydi', () => {
+    expect(toDateKey(new Date('2026-08-07T22:00:00Z'))).toBe('2026-08-07');
+  });
+
+  it('satrdan birinchi 10 belgini oladi', () => {
+    expect(toDateKey('2026-08-07T10:00:00Z')).toBe('2026-08-07');
+  });
+});
+
+describe('dateKeyFromToday', () => {
+  it("kunlarni qo'shadi va ayiradi", () => {
+    const today = new Date('2026-08-07T10:00:00Z');
+
+    expect(dateKeyFromToday(0, today)).toBe('2026-08-07');
+    expect(dateKeyFromToday(3, today)).toBe('2026-08-10');
+    expect(dateKeyFromToday(-1, today)).toBe('2026-08-06');
+  });
+
+  it("oy chegarasidan o'tadi", () => {
+    expect(dateKeyFromToday(1, new Date('2026-08-31T10:00:00Z'))).toBe('2026-09-01');
+  });
+});
+
+describe('tashkentDateTime', () => {
+  /**
+   * ENG MUHIM TEKSHIRUV: jadvaldagi soat TOSHKENT vaqti. Server
+   * qayerda turishidan qat'i nazar natija bir xil bo'lishi shart.
+   */
+  it("Toshkent soatini UTC ga o'giradi", () => {
+    expect(tashkentDateTime('2026-08-10', '08:20').toISOString()).toBe('2026-08-10T03:20:00.000Z');
+  });
+
+  it('yarim tundan keyingi vaqt oldingi UTC kuniga tushadi', () => {
+    expect(tashkentDateTime('2026-08-10', '03:00').toISOString()).toBe('2026-08-09T22:00:00.000Z');
+  });
+
+  it("noto'g'ri vaqtda yaroqsiz sana qaytaradi", () => {
+    expect(Number.isNaN(tashkentDateTime('2026-08-10', '99:99').getTime())).toBe(true);
+  });
+});
+
+describe('isoWeekday', () => {
+  it('dushanbani 1 deb beradi', () => {
+    expect(isoWeekday('2026-08-10')).toBe(1);
+  });
+
+  it('yakshanbani 7 deb beradi', () => {
+    // JavaScript uni 0 deb qaytaradi — shuning uchun alohida tekshiriladi.
+    expect(isoWeekday('2026-08-09')).toBe(7);
+  });
+
+  it('shanbani 6 deb beradi', () => {
+    expect(isoWeekday('2026-08-08')).toBe(6);
   });
 });

@@ -113,6 +113,16 @@ export const AuditAction = {
   HOTEL_BOOKING_CREATED: 'hotel.booking.created',
   HOTEL_BOOKING_CANCELLED: 'hotel.booking.cancelled',
 
+  /**
+   * Sayohat chiptasi — pul harakati bor.
+   *
+   * Bekor qilishda QAYTARILGAN summa to'langanidan kam bo'lishi mumkin
+   * (kech bekor qilinsa jarima ushlanadi). "Nega hammasi qaytmadi?"
+   * degan savolga javob shu yozuvdan topiladi.
+   */
+  TRAVEL_TICKET_CREATED: 'travel.ticket.created',
+  TRAVEL_TICKET_CANCELLED: 'travel.ticket.cancelled',
+
   ADMIN_PROVIDER_CREATED: 'admin.provider.created',
   ADMIN_PROVIDER_UPDATED: 'admin.provider.updated',
   ADMIN_USER_STATUS_CHANGED: 'admin.user.status_changed',

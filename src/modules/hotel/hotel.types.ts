@@ -1,4 +1,5 @@
 import type { ServiceColor } from '@/config/modules';
+import { dateKeyFromToday, toDateKey } from '@/lib/date';
 
 /**
  * Mehmonxona moduli — brauzer tomonidagi turlar va SANA qoidalari.
@@ -88,16 +89,12 @@ export interface BookingResponse {
 
 // ── Sana qoidalari ────────────────────────────────────────────────────
 
-/** Sana kalitini beradi: `2026-08-07`. */
-export function toDateKey(value: Date | string): string {
-  if (typeof value === 'string') return value.slice(0, 10);
-
-  const year = value.getUTCFullYear();
-  const month = String(value.getUTCMonth() + 1).padStart(2, '0');
-  const day = String(value.getUTCDate()).padStart(2, '0');
-
-  return `${year}-${month}-${day}`;
-}
+/**
+ * Sana kalitlari `@/lib/date` da yashaydi — ular mehmonxonaga xos emas,
+ * sayohat moduli ham xuddi shu qoidalar bilan ishlaydi. Bu yerdan qayta
+ * chiqariladi, chunki mehmonxona sahifalari ularni shu nom orqali oladi.
+ */
+export { dateKeyFromToday, toDateKey };
 
 /**
  * Ikki sana orasidagi KECHALAR soni.
@@ -122,13 +119,6 @@ export function countNights(checkIn: string, checkOut: string): number {
   return diffMs <= 0 ? 0 : Math.round(diffMs / 86_400_000);
 }
 
-/** Bugundan boshlab `days` kun keyingi sana kaliti. */
-export function dateKeyFromToday(days: number, today: Date = new Date()): string {
-  const base = Date.parse(`${toDateKey(today)}T00:00:00Z`);
-
-  return toDateKey(new Date(base + days * 86_400_000));
-}
-
 /**
  * Bandlovni bekor qilish mumkinmi.
  *
@@ -137,7 +127,10 @@ export function dateKeyFromToday(days: number, today: Date = new Date()): string
  * band bo'lgan, boshqa mehmon sotib ololmagan va mehmonxona
  * xarajat qilgan.
  */
-export function canCancelBooking(booking: { status: BookingStatusName; checkIn: string }, today = new Date()): boolean {
+export function canCancelBooking(
+  booking: { status: BookingStatusName; checkIn: string },
+  today = new Date(),
+): boolean {
   if (booking.status !== 'CONFIRMED') return false;
 
   return toDateKey(booking.checkIn) > toDateKey(today);
@@ -147,7 +140,7 @@ export function canCancelBooking(booking: { status: BookingStatusName; checkIn: 
 
 export const BOOKING_STATUS_LABELS: Record<BookingStatusName, string> = {
   CONFIRMED: 'Band qilindi',
-  COMPLETED: 'Yashab bo\'lingan',
+  COMPLETED: "Yashab bo'lingan",
   CANCELLED: 'Bekor qilindi',
 };
 

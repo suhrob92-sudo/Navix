@@ -134,6 +134,27 @@ export interface NotificationEventData {
     hotelName: string;
     refundTiyin: number;
   };
+  'travel.ticket_created': {
+    ticketId: string;
+    ticketNumber: string;
+    fromCity: string;
+    toCity: string;
+    departDate: string;
+    /** Jo'nash soati: "08:20". */
+    departTime: string;
+    seats: number;
+    amountTiyin: number;
+  };
+  'travel.ticket_cancelled': {
+    ticketId: string;
+    ticketNumber: string;
+    fromCity: string;
+    toCity: string;
+    /** Haqiqatda qaytarilgan summa. */
+    refundTiyin: number;
+    /** To'langan summa — jarima ushlanganini ko'rsatish uchun. */
+    paidTiyin: number;
+  };
   'security.password_changed': { revokedSessions: number };
 }
 
@@ -163,7 +184,7 @@ const FOOD_STATUS_TITLES = {
 const FOOD_STATUS_BODIES = {
   CONFIRMED: 'buyurtmangizni qabul qildi.',
   PREPARING: 'oshxona buyurtmangizni tayyorlashni boshladi.',
-  DELIVERING: 'kuryer buyurtmangiz bilan yo\'lga chiqdi.',
+  DELIVERING: "kuryer buyurtmangiz bilan yo'lga chiqdi.",
   DELIVERED: 'buyurtmangiz yetkazib berildi. Yoqimli ishtaha!',
 } as const;
 
@@ -177,7 +198,7 @@ const MARKET_STATUS_TITLES = {
 
 const MARKET_STATUS_BODIES = {
   CONFIRMED: 'buyurtmangizni qabul qildi.',
-  PACKING: 'buyurtmangizni omborda yig\'moqda.',
+  PACKING: "buyurtmangizni omborda yig'moqda.",
   SHIPPED: "buyurtmangiz yo'lga chiqarildi.",
   DELIVERED: 'buyurtmangiz yetkazib berildi. Xaridingiz muborak!',
 } as const;
@@ -371,7 +392,7 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
    * qidirmaydi. Aniq javob esa uni oldinga qo'yib yuboradi.
    */
   'job.application_rejected': ({ vacancyTitle, companyName, note }) => ({
-    title: 'Ariza bo\'yicha javob keldi',
+    title: "Ariza bo'yicha javob keldi",
     body: note
       ? `${companyName} — "${vacancyTitle}". ${note}`
       : `${companyName} — "${vacancyTitle}" lavozimiga bu safar boshqa nomzod tanlandi. Boshqa e'lonlarni ko'rib chiqing.`,
@@ -386,14 +407,14 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
    * qiluvchiga yuboradi va u posilkani shu raqam bo'yicha so'raydi.
    */
   'parcel.created': ({ parcelId, parcelNumber, toRegion, amountTiyin }) => ({
-    title: "Posilka qabul qilindi",
+    title: 'Posilka qabul qilindi',
     body: `${parcelNumber} — ${toRegion} yo'nalishi. ${formatTiyin(amountTiyin)} yechildi. Kuryer tez orada olib ketadi.`,
     actionUrl: `/delivery/${parcelId}`,
     sourceModule: 'delivery',
   }),
 
   'parcel.cancelled': ({ parcelId, parcelNumber, refundTiyin }) => ({
-    title: 'Jo\'natma bekor qilindi',
+    title: "Jo'natma bekor qilindi",
     body: `${parcelNumber} bekor qilindi. ${formatTiyin(refundTiyin)} hamyoningizga qaytarildi.`,
     actionUrl: `/delivery/${parcelId}`,
     sourceModule: 'delivery',
@@ -417,6 +438,45 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
     body: `${hotelName} bandlovi (${bookingNumber}) bekor qilindi. ${formatTiyin(refundTiyin)} hamyoningizga qaytarildi.`,
     actionUrl: `/hotel/bookings/${bookingId}`,
     sourceModule: 'hotel',
+  }),
+
+  /**
+   * Chipta olindi.
+   *
+   * Jo'nash SANASI va SOATI matnga yoziladi: yo'lovchi ularni eslab
+   * qolishi kerak va bildirishnomani ochmasdan ko'radi.
+   */
+  'travel.ticket_created': ({
+    ticketId,
+    ticketNumber,
+    fromCity,
+    toCity,
+    departDate,
+    departTime,
+    seats,
+    amountTiyin,
+  }) => ({
+    title: 'Chipta olindi',
+    body: `${fromCity} → ${toCity}, ${departDate} ${departTime}. ${seats} o'rin, ${formatTiyin(amountTiyin)}. Raqam: ${ticketNumber}`,
+    actionUrl: `/travel/tickets/${ticketId}`,
+    sourceModule: 'travel',
+  }),
+
+  /**
+   * Chipta bekor qilindi.
+   *
+   * Jarima ushlangan bo'lsa, matn buni ATAYLAB ochiq aytadi: "qancha
+   * to'lagan edim, qancha qaytdi" degan savol javobsiz qolmasligi
+   * kerak.
+   */
+  'travel.ticket_cancelled': ({ ticketId, ticketNumber, fromCity, toCity, refundTiyin, paidTiyin }) => ({
+    title: 'Chipta bekor qilindi',
+    body:
+      refundTiyin >= paidTiyin
+        ? `${fromCity} → ${toCity} chiptasi (${ticketNumber}) bekor qilindi. ${formatTiyin(refundTiyin)} hamyoningizga qaytarildi.`
+        : `${fromCity} → ${toCity} chiptasi (${ticketNumber}) bekor qilindi. To'langan ${formatTiyin(paidTiyin)} dan ${formatTiyin(refundTiyin)} qaytarildi — kech bekor qilinganda jarima ushlanadi.`,
+    actionUrl: `/travel/tickets/${ticketId}`,
+    sourceModule: 'travel',
   }),
 
   'security.password_changed': ({ revokedSessions }) => ({

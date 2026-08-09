@@ -136,6 +136,24 @@ const SAMPLES = {
     hotelName: 'Navruz Plaza',
     refundTiyin: 90_000_000,
   },
+  'travel.ticket_created': {
+    ticketId: '9d3c7e15-2f8a-4b6d-8e1c-5a7f3b9d2c64',
+    ticketNumber: 'NVX-T-20260810-A1B2C3',
+    fromCity: 'Toshkent',
+    toCity: 'Samarqand',
+    departDate: '2026-08-10',
+    departTime: '08:00',
+    seats: 2,
+    amountTiyin: 42_000_000,
+  },
+  'travel.ticket_cancelled': {
+    ticketId: '9d3c7e15-2f8a-4b6d-8e1c-5a7f3b9d2c64',
+    ticketNumber: 'NVX-T-20260810-A1B2C3',
+    fromCity: 'Toshkent',
+    toCity: 'Samarqand',
+    refundTiyin: 21_000_000,
+    paidTiyin: 42_000_000,
+  },
   'security.password_changed': { revokedSessions: 3 },
 } as const;
 

@@ -11,6 +11,7 @@ import { RESTAURANTS } from '../src/config/restaurants';
 import { PRODUCT_CATEGORIES, SHOPS } from '../src/config/marketplace';
 import { COMPANIES, JOB_CATEGORIES } from '../src/config/jobs';
 import { HOTELS } from '../src/config/hotels';
+import { TRIP_SCHEDULES } from '../src/config/travel';
 import { toSearchText } from '../src/lib/search';
 
 /**
@@ -401,6 +402,39 @@ async function seedHotels(prisma: PrismaClient): Promise<void> {
   console.info(`✅ ${HOTELS.length} ta mehmonxona va ${roomCount} ta xona turi yozildi`);
 }
 
+/**
+ * Reys jadvallari.
+ *
+ * `upsert` bilan: mavjud jadvalga bog'langan CHIPTALAR bor va ularni
+ * yo'qotib bo'lmaydi. Kalit — reys raqami (`code`).
+ */
+async function seedTrips(prisma: PrismaClient): Promise<void> {
+  for (const trip of TRIP_SCHEDULES) {
+    const data = {
+      carrier: trip.carrier,
+      transport: trip.transport,
+      fromCity: trip.fromCity,
+      toCity: trip.toCity,
+      departTime: trip.departTime,
+      durationMinutes: trip.durationMinutes,
+      weekdays: [...trip.weekdays],
+      priceTiyin: BigInt(trip.priceSom) * 100n,
+      totalSeats: trip.totalSeats,
+      sortOrder: trip.sortOrder,
+      isActive: true,
+    };
+
+    await prisma.tripSchedule.upsert({
+      where: { code: trip.code },
+      update: data,
+      create: { code: trip.code, ...data },
+      select: { id: true },
+    });
+  }
+
+  console.info(`✅ ${TRIP_SCHEDULES.length} ta reys jadvali yozildi`);
+}
+
 async function seedJobs(prisma: PrismaClient): Promise<void> {
   const categoryIdBySlug = new Map<string, string>();
 
@@ -487,6 +521,7 @@ async function main(): Promise<void> {
     await seedMarketplace(prisma);
     await seedJobs(prisma);
     await seedHotels(prisma);
+    await seedTrips(prisma);
     console.info('🎉 Tayyor!');
   } finally {
     await prisma.$disconnect();

@@ -169,13 +169,25 @@ enum MarketOrderStatus {
 /// Ovqat va Marketplace'da sotuvchi buyurtmani qabul qilishi kerak edi.
 /// Bu yerda esa xona bo'shligi BANDLOV PAYTIDA tekshiriladi va darhol
 /// biriktiriladi — kutadigan hech kim yo'q.
+///
+/// Bu enum IKKI modulda ishlatiladi: mehmonxona bandlovi va sayohat
+/// chiptasi. Ikkalasining hayot yo'li bir xil — band qilindi, o'tib
+/// ketdi yoki bekor qilindi. Ikki nusxa enum yuritish ularni
+/// bir-biridan ajratib yuborardi.
 enum BookingStatus {
   /// Band qilindi, pul yechildi.
   CONFIRMED
-  /// Mehmon yashab bo'ldi (chiqish sanasi o'tdi).
+  /// O'tib bo'lgan: mehmon yashab chiqdi yoki reys jo'nab ketdi.
   COMPLETED
-  /// Bekor qilindi, pul qaytarildi.
+  /// Bekor qilindi, pul (to'liq yoki qisman) qaytarildi.
   CANCELLED
+}
+
+/// Sayohat turi — reys qanday vosita bilan bajariladi.
+enum TransportType {
+  PLANE
+  TRAIN
+  BUS
 }
 
 enum AddressType {
@@ -242,6 +254,7 @@ model User {
   applications  JobApplication[]
   parcels       Parcel[]
   bookings      HotelBooking[]
+  tickets       TripBooking[]
 
   @@index([status])
   @@index([createdAt])
@@ -1536,4 +1549,125 @@ model JobApplication {
   @@index([userId, createdAt])
   @@index([vacancyId, status])
   @@map("job_applications")
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Sayohat (Travel)
+// ─────────────────────────────────────────────────────────────────────
+
+/// Takrorlanuvchi reys jadvali.
+///
+/// ── Nima uchun aniq REYS emas, JADVAL ────────────────────────────────
+/// "Toshkent → Samarqand, 08:00" reysi har kuni takrorlanadi. Har kun
+/// uchun alohida qator yozilsa, ro'yxat muntazam eskirardi va bir
+/// yo'nalish yiliga 365 ta qator olardi.
+///
+/// Shuning uchun bazada faqat jadval turadi. Aniq reys qidiruv paytida
+/// "jadval + sana" dan hisoblanadi va hech qayerda saqlanmaydi —
+/// chiptaning o'zi esa shu ikkalasiga bog'lanadi.
+model TripSchedule {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Reys raqami: HY-011, 762, A-101.
+  code      String        @unique @db.VarChar(20)
+  carrier   String        @db.VarChar(120)
+  transport TransportType
+
+  fromCity String @db.VarChar(80)
+  toCity   String @db.VarChar(80)
+
+  /// Jo'nash vaqti Toshkent bo'yicha, "HH:MM".
+  ///
+  /// ── Nima uchun satr, `DateTime` emas ───────────────────────────────
+  /// Bu KUNLIK vaqt, aniq bir onda sodir bo'ladigan voqea emas.
+  /// `DateTime` da saqlansa, sanasi ma'nosiz bo'lgan qandaydir kun
+  /// yozilishi kerak bo'lardi va u yolg'on ma'lumot berardi.
+  ///
+  /// "08:00" ko'rinishi saralashda ham to'g'ri ishlaydi: satrlar
+  /// tartibi vaqtlar tartibiga to'g'ri keladi.
+  departTime String @db.VarChar(5)
+
+  /// Yo'lda o'tadigan vaqt — DAQIQADA.
+  durationMinutes Int
+
+  /// Qatnov kunlari: 1 = dushanba … 7 = yakshanba.
+  ///
+  /// Alohida jadval emas: ro'yxat qisqa, o'zgarmas va faqat shu
+  /// jadvalga tegishli. PostgreSQL massivni o'zi qidira oladi.
+  weekdays Int[]
+
+  /// Bir o'rin narxi — TIYINDA.
+  priceTiyin BigInt
+
+  /// Reysdagi umumiy o'rinlar soni — bandlik shu songa qarab hisoblanadi.
+  totalSeats Int
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings TripBooking[]
+
+  @@index([fromCity, toCity, isActive])
+  @@index([transport, isActive])
+  @@map("trip_schedules")
+}
+
+/// Sotib olingan chipta.
+model TripBooking {
+  id         String @id @default(uuid()) @db.Uuid
+  userId     String @db.Uuid
+  scheduleId String @db.Uuid
+
+  /// Foydalanuvchi ko'rsatadigan raqam: NVX-T-20260810-A1B2C3.
+  ticketNumber String        @unique @db.VarChar(40)
+  status       BookingStatus @default(CONFIRMED)
+
+  /// Jo'nash SANASI — vaqtsiz.
+  ///
+  /// Bo'sh o'rinlar shu ustun bo'yicha sanaladi: "shu jadvalda, shu
+  /// kuni nechta o'rin sotilgan?".
+  departDate DateTime @db.Date
+
+  /// Kelishilgan jo'nash va yetib borish PAYTI.
+  ///
+  /// ── Nima uchun saqlanadi ───────────────────────────────────────────
+  /// Ularni jadvaldan qayta hisoblash mumkin edi. Lekin jadval ertaga
+  /// o'zgarishi mumkin (reys vaqti surildi), sotilgan chiptadagi
+  /// kelishuv esa o'zgarmasligi kerak. Bundan tashqari pulni qaytarish
+  /// qoidasi aynan shu paytga tayanadi.
+  departAt DateTime
+  arriveAt DateTime
+
+  seats Int @default(1)
+
+  /// Summalar TIYINDA.
+  pricePerSeat BigInt
+  totalTiyin   BigInt
+
+  /// Bekor qilishda haqiqatda qaytarilgan summa.
+  ///
+  /// Hisoblab olish mumkin emas: qoida (jarima foizi) keyinchalik
+  /// o'zgarishi mumkin, bo'lib o'tgan qaytarish esa o'zgarmaydi.
+  refundTiyin BigInt?
+
+  /// Kim ketadi — chipta boshqa odam uchun bo'lishi mumkin.
+  passengerName  String @db.VarChar(120)
+  passengerPhone String @db.VarChar(20)
+
+  walletTransactionId String? @db.Uuid
+  cancelReason        String? @db.VarChar(255)
+
+  createdAt   DateTime  @default(now())
+  cancelledAt DateTime?
+
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  schedule TripSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  /// Bo'sh o'rin tekshiruvi: jadval + sana + holat bo'yicha qidiriladi.
+  @@index([scheduleId, departDate, status])
+  @@index([userId, createdAt])
+  @@map("trip_bookings")
 }

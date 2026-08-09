@@ -62,17 +62,7 @@ export type ModuleCategoryValue = (typeof ModuleCategory)[keyof typeof ModuleCat
  * Ro'yxat qisqa va aniq — har bir yangi modul shulardan birini tanlaydi.
  */
 export type ServiceColor =
-  | 'amber'
-  | 'rose'
-  | 'blue'
-  | 'orange'
-  | 'green'
-  | 'pink'
-  | 'teal'
-  | 'violet'
-  | 'sky'
-  | 'indigo'
-  | 'slate';
+  'amber' | 'rose' | 'blue' | 'orange' | 'green' | 'pink' | 'teal' | 'violet' | 'sky' | 'indigo' | 'slate';
 
 export interface AppModule {
   /** Barqaror identifikator — baza va ruxsatlar tizimida ishlatiladi. */
@@ -151,7 +141,7 @@ export const APP_MODULES: readonly AppModule[] = [
   {
     id: 'courier',
     name: 'Kuryer',
-    description: "Buyurtmalarni yetkazing va har topshiriq uchun haq oling.",
+    description: 'Buyurtmalarni yetkazing va har topshiriq uchun haq oling.',
     href: '/courier',
     icon: Package,
     category: ModuleCategory.MOBILITY,
@@ -276,14 +266,24 @@ export const APP_MODULES: readonly AppModule[] = [
   {
     id: 'travel',
     name: 'Sayohat',
-    description: 'Aviachipta, poyezd va turlarni bitta oynada tanlang.',
+    description: 'Samolyot, poyezd va avtobus chiptalari bitta qidiruvda.',
     href: '/travel',
     icon: Plane,
     category: ModuleCategory.TRAVEL,
-    status: ModuleStatus.PLANNED,
+    /** 23-bosqichda ishga tushdi. */
+    status: ModuleStatus.LIVE,
     color: 'sky',
     quickOrder: 8,
-    aiIntents: ['chipta ol', 'sayohat rejalashtir', 'aviachipta', 'poyezd chiptasi'],
+    aiIntents: [
+      'chipta ol',
+      'chipta',
+      'sayohat rejalashtir',
+      'aviachipta',
+      'poyezd chiptasi',
+      'avtobus chiptasi',
+      'reys qidir',
+      'samolyot',
+    ],
   },
   {
     id: 'ai-assistant',
@@ -363,7 +363,6 @@ export const APP_MODULES: readonly AppModule[] = [
     aiIntents: ['xavfsizlik', "parolni o'zgartir", 'qurilmalarim'],
   },
 ] as const;
-
 
 /**
  * Bosh sahifadagi "Tezkor xizmatlar" to'ri uchun modullar.

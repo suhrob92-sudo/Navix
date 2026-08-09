@@ -55,6 +55,66 @@ function pad(value: number): string {
   return String(value).padStart(2, '0');
 }
 
+/**
+ * Sana kalitini beradi: `2026-08-07`.
+ *
+ * ── Nima uchun "kalit" ────────────────────────────────────────────────
+ * Bu ko'rinish ikki xislatga ega: uni odam ham o'qiydi, `<input
+ * type="date">` ham tushunadi, va eng muhimi — SATRLAR sifatida
+ * taqqoslash to'g'ri natija beradi (`'2026-08-07' < '2026-08-09'`).
+ * Shu tufayli sanalarni solishtirishda vaqt zonasi umuman aralashmaydi.
+ *
+ * Satr berilsa, birinchi 10 belgi olinadi: `Date` ga o'girib qaytarish
+ * kunni bir kunga surib yuborishi mumkin edi.
+ */
+export function toDateKey(value: Date | string): string {
+  if (typeof value === 'string') return value.slice(0, 10);
+
+  const year = value.getUTCFullYear();
+  const month = pad(value.getUTCMonth() + 1);
+  const day = pad(value.getUTCDate());
+
+  return `${year}-${month}-${day}`;
+}
+
+/** Bugundan boshlab `days` kun keyingi sana kaliti. */
+export function dateKeyFromToday(days: number, today: Date = new Date()): string {
+  const base = Date.parse(`${toDateKey(today)}T00:00:00Z`);
+
+  return toDateKey(new Date(base + days * 86_400_000));
+}
+
+/**
+ * Toshkent vaqtidagi sana va soatni haqiqiy vaqt nuqtasiga aylantiradi.
+ *
+ * ── Nima uchun kerak ──────────────────────────────────────────────────
+ * Jadvalda reys "08:20 da jo'naydi" deb yozilgan — bu Toshkent vaqti.
+ * Haqiqiy vaqt nuqtasini olish uchun kun va soat birlashtiriladi:
+ *
+ *     tashkentDateTime('2026-08-10', '08:20')  →  03:20 UTC
+ *
+ * Server qayerda turishidan qat'iy nazar natija bir xil, chunki
+ * mintaqa qo'lda yozilgan (`+05:00`) va O'zbekistonda yozgi vaqt yo'q.
+ *
+ * @returns Yaroqsiz kirishda `Invalid Date` — chaqiruvchi tomon
+ *   `Number.isNaN(result.getTime())` bilan tekshiradi.
+ */
+export function tashkentDateTime(dateKey: string, time: string): Date {
+  return new Date(`${toDateKey(dateKey)}T${time}:00+05:00`);
+}
+
+/**
+ * Hafta kuni ISO qoidasi bo'yicha: 1 = dushanba … 7 = yakshanba.
+ *
+ * JavaScript'ning `getUTCDay()` yakshanbani 0 deb beradi. Jadvalda esa
+ * hafta dushanbadan boshlanadi — O'zbekistonda kalendarlar shunday.
+ */
+export function isoWeekday(dateKey: string): number {
+  const day = new Date(`${toDateKey(dateKey)}T00:00:00Z`).getUTCDay();
+
+  return day === 0 ? 7 : day;
+}
+
 /** Vaqt: "14:30" (Toshkent bo'yicha). */
 export function formatUzTime(value: Date | string): string {
   const date = toTashkent(value);
