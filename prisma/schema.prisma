@@ -190,6 +190,22 @@ enum TransportType {
   BUS
 }
 
+/// Jins — ixtiyoriy maydon.
+enum Gender {
+  MALE
+  FEMALE
+}
+
+/// Kimdan xabar qabul qilinadi.
+enum MessagePrivacy {
+  /// Hamma yoza oladi.
+  EVERYONE
+  /// Faqat men kuzatadigan odamlar.
+  FOLLOWERS
+  /// Hech kim — xabarlar butunlay yopiq.
+  NOBODY
+}
+
 enum AddressType {
   HOME
   WORK
@@ -282,6 +298,20 @@ model UserProfile {
   bio      String? @db.VarChar(300)
   location String? @db.VarChar(80)
   website  String? @db.VarChar(200)
+
+  /// Jins — IXTIYORIY.
+  ///
+  /// Majburiy emas va profilda ko'rsatilmaydi: u faqat statistika va
+  /// kelajakdagi tavsiyalar uchun. So'ralmasa ham ilova to'liq
+  /// ishlaydi.
+  gender Gender?
+
+  /// Kim xabar yoza oladi.
+  ///
+  /// Qiymat SHU YERDA saqlanadi, chunki u foydalanuvchining qarori.
+  /// Amalda qo'llanishi chat bilan birga keladi — hozircha u faqat
+  /// yozib qo'yiladi.
+  messagePrivacy MessagePrivacy @default(EVERYONE)
 
   /// Tasdiqlangan belgisi (ko'k nishon).
   ///

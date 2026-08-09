@@ -128,3 +128,58 @@ describe('changePasswordFormSchema', () => {
     expect(result.error?.issues.some((issue) => issue.path[0] === 'newPasswordConfirm')).toBe(true);
   });
 });
+
+describe('profil tahrirlash — ijtimoiy maydonlar', () => {
+  it("bo'sh bio va joylashuvni null ga aylantiradi", () => {
+    // Foydalanuvchi maydonni tozalaganda brauzer '' yuboradi.
+    const parsed = updateProfileSchema.parse({ bio: '   ', location: '' });
+
+    expect(parsed.bio).toBeNull();
+    expect(parsed.location).toBeNull();
+  });
+
+  it('bio uzunligini cheklaydi', () => {
+    expect(updateProfileSchema.safeParse({ bio: 'a'.repeat(301) }).success).toBe(false);
+    expect(updateProfileSchema.safeParse({ bio: 'a'.repeat(300) }).success).toBe(true);
+  });
+
+  /**
+   * ENG MUHIM TEKSHIRUV.
+   *
+   * Protokolsiz havola `<a href>` ichida ilovaning O'Z manzili deb
+   * qabul qilinardi va bosilganda hech qayerga olib bormasdi.
+   */
+  it('protokolsiz saytni rad etadi', () => {
+    expect(updateProfileSchema.safeParse({ website: 'navix.uz' }).success).toBe(false);
+    expect(updateProfileSchema.safeParse({ website: 'https://navix.uz' }).success).toBe(true);
+    expect(updateProfileSchema.safeParse({ website: 'http://navix.uz' }).success).toBe(true);
+  });
+
+  it("bo'sh saytni null ga aylantiradi", () => {
+    expect(updateProfileSchema.parse({ website: '' }).website).toBeNull();
+  });
+
+  it("username qoidalarini qo'llaydi", () => {
+    expect(updateProfileSchema.safeParse({ username: 'aziz_karimov' }).success).toBe(true);
+    expect(updateProfileSchema.safeParse({ username: 'Aziz.Karimov' }).success).toBe(false);
+    expect(updateProfileSchema.safeParse({ username: 'admin' }).success).toBe(false);
+  });
+
+  it("noma'lum jins va maxfiylikni rad etadi", () => {
+    expect(updateProfileSchema.safeParse({ gender: 'OTHER' }).success).toBe(false);
+    expect(updateProfileSchema.safeParse({ messagePrivacy: 'FRIENDS' }).success).toBe(false);
+    expect(updateProfileSchema.safeParse({ messagePrivacy: 'FOLLOWERS' }).success).toBe(true);
+  });
+
+  /**
+   * Tasdiqlangan nishonni foydalanuvchi O'ZIGA bera olmasligi kerak —
+   * uni faqat admin qo'yadi.
+   */
+  it('tasdiqlangan nishonni qabul qilmaydi', () => {
+    expect(updateProfileSchema.parse({ isVerified: true, bio: 'salom' })).not.toHaveProperty('isVerified');
+  });
+
+  it('obunachilar sonini qabul qilmaydi', () => {
+    expect(updateProfileSchema.parse({ followerCount: 999, bio: 'salom' })).not.toHaveProperty('followerCount');
+  });
+});

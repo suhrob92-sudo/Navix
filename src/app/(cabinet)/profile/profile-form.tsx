@@ -1,8 +1,8 @@
 'use client';
 
-import { Check } from 'lucide-react';
+import { AtSign, Check, Loader2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -11,15 +11,21 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar } from '@/components/ui/avatar';
+import { BIO_MAX_LENGTH } from '@/config/profile';
 import { useApiClient } from '@/hooks/use-api';
 import { ApiClientError, toUserMessage } from '@/lib/api-client';
 import { formatUzPhone } from '@/lib/phone';
 import {
+  GENDER_OPTIONS,
   LANGUAGE_OPTIONS,
+  MESSAGE_PRIVACY_OPTIONS,
   THEME_OPTIONS,
   TIMEZONE_OPTIONS,
   updateProfileSchema,
 } from '@/modules/profile/profile.schemas';
+import { usernameSchema } from '@/modules/profile/social.schemas';
 import type { FieldErrors } from '@/lib/api/errors';
 import type { ProfileResponse } from '@/app/(cabinet)/profile/profile-content';
 
@@ -47,11 +53,83 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
   const [theme, setTheme] = useState(profile.preferences.theme);
   const [timezone, setTimezone] = useState(profile.preferences.timezone);
   const [marketingOptIn, setMarketingOptIn] = useState(profile.preferences.marketingOptIn);
+  const [username, setUsername] = useState(profile.username ?? '');
+  const [bio, setBio] = useState(profile.bio ?? '');
+  const [location, setLocation] = useState(profile.location ?? '');
+  const [website, setWebsite] = useState(profile.website ?? '');
+  const [gender, setGender] = useState(profile.gender ?? '');
+  const [messagePrivacy, setMessagePrivacy] = useState(profile.messagePrivacy);
+
+  /**
+   * Serverdan kelgan OXIRGI javob.
+   *
+   * Javob bilan birga qaysi nom uchun ekani ham saqlanadi: odam
+   * yozishda davom etsa, eski javob yangi nomga taalluqli emas va
+   * uni ko'rsatish yolg'on bo'lardi.
+   */
+  const [usernameCheck, setUsernameCheck] = useState<{ username: string; available: boolean } | null>(null);
 
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const trimmedUsername = username.trim().toLowerCase();
+
+  /**
+   * Nomni tekshirish KERAKMI.
+   *
+   * O'zgarmagan yoki hali yaroqsiz nomni serverga yuborishning
+   * ma'nosi yo'q.
+   */
+  const shouldCheckUsername =
+    trimmedUsername !== (profile.username ?? '') && usernameSchema.safeParse(trimmedUsername).success;
+
+  /**
+   * Ko'rsatiladigan holat RENDER paytida hisoblanadi.
+   *
+   * Uni alohida `useState` da yuritish mumkin edi, lekin unda holat
+   * ikki manbadan (yozilgan nom va kelgan javob) yig'ilib, ular
+   * bir-biridan orqada qolib ketardi.
+   */
+  const usernameStatus: 'idle' | 'checking' | 'free' | 'taken' = !shouldCheckUsername
+    ? 'idle'
+    : usernameCheck?.username === trimmedUsername
+      ? usernameCheck.available
+        ? 'free'
+        : 'taken'
+      : 'checking';
+
+  /**
+   * Nom bandligini YOZAYOTGAN paytda tekshiramiz.
+   *
+   * ── Nima uchun kechikish (debounce) ─────────────────────────────
+   * Har bosilgan harf uchun so'rov yuborilsa, "aziz_karimov" yozish
+   * 12 ta so'rov qilardi. Yarim soniya kutamiz: odam yozishni
+   * to'xtatgach bitta so'rov ketadi.
+   */
+  useEffect(() => {
+    if (!shouldCheckUsername) return;
+
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      try {
+        const result = await request<{ available: boolean }>(
+          `/api/v1/profile/username?username=${encodeURIComponent(trimmedUsername)}`,
+        );
+
+        if (!cancelled) setUsernameCheck({ username: trimmedUsername, available: result.available });
+      } catch {
+        // Tekshirib bo'lmadi — saqlashda baribir baza tekshiradi.
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [trimmedUsername, shouldCheckUsername, request]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -68,6 +146,12 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
       theme,
       timezone,
       marketingOptIn,
+      username: trimmedUsername,
+      bio: bio.trim() || null,
+      location: location.trim() || null,
+      website: website.trim() || null,
+      gender: gender || null,
+      messagePrivacy,
     });
 
     if (!parsed.success) {
@@ -123,6 +207,73 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
         <CardTitle className="text-base">Shaxsiy ma&apos;lumotlar</CardTitle>
 
         <div className="mt-5 space-y-5">
+          {/*
+            Avatar ko'rinishi — havola yozilgan zahoti natija ko'rinadi.
+            Saqlashdan oldin "rasm to'g'ri keldimi?" degan savolga
+            javob shu yerda.
+          */}
+          <div className="flex items-center gap-4">
+            <Avatar src={avatarUrl.trim() || null} name={`${firstName} ${lastName}`} size="lg" />
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              Rasm havolasi pastda. Fayl yuklash imkoniyati saqlash xizmati ulangach qo&apos;shiladi.
+            </p>
+          </div>
+
+          <Field
+            id="username"
+            label="Foydalanuvchi nomi"
+            required
+            hint="Profil havolangiz shu nom bilan ochiladi"
+            errors={fieldErrors.username}
+          >
+            <div className="relative">
+              <AtSign
+                className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2"
+                aria-hidden="true"
+              />
+              <Input
+                id="username"
+                value={username}
+                /*
+                  Kiritish paytining O'ZIDA tozalanadi: katta harf
+                  kichkinaga aylanadi, ruxsat etilmagan belgi umuman
+                  yozilmaydi. Shunda odam xatoni saqlashdan keyin
+                  emas, darhol ko'radi.
+                */
+                onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                className="pl-9"
+                autoComplete="username"
+                hasError={Boolean(fieldErrors.username) || usernameStatus === 'taken'}
+                disabled={isSaving}
+              />
+            </div>
+          </Field>
+
+          {usernameStatus !== 'idle' && (
+            <p
+              className={
+                usernameStatus === 'taken'
+                  ? 'text-destructive -mt-3 flex items-center gap-1.5 text-xs'
+                  : 'text-muted-foreground -mt-3 flex items-center gap-1.5 text-xs'
+              }
+              aria-live="polite"
+            >
+              {usernameStatus === 'checking' && (
+                <>
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                  Tekshirilmoqda...
+                </>
+              )}
+              {usernameStatus === 'free' && (
+                <>
+                  <Check className="size-3.5" aria-hidden="true" />
+                  Bu nom bo&apos;sh
+                </>
+              )}
+              {usernameStatus === 'taken' && 'Bu nom band. Boshqasini tanlang.'}
+            </p>
+          )}
+
           <div className="grid gap-5 sm:grid-cols-2">
             <Field id="firstName" label="Ism" required errors={fieldErrors.firstName}>
               <Input
@@ -146,6 +297,60 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
               />
             </Field>
           </div>
+
+          <Field
+            id="bio"
+            label="O'zingiz haqingizda"
+            hint={`${bio.trim().length} / ${BIO_MAX_LENGTH}`}
+            errors={fieldErrors.bio}
+          >
+            <Textarea
+              id="bio"
+              value={bio}
+              onChange={(event) => setBio(event.target.value.slice(0, BIO_MAX_LENGTH))}
+              placeholder="Bir necha jumlada o'zingiz haqingizda yozing"
+              rows={3}
+              hasError={Boolean(fieldErrors.bio)}
+              disabled={isSaving}
+            />
+          </Field>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field id="location" label="Joylashuv" errors={fieldErrors.location}>
+              <Input
+                id="location"
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                placeholder="Masalan: Toshkent"
+                hasError={Boolean(fieldErrors.location)}
+                disabled={isSaving}
+              />
+            </Field>
+
+            <Field id="website" label="Sayt" hint="https:// bilan boshlansin" errors={fieldErrors.website}>
+              <Input
+                id="website"
+                type="url"
+                inputMode="url"
+                value={website}
+                onChange={(event) => setWebsite(event.target.value)}
+                placeholder="https://navix.uz"
+                hasError={Boolean(fieldErrors.website)}
+                disabled={isSaving}
+              />
+            </Field>
+          </div>
+
+          <Field id="gender" label="Jins" hint="Ixtiyoriy" errors={fieldErrors.gender}>
+            <Select
+              id="gender"
+              value={gender}
+              onChange={(event) => setGender(event.target.value)}
+              placeholder="Ko'rsatilmasin"
+              options={GENDER_OPTIONS.map((item) => ({ value: item.value, label: item.label }))}
+              disabled={isSaving}
+            />
+          </Field>
 
           <Field
             id="dateOfBirth"
@@ -234,6 +439,28 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
               description="Aksiyalar haqida xabar olishga rozilik. Buyurtma holati haqidagi muhim xabarlar bundan qat'i nazar keladi."
             />
           </div>
+        </div>
+      </Card>
+
+      {/* Maxfiylik */}
+      <Card variant="glass" className="animate-fade-up" style={{ animationDelay: '150ms' }}>
+        <CardTitle className="text-base">Maxfiylik</CardTitle>
+
+        <div className="mt-5">
+          <Field
+            id="messagePrivacy"
+            label="Kim menga xabar yoza oladi"
+            hint="Xabar almashish keyingi bosqichda ishga tushadi"
+            errors={fieldErrors.messagePrivacy}
+          >
+            <Select
+              id="messagePrivacy"
+              value={messagePrivacy}
+              onChange={(event) => setMessagePrivacy(event.target.value)}
+              options={MESSAGE_PRIVACY_OPTIONS.map((item) => ({ value: item.value, label: item.label }))}
+              disabled={isSaving}
+            />
+          </Field>
         </div>
       </Card>
 

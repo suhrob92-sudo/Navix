@@ -41,6 +41,11 @@ export interface ProfileResponse {
   createdAt: string;
   roles: string[];
   username: string | null;
+  bio: string | null;
+  location: string | null;
+  website: string | null;
+  gender: string | null;
+  messagePrivacy: string;
   preferences: {
     dateOfBirth: string | null;
     language: string;

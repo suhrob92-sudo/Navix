@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
+import { BIO_MAX_LENGTH, LOCATION_MAX_LENGTH, WEBSITE_MAX_LENGTH } from '@/config/profile';
 import { passwordSchema } from '@/modules/auth/auth.schemas';
+import { usernameSchema } from '@/modules/profile/social.schemas';
 
 /** Profil ma'lumotlarini tahrirlash uchun validatsiya qoidalari. */
 
@@ -38,6 +40,24 @@ export const TIMEZONE_OPTIONS = [
   { value: 'Asia/Ashgabat', label: 'Ashxobod (UTC+5)' },
 ] as const;
 
+/** Jins variantlari. */
+export const GENDER_OPTIONS = [
+  { value: 'MALE', label: 'Erkak' },
+  { value: 'FEMALE', label: 'Ayol' },
+] as const;
+
+/**
+ * Kim xabar yoza oladi.
+ *
+ * Matnlar SHU YERDA: ular ham formada, ham kelajakdagi tekshiruv
+ * xabarida kerak bo'ladi.
+ */
+export const MESSAGE_PRIVACY_OPTIONS = [
+  { value: 'EVERYONE', label: 'Hamma' },
+  { value: 'FOLLOWERS', label: 'Faqat men kuzatadiganlar' },
+  { value: 'NOBODY', label: 'Hech kim' },
+] as const;
+
 /** PATCH /api/v1/profile */
 export const updateProfileSchema = z
   .object({
@@ -73,6 +93,49 @@ export const updateProfileSchema = z
       )
       .optional(),
     marketingOptIn: z.boolean().optional(),
+
+    username: usernameSchema.optional(),
+    /**
+     * Bo'sh satr `null` ga aylantiriladi.
+     *
+     * Foydalanuvchi maydonni tozalaganda brauzer `''` yuboradi. Uni
+     * o'z holicha saqlash "bo'sh matn" bilan "yo'q" ni ikki xil holatga
+     * ajratardi va sahifada bo'sh qator paydo bo'lardi.
+     */
+    bio: z
+      .string()
+      .trim()
+      .max(BIO_MAX_LENGTH, `${BIO_MAX_LENGTH} ta belgidan oshmasligi kerak`)
+      .transform((value) => value || null)
+      .nullable()
+      .optional(),
+    location: z
+      .string()
+      .trim()
+      .max(LOCATION_MAX_LENGTH, `${LOCATION_MAX_LENGTH} ta belgidan oshmasligi kerak`)
+      .transform((value) => value || null)
+      .nullable()
+      .optional(),
+    /**
+     * Sayt manzili.
+     *
+     * `https://` yoki `http://` bilan boshlanishi SHART: protokolsiz
+     * havola `<a href>` ichida ilovaning o'z manzili deb qabul
+     * qilinardi va bosilganda hech qayerga olib bormasdi.
+     */
+    website: z
+      .string()
+      .trim()
+      .max(WEBSITE_MAX_LENGTH)
+      .transform((value) => value || null)
+      .nullable()
+      .optional()
+      .refine(
+        (value) => value === null || value === undefined || /^https?:\/\/.+\..+/.test(value),
+        'Manzil https:// bilan boshlanishi kerak',
+      ),
+    gender: z.enum(['MALE', 'FEMALE']).nullable().optional(),
+    messagePrivacy: z.enum(['EVERYONE', 'FOLLOWERS', 'NOBODY']).optional(),
   })
   // Bo'sh so'rov yuborilishining oldini olamiz — bu odatda dasturchi xatosi.
   .refine((data) => Object.keys(data).length > 0, "O'zgartirish uchun kamida bitta maydon yuboring");
@@ -111,3 +174,8 @@ export const changePasswordFormSchema = changePasswordFields
     message: 'Parollar mos kelmadi',
     path: ['newPasswordConfirm'],
   });
+
+/** GET /api/v1/profile/username */
+export const usernameAvailabilityQuerySchema = z.object({ username: usernameSchema });
+
+export type UsernameAvailabilityQuery = z.infer<typeof usernameAvailabilityQuerySchema>;

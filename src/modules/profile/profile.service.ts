@@ -1,4 +1,5 @@
-import { NotFoundError, UnauthorizedError, ValidationError } from '@/lib/api/errors';
+import { Prisma } from '@/generated/prisma/client';
+import { ConflictError, NotFoundError, UnauthorizedError, ValidationError } from '@/lib/api/errors';
 import { AuditAction, recordAudit } from '@/lib/audit';
 import { buildDefaultUsername } from '@/config/profile';
 import { logger } from '@/lib/logger';
@@ -39,6 +40,11 @@ export interface ProfilePayload {
    * chekka holat uchun himoya qoldirilgan.
    */
   username: string | null;
+  bio: string | null;
+  location: string | null;
+  website: string | null;
+  gender: string | null;
+  messagePrivacy: string;
   preferences: {
     dateOfBirth: Date | null;
     language: string;
@@ -69,6 +75,11 @@ const PROFILE_SELECT = {
   profile: {
     select: {
       username: true,
+      bio: true,
+      location: true,
+      website: true,
+      gender: true,
+      messagePrivacy: true,
       dateOfBirth: true,
       language: true,
       theme: true,
@@ -93,6 +104,11 @@ function toProfilePayload(user: {
   roles: { role: { name: string } }[];
   profile: {
     username: string;
+    bio: string | null;
+    location: string | null;
+    website: string | null;
+    gender: string | null;
+    messagePrivacy: string;
     dateOfBirth: Date | null;
     language: string;
     theme: string;
@@ -113,6 +129,11 @@ function toProfilePayload(user: {
     createdAt: user.createdAt,
     roles: user.roles.map((assignment) => assignment.role.name as RoleValue),
     username: user.profile?.username ?? null,
+    bio: user.profile?.bio ?? null,
+    location: user.profile?.location ?? null,
+    website: user.profile?.website ?? null,
+    gender: user.profile?.gender ?? null,
+    messagePrivacy: user.profile?.messagePrivacy ?? 'EVERYONE',
     preferences: {
       dateOfBirth: user.profile?.dateOfBirth ?? null,
       // Profil yozuvi bo'lmasa standart qiymatlarni qaytaramiz —
@@ -202,26 +223,65 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
     ...(input.theme !== undefined ? { theme: input.theme } : {}),
     ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
     ...(input.marketingOptIn !== undefined ? { marketingOptIn: input.marketingOptIn } : {}),
+    ...(input.username !== undefined ? { username: input.username } : {}),
+    ...(input.bio !== undefined ? { bio: input.bio } : {}),
+    ...(input.location !== undefined ? { location: input.location } : {}),
+    ...(input.website !== undefined ? { website: input.website } : {}),
+    ...(input.gender !== undefined ? { gender: input.gender } : {}),
+    ...(input.messagePrivacy !== undefined ? { messagePrivacy: input.messagePrivacy } : {}),
   };
 
-  const updated = await prisma.$transaction(async (tx) => {
-    if (Object.keys(userData).length > 0) {
-      await tx.user.update({ where: { id: userId }, data: userData });
-    }
+  const updated = await prisma
+    .$transaction(async (tx) => {
+      if (Object.keys(userData).length > 0) {
+        await tx.user.update({ where: { id: userId }, data: userData });
+      }
 
-    if (Object.keys(profileData).length > 0) {
-      // `upsert` — profil yozuvi hali yaratilmagan bo'lsa ham ishlaydi.
-      await tx.userProfile.upsert({
-        where: { userId },
-        update: profileData,
-        create: { userId, username: buildDefaultUsername(null), ...profileData },
-      });
-    }
+      if (Object.keys(profileData).length > 0) {
+        // `upsert` — profil yozuvi hali yaratilmagan bo'lsa ham ishlaydi.
+        await tx.userProfile.upsert({
+          where: { userId },
+          update: profileData,
+          create: { userId, username: buildDefaultUsername(null), ...profileData },
+        });
+      }
 
-    return tx.user.findUniqueOrThrow({ where: { id: userId }, select: PROFILE_SELECT });
-  });
+      return tx.user.findUniqueOrThrow({ where: { id: userId }, select: PROFILE_SELECT });
+    })
+    .catch((error: unknown) => {
+      /**
+       * Nom band.
+       *
+       * Oldindan tekshirish ham bor (`isUsernameAvailable`), lekin u
+       * kafolat bermaydi: tekshiruv bilan saqlash orasida boshqa odam
+       * shu nomni olib qo'yishi mumkin. Yagona ishonchli to'siq —
+       * bazadagi shart, shuning uchun uning xatosi shu yerda odam
+       * tiliga o'giriladi.
+       */
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictError('Bu foydalanuvchi nomi band. Boshqasini tanlang.');
+      }
+
+      throw error;
+    });
 
   return toProfilePayload(updated);
+}
+
+/**
+ * Nom bo'shmi.
+ *
+ * Formada yozayotgan paytda chaqiriladi — odam saqlashni bosgandan
+ * keyin emas, DARHOL javob olishi kerak.
+ */
+export async function isUsernameAvailable(username: string, userId: string): Promise<boolean> {
+  const row = await prisma.userProfile.findUnique({
+    where: { username },
+    select: { userId: true },
+  });
+
+  // O'z nomini "band" deb ko'rsatish noto'g'ri bo'lardi.
+  return row === null || row.userId === userId;
 }
 
 export interface ChangePasswordResult {
