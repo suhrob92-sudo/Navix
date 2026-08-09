@@ -1,6 +1,8 @@
 'use client';
 
-import { Clock, Star, UtensilsCrossed } from 'lucide-react';
+import Link from 'next/link';
+
+import { Clock, Star, UtensilsCrossed, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
@@ -88,6 +90,19 @@ export function RestaurantContent({ slug }: RestaurantContentProps) {
                   </span>
                   <span>{`Yetkazish ${formatTiyin(restaurant.deliveryFee)}`}</span>
                 </div>
+
+                {/*
+                  Profilga havola.
+                  Bu yerda menyu bor, profilda esa manzil, ish vaqti,
+                  telefon va obuna. Ikkalasi bir sahifaga sig'masdi.
+                */}
+                <Link
+                  href={`/b/${slug}`}
+                  className="text-primary mt-2 inline-flex items-center gap-1 text-xs font-medium hover:underline"
+                >
+                  Profilni ochish
+                  <ChevronRight className="size-3.5" aria-hidden="true" />
+                </Link>
               </div>
             </div>
 

@@ -273,6 +273,7 @@ model User {
   tickets       TripBooking[]
   following     Follow[]             @relation("Following")
   followers     Follow[]             @relation("Followers")
+  businessFollows BusinessFollow[]
 
   @@index([status])
   @@index([createdAt])
@@ -604,6 +605,7 @@ model Restaurant {
   categories MenuCategory[]
   items      MenuItem[]
   orders     FoodOrder[]
+  business   BusinessProfile?
 
   @@index([isActive, sortOrder])
   @@index([ownerId])
@@ -975,6 +977,7 @@ model Shop {
   owner    User?         @relation("ShopOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   products Product[]
   orders   MarketOrder[]
+  business BusinessProfile?
 
   @@index([isActive, sortOrder])
   @@index([ownerId])
@@ -1810,4 +1813,76 @@ model Follow {
   @@index([followingId, createdAt])
   @@index([followerId, createdAt])
   @@map("follows")
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Biznes profili (restoran va do'kon uchun umumiy ijtimoiy qatlam)
+// ─────────────────────────────────────────────────────────────────────
+
+/// Restoran yoki do'konning OMMAVIY profili.
+///
+/// ── Nima uchun alohida jadval ─────────────────────────────────────────
+/// Manzil, ish vaqti, telefon va obunachilar — restoran uchun ham,
+/// do'kon uchun ham bir xil. Ular ikkala jadvalga nusxalansa, ertaga
+/// yangi maydon qo'shilganda ikki joyni tahrirlash kerak bo'lardi va
+/// bittasi albatta unutilardi.
+///
+/// ── Nima uchun IKKI ixtiyoriy bog'lanish ──────────────────────────────
+/// Profil YO restoranga, YO do'konga tegishli. Ikkalasi ham bo'sh yoki
+/// ikkalasi ham to'la bo'lishi mumkin emas — buni baza darajasidagi
+/// CHECK sharti ta'minlaydi (migratsiyada). Aynan shu naqsh
+/// `deliveries` jadvalida ham ishlatilgan.
+model BusinessProfile {
+  id String @id @default(uuid()) @db.Uuid
+
+  restaurantId String? @unique @db.Uuid
+  shopId       String? @unique @db.Uuid
+
+  city    String  @db.VarChar(80)
+  address String  @db.VarChar(300)
+  phone   String? @db.VarChar(20)
+
+  /// Ish vaqti Toshkent bo'yicha, "HH:MM".
+  ///
+  /// Satr sifatida — bu KUNLIK vaqt, aniq bir ondagi voqea emas
+  /// (sabab `trip_schedules.departTime` da batafsil yozilgan).
+  opensAt  String @db.VarChar(5)
+  closesAt String @db.VarChar(5)
+
+  /// Kengaytirilgan tavsif — profil sahifasidagi "Ma'lumot" bo'limi.
+  about String? @db.VarChar(600)
+
+  /// Tasdiqlangan biznes (ko'k nishon). Faqat ADMIN qo'yadi.
+  isVerified Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  shop       Shop?       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  followers  BusinessFollow[]
+
+  @@map("business_profiles")
+}
+
+/// Foydalanuvchining biznesga obunasi.
+///
+/// `Follow` dan alohida: u odam↔odam bog'lanishi va uning ikkala
+/// ustuni ham `users` ga qaraydi. Bittasini biznesga yo'naltirish
+/// uchun tashqi kalitni buzish kerak bo'lardi.
+model BusinessFollow {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId            String @db.Uuid
+  businessProfileId String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile BusinessProfile @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, businessProfileId])
+  @@index([businessProfileId, createdAt])
+  @@index([userId, createdAt])
+  @@map("business_follows")
 }

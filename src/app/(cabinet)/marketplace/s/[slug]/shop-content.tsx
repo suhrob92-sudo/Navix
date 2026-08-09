@@ -1,6 +1,8 @@
 'use client';
 
-import { PackageSearch, Star, Truck } from 'lucide-react';
+import Link from 'next/link';
+
+import { PackageSearch, Star, Truck, ChevronRight } from 'lucide-react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { MarketCartBar } from '@/components/market/market-cart-bar';
@@ -61,6 +63,15 @@ export function ShopContent({ slug }: ShopContentProps) {
                 </span>
                 <span>{`Eng kam buyurtma: ${formatTiyin(shop.minOrder)}`}</span>
               </div>
+
+              {/* Profilda manzil, ish vaqti, telefon va obuna bor. */}
+              <Link
+                href={`/b/${slug}`}
+                className="text-primary mt-3 inline-flex items-center gap-1 text-xs font-medium hover:underline"
+              >
+                Profilni ochish
+                <ChevronRight className="size-3.5" aria-hidden="true" />
+              </Link>
             </div>
 
             {products.length === 0 ? (

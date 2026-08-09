@@ -12,6 +12,7 @@ import { PRODUCT_CATEGORIES, SHOPS } from '../src/config/marketplace';
 import { COMPANIES, JOB_CATEGORIES } from '../src/config/jobs';
 import { HOTELS } from '../src/config/hotels';
 import { TRIP_SCHEDULES } from '../src/config/travel';
+import { BUSINESS_PROFILES } from '../src/config/business';
 import { toSearchText } from '../src/lib/search';
 
 /**
@@ -435,6 +436,68 @@ async function seedTrips(prisma: PrismaClient): Promise<void> {
   console.info(`✅ ${TRIP_SCHEDULES.length} ta reys jadvali yozildi`);
 }
 
+/**
+ * Restoran va do'konlarning ommaviy profillari.
+ *
+ * Kalit — `slug`. Restoran ham, do'kon ham shu nom bilan izlanadi:
+ * qaysi biri topilsa, profil o'shanga bog'lanadi.
+ */
+async function seedBusinessProfiles(prisma: PrismaClient): Promise<void> {
+  let written = 0;
+
+  for (const entry of BUSINESS_PROFILES) {
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { slug: entry.slug },
+      select: { id: true },
+    });
+
+    const shop = restaurant
+      ? null
+      : await prisma.shop.findUnique({ where: { slug: entry.slug }, select: { id: true } });
+
+    if (!restaurant && !shop) {
+      console.warn(`   ⚠️  "${entry.slug}" uchun restoran ham, do'kon ham topilmadi`);
+      continue;
+    }
+
+    const data = {
+      city: entry.city,
+      address: entry.address,
+      phone: entry.phone,
+      opensAt: entry.opensAt,
+      closesAt: entry.closesAt,
+      about: entry.about,
+      isVerified: entry.isVerified,
+    };
+
+    /**
+     * `upsert` kaliti — restoran yoki do'kon ID'si.
+     *
+     * Shu tufayli seed qayta ishga tushirilganda mavjud profil
+     * yangilanadi, unga bog'langan OBUNALAR esa saqlanib qoladi.
+     */
+    if (restaurant) {
+      await prisma.businessProfile.upsert({
+        where: { restaurantId: restaurant.id },
+        update: data,
+        create: { restaurantId: restaurant.id, ...data },
+        select: { id: true },
+      });
+    } else if (shop) {
+      await prisma.businessProfile.upsert({
+        where: { shopId: shop.id },
+        update: data,
+        create: { shopId: shop.id, ...data },
+        select: { id: true },
+      });
+    }
+
+    written += 1;
+  }
+
+  console.info(`✅ ${written} ta biznes profili yozildi`);
+}
+
 async function seedJobs(prisma: PrismaClient): Promise<void> {
   const categoryIdBySlug = new Map<string, string>();
 
@@ -522,6 +585,7 @@ async function main(): Promise<void> {
     await seedJobs(prisma);
     await seedHotels(prisma);
     await seedTrips(prisma);
+    await seedBusinessProfiles(prisma);
     console.info('🎉 Tayyor!');
   } finally {
     await prisma.$disconnect();
