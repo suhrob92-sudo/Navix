@@ -252,30 +252,32 @@ model User {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  profile       UserProfile?
-  roles         UserRoleAssignment[]
-  sessions      Session[]
-  wallet        Wallet?
-  addresses     Address[]
-  notifications Notification[]
-  auditLogs     AuditLog[]
-  savedAccounts SavedAccount[]
-  payments      ServicePayment[]
-  foodOrders    FoodOrder[]
-  restaurants   Restaurant[]
-  shops         Shop[]               @relation("ShopOwner")
-  marketOrders  MarketOrder[]
-  deliveries    Delivery[]           @relation("CourierDeliveries")
-  companies     Company[]            @relation("CompanyOwner")
-  applications  JobApplication[]
-  parcels       Parcel[]
-  bookings      HotelBooking[]
-  tickets       TripBooking[]
-  following     Follow[]             @relation("Following")
-  followers     Follow[]             @relation("Followers")
+  profile         UserProfile?
+  roles           UserRoleAssignment[]
+  sessions        Session[]
+  wallet          Wallet?
+  addresses       Address[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  savedAccounts   SavedAccount[]
+  payments        ServicePayment[]
+  foodOrders      FoodOrder[]
+  restaurants     Restaurant[]
+  shops           Shop[]               @relation("ShopOwner")
+  marketOrders    MarketOrder[]
+  deliveries      Delivery[]           @relation("CourierDeliveries")
+  companies       Company[]            @relation("CompanyOwner")
+  applications    JobApplication[]
+  parcels         Parcel[]
+  bookings        HotelBooking[]
+  tickets         TripBooking[]
+  following       Follow[]             @relation("Following")
+  followers       Follow[]             @relation("Followers")
   businessFollows BusinessFollow[]
   chatMemberships ConversationMember[]
   sentMessages    Message[]
+  outgoingCalls   Call[]               @relation("CallCaller")
+  incomingCalls   Call[]               @relation("CallCallee")
 
   @@index([status])
   @@index([createdAt])
@@ -603,7 +605,7 @@ model Restaurant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner      User?          @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  owner      User?            @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   categories MenuCategory[]
   items      MenuItem[]
   orders     FoodOrder[]
@@ -976,7 +978,7 @@ model Shop {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner    User?         @relation("ShopOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  owner    User?            @relation("ShopOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   products Product[]
   orders   MarketOrder[]
   business BusinessProfile?
@@ -1860,8 +1862,8 @@ model BusinessProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  shop          Shop?       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  restaurant    Restaurant?      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  shop          Shop?            @relation(fields: [shopId], references: [id], onDelete: Cascade)
   followers     BusinessFollow[]
   conversations Conversation[]
 
@@ -1938,6 +1940,7 @@ model Conversation {
   business BusinessProfile?     @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
   members  ConversationMember[]
   messages Message[]
+  calls    Call[]
 
   @@index([lastMessageAt])
   @@map("conversations")
@@ -1999,4 +2002,81 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@map("messages")
+}
+
+/// Qo'ng'iroq turi.
+enum CallKind {
+  /// Faqat ovoz.
+  AUDIO
+  /// Ovoz + video.
+  VIDEO
+}
+
+/// Qo'ng'iroq holati.
+///
+/// ── Nima uchun beshta emas, oltita ─────────────────────────────────────
+/// "Javob berilmadi" (MISSED) va "rad etildi" (DECLINED) — bir xil emas.
+/// Birinchisida odam telefonni ko'rmagan, ikkinchisida ataylab rad etgan.
+/// Suhbat tarixida bu ikkalasi boshqacha yoziladi.
+enum CallStatus {
+  /// Chalinmoqda — hali javob berilmagan.
+  RINGING
+  /// Suhbat ketmoqda.
+  ACTIVE
+  /// Qabul qiluvchi rad etdi.
+  DECLINED
+  /// Javob berilmadi (vaqt tugadi yoki chaqiruvchi bekor qildi).
+  MISSED
+  /// Suhbat tugadi.
+  ENDED
+  /// Ulanib bo'lmadi (tarmoq).
+  FAILED
+}
+
+/// Ovozli/video qo'ng'iroq.
+///
+/// ── Nima uchun bazada saqlanadi ───────────────────────────────────────
+/// Qo'ng'iroqning O'ZI (ovoz) server orqali o'tmaydi — u ikki qurilma
+/// o'rtasida to'g'ridan-to'g'ri boradi (WebRTC). Bazada faqat FAKT
+/// saqlanadi: kim, kimga, qachon, qancha vaqt.
+///
+/// Bu kerak: suhbat tarixida "javob berilmagan qo'ng'iroq" ko'rinishi va
+/// odam keyin qayta qo'ng'iroq qila olishi uchun. Usiz o'tkazib
+/// yuborilgan qo'ng'iroq izsiz yo'qolardi.
+model Call {
+  id String @id @default(uuid()) @db.Uuid
+
+  conversationId String @db.Uuid
+
+  /// Kim qo'ng'iroq qildi.
+  callerId String @db.Uuid
+  /// Kimga qo'ng'iroq qilindi.
+  calleeId String @db.Uuid
+
+  kind   CallKind
+  status CallStatus @default(RINGING)
+
+  /// Chalina boshlagan payt.
+  startedAt  DateTime  @default(now())
+  /// Javob berilgan payt. Javob berilmasa — bo'sh.
+  answeredAt DateTime?
+  /// Tugagan payt.
+  endedAt    DateTime?
+
+  /// Suhbat davomiyligi (soniyalarda).
+  ///
+  /// ── Nima uchun alohida ustun ───────────────────────────────────────
+  /// Uni `endedAt - answeredAt` bilan hisoblash mumkin edi, lekin
+  /// ro'yxatda har qator uchun hisoblash va "umumiy suhbat vaqti"
+  /// so'rovlari murakkablashardi. Qiymat BIR MARTA — tugashda yoziladi.
+  durationSeconds Int @default(0)
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  caller       User         @relation("CallCaller", fields: [callerId], references: [id], onDelete: Cascade)
+  callee       User         @relation("CallCallee", fields: [calleeId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, startedAt])
+  @@index([calleeId, status])
+  @@index([callerId, status])
+  @@map("calls")
 }

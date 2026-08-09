@@ -100,6 +100,40 @@ const serverSchema = z.object({
 
   /** Bitta kodni necha marta noto'g'ri kiritish mumkin. */
   OTP_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
+
+  // --- Qo'ng'iroq (WebRTC) ------------------------------------------------
+
+  /**
+   * TURN serveri — qo'ng'iroqning "zaxira yo'li".
+   *
+   * ── Nima uchun kerak ───────────────────────────────────────────────
+   * Ikki telefon odatda BEVOSITA ulanadi va bu bepul. Lekin mobil
+   * operatorlarning ba'zi tarmoqlarida bevosita ulanish umuman
+   * mumkin emas — o'rtada qattiq to'siq (NAT) turadi.
+   *
+   * Bunday holatda ovoz TURN serveri orqali o'tkaziladi. U trafikni
+   * o'zidan o'tkazgani uchun PULLIK bo'ladi.
+   *
+   * IXTIYORIY: berilmasa qo'ng'iroq baribir ishlaydi — faqat qiyin
+   * tarmoqlardagi ba'zi ulanishlar amalga oshmaydi.
+   *
+   * Maxfiy: bu qiymatlar `NEXT_PUBLIC_` EMAS. Ular faqat serverda
+   * o'qiladi va tizimga kirgan foydalanuvchigagina beriladi — aks
+   * holda ular bilan begonalar ham trafik sarflardi.
+   */
+  TURN_URL: z
+    .string()
+    .refine(
+      (value) => value.startsWith('turn:') || value.startsWith('turns:'),
+      'TURN_URL "turn:" yoki "turns:" bilan boshlanishi kerak',
+    )
+    .optional(),
+
+  /** TURN serveriga kirish nomi. */
+  TURN_USERNAME: z.string().min(1).optional(),
+
+  /** TURN serveri paroli. */
+  TURN_CREDENTIAL: z.string().min(1).optional(),
 });
 
 /**
@@ -108,6 +142,31 @@ const serverSchema = z.object({
  * ro'yxatdan o'ta olmay qoladi va sababi noma'lum bo'lardi.
  */
 const refinedServerSchema = serverSchema.superRefine((env, ctx) => {
+  /**
+   * TURN manzili berilgan bo'lsa, kalitlari ham bo'lishi shart.
+   *
+   * Yarim to'ldirilgan sozlama eng yomoni: qo'ng'iroq ishlayotgandek
+   * ko'rinadi, lekin zaxira yo'l aslida ishlamaydi va buni faqat
+   * haqiqiy foydalanuvchi sezadi.
+   */
+  if (env.TURN_URL) {
+    if (!env.TURN_USERNAME) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['TURN_USERNAME'],
+        message: 'TURN_URL berilganda TURN_USERNAME majburiy',
+      });
+    }
+
+    if (!env.TURN_CREDENTIAL) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['TURN_CREDENTIAL'],
+        message: 'TURN_URL berilganda TURN_CREDENTIAL majburiy',
+      });
+    }
+  }
+
   if (env.SMS_PROVIDER !== 'eskiz') return;
 
   if (!env.ESKIZ_EMAIL) {

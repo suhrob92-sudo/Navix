@@ -4,6 +4,7 @@ import { toPrismaPagination } from '@/lib/api/pagination';
 import { logger } from '@/lib/logger';
 import { isOnline, isTyping, markTyping } from '@/lib/presence';
 import { prisma } from '@/lib/prisma';
+import { listCallsForConversation } from '@/modules/call/call.service';
 import type { ServiceColor } from '@/config/modules';
 import type {
   ChatPeer,
@@ -475,9 +476,16 @@ export async function getThread(conversationId: string, viewerId: string): Promi
 
   const otherId = peerUserId(row, viewerId);
 
-  const [online, typing] = await Promise.all([
+  const [online, typing, calls] = await Promise.all([
     otherId ? isOnline(otherId) : Promise.resolve(false),
     otherId ? isTyping(conversationId, otherId) : Promise.resolve(false),
+    /**
+     * Qo'ng'iroqlar suhbat bilan BIRGA olinadi.
+     *
+     * Alohida so'rov qilinsa, ular jonli oqimga tushmasdi: tugagan
+     * qo'ng'iroq faqat sahifa yangilangandan keyin ko'rinardi.
+     */
+    listCallsForConversation(conversationId, viewerId),
   ]);
 
   const lastRead = peerLastRead(row, viewerId);
@@ -488,6 +496,7 @@ export async function getThread(conversationId: string, viewerId: string): Promi
     isPeerOnline: online,
     isPeerTyping: typing,
     messages: messages.map((message) => toMessageView(message, viewerId, lastRead)),
+    calls,
   };
 }
 

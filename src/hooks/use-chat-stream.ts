@@ -63,7 +63,18 @@ export function useChatStream(conversationId: string): ChatStreamState {
     refreshRef.current = refresh;
   }, [accessToken, refresh]);
 
+  /**
+   * Token TAYYOR bo'lgunicha ulanmaymiz.
+   *
+   * Token o'rnatilishidan oldin ulansak server 401 qaytaradi va hook
+   * tokenni yangilashga urinadi. Yangilash muvaffaqiyatsiz bo'lsa,
+   * ilova sessiyani tozalaydi — ya'ni odam tizimdan chiqib qolardi.
+   */
+  const hasToken = Boolean(accessToken);
+
   useEffect(() => {
+    if (!hasToken) return;
+
     let cancelled = false;
     let controller: AbortController | null = null;
 
@@ -118,7 +129,7 @@ export function useChatStream(conversationId: string): ChatStreamState {
       cancelled = true;
       controller?.abort();
     };
-  }, [conversationId]);
+  }, [conversationId, hasToken]);
 
   return { thread, isLive };
 }

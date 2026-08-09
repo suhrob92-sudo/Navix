@@ -1,4 +1,5 @@
 import type { ServiceColor } from '@/config/modules';
+import type { CallView } from '@/modules/call/call.types';
 
 /**
  * Chat moduli — brauzer va server uchun umumiy turlar.
@@ -64,6 +65,16 @@ export interface ThreadView {
   /** Ikkinchi tomon hozir yozmoqdami. */
   isPeerTyping: boolean;
   messages: MessageView[];
+  /**
+   * Shu suhbatdagi TUGAGAN qo'ng'iroqlar.
+   *
+   * ── Nima uchun suhbat ichida ────────────────────────────────────────
+   * Javobsiz qo'ng'iroq alohida ro'yxatda tursa, odam uni umuman
+   * ko'rmasdi. Suhbat oynasida esa u xabar kabi o'z vaqtida turadi va
+   * "kim, qachon qo'ng'iroq qilgan" degan savol o'z-o'zidan javob
+   * topadi.
+   */
+  calls: CallView[];
 }
 
 export interface ThreadResponse {

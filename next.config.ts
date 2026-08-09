@@ -14,8 +14,22 @@ const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   // Boshqa saytga o'tganda to'liq manzilni yubormaydi.
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-  // Kamera, mikrofon va joylashuvga standart holatda ruxsat bermaydi.
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self)' },
+  /**
+   * Qurilma imkoniyatlari.
+   *
+   * ── `(self)` nimani anglatadi ──────────────────────────────────────
+   * Faqat Navix sahifasi so'ray oladi. Sahifaga joylashtirilgan begona
+   * <iframe> lar so'ray olmaydi — ya'ni reklama yoki tashqi vidjet
+   * mikrofonga tegisha olmaydi.
+   *
+   * Foydalanuvchidan ruxsat baribir brauzer o'zi so'raydi: bu sarlavha
+   * ruxsat BERMAYDI, u faqat so'rash huquqini beradi.
+   *
+   * Mikrofon — ovozli qo'ng'iroq uchun. Kamera hozircha YOPIQ: video
+   * qo'ng'iroq hali yo'q, kerak bo'lmagan huquqni ochib qo'yish esa
+   * bekorga xavf tug'diradi.
+   */
+  { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=(self)' },
   // Faqat HTTPS orqali ulanishni majburlaydi (1 yil).
   { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
 ];

@@ -126,6 +126,26 @@ export const PUBLIC_RATE_LIMITS = {
    * qilishga yetmaydi.
    */
   chatSend: { limit: 60, windowSeconds: 60 },
+  /**
+   * Qo'ng'iroq boshlash: daqiqasiga 10 marta.
+   *
+   * Har bir qo'ng'iroq begona odamning telefonini CHALDIRADI —
+   * xabardan ko'ra bezovta qiluvchi amal. Shuning uchun chegara qattiq.
+   * Ayni paytda "ko'tarmadi, qayta urinaman" holatiga bemalol yetadi.
+   */
+  callStart: { limit: 10, windowSeconds: 60 },
+  /**
+   * Ulanish signallari: daqiqasiga 300 ta.
+   *
+   * ── Nima uchun cheklov KERAK ────────────────────────────────────────
+   * Signallar navbati muddati tugaguncha xotirada turadi. Cheklovsiz
+   * unga istalgancha ma'lumot tiqib, Redis xotirasini to'ldirish mumkin
+   * bo'lardi.
+   *
+   * Haqiqiy qo'ng'iroq ~40 ta signal ishlatadi, shuning uchun 300 juda
+   * bemalol — lekin suiiste'molga yetmaydi.
+   */
+  callSignal: { limit: 300, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;

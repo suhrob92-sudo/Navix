@@ -53,6 +53,10 @@ export const cacheKey = {
   presence: (userId: string) => `navix:presence:${userId}`,
   /** Kim qaysi suhbatda yozayotgani. */
   typing: (conversationId: string, userId: string) => `navix:typing:${conversationId}:${userId}`,
+  /** Foydalanuvchiga kelgan qo'ng'iroq signallari navbati. */
+  callInbox: (userId: string) => `navix:call:inbox:${userId}`,
+  /** Qo'ng'iroq hali tirikmi (brauzer yopilib qolmadimi). */
+  callAlive: (callId: string) => `navix:call:alive:${callId}`,
 } as const;
 
 /**

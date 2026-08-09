@@ -1,6 +1,16 @@
 'use client';
 
-import { ArrowLeft, BadgeCheck, Phone, SendHorizontal, Store, Video } from 'lucide-react';
+import {
+  ArrowLeft,
+  BadgeCheck,
+  Phone,
+  PhoneIncoming,
+  PhoneMissed,
+  PhoneOutgoing,
+  SendHorizontal,
+  Store,
+  Video,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
@@ -14,6 +24,8 @@ import { useChatStream } from '@/hooks/use-chat-stream';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzTime } from '@/lib/date';
 import { cn } from '@/lib/utils';
+import { useCall } from '@/modules/call/call-provider';
+import { callSummaryText, type CallView } from '@/modules/call/call.types';
 import { peerStatusText, statusMark, type MessageView, type SendMessageResponse } from '@/modules/chat/chat.types';
 
 export interface ThreadContentProps {
@@ -43,6 +55,7 @@ const TYPING_PING_MS = 3_000;
 export function ThreadContent({ conversationId }: ThreadContentProps) {
   const request = useApiClient();
   const { thread, isLive } = useChatStream(conversationId);
+  const { start } = useCall();
 
   const [draft, setDraft] = useState('');
   const [pending, setPending] = useState<MessageView[]>([]);
@@ -71,6 +84,15 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
     : pending;
 
   /**
+   * Xabarlar va qo'ng'iroqlar BITTA vaqt chizig'ida.
+   *
+   * Ular alohida ro'yxatlarda ko'rsatilsa, "qo'ng'iroq qildim, javob
+   * bo'lmagach yozdim" ketma-ketligi buzilib, suhbat mantiqsiz
+   * ko'rinardi.
+   */
+  const timeline = buildTimeline(messages, thread?.calls ?? []);
+
+  /**
    * Yangi xabar kelganda pastga suramiz.
    *
    * `messages.length` ga bog'langan: matn o'zgarganda emas, YANGI
@@ -78,7 +100,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
    */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages.length]);
+  }, [timeline.length]);
 
   /**
    * Suhbat ochilganda uni o'qilgan deb belgilaymiz.
@@ -172,6 +194,9 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
 
   const peer = thread?.peer ?? null;
 
+  /** Qo'ng'iroq faqat odam bilan suhbatda va suhbat yuklangach mumkin. */
+  const canCall = peer?.kind === 'DIRECT';
+
   return (
     <div className="flex min-h-[100dvh] flex-col">
       {/* Sarlavha */}
@@ -221,12 +246,23 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
           )}
 
           {/*
-            Qo'ng'iroq tugmalari keyingi bosqichlarda ishga tushadi.
-            Ular ko'rinib turadi, lekin bosilmaydi.
+            Ovozli qo'ng'iroq faqat ODAM bilan suhbatda ishlaydi.
+
+            Kompaniya suhbatida ikkinchi tomon — jadval yozuvi, telefoni
+            bor odam emas. Tugmani yoqib qo'yish "qo'ng'iroq ketdi, lekin
+            hech kim ko'tarmadi" degan yolg'on taassurot berardi.
           */}
-          <Button variant="ghost" size="icon" disabled aria-label="Audio qo'ng'iroq — tez orada">
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={!canCall}
+            onClick={() => void start(conversationId)}
+            aria-label={canCall ? "Ovozli qo'ng'iroq" : "Kompaniyaga qo'ng'iroq qilib bo'lmaydi"}
+          >
             <Phone className="size-5" aria-hidden="true" />
           </Button>
+
+          {/* Video qo'ng'iroq keyingi bosqichda ishga tushadi. */}
           <Button variant="ghost" size="icon" disabled aria-label="Video qo'ng'iroq — tez orada">
             <Video className="size-5" aria-hidden="true" />
           </Button>
@@ -249,57 +285,33 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
           </Alert>
         )}
 
-        {thread && messages.length === 0 && (
+        {thread && timeline.length === 0 && (
           <p className="text-muted-foreground py-12 text-center text-sm leading-relaxed">
             Hali xabar yo&apos;q. Birinchi bo&apos;lib yozing.
           </p>
         )}
 
         <ul className="space-y-2" aria-label="Xabarlar">
-          {messages.map((message) => (
-            <li key={message.id} className={cn('flex', message.isMine ? 'justify-end' : 'justify-start')}>
-              <div
-                className={cn(
-                  'max-w-[80%] rounded-2xl px-3.5 py-2',
-                  message.isMine
-                    ? 'bg-primary text-primary-foreground rounded-br-md'
-                    : 'bg-secondary text-secondary-foreground rounded-bl-md',
-                )}
-              >
-                <p
-                  className={cn(
-                    'text-sm leading-relaxed break-words whitespace-pre-wrap',
-                    message.isDeleted && 'italic opacity-70',
+          {timeline.map((item) =>
+            item.type === 'call' ? (
+              <li key={`call-${item.call.id}`} className="flex justify-center py-1">
+                <span className="bg-secondary text-secondary-foreground inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs">
+                  {item.call.status === 'MISSED' || item.call.status === 'DECLINED' ? (
+                    <PhoneMissed className="text-destructive size-3.5 shrink-0" aria-hidden="true" />
+                  ) : item.call.isOutgoing ? (
+                    <PhoneOutgoing className="size-3.5 shrink-0" aria-hidden="true" />
+                  ) : (
+                    <PhoneIncoming className="size-3.5 shrink-0" aria-hidden="true" />
                   )}
-                >
-                  {message.isDeleted ? "Xabar o'chirilgan" : message.body}
-                </p>
 
-                <p
-                  className={cn(
-                    'mt-1 flex items-center justify-end gap-1 text-[0.6875rem]',
-                    message.isMine ? 'text-primary-foreground/70' : 'text-muted-foreground',
-                  )}
-                >
-                  {formatUzTime(message.createdAt)}
-                  {message.isMine && (
-                    <span
-                      aria-label={
-                        message.status === 'SEEN'
-                          ? "O'qildi"
-                          : message.status === 'DELIVERED'
-                            ? 'Yetkazildi'
-                            : 'Yuborildi'
-                      }
-                      className={cn(message.status === 'SEEN' && 'text-sky-300')}
-                    >
-                      {statusMark(message.status)}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </li>
-          ))}
+                  <span>{callSummaryText(item.call)}</span>
+                  <span className="text-muted-foreground">{formatUzTime(item.call.startedAt)}</span>
+                </span>
+              </li>
+            ) : (
+              <MessageBubble key={item.message.id} message={item.message} />
+            ),
+          )}
         </ul>
 
         {thread?.isPeerTyping && (
@@ -351,5 +363,71 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
         {thread && !isLive && <p className="text-muted-foreground pb-2 text-center text-xs">Qayta ulanmoqda...</p>}
       </form>
     </div>
+  );
+}
+
+/**
+ * Xabarlar va qo'ng'iroqlarni vaqt bo'yicha bitta ro'yxatga qo'shadi.
+ *
+ * Ikkalasi ham ISO vaqtga ega, shuning uchun taqqoslash oddiy matn
+ * taqqoslash bilan bajariladi — sana obyektlarini yaratish shart emas.
+ */
+type TimelineItem = { type: 'message'; message: MessageView } | { type: 'call'; call: CallView };
+
+function buildTimeline(messages: MessageView[], calls: CallView[]): TimelineItem[] {
+  const items: TimelineItem[] = [
+    ...messages.map((message): TimelineItem => ({ type: 'message', message })),
+    ...calls.map((call): TimelineItem => ({ type: 'call', call })),
+  ];
+
+  return items.sort((a, b) => {
+    const left = a.type === 'message' ? a.message.createdAt : a.call.startedAt;
+    const right = b.type === 'message' ? b.message.createdAt : b.call.startedAt;
+
+    return left.localeCompare(right);
+  });
+}
+
+/** Bitta xabar puffagi. */
+function MessageBubble({ message }: { message: MessageView }) {
+  return (
+    <li className={cn('flex', message.isMine ? 'justify-end' : 'justify-start')}>
+      <div
+        className={cn(
+          'max-w-[80%] rounded-2xl px-3.5 py-2',
+          message.isMine
+            ? 'bg-primary text-primary-foreground rounded-br-md'
+            : 'bg-secondary text-secondary-foreground rounded-bl-md',
+        )}
+      >
+        <p
+          className={cn(
+            'text-sm leading-relaxed break-words whitespace-pre-wrap',
+            message.isDeleted && 'italic opacity-70',
+          )}
+        >
+          {message.isDeleted ? "Xabar o'chirilgan" : message.body}
+        </p>
+
+        <p
+          className={cn(
+            'mt-1 flex items-center justify-end gap-1 text-[0.6875rem]',
+            message.isMine ? 'text-primary-foreground/70' : 'text-muted-foreground',
+          )}
+        >
+          {formatUzTime(message.createdAt)}
+          {message.isMine && (
+            <span
+              aria-label={
+                message.status === 'SEEN' ? "O'qildi" : message.status === 'DELIVERED' ? 'Yetkazildi' : 'Yuborildi'
+              }
+              className={cn(message.status === 'SEEN' && 'text-sky-300')}
+            >
+              {statusMark(message.status)}
+            </span>
+          )}
+        </p>
+      </div>
+    </li>
   );
 }
