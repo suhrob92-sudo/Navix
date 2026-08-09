@@ -155,6 +155,11 @@ export interface NotificationEventData {
     /** To'langan summa — jarima ushlanganini ko'rsatish uchun. */
     paidTiyin: number;
   };
+  'social.new_follower': {
+    followerId: string;
+    followerName: string;
+    followerUsername: string;
+  };
   'security.password_changed': { revokedSessions: number };
 }
 
@@ -477,6 +482,19 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
         : `${fromCity} → ${toCity} chiptasi (${ticketNumber}) bekor qilindi. To'langan ${formatTiyin(paidTiyin)} dan ${formatTiyin(refundTiyin)} qaytarildi — kech bekor qilinganda jarima ushlanadi.`,
     actionUrl: `/travel/tickets/${ticketId}`,
     sourceModule: 'travel',
+  }),
+
+  /**
+   * Yangi obunachi.
+   *
+   * Havola profilga olib boradi: odam "kim ekan?" deb darhol
+   * ko'ra oladi.
+   */
+  'social.new_follower': ({ followerName, followerUsername }) => ({
+    title: 'Yangi obunachi',
+    body: `${followerName} sizga obuna bo'ldi.`,
+    actionUrl: followerUsername ? `/u/${followerUsername}` : '/profile',
+    sourceModule: 'profile',
   }),
 
   'security.password_changed': ({ revokedSessions }) => ({

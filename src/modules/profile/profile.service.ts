@@ -1,5 +1,6 @@
 import { NotFoundError, UnauthorizedError, ValidationError } from '@/lib/api/errors';
 import { AuditAction, recordAudit } from '@/lib/audit';
+import { buildDefaultUsername } from '@/config/profile';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { notifyUser } from '@/modules/notification/notification.service';
@@ -29,6 +30,15 @@ export interface ProfilePayload {
   phoneVerified: Date | null;
   createdAt: Date;
   roles: RoleValue[];
+  /**
+   * Ijtimoiy nom: `aziz_karimov`.
+   *
+   * Bu yerda — chunki sozlamalar sahifasi o'z profilingizga havola
+   * berishi kerak (`/u/<username>`), nomni esa faqat shu javob biladi.
+   * `null` bo'lishi mumkin emas, lekin eski profil yozuvi bo'lmagan
+   * chekka holat uchun himoya qoldirilgan.
+   */
+  username: string | null;
   preferences: {
     dateOfBirth: Date | null;
     language: string;
@@ -58,6 +68,7 @@ const PROFILE_SELECT = {
   roles: { select: { role: { select: { name: true } } } },
   profile: {
     select: {
+      username: true,
       dateOfBirth: true,
       language: true,
       theme: true,
@@ -81,6 +92,7 @@ function toProfilePayload(user: {
   createdAt: Date;
   roles: { role: { name: string } }[];
   profile: {
+    username: string;
     dateOfBirth: Date | null;
     language: string;
     theme: string;
@@ -100,6 +112,7 @@ function toProfilePayload(user: {
     phoneVerified: user.phoneVerified,
     createdAt: user.createdAt,
     roles: user.roles.map((assignment) => assignment.role.name as RoleValue),
+    username: user.profile?.username ?? null,
     preferences: {
       dateOfBirth: user.profile?.dateOfBirth ?? null,
       // Profil yozuvi bo'lmasa standart qiymatlarni qaytaramiz —
@@ -132,7 +145,12 @@ export async function completeOnboarding(userId: string): Promise<ProfilePayload
     await prisma.userProfile.upsert({
       where: { userId },
       update: { onboardedAt: new Date() },
-      create: { userId, onboardedAt: new Date() },
+      /**
+       * `create` shoxi deyarli hech qachon ishlamaydi: profil
+       * ro'yxatdan o'tishda yaratiladi. Lekin u yerda ham `username`
+       * shart, shuning uchun bu yerda ham beriladi.
+       */
+      create: { userId, username: buildDefaultUsername(null), onboardedAt: new Date() },
     });
 
     logger.info({ userId }, 'Tanishtiruv tugatildi');
@@ -196,7 +214,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
       await tx.userProfile.upsert({
         where: { userId },
         update: profileData,
-        create: { userId, ...profileData },
+        create: { userId, username: buildDefaultUsername(null), ...profileData },
       });
     }
 

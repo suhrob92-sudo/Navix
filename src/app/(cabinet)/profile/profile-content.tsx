@@ -4,6 +4,7 @@ import {
   Bike,
   Briefcase,
   ChevronRight,
+  ExternalLink,
   LayoutGrid,
   LogOut,
   ShieldCheck,
@@ -39,6 +40,7 @@ export interface ProfileResponse {
   phoneVerified: string | null;
   createdAt: string;
   roles: string[];
+  username: string | null;
   preferences: {
     dateOfBirth: string | null;
     language: string;
@@ -124,6 +126,20 @@ export function ProfileContent() {
                   <p className="text-primary-foreground/80 truncate text-sm">
                     {data ? formatUzPhone(data.phone) : ''}
                   </p>
+                  {/*
+                    Ommaviy profilga havola.
+                    Bu YAGONA joy: foydalanuvchi o'zini boshqalar
+                    qanday ko'rishini shu yerdan ochadi.
+                  */}
+                  {data?.username && (
+                    <Link
+                      href={`/u/${data.username}`}
+                      className="text-primary-foreground/90 mt-1 inline-flex items-center gap-1 text-sm hover:underline"
+                    >
+                      {`@${data.username}`}
+                      <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
+                    </Link>
+                  )}
                   {data?.phoneVerified && (
                     <span className="text-primary-foreground mt-2 inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-medium">
                       <ShieldCheck className="size-3" aria-hidden="true" />

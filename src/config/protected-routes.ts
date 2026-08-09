@@ -37,6 +37,8 @@ export const PROTECTED_PREFIXES = [
   '/dashboard',
   '/welcome',
   '/profile',
+  /** Ommaviy profil: `/u/aziz_karimov`. */
+  '/u',
   '/addresses',
   '/devices',
   '/notifications',

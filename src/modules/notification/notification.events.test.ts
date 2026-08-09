@@ -154,6 +154,11 @@ const SAMPLES = {
     refundTiyin: 21_000_000,
     paidTiyin: 42_000_000,
   },
+  'social.new_follower': {
+    followerId: '6a1b2c3d-4e5f-4a7b-8c9d-0e1f2a3b4c5d',
+    followerName: 'Bobur Karimov',
+    followerUsername: 'bobur_k',
+  },
   'security.password_changed': { revokedSessions: 3 },
 } as const;
 

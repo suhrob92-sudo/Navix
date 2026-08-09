@@ -255,6 +255,8 @@ model User {
   parcels       Parcel[]
   bookings      HotelBooking[]
   tickets       TripBooking[]
+  following     Follow[]             @relation("Following")
+  followers     Follow[]             @relation("Followers")
 
   @@index([status])
   @@index([createdAt])
@@ -266,6 +268,26 @@ model User {
 model UserProfile {
   id     String @id @default(uuid()) @db.Uuid
   userId String @unique @db.Uuid
+
+  /// Ijtimoiy nom: @aziz_karimov.
+  ///
+  /// ── Nima uchun alohida ustun ────────────────────────────────────────
+  /// Profil manzili shu nom bilan ochiladi (`/u/aziz_karimov`).
+  /// Ism bilan ochib bo'lmaydi: ismlar takrorlanadi va o'zgaradi,
+  /// havola esa barqaror bo'lishi kerak.
+  ///
+  /// Yagona (`@unique`) — ikki odam bir nomni ola olmaydi.
+  username String @unique @db.VarChar(30)
+
+  bio      String? @db.VarChar(300)
+  location String? @db.VarChar(80)
+  website  String? @db.VarChar(200)
+
+  /// Tasdiqlangan belgisi (ko'k nishon).
+  ///
+  /// Faqat ADMIN qo'ya oladi — foydalanuvchi o'ziga o'zi bera olmaydi.
+  /// Shuning uchun u tahrirlash formasida yo'q.
+  isVerified Boolean @default(false)
 
   dateOfBirth    DateTime?
   language       Language        @default(UZ)
@@ -1724,4 +1746,38 @@ model WaitlistEntry {
 
   @@index([createdAt])
   @@map("waitlist_entries")
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Ijtimoiy aloqalar
+// ─────────────────────────────────────────────────────────────────────
+
+/// Kuzatuv: kim kimga obuna bo'lgan.
+///
+/// ── Nima uchun alohida jadval ─────────────────────────────────────────
+/// Obunachilar sonini ustunda saqlash mumkin edi, lekin unda "men unga
+/// obunamanmi?" degan savolga javob bo'lmasdi va son har qo'shilganda
+/// qo'lda yangilanishi kerak bo'lardi — bu esa xatoga eng ochiq joy.
+///
+/// Bu yerda esa bitta qator = bitta obuna. Son shundan sanaladi.
+model Follow {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Kim obuna bo'ldi.
+  followerId String @db.Uuid
+
+  /// Kimga obuna bo'ldi.
+  followingId String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  follower  User @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  /// Ikki marta obuna bo'lib bo'lmaydi — baza darajasida.
+  @@unique([followerId, followingId])
+  /// "Uning obunachilari" va "men kimga obunaman" ro'yxatlari uchun.
+  @@index([followingId, createdAt])
+  @@index([followerId, createdAt])
+  @@map("follows")
 }

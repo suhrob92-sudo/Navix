@@ -105,6 +105,13 @@ export async function consumeRateLimit(
 export const PUBLIC_RATE_LIMITS = {
   /** Navbatga yozilish: bir IP'dan soatiga 5 marta. */
   waitlist: { limit: 5, windowSeconds: 60 * 60 },
+  /**
+   * Obuna bo'lish: bitta foydalanuvchi uchun daqiqasiga 30 marta.
+   *
+   * Odam uchun bemalol (ro'yxatni aylanib chiqib obuna bo'lish),
+   * skript uchun esa foydasiz.
+   */
+  follow: { limit: 30, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;

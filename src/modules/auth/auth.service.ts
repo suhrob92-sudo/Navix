@@ -1,4 +1,5 @@
 import { ConflictError, UnauthorizedError, ValidationError } from '@/lib/api/errors';
+import { buildDefaultUsername } from '@/config/profile';
 import { AuditAction, recordAudit } from '@/lib/audit';
 import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
@@ -118,7 +119,9 @@ export async function register(input: RegisterInput, context: AuditContext): Pro
           firstName: input.firstName,
           lastName: input.lastName ?? null,
           status: 'PENDING_VERIFICATION',
-          profile: { create: {} },
+          // Boshlang'ich `username` shu yerda beriladi: profil usiz
+          // yaratila olmaydi (ustun bo'sh bo'lishi mumkin emas).
+          profile: { create: { username: buildDefaultUsername(input.firstName) } },
         },
         select: { id: true },
       });
