@@ -117,7 +117,7 @@ export function BookingsContent() {
         {!isLoading && !error && bookings.length === 0 && (
           <EmptyState
             icon={CalendarDays}
-            title={filter === 'ALL' ? 'Hali bandlov yo\'q' : "Bu bo'limda bandlov yo'q"}
+            title={filter === 'ALL' ? "Hali bandlov yo'q" : "Bu bo'limda bandlov yo'q"}
             description="Mehmonxonalarni ko'rib chiqing va xona band qiling."
             action={
               <Button asChild variant="outline">
@@ -172,11 +172,27 @@ export function BookingsContent() {
                   <p className="text-muted-foreground font-mono text-xs">{booking.bookingNumber}</p>
                 </div>
 
-                {canCancelBooking(booking) && (
-                  <Button variant="outline" size="sm" disabled={isSaving} onClick={() => setCancelId(booking.id)}>
-                    Bekor qilish
+                {/*
+                  Kartochkaning O'ZI havola emas: ichida "Bekor qilish"
+                  tugmasi bor va tugmani bosgan barmoq havolani ham
+                  bosib yuborardi. Shuning uchun alohida tugma.
+                */}
+                <div className="flex shrink-0 gap-2">
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/hotel/bookings/${booking.id}`}>Batafsil</Link>
                   </Button>
-                )}
+
+                  {canCancelBooking(booking) && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={isSaving}
+                      onClick={() => setCancelId(booking.id)}
+                    >
+                      Bekor qilish
+                    </Button>
+                  )}
+                </div>
               </div>
             </li>
           ))}

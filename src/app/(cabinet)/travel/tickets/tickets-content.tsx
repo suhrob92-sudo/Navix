@@ -176,9 +176,7 @@ export function TicketsContent() {
                     <p className="text-lg leading-none font-semibold tabular-nums">
                       {formatUzTime(ticket.departAt)}
                     </p>
-                    <p className="text-muted-foreground mt-1 text-[0.6875rem]">
-                      {formatUzDate(ticket.departAt)}
-                    </p>
+                    <p className="text-muted-foreground mt-1 text-[0.6875rem]">{formatUzDate(ticket.departAt)}</p>
                   </div>
 
                   <ArrowRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
@@ -187,9 +185,7 @@ export function TicketsContent() {
                     <p className="text-lg leading-none font-semibold tabular-nums">
                       {formatUzTime(ticket.arriveAt)}
                     </p>
-                    <p className="text-muted-foreground mt-1 text-[0.6875rem]">
-                      {formatUzDate(ticket.arriveAt)}
-                    </p>
+                    <p className="text-muted-foreground mt-1 text-[0.6875rem]">{formatUzDate(ticket.arriveAt)}</p>
                   </div>
 
                   <span className="text-muted-foreground ml-auto text-xs">{formatSeats(ticket.seats)}</span>
@@ -225,16 +221,27 @@ export function TicketsContent() {
                     )}
                   </div>
 
-                  {canCancelTicket(ticket) && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={isSaving}
-                      onClick={() => setCancelTarget(ticket)}
-                    >
-                      Bekor qilish
+                  {/*
+                    Kartochkaning O'ZI havola emas: ichida "Bekor qilish"
+                    tugmasi bor va tugmani bosgan barmoq havolani ham
+                    bosib yuborardi. Shuning uchun alohida tugma.
+                  */}
+                  <div className="flex shrink-0 gap-2">
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href={`/travel/tickets/${ticket.id}`}>Batafsil</Link>
                     </Button>
-                  )}
+
+                    {canCancelTicket(ticket) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isSaving}
+                        onClick={() => setCancelTarget(ticket)}
+                      >
+                        Bekor qilish
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </li>
             );
