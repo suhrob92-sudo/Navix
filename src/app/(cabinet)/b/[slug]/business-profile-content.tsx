@@ -13,6 +13,7 @@ import {
   UtensilsCrossed,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
@@ -51,10 +52,9 @@ export interface BusinessProfileContentProps {
  */
 export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
   const request = useApiClient();
+  const router = useRouter();
 
-  const { data, isLoading, error, setData } = useApiQuery<BusinessProfileResponse>(
-    `/api/v1/business/${slug}`,
-  );
+  const { data, isLoading, error, setData } = useApiQuery<BusinessProfileResponse>(`/api/v1/business/${slug}`);
 
   const [tab, setTab] = useState<'catalog' | 'about'>('catalog');
   const [isSaving, setIsSaving] = useState(false);
@@ -89,11 +89,7 @@ export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
         ...(wasFollowing ? {} : { body: {} }),
       });
 
-      setData((current) =>
-        current
-          ? { business: { ...current.business, ...result } }
-          : current!,
-      );
+      setData((current) => (current ? { business: { ...current.business, ...result } } : current!));
     } catch (caught) {
       // Xato bo'lsa taxminni orqaga qaytaramiz.
       setData((current) =>
@@ -108,6 +104,27 @@ export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
           : current!,
       );
 
+      setActionError(toUserMessage(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  /** Biznes bilan suhbatni ochadi (mavjud bo'lsa — o'shani). */
+  async function openChat() {
+    if (!business) return;
+
+    setIsSaving(true);
+    setActionError(null);
+
+    try {
+      await request('/api/v1/chat/conversations', {
+        method: 'POST',
+        body: { businessSlug: business.slug },
+      });
+
+      router.push('/messages');
+    } catch (caught) {
       setActionError(toUserMessage(caught));
     } finally {
       setIsSaving(false);
@@ -160,9 +177,7 @@ export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
                   <p className="text-muted-foreground text-xs">{catalogLabel(business.kind)}</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-base font-semibold tabular-nums">
-                    {formatCount(business.followerCount)}
-                  </p>
+                  <p className="text-base font-semibold tabular-nums">{formatCount(business.followerCount)}</p>
                   <p className="text-muted-foreground text-xs">Obunachilar</p>
                 </div>
                 <div className="text-center">
@@ -200,7 +215,7 @@ export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
                   isLoading={isSaving}
                   onClick={toggleFollow}
                 >
-                  {business.isFollowing ? "Obunani bekor qilish" : "Obuna bo'lish"}
+                  {business.isFollowing ? 'Obunani bekor qilish' : "Obuna bo'lish"}
                 </Button>
 
                 {/*
@@ -210,9 +225,9 @@ export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
                 <Button
                   variant="outline"
                   size="icon"
-                  disabled
-                  aria-label="Xabar yozish — tez orada"
-                  title="Tez orada"
+                  disabled={isSaving}
+                  onClick={openChat}
+                  aria-label="Xabar yozish"
                 >
                   <MessageCircle className="size-4" aria-hidden="true" />
                 </Button>
@@ -300,9 +315,7 @@ export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
                           )}
                         </div>
 
-                        <span className="shrink-0 font-semibold tabular-nums">
-                          {formatTiyin(item.priceTiyin)}
-                        </span>
+                        <span className="shrink-0 font-semibold tabular-nums">{formatTiyin(item.priceTiyin)}</span>
                       </div>
                     </div>
                   ))
@@ -325,9 +338,7 @@ export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
                   </div>
                   <div className="flex justify-between gap-3">
                     <dt className="text-muted-foreground">Ish vaqti</dt>
-                    <dd className="tabular-nums">
-                      {formatWorkingHours(business.opensAt, business.closesAt)}
-                    </dd>
+                    <dd className="tabular-nums">{formatWorkingHours(business.opensAt, business.closesAt)}</dd>
                   </div>
                   <div className="flex justify-between gap-3">
                     <dt className="text-muted-foreground">Manzil</dt>
@@ -348,7 +359,7 @@ export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
             )}
 
             <p className="text-muted-foreground px-1 pb-2 text-center text-xs leading-relaxed">
-              Xabar almashish va ilova ichidagi qo&apos;ng&apos;iroq keyingi bosqichlarda qo&apos;shiladi.
+              Suhbat oynasi va ilova ichidagi qo&apos;ng&apos;iroq keyingi bosqichlarda qo&apos;shiladi.
             </p>
           </>
         )}

@@ -2,6 +2,7 @@
 
 import { BadgeCheck, Globe, MapPin, MessageCircle, Phone, Settings2, UserPlus, Video } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
@@ -37,10 +38,9 @@ export interface PublicProfileContentProps {
  */
 export function PublicProfileContent({ username }: PublicProfileContentProps) {
   const request = useApiClient();
+  const router = useRouter();
 
-  const { data, isLoading, error, setData } = useApiQuery<PublicProfileResponse>(
-    `/api/v1/users/${username}`,
-  );
+  const { data, isLoading, error, setData } = useApiQuery<PublicProfileResponse>(`/api/v1/users/${username}`);
 
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -105,6 +105,32 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
     }
   }
 
+  /**
+   * Suhbatni ochadi.
+   *
+   * Server mavjud suhbatni qaytaradi yoki yangisini yaratadi —
+   * shuning uchun bu yerda "bormi?" degan tekshiruv yo'q.
+   */
+  async function openChat() {
+    if (!profile) return;
+
+    setIsSaving(true);
+    setActionError(null);
+
+    try {
+      await request('/api/v1/chat/conversations', {
+        method: 'POST',
+        body: { username: profile.username },
+      });
+
+      router.push('/messages');
+    } catch (caught) {
+      setActionError(toUserMessage(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <>
       <AppHeader title="Profil" showBack backHref="/dashboard" />
@@ -134,10 +160,7 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                 <h1 className="mt-3 flex items-center gap-1.5 text-xl font-semibold tracking-tight text-balance">
                   {profile.fullName ?? formatUsername(profile.username)}
                   {profile.isVerified && (
-                    <BadgeCheck
-                      className="text-primary size-5 shrink-0"
-                      aria-label="Tasdiqlangan profil"
-                    />
+                    <BadgeCheck className="text-primary size-5 shrink-0" aria-label="Tasdiqlangan profil" />
                   )}
                 </h1>
 
@@ -219,9 +242,9 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                     <Button
                       variant="outline"
                       size="icon"
-                      disabled
-                      aria-label="Xabar yozish — tez orada"
-                      title="Tez orada"
+                      disabled={isSaving}
+                      onClick={openChat}
+                      aria-label="Xabar yozish"
                     >
                       <MessageCircle className="size-4" aria-hidden="true" />
                     </Button>
@@ -250,7 +273,7 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
 
             {!profile.isOwn && (
               <p className="text-muted-foreground px-1 text-center text-xs leading-relaxed">
-                Xabar yozish va qo&apos;ng&apos;iroq keyingi bosqichlarda ishga tushadi.
+                Qo&apos;ng&apos;iroq keyingi bosqichda ishga tushadi.
               </p>
             )}
           </>

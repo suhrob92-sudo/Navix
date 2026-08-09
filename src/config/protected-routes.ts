@@ -44,6 +44,8 @@ export const PROTECTED_PREFIXES = [
   '/addresses',
   '/devices',
   '/notifications',
+  /** Xabarlar: `/messages`. */
+  '/messages',
   '/security',
   '/wallet',
   '/payments',

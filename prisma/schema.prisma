@@ -274,6 +274,8 @@ model User {
   following     Follow[]             @relation("Following")
   followers     Follow[]             @relation("Followers")
   businessFollows BusinessFollow[]
+  chatMemberships ConversationMember[]
+  sentMessages    Message[]
 
   @@index([status])
   @@index([createdAt])
@@ -1858,9 +1860,10 @@ model BusinessProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  shop       Shop?       @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  followers  BusinessFollow[]
+  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  shop          Shop?       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  followers     BusinessFollow[]
+  conversations Conversation[]
 
   @@map("business_profiles")
 }
@@ -1885,4 +1888,106 @@ model BusinessFollow {
   @@index([businessProfileId, createdAt])
   @@index([userId, createdAt])
   @@map("business_follows")
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Xabarlar (Chat)
+// ─────────────────────────────────────────────────────────────────────
+
+/// Suhbat turi.
+enum ConversationKind {
+  /// Ikki foydalanuvchi o'rtasida.
+  DIRECT
+  /// Foydalanuvchi va biznes o'rtasida.
+  BUSINESS
+}
+
+/// Suhbat.
+model Conversation {
+  id String @id @default(uuid()) @db.Uuid
+
+  kind ConversationKind
+
+  /// Biznes suhbati bo'lsa — qaysi biznes bilan.
+  businessProfileId String? @db.Uuid
+
+  /// Suhbatni bir qiymatli aniqlaydigan kalit.
+  ///
+  /// ── Nima uchun kerak ────────────────────────────────────────────────
+  /// "Xabar" tugmasi ikki marta bosilsa, IKKITA suhbat yaratilmasligi
+  /// kerak. Ro'yxatda bir odam bilan ikkita chat turishi — eng ko'p
+  /// uchraydigan va eng bezovta qiladigan xato.
+  ///
+  /// Kalit tarkibi:
+  ///   DIRECT   — ikki ID tartiblab birlashtiriladi ("a:b"), shuning
+  ///              uchun kim birinchi yozganidan qat'i nazar bir xil;
+  ///   BUSINESS — "foydalanuvchi:biznes".
+  ///
+  /// Yagonalik BAZA darajasida: kod xato qilsa ham nusxa paydo
+  /// bo'lmaydi.
+  pairKey String @unique @db.VarChar(80)
+
+  /// Oxirgi xabar vaqti — ro'yxatni saralash uchun.
+  ///
+  /// Bu ATAYLAB takror ma'lumot: usiz har bir suhbat uchun oxirgi
+  /// xabarni alohida qidirish kerak bo'lardi va ro'yxat sekinlashardi.
+  lastMessageAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  business BusinessProfile?     @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  members  ConversationMember[]
+  messages Message[]
+
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+/// Suhbat ishtirokchisi.
+model ConversationMember {
+  id String @id @default(uuid()) @db.Uuid
+
+  conversationId String @db.Uuid
+  userId         String @db.Uuid
+
+  /// Shu paytgacha o'qilgan.
+  ///
+  /// O'qilmagan xabarlar soni shu vaqtdan keyingi xabarlarni sanash
+  /// bilan topiladi. Har bir xabar uchun alohida "o'qildi" yozuvi
+  /// yuritish ancha aniqroq bo'lardi, lekin jadval xabarlar soniga
+  /// ko'paytirilgan holda o'sardi.
+  lastReadAt DateTime?
+
+  joinedAt DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_members")
+}
+
+/// Xabar.
+model Message {
+  id String @id @default(uuid()) @db.Uuid
+
+  conversationId String @db.Uuid
+  senderId       String @db.Uuid
+
+  body String @db.VarChar(4000)
+
+  /// O'chirilgan xabar.
+  ///
+  /// Qator o'chirilmaydi: suhbatning tartibi buzilmasligi va
+  /// "bu xabar o'chirilgan" deb ko'rsatish imkoni qolishi kerak.
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
 }

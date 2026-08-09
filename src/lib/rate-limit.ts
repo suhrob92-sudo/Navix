@@ -112,6 +112,13 @@ export const PUBLIC_RATE_LIMITS = {
    * skript uchun esa foydasiz.
    */
   follow: { limit: 30, windowSeconds: 60 },
+  /**
+   * Suhbat ochish: bitta foydalanuvchi uchun soatiga 60 marta.
+   *
+   * Har bir yangi suhbat BEGONA odamning ro'yxatida paydo bo'ladi,
+   * shuning uchun chegara obunadan qattiqroq.
+   */
+  chatOpen: { limit: 60, windowSeconds: 60 * 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;
