@@ -120,6 +120,20 @@ export interface NotificationEventData {
     parcelNumber: string;
     refundTiyin: number;
   };
+  'hotel.booking_created': {
+    bookingId: string;
+    bookingNumber: string;
+    hotelName: string;
+    checkIn: string;
+    nights: number;
+    amountTiyin: number;
+  };
+  'hotel.booking_cancelled': {
+    bookingId: string;
+    bookingNumber: string;
+    hotelName: string;
+    refundTiyin: number;
+  };
   'security.password_changed': { revokedSessions: number };
 }
 
@@ -383,6 +397,26 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
     body: `${parcelNumber} bekor qilindi. ${formatTiyin(refundTiyin)} hamyoningizga qaytarildi.`,
     actionUrl: `/delivery/${parcelId}`,
     sourceModule: 'delivery',
+  }),
+
+  /**
+   * Bandlov tasdiqlandi.
+   *
+   * Kirish SANASI matnga yoziladi: mehmon uni eslab qolishi kerak
+   * va bildirishnomani ochmasdan ko'radi.
+   */
+  'hotel.booking_created': ({ bookingId, bookingNumber, hotelName, checkIn, nights, amountTiyin }) => ({
+    title: 'Xona band qilindi',
+    body: `${hotelName} — ${checkIn} dan ${nights} kecha. ${formatTiyin(amountTiyin)} to'landi. Raqam: ${bookingNumber}`,
+    actionUrl: `/hotel/bookings/${bookingId}`,
+    sourceModule: 'hotel',
+  }),
+
+  'hotel.booking_cancelled': ({ bookingId, bookingNumber, hotelName, refundTiyin }) => ({
+    title: 'Bandlov bekor qilindi',
+    body: `${hotelName} bandlovi (${bookingNumber}) bekor qilindi. ${formatTiyin(refundTiyin)} hamyoningizga qaytarildi.`,
+    actionUrl: `/hotel/bookings/${bookingId}`,
+    sourceModule: 'hotel',
   }),
 
   'security.password_changed': ({ revokedSessions }) => ({

@@ -122,6 +122,20 @@ const SAMPLES = {
     parcelNumber: 'NVX-P-20260806-A1B2C3',
     refundTiyin: 3_500_000,
   },
+  'hotel.booking_created': {
+    bookingId: '4e8b1c37-9a2d-4f65-8b3e-7c1a5d9f2e48',
+    bookingNumber: 'NVX-H-20260806-A1B2C3',
+    hotelName: 'Navruz Plaza',
+    checkIn: '2026-08-10',
+    nights: 2,
+    amountTiyin: 90_000_000,
+  },
+  'hotel.booking_cancelled': {
+    bookingId: '4e8b1c37-9a2d-4f65-8b3e-7c1a5d9f2e48',
+    bookingNumber: 'NVX-H-20260806-A1B2C3',
+    hotelName: 'Navruz Plaza',
+    refundTiyin: 90_000_000,
+  },
   'security.password_changed': { revokedSessions: 3 },
 } as const;
 

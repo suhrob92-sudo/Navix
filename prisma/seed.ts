@@ -10,6 +10,7 @@ import { SERVICE_PROVIDERS } from '../src/config/service-providers';
 import { RESTAURANTS } from '../src/config/restaurants';
 import { PRODUCT_CATEGORIES, SHOPS } from '../src/config/marketplace';
 import { COMPANIES, JOB_CATEGORIES } from '../src/config/jobs';
+import { HOTELS } from '../src/config/hotels';
 import { toSearchText } from '../src/lib/search';
 
 /**
@@ -340,6 +341,66 @@ async function seedMarketplace(prisma: PrismaClient): Promise<void> {
  * kompaniyalar va ularning vakansiyalari. Farqi maoshda — u IXTIYORIY
  * va ko'rsatilmagan bo'lsa `null` yoziladi ("Kelishilgan").
  */
+/**
+ * Mehmonxonalar va ularning xonalari.
+ *
+ * Xonalar `deleteMany` + qayta yozish emas, `upsert` bilan: mavjud
+ * xonaga bog'langan BANDLOVLAR bor va ularni yo'qotib bo'lmaydi.
+ */
+async function seedHotels(prisma: PrismaClient): Promise<void> {
+  let roomCount = 0;
+
+  for (const hotel of HOTELS) {
+    const data = {
+      name: hotel.name,
+      searchName: toSearchText(hotel.name),
+      description: hotel.description,
+      city: hotel.city,
+      address: hotel.address,
+      stars: hotel.stars,
+      rating: hotel.rating,
+      ratingCount: hotel.ratingCount,
+      amenities: [...hotel.amenities],
+      color: hotel.color,
+      sortOrder: hotel.sortOrder,
+      isActive: true,
+    };
+
+    const saved = await prisma.hotel.upsert({
+      where: { slug: hotel.slug },
+      update: data,
+      create: { slug: hotel.slug, ...data },
+      select: { id: true },
+    });
+
+    for (const [index, room] of hotel.rooms.entries()) {
+      const existing = await prisma.hotelRoom.findFirst({
+        where: { hotelId: saved.id, name: room.name },
+        select: { id: true },
+      });
+
+      const roomData = {
+        description: room.description ?? null,
+        capacity: room.capacity,
+        pricePerNight: BigInt(room.pricePerNightSom) * 100n,
+        totalRooms: room.totalRooms,
+        sortOrder: index,
+        isActive: true,
+      };
+
+      if (existing) {
+        await prisma.hotelRoom.update({ where: { id: existing.id }, data: roomData });
+      } else {
+        await prisma.hotelRoom.create({ data: { hotelId: saved.id, name: room.name, ...roomData } });
+      }
+
+      roomCount += 1;
+    }
+  }
+
+  console.info(`✅ ${HOTELS.length} ta mehmonxona va ${roomCount} ta xona turi yozildi`);
+}
+
 async function seedJobs(prisma: PrismaClient): Promise<void> {
   const categoryIdBySlug = new Map<string, string>();
 
@@ -425,6 +486,7 @@ async function main(): Promise<void> {
     await seedRestaurants(prisma);
     await seedMarketplace(prisma);
     await seedJobs(prisma);
+    await seedHotels(prisma);
     console.info('🎉 Tayyor!');
   } finally {
     await prisma.$disconnect();

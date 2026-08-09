@@ -1,9 +1,9 @@
 # Navix — Markaziy Osiyo uchun AI Super App
 
-Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, e'lonlar,
-kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
+Taksi, ovqat yetkazish, marketplace, to'lovlar, hamyon, ish qidirish, kuryer,
+posilka, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada.
 
-> **Holat:** 21-bosqich yakunlandi.
+> **Holat:** 22-bosqich yakunlandi.
 >
 > Tayyor: poydevor, autentifikatsiya, shaxsiy kabinet, **hamyon**
 > (balans, to'ldirish, o'tkazma, tarix), **to'lovlar** (kommunal,
@@ -23,7 +23,8 @@ kuryer, mehmonxona, sayohat, chat va AI yordamchi — barchasi bitta platformada
 > yuborish va arizalar tarixi, hamda **ish beruvchi kabineti** — kompaniya
 > vakansiya joylaydi, nomzodlarni ko'rib chiqadi va suhbatga taklif
 > qiladi, hamda **yetkazib berish** — viloyatlararo posilka jo'natish,
-> jonli narx hisobi va kuzatuv.
+> jonli narx hisobi va kuzatuv, hamda **mehmonxona** — xonalarni
+> sana bo'yicha band qilish, bo'sh joy nazorati va bekor qilish.
 >
 > Qolgan xizmat modullari keyingi bosqichlarda birma-bir ishga tushiriladi.
 
@@ -1228,6 +1229,7 @@ Navix/
 │   │   ├── courier/         # Kuryer moduli (topshiriq, bosqichlar, haq)
 │   │   ├── job/             # Ish qidirish (vakansiya, filtr, ariza)
 │   │   ├── parcel/          # Posilka jo'natish (tarif, kuzatuv)
+│   │   ├── hotel/           # Mehmonxona (xona, bandlik, bandlov)
 │   │   ├── employer/        # Ish beruvchi kabineti (e'lon, nomzod, qaror)
 │   │   ├── onboarding/      # Tanishtiruv slaydlari
 │   │   └── admin/           # Admin panel (xizmatlar, foydalanuvchilar)
@@ -1239,6 +1241,7 @@ Navix/
 │   │   ├── marketplace.ts   # Do'konlar va mahsulotlar (seed manbasi)
 │   │   ├── jobs.ts          # Kompaniyalar va vakansiyalar (seed manbasi)
 │   │   ├── delivery.ts      # Hududlar va posilka tarifi
+│   │   ├── hotels.ts        # Mehmonxonalar va xonalar (seed manbasi)
 │   │   ├── protected-routes.ts # Kirish talab qiladigan sahifalar (yagona ro'yxat)
 │   │   ├── app-nav.ts       # Ilova navigatsiyasi
 │   │   ├── admin-nav.ts     # Admin panel navigatsiyasi
@@ -1466,6 +1469,17 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 | POST  | `/`             | Yangi jo'natma — pul darhol yechiladi           |
 | GET   | `/{id}`         | Bitta jo'natma va holati                        |
 | POST  | `/{id}/cancel`  | Bekor qilish va pulni qaytarish                 |
+
+**Mehmonxona** (`/api/v1/hotels/...`)
+
+| Metod | Manzil                    | Tavsif                                              |
+| ----- | ------------------------- | --------------------------------------------------- |
+| GET   | `/`                       | Mehmonxonalar, qidiruv va saralash                  |
+| GET   | `/{slug}`                 | Xonalar; sana berilsa BO'SH JOY ham hisoblanadi     |
+| GET   | `/bookings`               | Mening bandlovlarim                                 |
+| POST  | `/bookings`               | Xona band qilish — pul darhol yechiladi             |
+| GET   | `/bookings/{id}`          | Bitta bandlov                                       |
+| POST  | `/bookings/{id}/cancel`   | Bekor qilish va pulni qaytarish                     |
 
 **Ish beruvchi kabineti** (`/api/v1/employer/...`)
 
@@ -2115,6 +2129,76 @@ Marketplace'dagi bilan bir xil qoida.
 
 ---
 
+## Mehmonxona
+
+Manzil: `/hotel`. Oqim: **sana → mehmonxona → xona → bandlov**.
+
+### Modulning ENG NOZIK joyi: bo'sh joy
+
+Bitta xonani ikki kishiga sotib bo'lmaydi. Buni tekshirish esa
+oddiy "bormi?" savoli emas — bandlovlar **sana oralig'i** bo'yicha
+kesishadi:
+
+```
+yangi.kirish < mavjud.chiqish  VA  yangi.chiqish > mavjud.kirish
+```
+
+Chegaralar **ataylab qat'iy** (`<`, `>`): bir mehmon 9-avgustda
+chiqsa, ikkinchisi o'sha kuni kirishi mumkin — xona bo'shaydi.
+
+**Raqobatdan himoya.** Ikki so'rov bir vaqtda kelsa, ikkalasi ham
+"bitta xona bor" deb ko'rishi mumkin. Shuning uchun xona qatori
+`SELECT ... FOR UPDATE` bilan qulflanadi — hamyondagi bilan bir xil
+naqsh. Tekshiruvda 2 xonaga 5 ta bir vaqtdagi so'rov yuborildi va
+aynan 2 tasi o'tdi.
+
+### Xona — bu NOMER emas, TUR
+
+Har bir xonani alohida yozuv qilish mumkin edi ("204-xona"), lekin
+mehmon xona raqamini tanlamaydi — u "Standart" yoki "Lyuks" ni
+tanlaydi.
+
+Shuning uchun bazada tur va uning **soni** saqlanadi
+(`totalRooms`), bo'sh joy esa shu son bilan solishtirib
+aniqlanadi.
+
+### Sanalar nima uchun VAQTSIZ
+
+Mehmon "5-avgustda kelaman" deydi, "5-avgust 00:00:00 UTC" demaydi.
+
+Vaqt bilan saqlansa, Toshkent (UTC+5) da yarim tundan keyingi
+bandlov "kechagi kun" bo'lib qolishi mumkin edi. Shuning uchun
+ustunlar `@db.Date` va hisob-kitob UTC'da bajariladi.
+
+Kechalar soni ham shu sababdan alohida funksiyada
+(`countNights`) va u test bilan qoplangan: 7-dan 9-gacha — **2
+kecha**, garchi sanalar uchtaga tegsa ham.
+
+### Bo'sh joy `null` va `0` — boshqa-boshqa narsa
+
+| Qiymat | Ma'nosi              | Ekranda            |
+| ------ | -------------------- | ------------------ |
+| `null` | sana hali tanlanmagan | "Sana tanlang"     |
+| `0`    | joy tugagan          | "Bo'sh xona yo'q"  |
+| `3`    | uchta bo'sh          | "3 ta bo'sh"       |
+
+Ikkalasini bir xil ko'rsatish foydalanuvchini chalg'itardi.
+
+### Nima uchun mehmonxona kabineti yo'q
+
+Ovqat va Marketplace'da sotuvchi buyurtmani **qabul qilishi** kerak
+edi. Bu yerda esa xona bo'shligi bandlov paytida tekshiriladi va
+darhol biriktiriladi — kutadigan hech kim yo'q. Shuning uchun
+"kutilmoqda" holati ham yo'q.
+
+### Bekor qilish
+
+**Kirish kunigacha** bekor qilish mumkin va pul to'liq qaytariladi.
+Kirish kuni boshlangandan keyin esa "bekor qilish" ma'nosini
+yo'qotadi: xona band bo'lgan va boshqa mehmon uni sotib ololmagan.
+
+---
+
 ## Shaxsiy kabinet
 
 Kirgan foydalanuvchi `/dashboard` sahifasiga tushadi. Kabinet sahifalari:
@@ -2327,6 +2411,7 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [x] **19-bosqich** — Ish qidirish: vakansiyalar, qidiruv va filtrlar, ariza, arizalar tarixi
 - [x] **20-bosqich** — Ish beruvchi kabineti: vakansiya joylash, nomzodlar, suhbatga taklif
 - [x] **21-bosqich** — Yetkazib berish: posilka jo'natish, tarif, kuzatuv, bekor qilish
+- [x] **22-bosqich** — Mehmonxona: xonalar, sana bo'yicha bandlik, bandlov va bekor qilish
 - [ ] **21-bosqich** — SMS xizmati (Eskiz.uz) — busiz begona odam ro'yxatdan o'ta olmaydi
 - [ ] **22-bosqich** — Taksi moduli (xarita API kaliti kerak)
 - [ ] **23-bosqich** — Real to'lov integratsiyasi (Payme / Click)

@@ -163,6 +163,21 @@ enum MarketOrderStatus {
   CANCELLED
 }
 
+/// Mehmonxona bandlovining holati.
+///
+/// ── Nima uchun "kutilmoqda" YO'Q ──────────────────────────────────────
+/// Ovqat va Marketplace'da sotuvchi buyurtmani qabul qilishi kerak edi.
+/// Bu yerda esa xona bo'shligi BANDLOV PAYTIDA tekshiriladi va darhol
+/// biriktiriladi — kutadigan hech kim yo'q.
+enum BookingStatus {
+  /// Band qilindi, pul yechildi.
+  CONFIRMED
+  /// Mehmon yashab bo'ldi (chiqish sanasi o'tdi).
+  COMPLETED
+  /// Bekor qilindi, pul qaytarildi.
+  CANCELLED
+}
+
 enum AddressType {
   HOME
   WORK
@@ -226,6 +241,7 @@ model User {
   companies     Company[]            @relation("CompanyOwner")
   applications  JobApplication[]
   parcels       Parcel[]
+  bookings      HotelBooking[]
 
   @@index([status])
   @@index([createdAt])
@@ -1075,6 +1091,137 @@ enum DeliveryStatus {
 /// Prisma sxemasida ifodalab bo'lmaydi, shuning uchun migratsiyada
 /// PostgreSQL `CHECK` cheklovi qo'yilgan: aynan BITTASI to'lgan
 /// bo'lishi shart. Qoidani baza qo'riqlaydi, dastur emas.
+// ---------------------------------------------------------------------------
+// Mehmonxona (Hotel)
+// ---------------------------------------------------------------------------
+
+/// Mehmonxona.
+model Hotel {
+  id String @id @default(uuid()) @db.Uuid
+
+  slug        String @unique @db.VarChar(120)
+  name        String @db.VarChar(160)
+  /// Apostrofsiz nusxa — qidiruv uchun (sabab `src/lib/search.ts` da).
+  searchName  String @db.VarChar(160)
+  description String @db.VarChar(1000)
+
+  city    String @db.VarChar(80)
+  address String @db.VarChar(300)
+
+  /// Yulduzlar soni (1–5).
+  stars Int @default(3)
+
+  /// Reyting — 4.7 kabi. Kasr son, chunki bu PUL emas.
+  rating      Float @default(0)
+  ratingCount Int   @default(0)
+
+  /// Qulayliklar: "Wi-Fi", "Nonushta", "Avtoturargoh".
+  ///
+  /// Alohida jadval emas: ular faqat KO'RSATISH uchun va ular
+  /// bo'yicha filtr qilinmaydi. Jadval qo'shish keraksiz murakkablik
+  /// bo'lardi.
+  amenities String[] @db.VarChar(60)
+
+  color     String  @db.VarChar(20)
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rooms HotelRoom[]
+
+  @@index([city, isActive])
+  @@index([searchName])
+  @@map("hotels")
+}
+
+/// Mehmonxonadagi xona TURI (nomer emas).
+///
+/// ── Nima uchun aynan TUR ──────────────────────────────────────────────
+/// Har bir xonani alohida yozuv qilish mumkin edi ("204-xona"), lekin
+/// mehmon xona RAQAMINI tanlamaydi — u "Standart" yoki "Lyuks" ni
+/// tanlaydi.
+///
+/// Shuning uchun bu yerda tur va uning SONI saqlanadi. Bo'sh joy
+/// borligi shu son bilan solishtirib aniqlanadi.
+model HotelRoom {
+  id      String @id @default(uuid()) @db.Uuid
+  hotelId String @db.Uuid
+
+  name        String  @db.VarChar(120)
+  description String? @db.VarChar(500)
+
+  /// Nechta mehmon sig'adi.
+  capacity Int @default(2)
+
+  /// Bir kecha narxi — TIYINDA.
+  pricePerNight BigInt
+
+  /// Shu turdagi xonalar soni — bandlik shu songa qarab hisoblanadi.
+  totalRooms Int @default(1)
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  hotel    Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  bookings HotelBooking[]
+
+  @@index([hotelId, isActive])
+  @@map("hotel_rooms")
+}
+
+/// Bandlov.
+model HotelBooking {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  roomId String @db.Uuid
+
+  /// Foydalanuvchi ko'rsatadigan raqam: NVX-H-20260806-A1B2C3.
+  bookingNumber String        @unique @db.VarChar(40)
+  status        BookingStatus @default(CONFIRMED)
+
+  /// Kirish va chiqish SANALARI — vaqtsiz.
+  ///
+  /// ── Nima uchun `@db.Date` ───────────────────────────────────────────
+  /// Mehmon "5-avgustda kelaman" deydi, "5-avgust 00:00:00 UTC" demaydi.
+  /// Vaqt bilan saqlansa, vaqt zonasi tufayli sana bir kunga surilib
+  /// ketishi mumkin edi — Toshkent UTC+5 va yarim tundan keyingi
+  /// bandlov "kechagi kun" bo'lib qolardi.
+  checkIn  DateTime @db.Date
+  checkOut DateTime @db.Date
+
+  /// Nechta kecha — narx shunga ko'paytiriladi.
+  ///
+  /// Hisoblab olish mumkin edi, lekin saqlanadi: tarif yoki sana
+  /// qoidasi ertaga o'zgarsa ham, kelishilgan hisob o'zgarmasligi
+  /// kerak.
+  nights Int
+  guests Int @default(1)
+
+  /// Summalar TIYINDA.
+  pricePerNight BigInt
+  totalTiyin    BigInt
+
+  /// Kim yashaydi — bandlov boshqa odam uchun bo'lishi mumkin.
+  guestName  String @db.VarChar(120)
+  guestPhone String @db.VarChar(20)
+
+  walletTransactionId String? @db.Uuid
+  cancelReason        String? @db.VarChar(255)
+
+  createdAt   DateTime  @default(now())
+  cancelledAt DateTime?
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  /// Bo'sh joy tekshiruvi: xona + sana oralig'i bo'yicha qidiriladi.
+  @@index([roomId, checkIn, checkOut])
+  @@index([userId, createdAt])
+  @@map("hotel_bookings")
+}
+
 /// Foydalanuvchi jo'natgan posilka (yuk).
 ///
 /// ── Ovqat/Marketplace buyurtmasidan FARQI ─────────────────────────────

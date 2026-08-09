@@ -109,6 +109,10 @@ export const AuditAction = {
   PARCEL_CREATED: 'parcel.created',
   PARCEL_CANCELLED: 'parcel.cancelled',
 
+  /** Mehmonxona — pul harakati bor. */
+  HOTEL_BOOKING_CREATED: 'hotel.booking.created',
+  HOTEL_BOOKING_CANCELLED: 'hotel.booking.cancelled',
+
   ADMIN_PROVIDER_CREATED: 'admin.provider.created',
   ADMIN_PROVIDER_UPDATED: 'admin.provider.updated',
   ADMIN_USER_STATUS_CHANGED: 'admin.user.status_changed',
