@@ -1977,6 +1977,15 @@ model Message {
 
   body String @db.VarChar(4000)
 
+  /// Qabul qiluvchining qurilmasiga yetib borgan payt.
+  ///
+  /// ── Nima uchun alohida ustun ───────────────────────────────────────
+  /// "Yuborildi" va "yetkazildi" boshqa-boshqa holat: birinchisi
+  /// server xabarni saqlaganini, ikkinchisi qabul qiluvchi uni
+  /// haqiqatda olganini bildiradi. Telefoni o'chiq odamga xabar
+  /// yuborilgan, lekin yetkazilmagan bo'ladi.
+  deliveredAt DateTime?
+
   /// O'chirilgan xabar.
   ///
   /// Qator o'chirilmaydi: suhbatning tartibi buzilmasligi va

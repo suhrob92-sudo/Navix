@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { openConversationSchema, conversationQuerySchema } from '@/modules/chat/chat.schemas';
+import { conversationQuerySchema, openConversationSchema, sendMessageSchema } from '@/modules/chat/chat.schemas';
 import {
   CHAT_FILTERS,
   formatLastMessage,
   formatUnread,
+  peerStatusText,
+  statusMark,
   type ConversationListItem,
 } from '@/modules/chat/chat.types';
 
@@ -110,5 +112,58 @@ describe('conversationQuerySchema', () => {
 
   it("foydalanuvchi ID'sini qabul qilmaydi", () => {
     expect(conversationQuerySchema.parse({ userId: 'x' })).not.toHaveProperty('userId');
+  });
+});
+
+describe('statusMark', () => {
+  it('yuborilganda bitta belgi, qolganida ikkita', () => {
+    expect(statusMark('SENT')).toBe('✓');
+    expect(statusMark('DELIVERED')).toBe('✓✓');
+    expect(statusMark('SEEN')).toBe('✓✓');
+  });
+});
+
+describe('peerStatusText', () => {
+  /**
+   * "Yozmoqda" ONLAYN dan ustun: u yangiroq va aniqroq ma'lumot.
+   * Ikkalasi bir vaqtda ko'rsatilsa, satr chalkash bo'lardi.
+   */
+  it("yozayotgan bo'lsa ustun turadi", () => {
+    expect(peerStatusText(true, true)).toBe('yozmoqda...');
+    expect(peerStatusText(false, true)).toBe('yozmoqda...');
+  });
+
+  it('onlayn va oflayn holatlari', () => {
+    expect(peerStatusText(true, false)).toBe('Onlayn');
+    expect(peerStatusText(false, false)).toBe('Oflayn');
+  });
+});
+
+describe('sendMessageSchema', () => {
+  it('oddiy xabarni qabul qiladi', () => {
+    expect(sendMessageSchema.parse({ body: '  Salom!  ' }).body).toBe('Salom!');
+  });
+
+  /**
+   * Bo'sh xabar ro'yxatda bo'sh qator qoldirardi va uni o'chirishdan
+   * boshqa iloji bo'lmasdi.
+   */
+  it("bo'sh xabarni rad etadi", () => {
+    expect(sendMessageSchema.safeParse({ body: '' }).success).toBe(false);
+    expect(sendMessageSchema.safeParse({ body: '    ' }).success).toBe(false);
+  });
+
+  it('juda uzun xabarni rad etadi', () => {
+    expect(sendMessageSchema.safeParse({ body: 'a'.repeat(4001) }).success).toBe(false);
+    expect(sendMessageSchema.safeParse({ body: 'a'.repeat(4000) }).success).toBe(true);
+  });
+
+  it('yuboruvchini qabul qilmaydi', () => {
+    // Mijoz kim yuborganini tanlay olsa, boshqa odam nomidan yozardi.
+    expect(sendMessageSchema.parse({ body: 'salom', senderId: 'x' })).not.toHaveProperty('senderId');
+  });
+
+  it('holatni qabul qilmaydi', () => {
+    expect(sendMessageSchema.parse({ body: 'salom', status: 'SEEN' })).not.toHaveProperty('status');
   });
 });

@@ -32,6 +32,48 @@ export interface ConversationListItem {
   unreadCount: number;
 }
 
+/**
+ * Xabar holati.
+ *
+ * ── Nima uchun uch bosqich ────────────────────────────────────────────
+ * "Yuborildi" — server xabarni saqladi;
+ * "Yetkazildi" — qabul qiluvchining qurilmasi uni oldi;
+ * "O'qildi"    — u suhbatni ochdi.
+ *
+ * Ikkinchisisiz "yubordim, lekin javob yo'q" holatida odam sababini
+ * bilmasdi: xabar yetmadimi yoki javob berilmadimi?
+ */
+export type MessageStatus = 'SENT' | 'DELIVERED' | 'SEEN';
+
+export interface MessageView {
+  id: string;
+  body: string;
+  /** Xabarni MEN yubordimmi. */
+  isMine: boolean;
+  createdAt: string;
+  /** Holat faqat O'Z xabarlarimda ma'noga ega. */
+  status: MessageStatus;
+  isDeleted: boolean;
+}
+
+export interface ThreadView {
+  id: string;
+  peer: ChatPeer;
+  /** Ikkinchi tomon hozir ilovadami. */
+  isPeerOnline: boolean;
+  /** Ikkinchi tomon hozir yozmoqdami. */
+  isPeerTyping: boolean;
+  messages: MessageView[];
+}
+
+export interface ThreadResponse {
+  thread: ThreadView;
+}
+
+export interface SendMessageResponse {
+  message: MessageView;
+}
+
 export interface ConversationsResponse {
   conversations: ConversationListItem[];
   total: number;
@@ -68,6 +110,22 @@ export function formatLastMessage(item: ConversationListItem): string {
   if (item.lastMessage === null) return "Hali xabar yo'q";
 
   return item.lastMessageIsMine ? `Siz: ${item.lastMessage}` : item.lastMessage;
+}
+
+/** Xabar holati uchun belgi: ✓ yoki ✓✓. */
+export function statusMark(status: MessageStatus): string {
+  return status === 'SENT' ? '✓' : '✓✓';
+}
+
+/**
+ * Ikkinchi tomon holatini bir satrda yozadi.
+ *
+ * "Yozmoqda" ONLAYN dan ustun: u yangiroq va aniqroq ma'lumot.
+ */
+export function peerStatusText(isOnline: boolean, isTyping: boolean): string {
+  if (isTyping) return 'yozmoqda...';
+
+  return isOnline ? 'Onlayn' : 'Oflayn';
 }
 
 /**

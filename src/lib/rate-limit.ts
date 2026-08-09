@@ -119,6 +119,13 @@ export const PUBLIC_RATE_LIMITS = {
    * shuning uchun chegara obunadan qattiqroq.
    */
   chatOpen: { limit: 60, windowSeconds: 60 * 60 },
+  /**
+   * Xabar yuborish: daqiqasiga 60 ta.
+   *
+   * Odam uchun bemalol (soniyasiga bitta), skript uchun esa spam
+   * qilishga yetmaydi.
+   */
+  chatSend: { limit: 60, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;

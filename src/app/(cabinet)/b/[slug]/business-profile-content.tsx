@@ -118,12 +118,13 @@ export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
     setActionError(null);
 
     try {
-      await request('/api/v1/chat/conversations', {
+      const result = await request<{ conversationId: string }>('/api/v1/chat/conversations', {
         method: 'POST',
         body: { businessSlug: business.slug },
       });
 
-      router.push('/messages');
+      // To'g'ridan-to'g'ri suhbat oynasiga — ro'yxatdan izlash shart emas.
+      router.push(`/messages/${result.conversationId}`);
     } catch (caught) {
       setActionError(toUserMessage(caught));
     } finally {

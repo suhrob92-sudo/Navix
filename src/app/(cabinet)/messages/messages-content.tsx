@@ -119,7 +119,7 @@ export function MessagesContent() {
             description={
               search || filter !== 'ALL'
                 ? "Boshqa so'z yoki filtr tanlang."
-                : "Profil yoki kompaniya sahifasidagi “Xabar” tugmasi orqali suhbat boshlang."
+                : 'Profil yoki kompaniya sahifasidagi “Xabar” tugmasi orqali suhbat boshlang.'
             }
             action={
               <Button asChild variant="outline">
@@ -132,13 +132,8 @@ export function MessagesContent() {
         <ul className="space-y-1" aria-label="Suhbatlar">
           {conversations.map((item, index) => (
             <li key={item.id}>
-              {/*
-                Havola hozircha PROFILGA olib boradi.
-                Suhbat oynasi keyingi bosqichda qo'shiladi va shu
-                yerda uning manzili qo'yiladi.
-              */}
               <Link
-                href={item.peer.profileUrl}
+                href={`/messages/${item.id}`}
                 className="hover:bg-secondary/60 animate-fade-up flex items-center gap-3 rounded-2xl p-3 transition-colors"
                 style={{ animationDelay: `${Math.min(index, 8) * 25}ms` }}
               >
@@ -167,9 +162,7 @@ export function MessagesContent() {
                 </div>
 
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="text-muted-foreground text-xs">
-                    {formatRelativeUz(item.lastMessageAt)}
-                  </span>
+                  <span className="text-muted-foreground text-xs">{formatRelativeUz(item.lastMessageAt)}</span>
 
                   {item.unreadCount > 0 && (
                     <span
@@ -187,7 +180,7 @@ export function MessagesContent() {
 
         {conversations.length > 0 && (
           <p className="text-muted-foreground mt-4 px-1 pb-2 text-center text-xs leading-relaxed">
-            Suhbat oynasi, media va qo&apos;ng&apos;iroq keyingi bosqichlarda qo&apos;shiladi.
+            Media yuborish va qo&apos;ng&apos;iroq keyingi bosqichlarda qo&apos;shiladi.
           </p>
         )}
       </div>

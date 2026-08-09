@@ -49,6 +49,10 @@ export const cacheKey = {
   session: (sessionId: string) => `navix:session:${sessionId}`,
   refreshToken: (tokenId: string) => `navix:refresh:${tokenId}`,
   rateLimit: (scope: string, identifier: string) => `navix:ratelimit:${scope}:${identifier}`,
+  /** Foydalanuvchi hozir ilovadami. */
+  presence: (userId: string) => `navix:presence:${userId}`,
+  /** Kim qaysi suhbatda yozayotgani. */
+  typing: (conversationId: string, userId: string) => `navix:typing:${conversationId}:${userId}`,
 } as const;
 
 /**

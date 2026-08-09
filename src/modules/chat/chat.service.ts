@@ -2,9 +2,17 @@ import { ConversationKind, Prisma } from '@/generated/prisma/client';
 import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { logger } from '@/lib/logger';
+import { isOnline, isTyping, markTyping } from '@/lib/presence';
 import { prisma } from '@/lib/prisma';
 import type { ServiceColor } from '@/config/modules';
-import type { ChatPeer, ConversationListItem, OpenConversationResponse } from '@/modules/chat/chat.types';
+import type {
+  ChatPeer,
+  ConversationListItem,
+  MessageStatus,
+  MessageView,
+  OpenConversationResponse,
+  ThreadView,
+} from '@/modules/chat/chat.types';
 import type { ConversationQuery, OpenConversationInput } from '@/modules/chat/chat.schemas';
 
 /**
@@ -363,4 +371,206 @@ async function recoverFromDuplicate(error: unknown, pairKey: string): Promise<Op
   if (!row) throw error;
 
   return { conversationId: row.id, isNew: false };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Suhbat oynasi
+// ─────────────────────────────────────────────────────────────────────
+
+/** Bitta so'rovda olinadigan eng ko'p xabar. */
+const MAX_THREAD_MESSAGES = 100;
+
+/**
+ * Foydalanuvchi shu suhbatning a'zosimi.
+ *
+ * ── Nima uchun HAR AMALDA tekshiriladi ────────────────────────────────
+ * Suhbat ID manzilda ochiq turadi. Tekshiruvsiz uni almashtirib,
+ * begona odamlarning yozishmasini o'qib olish mumkin bo'lardi — bu
+ * eng jiddiy turdagi ma'lumot sizib chiqishi.
+ */
+async function requireMembership(conversationId: string, userId: string): Promise<ConversationRow> {
+  const row = await prisma.conversation.findFirst({
+    where: { id: conversationId, members: { some: { userId } } },
+    select: CONVERSATION_SELECT,
+  });
+
+  if (!row) {
+    /**
+     * ATAYLAB "topilmadi", "ruxsat yo'q" emas.
+     *
+     * "Ruxsat yo'q" javobi begona odamga suhbat MAVJUDLIGINI aytib
+     * qo'yardi.
+     */
+    throw new NotFoundError('Suhbat');
+  }
+
+  return row;
+}
+
+/** Xabarning holatini aniqlaydi. */
+function resolveStatus(
+  message: { senderId: string; deliveredAt: Date | null; createdAt: Date },
+  viewerId: string,
+  peerLastReadAt: Date | null,
+): MessageStatus {
+  // Begona xabarda holat ko'rsatilmaydi — u har doim "o'qilgan".
+  if (message.senderId !== viewerId) return 'SEEN';
+
+  if (peerLastReadAt && peerLastReadAt >= message.createdAt) return 'SEEN';
+
+  return message.deliveredAt ? 'DELIVERED' : 'SENT';
+}
+
+function toMessageView(
+  row: {
+    id: string;
+    body: string;
+    senderId: string;
+    createdAt: Date;
+    deliveredAt: Date | null;
+    deletedAt: Date | null;
+  },
+  viewerId: string,
+  peerLastReadAt: Date | null,
+): MessageView {
+  return {
+    id: row.id,
+    // O'chirilgan xabar MATNI yuborilmaydi — u brauzerda ko'rinib qolmasligi kerak.
+    body: row.deletedAt ? '' : row.body,
+    isMine: row.senderId === viewerId,
+    createdAt: row.createdAt.toISOString(),
+    status: resolveStatus(row, viewerId, peerLastReadAt),
+    isDeleted: row.deletedAt !== null,
+  };
+}
+
+/** Suhbatdagi ikkinchi tomonning foydalanuvchi ID'si (biznesda `null`). */
+function peerUserId(row: ConversationRow, viewerId: string): string | null {
+  if (row.kind === ConversationKind.BUSINESS) return null;
+
+  return row.members.find((member) => member.userId !== viewerId)?.userId ?? null;
+}
+
+/** Ikkinchi tomon suhbatni qachon o'qigani. */
+function peerLastRead(row: ConversationRow, viewerId: string): Date | null {
+  return row.members.find((member) => member.userId !== viewerId)?.lastReadAt ?? null;
+}
+
+export async function getThread(conversationId: string, viewerId: string): Promise<ThreadView> {
+  const row = await requireMembership(conversationId, viewerId);
+
+  const messages = await prisma.message.findMany({
+    where: { conversationId },
+    select: {
+      id: true,
+      body: true,
+      senderId: true,
+      createdAt: true,
+      deliveredAt: true,
+      deletedAt: true,
+    },
+    orderBy: { createdAt: 'asc' },
+    take: MAX_THREAD_MESSAGES,
+  });
+
+  const otherId = peerUserId(row, viewerId);
+
+  const [online, typing] = await Promise.all([
+    otherId ? isOnline(otherId) : Promise.resolve(false),
+    otherId ? isTyping(conversationId, otherId) : Promise.resolve(false),
+  ]);
+
+  const lastRead = peerLastRead(row, viewerId);
+
+  return {
+    id: row.id,
+    peer: resolvePeer(row, viewerId),
+    isPeerOnline: online,
+    isPeerTyping: typing,
+    messages: messages.map((message) => toMessageView(message, viewerId, lastRead)),
+  };
+}
+
+export async function sendMessage(conversationId: string, senderId: string, body: string): Promise<MessageView> {
+  const row = await requireMembership(conversationId, senderId);
+
+  const otherId = peerUserId(row, senderId);
+
+  /**
+   * Qabul qiluvchi ilovada bo'lsa, xabar darhol "yetkazildi" deb
+   * belgilanadi.
+   *
+   * Aks holda u jonli ulanish xabarni olganda belgilanadi
+   * (`markDelivered`).
+   */
+  const deliveredAt = otherId && (await isOnline(otherId)) ? new Date() : null;
+
+  const [message] = await prisma.$transaction([
+    prisma.message.create({
+      data: { conversationId, senderId, body, deliveredAt },
+      select: {
+        id: true,
+        body: true,
+        senderId: true,
+        createdAt: true,
+        deliveredAt: true,
+        deletedAt: true,
+      },
+    }),
+    /**
+     * `lastMessageAt` shu yerda yangilanadi.
+     *
+     * Ro'yxat aynan shu ustun bo'yicha saralanadi — yangilanmasa,
+     * yangi xabar kelgan suhbat pastda qolib ketardi.
+     */
+    prisma.conversation.update({
+      where: { id: conversationId },
+      data: { lastMessageAt: new Date() },
+      select: { id: true },
+    }),
+    /**
+     * Yuboruvchi uchun suhbat AVTOMATIK o'qilgan hisoblanadi: u
+     * hozir shu oynada turibdi.
+     */
+    prisma.conversationMember.updateMany({
+      where: { conversationId, userId: senderId },
+      data: { lastReadAt: new Date() },
+    }),
+  ]);
+
+  logger.info({ conversationId, senderId }, 'Xabar yuborildi');
+
+  return toMessageView(message, senderId, peerLastRead(row, senderId));
+}
+
+/** Suhbatni o'qilgan deb belgilaydi. */
+export async function markRead(conversationId: string, userId: string): Promise<void> {
+  await requireMembership(conversationId, userId);
+
+  await prisma.conversationMember.updateMany({
+    where: { conversationId, userId },
+    data: { lastReadAt: new Date() },
+  });
+}
+
+/**
+ * Menga kelgan yetkazilmagan xabarlarni "yetkazildi" deb belgilaydi.
+ *
+ * Jonli ulanish xabarlarni uzatganda chaqiriladi: aynan shu payt
+ * xabar qurilmaga yetib boradi.
+ */
+export async function markDelivered(conversationId: string, viewerId: string): Promise<number> {
+  const result = await prisma.message.updateMany({
+    where: { conversationId, senderId: { not: viewerId }, deliveredAt: null },
+    data: { deliveredAt: new Date() },
+  });
+
+  return result.count;
+}
+
+/** "Yozmoqda" belgisini qo'yadi (a'zolikni tekshirib). */
+export async function setTyping(conversationId: string, userId: string): Promise<void> {
+  await requireMembership(conversationId, userId);
+
+  await markTyping(conversationId, userId);
 }

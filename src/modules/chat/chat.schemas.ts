@@ -45,3 +45,32 @@ export const openConversationSchema = z
   );
 
 export type OpenConversationInput = z.infer<typeof openConversationSchema>;
+
+/** POST /api/v1/chat/conversations/{id}/messages */
+export const sendMessageSchema = z.object({
+  /**
+   * Xabar matni.
+   *
+   * Bo'sh xabar yuborilmaydi: ro'yxatda bo'sh qator paydo bo'lardi
+   * va uni o'chirishdan boshqa iloji qolmasdi.
+   *
+   * Chegara 4000 — bazadagi ustun bilan bir xil. Kattaroq matn
+   * bazaga umuman yozilmasdi va xato tushunarsiz bo'lardi.
+   */
+  body: z.string().trim().min(1, "Xabar bo'sh").max(4000, "Xabar juda uzun (4000 belgidan ko'p)"),
+});
+
+export type SendMessageInput = z.infer<typeof sendMessageSchema>;
+
+/** GET /api/v1/chat/conversations/{id}/stream */
+export const streamQuerySchema = z.object({
+  /**
+   * Brauzer qaysi xabargacha olganini bildiradi.
+   *
+   * Shu vaqtdan KEYINGI o'zgarishlargina yuboriladi — butun suhbatni
+   * qayta uzatish trafik va batareyani bekorga sarflardi.
+   */
+  since: z.coerce.number().int().min(0).optional(),
+});
+
+export type StreamQuery = z.infer<typeof streamQuerySchema>;
