@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzDate } from '@/lib/date';
+import { useCall } from '@/modules/call/call-provider';
 import {
   formatCount,
   formatUsername,
@@ -39,6 +40,7 @@ export interface PublicProfileContentProps {
 export function PublicProfileContent({ username }: PublicProfileContentProps) {
   const request = useApiClient();
   const router = useRouter();
+  const call = useCall();
 
   const { data, isLoading, error, setData } = useApiQuery<PublicProfileResponse>(`/api/v1/users/${username}`);
 
@@ -125,6 +127,36 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
 
       // To'g'ridan-to'g'ri suhbat oynasiga — ro'yxatdan izlash shart emas.
       router.push(`/messages/${result.conversationId}`);
+    } catch (caught) {
+      setActionError(toUserMessage(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  /**
+   * Profildan to'g'ridan-to'g'ri qo'ng'iroq qiladi.
+   *
+   * ── Nima uchun avval SUHBAT ochiladi ─────────────────────────────────
+   * Qo'ng'iroq har doim biror suhbatga tegishli: uning izi o'sha
+   * suhbat tarixida qoladi ("javobsiz qo'ng'iroq"). Suhbat hali
+   * bo'lmasa, server uni shu yerda yaratadi.
+   *
+   * Odam buni sezmaydi — u faqat qo'ng'iroq tugmasini bosadi.
+   */
+  async function startCall() {
+    if (!profile) return;
+
+    setIsSaving(true);
+    setActionError(null);
+
+    try {
+      const result = await request<{ conversationId: string }>('/api/v1/chat/conversations', {
+        method: 'POST',
+        body: { username: profile.username },
+      });
+
+      await call.start(result.conversationId);
     } catch (caught) {
       setActionError(toUserMessage(caught));
     } finally {
@@ -233,13 +265,6 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                       {profile.isFollowing ? 'Obunani bekor qilish' : 'Kuzatish'}
                     </Button>
 
-                    {/*
-                      Xabar va qo'ng'iroq keyingi bosqichlarda ishga
-                      tushadi. Tugmalar ATAYLAB ko'rinib turadi, lekin
-                      o'chirilgan: shunda foydalanuvchi nima kelishini
-                      biladi va biz ishlamaydigan tugmani bosishga
-                      undamaymiz.
-                    */}
                     <Button
                       variant="outline"
                       size="icon"
@@ -249,15 +274,23 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                     >
                       <MessageCircle className="size-4" aria-hidden="true" />
                     </Button>
+
                     <Button
                       variant="outline"
                       size="icon"
-                      disabled
-                      aria-label="Audio qo'ng'iroq — tez orada"
-                      title="Tez orada"
+                      disabled={isSaving}
+                      onClick={startCall}
+                      aria-label="Ovozli qo'ng'iroq"
                     >
                       <Phone className="size-4" aria-hidden="true" />
                     </Button>
+
+                    {/*
+                      Video keyingi bosqichda. Tugma ATAYLAB ko'rinib
+                      turadi, lekin o'chirilgan: shunda foydalanuvchi
+                      nima kelishini biladi va biz ishlamaydigan
+                      tugmani bosishga undamaymiz.
+                    */}
                     <Button
                       variant="outline"
                       size="icon"
@@ -274,7 +307,7 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
 
             {!profile.isOwn && (
               <p className="text-muted-foreground px-1 text-center text-xs leading-relaxed">
-                Qo&apos;ng&apos;iroq keyingi bosqichda ishga tushadi.
+                Video qo&apos;ng&apos;iroq keyingi bosqichda ishga tushadi.
               </p>
             )}
           </>

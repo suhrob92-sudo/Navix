@@ -146,6 +146,14 @@ export const PUBLIC_RATE_LIMITS = {
    * bemalol — lekin suiiste'molga yetmaydi.
    */
   callSignal: { limit: 300, windowSeconds: 60 },
+  /**
+   * Odam qidirish: daqiqasiga 60 marta.
+   *
+   * Qidiruv har bosilgan harfda emas, yozish to'xtagach yuboriladi.
+   * Shuning uchun odam uchun 60 juda bemalol; skript esa shu chegara
+   * bilan foydalanuvchilar ro'yxatini yig'a olmaydi.
+   */
+  userSearch: { limit: 60, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;

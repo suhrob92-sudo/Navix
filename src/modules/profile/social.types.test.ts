@@ -1,8 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { RESERVED_USERNAMES, buildDefaultUsername, isReservedUsername } from '@/config/profile';
-import { usernameParamSchema, usernameSchema } from '@/modules/profile/social.schemas';
-import { formatCount, formatUsername, formatWebsite } from '@/modules/profile/social.types';
+import { userSearchQuerySchema, usernameParamSchema, usernameSchema } from '@/modules/profile/social.schemas';
+import {
+  formatCount,
+  formatUsername,
+  formatWebsite,
+  normalizeUserQuery,
+  userMatchRank,
+} from '@/modules/profile/social.types';
 
 describe('usernameSchema', () => {
   it("to'g'ri nomlarni qabul qiladi", () => {
@@ -140,5 +146,84 @@ describe('formatWebsite', () => {
 describe('formatUsername', () => {
   it("@ qo'shadi", () => {
     expect(formatUsername('aziz')).toBe('@aziz');
+  });
+});
+
+describe('normalizeUserQuery', () => {
+  it('@ ni olib tashlaydi', () => {
+    expect(normalizeUserQuery('@aziz')).toBe('aziz');
+  });
+
+  it('bir nechta @ ni ham olib tashlaydi', () => {
+    // Telefon klaviaturasida tasodifan ikki marta bosilishi mumkin.
+    expect(normalizeUserQuery('@@aziz')).toBe('aziz');
+  });
+
+  it("bo'sh joy va katta harfni tozalaydi", () => {
+    expect(normalizeUserQuery('  Aziz Karimov  ')).toBe('aziz karimov');
+  });
+
+  it('ichkaridagi @ ga tegmaydi', () => {
+    // Faqat BOSHIDAGI @ olib tashlanadi.
+    expect(normalizeUserQuery('a@b')).toBe('a@b');
+  });
+
+  it("faqat @ dan iborat so'rov bo'sh qoladi", () => {
+    expect(normalizeUserQuery('@')).toBe('');
+  });
+});
+
+describe('userMatchRank', () => {
+  it('aynan mos kelgan nom birinchi', () => {
+    expect(userMatchRank('aziz', 'Aziz Karimov', 'aziz')).toBe(0);
+  });
+
+  it('nom boshida turgani ikkinchi', () => {
+    expect(userMatchRank('azizbek', null, 'aziz')).toBe(1);
+  });
+
+  it('ism boshida turgani uchinchi', () => {
+    expect(userMatchRank('karimov_a', 'Aziz Karimov', 'aziz')).toBe(2);
+  });
+
+  it('nom ichida bo‘lgani to‘rtinchi', () => {
+    expect(userMatchRank('bek_aziz', null, 'aziz')).toBe(3);
+  });
+
+  it('mos kelmagani eng oxirida', () => {
+    expect(userMatchRank('sardor', 'Sardor Toshev', 'aziz')).toBe(4);
+  });
+
+  it('katta harf ahamiyatsiz', () => {
+    // So'rov allaqachon kichik harfga o'girilgan, nom esa bazadan
+    // kelgani uchun katta harfli bo'lishi mumkin.
+    expect(userMatchRank('AZIZ', null, 'aziz')).toBe(0);
+  });
+
+  it("ism yo'q bo'lsa ham yiqilmaydi", () => {
+    expect(userMatchRank('sardor', null, 'aziz')).toBe(4);
+  });
+});
+
+describe('userSearchQuerySchema', () => {
+  it("bo'sh so'rov rad etiladi", () => {
+    // Bo'sh so'rov butun jadvalni qaytarardi.
+    expect(userSearchQuerySchema.safeParse({ q: '   ' }).success).toBe(false);
+  });
+
+  it('chegara berilmasa 20 ta', () => {
+    expect(userSearchQuerySchema.parse({ q: 'aziz' }).limit).toBe(20);
+  });
+
+  it('juda katta chegara rad etiladi', () => {
+    expect(userSearchQuerySchema.safeParse({ q: 'aziz', limit: 500 }).success).toBe(false);
+  });
+
+  it("juda uzun so'rov rad etiladi", () => {
+    expect(userSearchQuerySchema.safeParse({ q: 'a'.repeat(61) }).success).toBe(false);
+  });
+
+  it("bo'sh joylar kesiladi", () => {
+    expect(userSearchQuerySchema.parse({ q: '  aziz  ' }).q).toBe('aziz');
   });
 });

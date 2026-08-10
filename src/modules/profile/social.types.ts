@@ -47,6 +47,63 @@ export interface FollowResponse {
   followerCount: number;
 }
 
+/**
+ * Qidiruv natijasidagi bitta odam.
+ *
+ * ── Nima uchun `PublicProfile` dan kichikroq ──────────────────────────
+ * Ro'yxatda o'nlab odam ko'rsatiladi. Har biri uchun obunachilar sonini
+ * sanash — o'nlab qo'shimcha so'rov degani. Ro'yxatda esa bu son
+ * ko'rinmaydi ham.
+ *
+ * Shu sababli bu yerda faqat ko'rinadigan maydonlar bor. Qolgani
+ * profil ochilganda olinadi.
+ */
+export interface UserSearchResult {
+  id: string;
+  username: string;
+  fullName: string | null;
+  avatarUrl: string | null;
+  isVerified: boolean;
+  /** So'rov yuborgan odam bu profilga obunami. */
+  isFollowing: boolean;
+}
+
+export interface UserSearchResponse {
+  users: UserSearchResult[];
+}
+
+/**
+ * Qidiruv so'zini tozalaydi: " @Aziz " → "aziz".
+ *
+ * Odam nomni `@` bilan ham, `@` siz ham yozadi. Ikkalasi bir xil
+ * natija berishi kerak — aks holda "@aziz" deb yozgan odam hech
+ * kimni topa olmasdi.
+ */
+export function normalizeUserQuery(raw: string): string {
+  return raw.trim().replace(/^@+/, '').toLowerCase();
+}
+
+/**
+ * Natija so'rovga qanchalik mos kelishi: kichik son — yaxshiroq.
+ *
+ * ── Nima uchun bazada emas ────────────────────────────────────────────
+ * "Aynan mos keldi / boshida turibdi / ichida bor" degan uch bosqichli
+ * tartibni SQL'da yozish mumkin, lekin u o'qib bo'lmas darajada
+ * murakkab bo'lardi. Natijalar soni esa o'nlab — ularni bu yerda
+ * saralash arzon.
+ */
+export function userMatchRank(username: string, fullName: string | null, query: string): number {
+  const name = username.toLowerCase();
+  const full = (fullName ?? '').toLowerCase();
+
+  if (name === query) return 0;
+  if (name.startsWith(query)) return 1;
+  if (full.startsWith(query)) return 2;
+  if (name.includes(query)) return 3;
+
+  return 4;
+}
+
 /** `@` bilan ko'rsatish: "aziz" → "@aziz". */
 export function formatUsername(username: string): string {
   return `@${username}`;
