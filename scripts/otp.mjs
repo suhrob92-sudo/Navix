@@ -27,10 +27,88 @@ const CODE_PATTERN = /kodi (\d{6})/g;
 
 const useProduction = process.argv.includes('--prod');
 
-/** Matndan ENG OXIRGI kodni ajratadi. */
+/**
+ * Qatordagi vaqtni topadi.
+ *
+ * ── Nima uchun bir nechta ko'rinish ───────────────────────────────────
+ * Lokal log `[17:51:47]` ko'rinishida yoziladi, Vercel esa JSON beradi
+ * va unda vaqt goh raqam (millisekund), goh ISO matn bo'ladi.
+ *
+ * Topilmasa `null` — chaqiruvchi bunday yozuvni "vaqti noma'lum" deb
+ * hisoblaydi.
+ */
+function extractTimestamp(line) {
+  // Vercel JSON: "timestamp":1754841107894 yoki "date":1754841107894
+  const epoch = line.match(/"(?:timestamp|date|time)"\s*:\s*(\d{10,13})/);
+
+  if (epoch) {
+    const value = Number(epoch[1]);
+    // 10 xonali — soniya, 13 xonali — millisekund.
+    return value < 1e12 ? value * 1000 : value;
+  }
+
+  // ISO: 2026-08-10T17:51:47.894Z
+  const iso = line.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?/);
+
+  if (iso) {
+    const parsed = Date.parse(iso[0]);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+
+  return null;
+}
+
+/**
+ * Matndan ENG YANGI kodni ajratadi.
+ *
+ * ── Nima uchun "oxirgi qator" YETARLI EMAS ────────────────────────────
+ * Avval shu yerda oxirgi moslik olinardi. Lekin jurnal yozuvlari har
+ * doim ham vaqt bo'yicha tartiblangan bo'lmaydi: Vercel loglari bir
+ * nechta manbadan yig'iladi va aralashib kelishi mumkin.
+ *
+ * Natijada skript ESKI kodni qaytaraverardi va saytda "Kod noto'g'ri"
+ * chiqardi — aynan shu xato uchradi.
+ *
+ * Endi har bir moslikning vaqti o'qiladi va eng yangisi tanlanadi.
+ * Vaqti yo'q yozuvlar tartib bo'yicha oxirgisi deb hisoblanadi.
+ */
 function findLatestCode(text) {
-  const matches = [...text.matchAll(CODE_PATTERN)];
-  return matches.length > 0 ? matches[matches.length - 1][1] : null;
+  const lines = text.split('\n');
+
+  let best = null;
+
+  lines.forEach((line, index) => {
+    const matches = [...line.matchAll(CODE_PATTERN)];
+
+    if (matches.length === 0) return;
+
+    const code = matches[matches.length - 1][1];
+    const timestamp = extractTimestamp(line);
+
+    if (!best) {
+      best = { code, timestamp, index };
+      return;
+    }
+
+    // Ikkalasining ham vaqti bor — yangisini olamiz.
+    if (timestamp !== null && best.timestamp !== null) {
+      if (timestamp >= best.timestamp) best = { code, timestamp, index };
+      return;
+    }
+
+    // Vaqti bor yozuv vaqtsizdan ustun: u haqida aniq ma'lumot bor.
+    if (timestamp !== null) {
+      best = { code, timestamp, index };
+      return;
+    }
+
+    // Ikkalasi ham vaqtsiz — matndagi tartibga tayanamiz.
+    if (best.timestamp === null && index > best.index) {
+      best = { code, timestamp, index };
+    }
+  });
+
+  return best;
 }
 
 function show(code, source) {
@@ -55,7 +133,12 @@ function readOtpTtlSeconds() {
 
     if (!line) continue;
 
-    const value = Number(line.slice(line.indexOf('=') + 1).replace(/["']/g, '').trim());
+    const value = Number(
+      line
+        .slice(line.indexOf('=') + 1)
+        .replace(/["']/g, '')
+        .trim(),
+    );
 
     if (Number.isFinite(value) && value > 0) return value;
   }
@@ -118,40 +201,75 @@ if (useProduction) {
    * ("{"level":…"). JSON rejimida to'liq matn keladi.
    */
   const attempts = [
-    { label: 'bog\'langan loyiha', args: ['vercel', 'logs', '--json'] },
+    { label: "bog'langan loyiha", args: ['vercel', 'logs', '--json'] },
     { label: host, args: ['vercel', 'logs', host, '--json'] },
     { label: host, args: ['vercel', 'logs', host] },
   ];
 
-  let output = '';
-  let usedLabel = host;
+  const ttlSeconds = readOtpTtlSeconds();
 
-  for (const attempt of attempts) {
-    console.info(`\n⏳ ${attempt.label} loglari o'qilmoqda...`);
+  /** Yozuv hali amal qiladimi. Vaqti noma'lum bo'lsa — "ha" deymiz. */
+  function isFresh(entry) {
+    if (!entry) return false;
+    if (entry.timestamp === null) return true;
 
-    const result = spawnSync('npx', attempt.args, { encoding: 'utf8', timeout: 90_000 });
-
-    output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
-    usedLabel = attempt.label;
-
-    if (findLatestCode(output)) break;
+    return (Date.now() - entry.timestamp) / 1_000 <= ttlSeconds;
   }
 
-  const code = findLatestCode(output);
+  let output = '';
+  let usedLabel = host;
+  let found = null;
 
-  if (!code) {
+  /**
+   * Bir necha marta urinamiz.
+   *
+   * ── Nima uchun ─────────────────────────────────────────────────────
+   * Vercel loglari DARHOL yetib kelmaydi. "Yangi kod" bosilgan zahoti
+   * so'ralsa, jurnalda hali oldingi kod turadi. Odam buni bilmasdan
+   * eski kodni kiritib, "Kod noto'g'ri" xabarini olardi.
+   *
+   * Endi skript o'zi bir oz kutib, qayta so'raydi — foydalanuvchi
+   * buyruqni qo'lda takrorlamaydi.
+   */
+  const ROUNDS = 3;
+  const WAIT_MS = 7_000;
+
+  for (let round = 1; round <= ROUNDS; round += 1) {
+    for (const attempt of attempts) {
+      console.info(`\n⏳ ${attempt.label} loglari o'qilmoqda...`);
+
+      const result = spawnSync('npx', attempt.args, { encoding: 'utf8', timeout: 90_000 });
+
+      output = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+      usedLabel = attempt.label;
+
+      const entry = findLatestCode(output);
+
+      if (entry) {
+        found = entry;
+        break;
+      }
+    }
+
+    if (isFresh(found)) break;
+
+    if (round < ROUNDS) {
+      console.info(`\n⌛ Kod hali yetib kelmadi. ${WAIT_MS / 1000} soniyadan keyin qayta urinamiz...`);
+      // Kutish — `spawnSync` kabi bloklovchi, qo'shimcha kutubxonasiz.
+      spawnSync(process.execPath, ['-e', `setTimeout(() => {}, ${WAIT_MS})`], { timeout: WAIT_MS + 5_000 });
+    }
+  }
+
+  if (!found) {
     if (/isn't linked|not linked/.test(output)) {
-      fail(
-        "Loyiha Vercel bilan bog'lanmagan",
-        '   Bir marta bajaring:  npx vercel link',
-      );
+      fail("Loyiha Vercel bilan bog'lanmagan", '   Bir marta bajaring:  npx vercel link');
     }
 
     fail(
       'Kod topilmadi',
       `   Tekshirilgan manzil: ${host}\n\n` +
-        "   Sabablari:\n" +
-        "   1. Vercel loglari qisqa muddat saqlanadi. Saytda \"Yangi kod\n" +
+        '   Sabablari:\n' +
+        '   1. Vercel loglari qisqa muddat saqlanadi. Saytda "Yangi kod\n' +
         '      so\'rash" tugmasini bosing va DARHOL buyruqni qaytaring.\n' +
         `   2. ".env.production" dagi NEXT_PUBLIC_APP_URL noto'g'ri bo'lishi\n` +
         '      mumkin. Haqiqiy manzilni bilish uchun:  npx vercel ls\n' +
@@ -159,7 +277,44 @@ if (useProduction) {
     );
   }
 
-  show(code, usedLabel);
+  /**
+   * Kod ESKI bo'lsa berilmaydi.
+   *
+   * ── Nima uchun ────────────────────────────────────────────────────
+   * Vercel loglari kechikib yetadi: "Yangi kod" bosilgan zahoti
+   * so'ralsa, jurnalda hali OLDINGI kod turgan bo'ladi. Skript uni
+   * qaytarsa, saytda "Kod noto'g'ri" chiqadi va sabab ko'rinmaydi —
+   * aynan shu holat uchradi.
+   */
+  if (found.timestamp !== null) {
+    const ageSeconds = Math.round((Date.now() - found.timestamp) / 1_000);
+
+    if (ageSeconds > ttlSeconds) {
+      console.info(`\n⚠️  Topilgan kod ${formatAge(ageSeconds)} oldin yuborilgan — u ESKIRGAN.\n`);
+      console.info(`   Kod umri ${Math.round(ttlSeconds / 60)} daqiqa.\n`);
+      console.info('   Nima qilish kerak:\n');
+      console.info('     1. Saytda "Yangi kod so\'rash" tugmasini bosing\n');
+      console.info('     2. 10–15 soniya kuting (Vercel logi kechikib yetadi)\n');
+      console.info('     3. npm run otp -- --prod\n');
+
+      process.exit(1);
+    }
+
+    show(found.code, `${usedLabel} (${formatAge(ageSeconds)} oldin)`);
+    process.exit(0);
+  }
+
+  /**
+   * Vaqtini aniqlab bo'lmadi.
+   *
+   * Kodni baribir beramiz — u to'g'ri bo'lishi ehtimoli katta. Lekin
+   * "eskirgan bo'lishi mumkin" deb ogohlantiramiz, aks holda odam
+   * "kod noto'g'ri" xabarini ko'rib, sababini topa olmasdi.
+   */
+  show(found.code, usedLabel);
+  console.info("   ⚠️  Kod vaqtini aniqlab bo'lmadi. Ishlamasa: saytda\n");
+  console.info('       "Yangi kod so\'rash" ni bosing va 15 soniyadan keyin\n');
+  console.info('       buyruqni qaytaring.\n');
   process.exit(0);
 }
 
@@ -172,20 +327,21 @@ try {
 } catch {
   fail(
     `"${LOG_FILE}" topilmadi`,
-    '   Lokal server uchun:  npm run dev:bg\n' +
-      '   Internetdagi sayt uchun:  npm run otp -- --prod',
+    '   Lokal server uchun:  npm run dev:bg\n' + '   Internetdagi sayt uchun:  npm run otp -- --prod',
   );
 }
 
-const code = findLatestCode(content);
+const found = findLatestCode(content);
 
-if (!code) {
+if (!found) {
   fail(
     'Kod topilmadi',
     "   Avval saytda ro'yxatdan o'ting yoki parolni tiklashni so'rang.\n" +
       '   Internetdagi sayt uchun:  npm run otp -- --prod',
   );
 }
+
+const code = found.code;
 
 /**
  * Log ESKI bo'lsa ogohlantiramiz.
