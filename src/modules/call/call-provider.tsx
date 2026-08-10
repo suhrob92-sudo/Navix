@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 
-import { CALL_ALIVE_PING_MS, RING_TIMEOUT_SECONDS } from '@/config/calls';
+import { CALL_ALIVE_PING_MS, RING_TIMEOUT_SECONDS, VIDEO_CONSTRAINTS } from '@/config/calls';
 import { useApiClient } from '@/hooks/use-api';
 import { useCallStream } from '@/hooks/use-call-stream';
 import { toUserMessage } from '@/lib/api-client';
@@ -10,6 +10,7 @@ import { useAuth } from '@/modules/auth/auth-context';
 import {
   isCallOver,
   type CallEvent,
+  type CallKindName,
   type CallResponse,
   type CallSignal,
   type CallView,
@@ -40,13 +41,33 @@ export interface CallContextValue {
   /** Suhbat necha soniya davom etmoqda. */
   elapsedSeconds: number;
   error: string | null;
+
+  /** Kamera hozir o'chirilganmi (faqat video qo'ng'iroqda). */
+  isCameraOff: boolean;
+  /** Qaysi kamera ishlayapti: old yoki orqa. */
+  isBackCamera: boolean;
+
+  /**
+   * O'z kameramdan kelayotgan tasvir — "o'zini ko'rish" oynasi uchun.
+   *
+   * Havola sifatida emas, HOLAT sifatida beriladi: oqim almashganda
+   * (kamera almashtirilganda) ekran qayta chizilishi kerak.
+   */
+  localStream: MediaStream | null;
+  /** Suhbatdoshdan kelayotgan tasvir va ovoz. */
+  remoteStream: MediaStream | null;
+
   /** Suhbatdoshga qo'ng'iroq qiladi. */
-  start: (conversationId: string) => Promise<void>;
+  start: (conversationId: string, kind?: CallKindName) => Promise<void>;
   /** Kelayotgan qo'ng'iroqni ko'taradi. */
   accept: () => Promise<void>;
   /** Qo'ng'iroqni tugatadi (rad etish ham shu). */
   hangUp: () => Promise<void>;
   toggleMute: () => void;
+  /** Kamerani yoqadi yoki o'chiradi. */
+  toggleCamera: () => void;
+  /** Old va orqa kamerani almashtiradi. */
+  switchCamera: () => Promise<void>;
 }
 
 const CallContext = createContext<CallContextValue | null>(null);
@@ -63,6 +84,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [isMuted, setIsMuted] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
+
+  const [isCameraOff, setIsCameraOff] = useState(false);
+  const [isBackCamera, setIsBackCamera] = useState(false);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
   /**
    * Hozirgi qo'ng'iroq — HAVOLADA ham saqlanadi.
@@ -120,6 +146,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     setIsConnecting(false);
     setIsMuted(false);
+    setIsCameraOff(false);
+    setIsBackCamera(false);
+    setLocalStream(null);
+    setRemoteStream(null);
   }, []);
 
   /** Signalni ikkinchi tomonga yuboradi. */
@@ -181,9 +211,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     [request, setCall, teardown],
   );
 
-  /** Ovoz yo'lini yaratadi va mikrofonni ulaydi. */
+  /** Ovoz (va kerak bo'lsa video) yo'lini yaratadi. */
   const createPeer = useCallback(
-    async (callId: string, iceServers: IceServerConfig[]): Promise<RTCPeerConnection> => {
+    async (callId: string, iceServers: IceServerConfig[], kind: CallKindName): Promise<RTCPeerConnection> => {
       const peer = new RTCPeerConnection({ iceServers });
 
       peer.onicecandidate = (event) => {
@@ -192,21 +222,19 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         void postSignal(callId, { type: 'candidate', candidate: event.candidate.toJSON() });
       };
 
+      /**
+       * Suhbatdoshning oqimi keldi.
+       *
+       * ── Nima uchun bu yerda ijro ETILMAYDI ─────────────────────────
+       * Ovozli qo'ng'iroqda oqim doim turadigan `<audio>` ga ulanadi,
+       * videoda esa ekrandagi `<video>` ga. Ikkalasiga BIR VAQTDA
+       * ulansa, ovoz ikki manbadan chiqib aks-sado hosil qilardi.
+       *
+       * Shuning uchun oqim shu yerda faqat SAQLANADI, qayerga
+       * ulanishini quyidagi effekt hal qiladi.
+       */
       peer.ontrack = (event) => {
-        const audio = audioRef.current;
-
-        if (!audio) return;
-
-        audio.srcObject = event.streams[0] ?? null;
-
-        /**
-         * Ijro etishni brauzer rad etishi mumkin.
-         *
-         * Bu yerda rad etilmaydi: qo'ng'iroq har doim tugma bosish
-         * bilan boshlanadi, ya'ni foydalanuvchi ruxsati bor. Baribir
-         * xatoni yutamiz — ovozsiz qolish yiqilishdan yaxshiroq.
-         */
-        void audio.play().catch(() => undefined);
+        setRemoteStream(event.streams[0] ?? null);
       };
 
       peer.onconnectionstatechange = () => {
@@ -228,9 +256,21 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         }
       };
 
-      const media = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      /**
+       * Kamera FAQAT video qo'ng'iroqda so'raladi.
+       *
+       * Ovozli qo'ng'iroqda ham so'ralsa, brauzer kameraga ruxsat
+       * so'rab, telefonda "kamera yoqilgan" belgisi yonardi — odam esa
+       * haqli ravishda kuzatilayotganidan xavotirlanardi.
+       */
+      const media = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: kind === 'VIDEO' ? { ...VIDEO_CONSTRAINTS, facingMode: 'user' } : false,
+      });
 
       localStreamRef.current = media;
+      setLocalStream(media);
+
       media.getTracks().forEach((track) => peer.addTrack(track, media));
 
       peerRef.current = peer;
@@ -378,19 +418,19 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   // ── Amallar ─────────────────────────────────────────────────────────
 
   const start = useCallback(
-    async (conversationId: string): Promise<void> => {
+    async (conversationId: string, kind: CallKindName = 'AUDIO'): Promise<void> => {
       setError(null);
 
       try {
         const result = await request<StartCallResponse>('/api/v1/calls', {
           method: 'POST',
-          body: { conversationId, kind: 'AUDIO' },
+          body: { conversationId, kind },
         });
 
         setCall(result.call);
         setIsConnecting(true);
 
-        const peer = await createPeer(result.call.id, result.iceServers);
+        const peer = await createPeer(result.call.id, result.iceServers, kind);
 
         const offer = await peer.createOffer();
         await peer.setLocalDescription(offer);
@@ -424,7 +464,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
       const { iceServers } = await request<IceServersResponse>('/api/v1/calls/ice');
 
-      await createPeer(current.id, iceServers);
+      /**
+       * Turi CHAQIRUVCHIDAN keladi.
+       *
+       * Video qo'ng'iroqqa ovoz bilan javob berib bo'lmaydi: taklifda
+       * video yo'li bor va unga javob ham video bilan berilishi kerak.
+       */
+      await createPeer(current.id, iceServers, current.kind);
 
       /**
        * Kutib turgan taklif SHU YERDA qo'llanadi.
@@ -465,6 +511,80 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     setIsMuted(nextMuted);
   }, []);
+
+  const toggleCamera = useCallback(() => {
+    const tracks = localStreamRef.current?.getVideoTracks() ?? [];
+
+    if (tracks.length === 0) return;
+
+    // Mikrofondagi kabi: trek to'xtatilmaydi, faqat yo'li to'siladi.
+    const nextOff = tracks[0].enabled;
+
+    tracks.forEach((track) => {
+      track.enabled = !nextOff;
+    });
+
+    setIsCameraOff(nextOff);
+  }, []);
+
+  /**
+   * Old va orqa kamerani almashtiradi.
+   *
+   * ── Nima uchun ulanish QAYTA qurilmaydi ───────────────────────────────
+   * Yangi kamera — bu yangi video trek. Uni oddiygina qo'shib qo'yib
+   * bo'lmaydi: ulanish qaytadan kelishilishi kerak bo'lardi va suhbat
+   * bir-ikki soniyaga uzilardi.
+   *
+   * `replaceTrack` esa trekni JOYIDA almashtiradi — suhbatdosh hech
+   * narsani sezmaydi, rasm shunchaki boshqa kameraga o'tadi.
+   */
+  const switchCamera = useCallback(async (): Promise<void> => {
+    const peer = peerRef.current;
+    const current = localStreamRef.current;
+
+    if (!peer || !current) return;
+
+    const nextFacing = isBackCamera ? 'user' : 'environment';
+
+    try {
+      const fresh = await navigator.mediaDevices.getUserMedia({
+        video: { ...VIDEO_CONSTRAINTS, facingMode: nextFacing },
+        audio: false,
+      });
+
+      const nextTrack = fresh.getVideoTracks()[0];
+
+      if (!nextTrack) return;
+
+      // Kamera o'chirilgan bo'lsa, yangisi ham o'chiq qolishi kerak.
+      nextTrack.enabled = !isCameraOff;
+
+      const sender = peer.getSenders().find((item) => item.track?.kind === 'video');
+
+      await sender?.replaceTrack(nextTrack);
+
+      /**
+       * Eski trek ALBATTA to'xtatiladi.
+       *
+       * Aks holda ikkala kamera ham yoniq qolib, telefonda "kamera
+       * ishlayapti" belgisi so'nmasdi va batareya bekorga sarflanardi.
+       */
+      current.getVideoTracks().forEach((track) => track.stop());
+
+      const merged = new MediaStream([...current.getAudioTracks(), nextTrack]);
+
+      localStreamRef.current = merged;
+      setLocalStream(merged);
+      setIsBackCamera(nextFacing === 'environment');
+    } catch {
+      /**
+       * Ikkinchi kamera yo'q bo'lishi mumkin (kompyuter, eski telefon).
+       *
+       * Bu xato emas: suhbat davom etaveradi, faqat kamera
+       * almashmaydi. Shuning uchun ekranga xato chiqarilmaydi.
+       */
+    }
+  }, [isBackCamera, isCameraOff]);
 
   // ── Vaqt hisoblagich va muddatlar ───────────────────────────────────
 
@@ -543,7 +663,35 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer);
   }, [status, callId, setCall]);
 
-  /** Ilova yopilganda mikrofon bo'shatiladi. */
+  const kind = call?.kind ?? null;
+
+  /**
+   * Suhbatdoshning ovozi qayerdan eshitiladi.
+   *
+   * ── Nima uchun shart bor ───────────────────────────────────────────
+   * Ovozli qo'ng'iroqda ekran yopiq bo'lishi mumkin, shuning uchun
+   * oqim DOIM turadigan `<audio>` ga ulanadi.
+   *
+   * Videoda esa ovoz `<video>` dan chiqadi. Agar shu payt `<audio>`
+   * ham o'sha oqimni ijro etsa, bir ovoz ikki manbadan chiqib aks-sado
+   * hosil qilardi.
+   */
+  useEffect(() => {
+    const audio = audioRef.current;
+
+    if (!audio) return;
+
+    const shouldPlayHere = kind === 'AUDIO' && remoteStream !== null;
+
+    audio.srcObject = shouldPlayHere ? remoteStream : null;
+
+    if (!shouldPlayHere) return;
+
+    // Ijro rad etilishi mumkin — ovozsiz qolish yiqilishdan yaxshiroq.
+    void audio.play().catch(() => undefined);
+  }, [kind, remoteStream]);
+
+  /** Ilova yopilganda mikrofon va kamera bo'shatiladi. */
   useEffect(() => teardown, [teardown]);
 
   const value: CallContextValue = {
@@ -552,10 +700,16 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     isMuted,
     elapsedSeconds,
     error,
+    isCameraOff,
+    isBackCamera,
+    localStream,
+    remoteStream,
     start,
     accept,
     hangUp,
     toggleMute,
+    toggleCamera,
+    switchCamera,
   };
 
   return (

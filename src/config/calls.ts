@@ -25,6 +25,28 @@
 export const STUN_SERVERS = ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] as const;
 
 /**
+ * Video sifati.
+ *
+ * ── Nima uchun ATAYLAB past ───────────────────────────────────────────
+ * Brauzer so'ralmasa eng yuqori sifatni tanlaydi — telefonlarda bu
+ * ko'pincha 1280×720 yoki undan ham katta. O'zbekistondagi mobil
+ * tarmoqda bunday oqim uzluksiz o'tmaydi: rasm muzlaydi, ovoz
+ * uziladi va trafik tez tugaydi.
+ *
+ * 640×480 telefon ekrani uchun yetarli — suhbatdoshning yuzi aniq
+ * ko'rinadi. Sekundiga 24 kadr esa harakatni silliq ko'rsatadi.
+ *
+ * `ideal` — QAT'IY talab emas: kamera bunday rejimni qo'llab-
+ * quvvatlamasa, brauzer eng yaqinini tanlaydi va qo'ng'iroq baribir
+ * ishlaydi.
+ */
+export const VIDEO_CONSTRAINTS = {
+  width: { ideal: 640 },
+  height: { ideal: 480 },
+  frameRate: { max: 24 },
+} as const;
+
+/**
  * Javob kutish muddati.
  *
  * 45 soniya — odam telefonni cho'ntagidan olib, ekranga qarashi uchun

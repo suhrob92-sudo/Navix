@@ -25,11 +25,9 @@ const securityHeaders = [
    * Foydalanuvchidan ruxsat baribir brauzer o'zi so'raydi: bu sarlavha
    * ruxsat BERMAYDI, u faqat so'rash huquqini beradi.
    *
-   * Mikrofon — ovozli qo'ng'iroq uchun. Kamera hozircha YOPIQ: video
-   * qo'ng'iroq hali yo'q, kerak bo'lmagan huquqni ochib qo'yish esa
-   * bekorga xavf tug'diradi.
+   * Mikrofon — ovozli, kamera — video qo'ng'iroq uchun.
    */
-  { key: 'Permissions-Policy', value: 'camera=(), microphone=(self), geolocation=(self)' },
+  { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(self)' },
   // Faqat HTTPS orqali ulanishni majburlaydi (1 yil).
   { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
 ];

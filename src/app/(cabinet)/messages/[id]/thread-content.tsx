@@ -256,14 +256,19 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
             variant="ghost"
             size="icon"
             disabled={!canCall}
-            onClick={() => void start(conversationId)}
+            onClick={() => void start(conversationId, 'AUDIO')}
             aria-label={canCall ? "Ovozli qo'ng'iroq" : "Kompaniyaga qo'ng'iroq qilib bo'lmaydi"}
           >
             <Phone className="size-5" aria-hidden="true" />
           </Button>
 
-          {/* Video qo'ng'iroq keyingi bosqichda ishga tushadi. */}
-          <Button variant="ghost" size="icon" disabled aria-label="Video qo'ng'iroq — tez orada">
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={!canCall}
+            onClick={() => void start(conversationId, 'VIDEO')}
+            aria-label={canCall ? "Video qo'ng'iroq" : "Kompaniyaga qo'ng'iroq qilib bo'lmaydi"}
+          >
             <Video className="size-5" aria-hidden="true" />
           </Button>
         </div>

@@ -14,6 +14,7 @@ import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzDate } from '@/lib/date';
 import { useCall } from '@/modules/call/call-provider';
+import type { CallKindName } from '@/modules/call/call.types';
 import {
   formatCount,
   formatUsername,
@@ -144,7 +145,7 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
    *
    * Odam buni sezmaydi — u faqat qo'ng'iroq tugmasini bosadi.
    */
-  async function startCall() {
+  async function startCall(kind: CallKindName) {
     if (!profile) return;
 
     setIsSaving(true);
@@ -156,7 +157,7 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
         body: { username: profile.username },
       });
 
-      await call.start(result.conversationId);
+      await call.start(result.conversationId, kind);
     } catch (caught) {
       setActionError(toUserMessage(caught));
     } finally {
@@ -279,24 +280,18 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                       variant="outline"
                       size="icon"
                       disabled={isSaving}
-                      onClick={startCall}
+                      onClick={() => void startCall('AUDIO')}
                       aria-label="Ovozli qo'ng'iroq"
                     >
                       <Phone className="size-4" aria-hidden="true" />
                     </Button>
 
-                    {/*
-                      Video keyingi bosqichda. Tugma ATAYLAB ko'rinib
-                      turadi, lekin o'chirilgan: shunda foydalanuvchi
-                      nima kelishini biladi va biz ishlamaydigan
-                      tugmani bosishga undamaymiz.
-                    */}
                     <Button
                       variant="outline"
                       size="icon"
-                      disabled
-                      aria-label="Video qo'ng'iroq — tez orada"
-                      title="Tez orada"
+                      disabled={isSaving}
+                      onClick={() => void startCall('VIDEO')}
+                      aria-label="Video qo'ng'iroq"
                     >
                       <Video className="size-4" aria-hidden="true" />
                     </Button>
@@ -304,12 +299,6 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                 )}
               </div>
             </section>
-
-            {!profile.isOwn && (
-              <p className="text-muted-foreground px-1 text-center text-xs leading-relaxed">
-                Video qo&apos;ng&apos;iroq keyingi bosqichda ishga tushadi.
-              </p>
-            )}
           </>
         )}
       </div>
