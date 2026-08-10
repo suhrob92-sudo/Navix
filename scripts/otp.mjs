@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 /**
@@ -37,6 +37,39 @@ function show(code, source) {
   console.info('\n📩 Oxirgi tasdiqlash kodi:\n');
   console.info(`   ${code}\n`);
   console.info(`   Manba: ${source}\n`);
+}
+
+/**
+ * Kodning umri (soniyalarda) — `.env` dan.
+ *
+ * Sozlama o'zgarsa ogohlantirish ham o'ziga qarab o'zgarishi kerak:
+ * bu yerda qattiq son yozilsa, ular bir-biridan ajralib ketardi.
+ */
+function readOtpTtlSeconds() {
+  for (const file of ['.env.local', '.env']) {
+    if (!existsSync(file)) continue;
+
+    const line = readFileSync(file, 'utf8')
+      .split('\n')
+      .find((row) => row.trim().startsWith('OTP_TTL='));
+
+    if (!line) continue;
+
+    const value = Number(line.slice(line.indexOf('=') + 1).replace(/["']/g, '').trim());
+
+    if (Number.isFinite(value) && value > 0) return value;
+  }
+
+  // `src/lib/env.ts` dagi standart qiymat.
+  return 300;
+}
+
+/** "125" → "2 daqiqa 5 soniya". */
+function formatAge(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+
+  return minutes > 0 ? `${minutes} daqiqa ${rest} soniya` : `${rest} soniya`;
 }
 
 function fail(message, hint) {
@@ -154,4 +187,35 @@ if (!code) {
   );
 }
 
-show(code, LOG_FILE);
+/**
+ * Log ESKI bo'lsa ogohlantiramiz.
+ *
+ * ── Qanday tuzoq bo'lgan edi ──────────────────────────────────────────
+ * `npm run dev` serverni EKRANGA yozadi, `dev.log` ga emas. Faqat
+ * `npm run dev:bg` shu faylga yozadi.
+ *
+ * Shu sababli oldingi sessiyadan qolgan `dev.log` joyida turaverardi
+ * va skript har safar bir XIL, allaqachon muddati o'tgan kodni
+ * qaytaraverardi. Saytda esa "Kod noto'g'ri yoki muddati tugagan"
+ * chiqardi — sabab esa hech qayerda ko'rinmasdi.
+ *
+ * Endi fayl qachon yangilangani tekshiriladi.
+ */
+const ageSeconds = Math.round((Date.now() - statSync(LOG_FILE).mtimeMs) / 1_000);
+const ttlSeconds = readOtpTtlSeconds();
+
+if (ageSeconds > ttlSeconds) {
+  console.info(`\n⚠️  "${LOG_FILE}" ${formatAge(ageSeconds)} oldin yangilangan.\n`);
+  console.info(`   Kod umri ${Math.round(ttlSeconds / 60)} daqiqa, ya'ni bu kod ALLAQACHON ESKIRGAN.\n`);
+  console.info('   Sabab: server logni bu faylga yozmayapti.\n');
+  console.info('   Tuzatish:\n');
+  console.info('     1. npm run dev:stop\n');
+  console.info('     2. npm run dev:bg        ← "dev.log" ga yozadigan rejim\n');
+  console.info('     3. Saytda "Yangi kod" tugmasini bosing\n');
+  console.info('     4. npm run otp\n');
+  console.info('   Internetdagi sayt (vercel) uchun:  npm run otp -- --prod\n');
+
+  process.exit(1);
+}
+
+show(code, `${LOG_FILE} (${formatAge(ageSeconds)} oldin)`);
