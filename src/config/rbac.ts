@@ -16,6 +16,14 @@ export const Permission = {
   PLATFORM_USER_UPDATE: 'platform:user:update',
   PLATFORM_USER_SUSPEND: 'platform:user:suspend',
   PLATFORM_AUDIT_READ: 'platform:audit:read',
+  /**
+   * Foydalanuvchilar shikoyatlarini ko'rish va yopish.
+   *
+   * Ataylab `PLATFORM_USER_READ` dan AJRATILGAN: shikoyat matnida
+   * odamlarning shaxsiy nizosi yoziladi va uni har bir xodim
+   * o'qishi shart emas.
+   */
+  PLATFORM_REPORT_MANAGE: 'platform:report:manage',
   /** Xizmat provayderlarini qo'shish va tahrirlash. */
   PLATFORM_PROVIDER_MANAGE: 'platform:provider:manage',
   /** Barcha foydalanuvchilarning tranzaksiyalarini ko'rish. */
@@ -137,11 +145,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
 
   [Role.DRIVER]: [...CUSTOMER_PERMISSIONS, Permission.TAXI_RIDE_ACCEPT],
 
-  [Role.COURIER]: [
-    ...CUSTOMER_PERMISSIONS,
-    Permission.DELIVERY_ORDER_ACCEPT,
-    Permission.COURIER_DASHBOARD_ACCESS,
-  ],
+  [Role.COURIER]: [...CUSTOMER_PERMISSIONS, Permission.DELIVERY_ORDER_ACCEPT, Permission.COURIER_DASHBOARD_ACCESS],
 
   [Role.MERCHANT]: [
     ...CUSTOMER_PERMISSIONS,
@@ -184,6 +188,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
     Permission.PLATFORM_USER_UPDATE,
     Permission.PLATFORM_USER_SUSPEND,
     Permission.PLATFORM_AUDIT_READ,
+    Permission.PLATFORM_REPORT_MANAGE,
     Permission.PLATFORM_PROVIDER_MANAGE,
     Permission.PLATFORM_TRANSACTION_READ,
     Permission.PAYMENT_REFUND,

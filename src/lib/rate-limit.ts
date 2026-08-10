@@ -154,6 +154,21 @@ export const PUBLIC_RATE_LIMITS = {
    * bilan foydalanuvchilar ro'yxatini yig'a olmaydi.
    */
   userSearch: { limit: 60, windowSeconds: 60 },
+  /**
+   * Bloklash va blokdan chiqarish: daqiqasiga 20 marta.
+   *
+   * Odam uchun bemalol, skript esa shu chegara bilan minglab odamni
+   * ketma-ket bloklab, bazani to'ldira olmaydi.
+   */
+  userBlock: { limit: 20, windowSeconds: 60 },
+  /**
+   * Shikoyat: soatiga 20 marta.
+   *
+   * ── Nima uchun chegara QATTIQ ───────────────────────────────────────
+   * Shikoyatni odam o'qiydi. Cheksiz shikoyat — moderatorning vaqtini
+   * o'g'irlash usuli, ya'ni haqiqiy shikoyatlar ko'milib qolardi.
+   */
+  userReport: { limit: 20, windowSeconds: 60 * 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;

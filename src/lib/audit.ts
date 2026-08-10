@@ -137,6 +137,14 @@ export const AuditAction = {
   ADMIN_USER_STATUS_CHANGED: 'admin.user.status_changed',
   ADMIN_ROLE_GRANTED: 'admin.role.granted',
   ADMIN_ROLE_REVOKED: 'admin.role.revoked',
+  /**
+   * Shikoyat yopildi.
+   *
+   * Yozuv MAJBURIY: shikoyatni yopish — bu qaror. "Nega bu shikoyat
+   * bo'yicha chora ko'rilmadi?" degan savolga javob faqat shu yerdan
+   * topiladi.
+   */
+  ADMIN_REPORT_RESOLVED: 'admin.report.resolved',
 } as const;
 
 export type AuditActionValue = (typeof AuditAction)[keyof typeof AuditAction];

@@ -73,6 +73,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'admin.user.status_changed': "Foydalanuvchi holatini o'zgartirdi",
   'admin.role.granted': 'Rol berdi',
   'admin.role.revoked': 'Rolni olib tashladi',
+  'admin.report.resolved': 'Shikoyatni yopdi',
 };
 
 /**
@@ -118,6 +119,7 @@ export const AUDIT_GROUP_ACTIONS: Record<Exclude<AuditFilterGroup, 'ALL'>, reado
     'admin.user.status_changed',
     'admin.role.granted',
     'admin.role.revoked',
+    'admin.report.resolved',
     'merchant.order.status_changed',
     'seller.order.status_changed',
     'seller.product.created',

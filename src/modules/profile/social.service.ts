@@ -2,6 +2,7 @@ import { Prisma } from '@/generated/prisma/client';
 import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
+import { blockedUserIds, findBlock } from '@/modules/moderation/moderation.service';
 import { notifyUser } from '@/modules/notification/notification.service';
 import {
   normalizeUserQuery,
@@ -76,12 +77,12 @@ export async function getPublicProfile(username: string, viewerId: string): Prom
   const isOwn = row.id === viewerId;
 
   /**
-   * Uchta so'rov BIR VAQTDA yuboriladi.
+   * To'rt so'rov BIR VAQTDA yuboriladi.
    *
-   * Ketma-ket yuborilsa, sahifa uch marta kutardi. Ular bir-biriga
+   * Ketma-ket yuborilsa, sahifa to'rt marta kutardi. Ular bir-biriga
    * bog'liq emas, shuning uchun birga ketaveradi.
    */
-  const [followerCount, followingCount, follow] = await Promise.all([
+  const [followerCount, followingCount, follow, block] = await Promise.all([
     prisma.follow.count({ where: { followingId: row.id } }),
     prisma.follow.count({ where: { followerId: row.id } }),
     isOwn
@@ -90,7 +91,23 @@ export async function getPublicProfile(username: string, viewerId: string): Prom
           where: { followerId_followingId: { followerId: viewerId, followingId: row.id } },
           select: { id: true },
         }),
+    isOwn ? Promise.resolve(null) : findBlock(viewerId, row.id),
   ]);
+
+  /**
+   * Meni bloklagan odamning profili KO'RINMAYDI.
+   *
+   * ── Nima uchun "topilmadi", "bloklangansiz" emas ─────────────────────
+   * "Bu odam sizni bloklagan" degan javob bloklashning ma'nosini
+   * yo'qotardi: bezovta qiluvchi odam buni darhol bilib olardi va
+   * boshqa hisob ochib davom etardi.
+   *
+   * "Topilmadi" esa hech narsani oshkor qilmaydi — o'chirilgan hisob
+   * bilan bir xil ko'rinadi.
+   */
+  if (block?.blockedByThem) {
+    throw new NotFoundError('Profil');
+  }
 
   return {
     id: row.id,
@@ -106,6 +123,7 @@ export async function getPublicProfile(username: string, viewerId: string): Prom
     followingCount,
     isOwn,
     isFollowing: follow !== null,
+    isBlocked: block?.blockedByMe ?? false,
   };
 }
 
@@ -142,6 +160,15 @@ export async function searchUsers(viewerId: string, rawQuery: string, limit: num
   if (!query) return [];
 
   /**
+   * Bloklangan odamlar ro'yxatdan CHIQARIB TASHLANADI.
+   *
+   * Ikki tomonlama: men bloklaganim ham, meni bloklaganlar ham.
+   * Ikkinchisi muhimroq — bezovta qiluvchi odam qidiruv orqali
+   * qurbonini qayta topa olmasligi kerak.
+   */
+  const hiddenIds = await blockedUserIds(viewerId);
+
+  /**
    * Chegaradan KO'PROQ olinadi.
    *
    * Tartib bazada emas, shu yerda hisoblanadi. Agar aynan `limit` ta
@@ -153,7 +180,7 @@ export async function searchUsers(viewerId: string, rawQuery: string, limit: num
       deletedAt: null,
       status: { not: 'SUSPENDED' },
       // O'zini qidirishning ma'nosi yo'q: o'ziga xabar yozib bo'lmaydi.
-      id: { not: viewerId },
+      id: { notIn: [viewerId, ...hiddenIds] },
       profile: { isNot: null },
       OR: [
         { profile: { username: { contains: query, mode: 'insensitive' } } },
@@ -220,6 +247,21 @@ export async function followUser(followerId: string, username: string): Promise<
 
   if (targetId === followerId) {
     throw new ConflictError("O'zingizga obuna bo'lib bo'lmaydi.");
+  }
+
+  /**
+   * Blok bo'lsa obuna ham bo'lmaydi.
+   *
+   * ── Nima uchun IKKALA holatda ham "topilmadi" ────────────────────────
+   * Men bloklagan odamga obuna bo'lish mantiqsiz, u meni bloklagan
+   * bo'lsa esa uning profili menga umuman ko'rinmaydi. Ikkalasida ham
+   * javob bir xil bo'lishi kerak — aks holda javob farqi bloklanganlik
+   * haqida xabar berardi.
+   */
+  const block = await findBlock(followerId, targetId);
+
+  if (block.blockedByMe || block.blockedByThem) {
+    throw new NotFoundError('Profil');
   }
 
   try {

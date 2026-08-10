@@ -7,6 +7,7 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  ShieldOff,
   Smartphone,
   User,
   Receipt,
@@ -88,6 +89,12 @@ export const PROFILE_MENU: readonly ProfileMenuItem[] = [
   { href: '/notifications', label: 'Bildirishnomalar', description: 'Kelgan xabarlar', icon: Bell },
   { href: '/devices', label: 'Qurilmalarim', description: 'Tizimga kirgan qurilmalar', icon: Smartphone },
   { href: '/security', label: 'Xavfsizlik', description: 'Parol va himoya', icon: ShieldCheck },
+  {
+    href: '/profile/blocked',
+    label: 'Bloklanganlar',
+    description: 'Siz bloklagan foydalanuvchilar',
+    icon: ShieldOff,
+  },
   {
     href: '/profile/settings',
     label: 'Sozlamalar',

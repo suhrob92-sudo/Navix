@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { isOnline, isTyping, isViewing, markTyping } from '@/lib/presence';
 import { prisma } from '@/lib/prisma';
 import { listCallsForConversation } from '@/modules/call/call.service';
+import { requireCanMessage } from '@/modules/moderation/moderation.service';
 import { sendPush } from '@/modules/notification/push.service';
 import type { ServiceColor } from '@/config/modules';
 import type {
@@ -279,6 +280,15 @@ async function openDirectConversation(viewerId: string, username: string): Promi
     throw new ConflictError("O'zingizga xabar yozib bo'lmaydi.");
   }
 
+  /**
+   * Blok va maxfiylik SUHBAT OCHILISHIDAN OLDIN tekshiriladi.
+   *
+   * Aks holda begona odam suhbat yaratib qo'yardi va u qabul
+   * qiluvchining ro'yxatida bo'sh satr bo'lib turardi — xabar
+   * yozilmasa ham bezovta qiladi.
+   */
+  await requireCanMessage(viewerId, target.id);
+
   const pairKey = buildDirectKey(viewerId, target.id);
 
   const existing = await prisma.conversation.findUnique({ where: { pairKey }, select: { id: true } });
@@ -505,6 +515,17 @@ export async function sendMessage(conversationId: string, senderId: string, body
   const row = await requireMembership(conversationId, senderId);
 
   const otherId = peerUserId(row, senderId);
+
+  /**
+   * Blok HAR XABARDA tekshiriladi.
+   *
+   * Suhbat ochilganda tekshirish yetarli emas: odam allaqachon ochiq
+   * suhbatda o'tirgan bo'lishi va shundan keyin bloklanishi mumkin.
+   * O'sha ochiq oyna esa brauzerda soatlab turadi.
+   */
+  if (otherId) {
+    await requireCanMessage(senderId, otherId);
+  }
 
   /**
    * Qabul qiluvchi ilovada bo'lsa, xabar darhol "yetkazildi" deb

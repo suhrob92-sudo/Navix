@@ -5,6 +5,7 @@ import { isCallAlive, pushCallEvent, touchCallAlive } from '@/lib/call-signal';
 import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
+import { requireCanMessage } from '@/modules/moderation/moderation.service';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { sendPush } from '@/modules/notification/push.service';
 import type { CallSignalInput, StartCallInput } from '@/modules/call/call.schemas';
@@ -308,6 +309,15 @@ export async function startCall(callerId: string, input: StartCallInput): Promis
   if (!calleeId) {
     throw new NotFoundError('Suhbatdosh');
   }
+
+  /**
+   * Qo'ng'iroq ham "kim menga yoza oladi" qoidasiga bo'ysunadi.
+   *
+   * Suhbat eski bo'lishi mumkin: odamlar oldin yozishgan, keyin biri
+   * ikkinchisini bloklagan. Bloklangan odam esa telefonni
+   * chaldirmasligi kerak — bu xabardan ko'ra bezovta qiluvchi amal.
+   */
+  await requireCanMessage(callerId, calleeId);
 
   // Avval osilib qolganlarini yopamiz — aks holda "band" deb chiqardi.
   await expireStaleCalls([callerId, calleeId]);

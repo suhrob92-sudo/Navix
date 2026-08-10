@@ -279,6 +279,10 @@ model User {
   outgoingCalls     Call[]               @relation("CallCaller")
   incomingCalls     Call[]               @relation("CallCallee")
   pushSubscriptions PushSubscription[]
+  blocksMade        UserBlock[]          @relation("BlocksMade")
+  blocksReceived    UserBlock[]          @relation("BlocksReceived")
+  reportsMade       UserReport[]         @relation("ReportsMade")
+  reportsReceived   UserReport[]         @relation("ReportsReceived")
 
   @@index([status])
   @@index([createdAt])
@@ -2122,4 +2126,98 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+/// Shikoyat sababi.
+enum ReportReason {
+  /// Reklama va keraksiz xabarlar.
+  SPAM
+  /// Haqorat, tahdid, ta'qib.
+  HARASSMENT
+  /// Firibgarlik, pul so'rash.
+  FRAUD
+  /// Boshqa odam yoki tashkilot nomidan ish ko'rish.
+  IMPERSONATION
+  /// Ro'yxatga tushmagan holat.
+  OTHER
+}
+
+/// Shikoyat holati.
+enum ReportStatus {
+  /// Yangi — hali ko'rilmagan.
+  OPEN
+  /// Ko'rildi va chora ko'rildi.
+  REVIEWED
+  /// Ko'rildi, asos topilmadi.
+  DISMISSED
+}
+
+/// Bir foydalanuvchi boshqasini bloklagani.
+///
+/// ── Nima uchun kerak ──────────────────────────────────────────────────
+/// Chat va qo'ng'iroq hammaga ochiq. Bloklashsiz bezovta qiluvchi
+/// odamdan qutulishning yagona yo'li — ilovani tashlab ketish bo'lardi.
+///
+/// ── Nima uchun ikki tomonlama ishlaydi ────────────────────────────────
+/// Bloklash FAQAT "menga yozmasin" degani emas. Bloklangan odam:
+///  · xabar yoza olmaydi va qo'ng'iroq qila olmaydi;
+///  · qidiruvda meni topa olmaydi;
+///  · profilimni ocha olmaydi;
+///  · obuna bo'la olmaydi.
+///
+/// Aks holda u boshqa yo'l bilan baribir yetib kelardi.
+model UserBlock {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Kim bloklagan.
+  blockerId String @db.Uuid
+  /// Kim bloklangan.
+  blockedId String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  blocker User @relation("BlocksMade", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("BlocksReceived", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  /// Bir odamni ikki marta bloklab bo'lmaydi.
+  ///
+  /// Tugma ikki marta bosilsa yoki ikkita qurilmadan bosilsa, kodda
+  /// tekshiruv yetarli bo'lmasdi: o'qish va yozish orasida vaqt bor.
+  /// Yagona ishonchli to'siq — bazadagi shart.
+  @@unique([blockerId, blockedId])
+  /// "Meni kim bloklagan" so'rovi uchun.
+  @@index([blockedId])
+  @@map("user_blocks")
+}
+
+/// Foydalanuvchi ustidan shikoyat.
+///
+/// ── Nima uchun bloklashdan ALOHIDA ────────────────────────────────────
+/// Bloklash — SHAXSIY qaror: u faqat bloklagan odamga ta'sir qiladi.
+/// Shikoyat esa moderatorga murojaat: bir necha odam bir kishidan
+/// shikoyat qilsa, unga umumiy chora ko'riladi.
+///
+/// Ikkalasi bir joyda saqlansa, "bloklagan odam avtomatik shikoyat
+/// qilgan" bo'lib qolardi — bu esa noto'g'ri statistika beradi.
+model UserReport {
+  id String @id @default(uuid()) @db.Uuid
+
+  reporterId String @db.Uuid
+  targetId   String @db.Uuid
+
+  reason ReportReason
+  /// Qo'shimcha izoh — ixtiyoriy.
+  note   String?      @db.VarChar(500)
+
+  status     ReportStatus @default(OPEN)
+  createdAt  DateTime     @default(now())
+  reviewedAt DateTime?
+
+  reporter User @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
+  target   User @relation("ReportsReceived", fields: [targetId], references: [id], onDelete: Cascade)
+
+  /// Moderator ro'yxati uchun: yangi shikoyatlar birinchi.
+  @@index([status, createdAt])
+  @@index([targetId])
+  @@map("user_reports")
 }

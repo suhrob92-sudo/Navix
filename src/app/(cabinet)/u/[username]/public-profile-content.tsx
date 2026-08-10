@@ -1,20 +1,35 @@
 'use client';
 
-import { BadgeCheck, Globe, MapPin, MessageCircle, Phone, Settings2, UserPlus, Video } from 'lucide-react';
+import {
+  BadgeCheck,
+  Ban,
+  Flag,
+  Globe,
+  MapPin,
+  MessageCircle,
+  MoreHorizontal,
+  Phone,
+  Settings2,
+  UserPlus,
+  Video,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { ReportDialog } from '@/components/moderation/report-dialog';
 import { Alert } from '@/components/ui/alert';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzDate } from '@/lib/date';
 import { useCall } from '@/modules/call/call-provider';
 import type { CallKindName } from '@/modules/call/call.types';
+import type { BlockResponse, ReportReasonName } from '@/modules/moderation/moderation.types';
 import {
   formatCount,
   formatUsername,
@@ -47,6 +62,11 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
 
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isBlockOpen, setIsBlockOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportSent, setReportSent] = useState(false);
 
   const profile = data?.profile ?? null;
 
@@ -165,6 +185,71 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
     }
   }
 
+  /**
+   * Bloklaydi yoki blokdan chiqaradi.
+   *
+   * ── Nima uchun bloklashda OBUNA ham yo'qoladi ────────────────────────
+   * Server bloklashda ikki tomonlama obunani uzadi. Shuning uchun bu
+   * yerda `isFollowing` ham `false` ga o'tkaziladi — aks holda ekranda
+   * "Obunani bekor qilish" tugmasi qolib, haqiqatga to'g'ri kelmasdi.
+   */
+  async function toggleBlock() {
+    if (!profile) return;
+
+    const wasBlocked = profile.isBlocked;
+
+    setIsSaving(true);
+    setActionError(null);
+
+    try {
+      const result = await request<BlockResponse>(`/api/v1/users/${profile.username}/block`, {
+        method: wasBlocked ? 'DELETE' : 'POST',
+        ...(wasBlocked ? {} : { body: {} }),
+      });
+
+      setData((current) =>
+        current
+          ? {
+              profile: {
+                ...current.profile,
+                isBlocked: result.isBlocked,
+                ...(result.isBlocked ? { isFollowing: false } : {}),
+              },
+            }
+          : current!,
+      );
+
+      setIsBlockOpen(false);
+      setIsMenuOpen(false);
+    } catch (caught) {
+      setActionError(toUserMessage(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function sendReport(reason: ReportReasonName, note: string) {
+    if (!profile) return;
+
+    setIsSaving(true);
+    setActionError(null);
+
+    try {
+      await request(`/api/v1/users/${profile.username}/report`, {
+        method: 'POST',
+        body: { reason, ...(note ? { note } : {}) },
+      });
+
+      setIsReportOpen(false);
+      setIsMenuOpen(false);
+      setReportSent(true);
+    } catch (caught) {
+      setActionError(toUserMessage(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <>
       <AppHeader title="Profil" showBack backHref="/dashboard" />
@@ -185,9 +270,94 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
 
         {actionError && <Alert variant="error">{actionError}</Alert>}
 
+        {reportSent && (
+          <Alert variant="success" title="Shikoyat yuborildi">
+            Moderator uni ko&apos;rib chiqadi. Xohlasangiz bu odamni bloklab ham qo&apos;yishingiz mumkin.
+          </Alert>
+        )}
+
+        {profile?.isBlocked && (
+          <Alert variant="warning" title="Bu foydalanuvchi bloklangan">
+            U sizga yoza olmaydi va qo&apos;ng&apos;iroq qila olmaydi. Siz ham unga yoza olmaysiz.
+          </Alert>
+        )}
+
         {profile && (
           <>
-            <section className="bg-card border-border animate-fade-up rounded-2xl border p-5">
+            <section className="bg-card border-border animate-fade-up relative rounded-2xl border p-5">
+              {!profile.isOwn && (
+                <div className="absolute top-3 right-3 z-10">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Boshqa amallar"
+                    aria-expanded={isMenuOpen}
+                    onClick={() => setIsMenuOpen((current) => !current)}
+                  >
+                    <MoreHorizontal className="size-5" aria-hidden="true" />
+                  </Button>
+
+                  {isMenuOpen && (
+                    <>
+                      {/*
+                        Ko'rinmas "orqa fon": menyudan tashqariga bosilganda
+                        u yopiladi. Hujjatga hodisa tinglovchisi qo'shish
+                        ham mumkin edi, lekin u sahifadan chiqishda
+                        tozalanishi kerak va oson unutiladi.
+                      */}
+                      <button
+                        type="button"
+                        aria-label="Menyuni yopish"
+                        className="fixed inset-0 z-10 cursor-default"
+                        onClick={() => setIsMenuOpen(false)}
+                      />
+
+                      <div
+                        role="menu"
+                        /*
+                          Fon SHAFFOF emas: menyu avatar ustida ochiladi
+                          va shaffof fonda matn o'qib bo'lmasdi.
+                        */
+                        className="bg-card border-border animate-scale-in absolute top-full right-0 z-20 mt-1 w-56 overflow-hidden rounded-xl border p-1 shadow-xl"
+                      >
+                        <button
+                          type="button"
+                          role="menuitem"
+                          disabled={isSaving}
+                          className="hover:bg-secondary flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors disabled:opacity-60"
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            setIsReportOpen(true);
+                          }}
+                        >
+                          <Flag className="size-4 shrink-0" aria-hidden="true" />
+                          Shikoyat qilish
+                        </button>
+
+                        <button
+                          type="button"
+                          role="menuitem"
+                          disabled={isSaving}
+                          className="text-destructive hover:bg-destructive/10 flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors disabled:opacity-60"
+                          onClick={() => {
+                            if (profile.isBlocked) {
+                              void toggleBlock();
+                              return;
+                            }
+
+                            setIsMenuOpen(false);
+                            setIsBlockOpen(true);
+                          }}
+                        >
+                          <Ban className="size-4 shrink-0" aria-hidden="true" />
+                          {profile.isBlocked ? 'Blokdan chiqarish' : 'Bloklash'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-col items-center text-center">
                 <Avatar src={profile.avatarUrl} name={profile.fullName} size="xl" />
 
@@ -254,6 +424,17 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                       Profilni tahrirlash
                     </Link>
                   </Button>
+                ) : profile.isBlocked ? (
+                  /*
+                    Bloklangan odam bilan yagona mumkin amal — blokdan
+                    chiqarish. Xabar va qo'ng'iroq tugmalari qoldirilsa,
+                    ular bosilganda serverdan xato kelardi: ko'rinib
+                    turgan, lekin ishlamaydigan tugma.
+                  */
+                  <Button variant="outline" fullWidth isLoading={isSaving} onClick={() => void toggleBlock()}>
+                    <Ban className="size-4" aria-hidden="true" />
+                    Blokdan chiqarish
+                  </Button>
                 ) : (
                   <>
                     <Button
@@ -299,6 +480,26 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                 )}
               </div>
             </section>
+
+            <ConfirmDialog
+              open={isBlockOpen}
+              title="Bloklansinmi?"
+              description={`${profile.fullName ?? formatUsername(profile.username)} sizga xabar yoza olmaydi va qo'ng'iroq qila olmaydi. Ikkalangizning obunangiz ham bekor qilinadi. Buni istalgan vaqtda qaytarib olishingiz mumkin.`}
+              confirmLabel="Bloklash"
+              isDestructive
+              isLoading={isSaving}
+              onConfirm={() => void toggleBlock()}
+              onCancel={() => setIsBlockOpen(false)}
+            />
+
+            {isReportOpen && (
+              <ReportDialog
+                subject={profile.fullName ?? formatUsername(profile.username)}
+                isLoading={isSaving}
+                onSubmit={(reason, note) => void sendReport(reason, note)}
+                onCancel={() => setIsReportOpen(false)}
+              />
+            )}
           </>
         )}
       </div>

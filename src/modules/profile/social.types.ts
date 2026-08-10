@@ -36,6 +36,14 @@ export interface PublicProfile {
   isOwn: boolean;
   /** So'rov yuborgan odam bu profilga obunami. */
   isFollowing: boolean;
+  /**
+   * So'rov yuborgan odam bu profilni BLOKLAGANMI.
+   *
+   * Teskarisi (meni bloklagan) bu yerda YO'Q va bo'lmasligi ham
+   * kerak: uni javobga qo'shish bloklashni oshkor qilardi. Bloklagan
+   * odamning profili umuman ochilmaydi.
+   */
+  isBlocked: boolean;
 }
 
 export interface PublicProfileResponse {

@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   ArrowUpRight,
   ChevronRight,
+  Flag,
   Receipt,
   Users,
   Wallet,
@@ -17,9 +18,10 @@ import { ProviderIcon } from '@/components/payments/provider-icon';
 import { StatCard } from '@/components/admin/stat-card';
 import { Alert } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
-import { Permission } from '@/config/rbac';
+import { Permission, hasPermission } from '@/config/rbac';
 import { useApiQuery } from '@/hooks/use-api';
 import { formatTiyin } from '@/lib/money';
+import { useAuth } from '@/modules/auth/auth-context';
 import type { AdminStats } from '@/modules/admin/admin.types';
 import { RequireAdmin } from '@/modules/admin/require-admin';
 
@@ -42,6 +44,16 @@ export function AdminDashboardContent() {
 }
 
 function DashboardBody() {
+  /**
+   * Shikoyatlar havolasi FAQAT ruxsati borlarga ko'rinadi.
+   *
+   * Qo'llab-quvvatlash xodimida bu ruxsat yo'q. Havola unga ham
+   * ko'rinsa, u bosib "bo'lim yopiq" ekranini olardi — ishlamaydigan
+   * tugma esa har doim xatoga o'xshab ko'rinadi.
+   */
+  const { user } = useAuth();
+  const canSeeReports = hasPermission(user?.roles ?? [], Permission.PLATFORM_REPORT_MANAGE);
+
   /**
    * Har 60 soniyada yangilanadi: admin panel ochiq turganda raqamlar
    * "tirik" bo'lishi kerak, lekin tez-tez so'rash bazani ortiqcha
@@ -184,6 +196,21 @@ function DashboardBody() {
 
             <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
           </Link>
+
+          {canSeeReports && (
+            <Link href="/admin/reports" className="border-border/60 flex items-center gap-3 border-t p-4">
+              <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
+                <Flag className="size-4.5" aria-hidden="true" />
+              </span>
+
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">Shikoyatlar</span>
+                <span className="text-muted-foreground block text-xs">Foydalanuvchilar yuborgan shikoyatlar</span>
+              </span>
+
+              <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+            </Link>
+          )}
         </Card>
 
         {/* Eslatma: admin pulni qo'lda o'zgartira olmaydi */}
