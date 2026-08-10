@@ -33,6 +33,15 @@ export const AuditAction = {
    */
   USER_PASSWORD_RESET_REQUESTED: 'user.password.reset_requested',
   USER_PASSWORD_RESET_COMPLETED: 'user.password.reset_completed',
+  /**
+   * Parol TERMINALDAN o'rnatildi (`npm run password:set`).
+   *
+   * Oddiy tiklashdan ataylab AJRATILGAN: bu amalni faqat bazaga kira
+   * oladigan odam bajara oladi. Jurnalda ikkalasi bir xil ko'rinsa,
+   * keyin "bu SMS bilanmi yoki serverdanmi?" degan savolga javob
+   * topib bo'lmasdi.
+   */
+  USER_PASSWORD_SET_BY_CLI: 'user.password.set_by_cli',
   SESSION_REVOKED: 'session.revoked',
 
   // Moliyaviy amallar — nizo chiqqanda aynan shular tekshiriladi.
