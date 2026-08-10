@@ -198,9 +198,29 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
   const canCall = peer?.kind === 'DIRECT';
 
   return (
-    <div className="flex min-h-[100dvh] flex-col">
-      {/* Sarlavha */}
-      <header className="glass-chrome sticky top-0 z-30 border-b">
+    /*
+      Suhbat oynasi — BUTUN ekranni egallaydi.
+
+      ── Nima uchun `fixed`, oddiy sahifa emas ──────────────────────────
+      Avval sahifa odatdagidek surilardi va yozish maydoni "sticky"
+      bo'lgani uchun pastda turardi. Lekin sticky element faqat O'Z
+      konteyneri ko'rinib turganda yopishadi: xabarlar ko'payib,
+      sahifa surila boshlagach, yozish maydoni ekrandan chiqib ketardi.
+
+      To'g'ri yechim — chat oynasini alohida qilib qurish: sarlavha
+      tepada, yozish maydoni pastda QIMIRLAMAYDI, faqat o'rtadagi
+      xabarlar ro'yxati suriladi. Barcha chat ilovalari shunday
+      ishlaydi.
+
+      ── Nima uchun pastki menyu ustidan ────────────────────────────────
+      Suhbat ochilganda pastki menyu kerak emas: undan chiqish uchun
+      sarlavhadagi "orqaga" tugmasi bor. Ikkalasi birga tursa, tor
+      telefon ekranida ~64px bekorga ketardi va yozish maydoni yuqoriga
+      siqilardi.
+    */
+    <div className="bg-background fixed inset-0 z-50 flex flex-col">
+      {/* Sarlavha — qimirlamaydi */}
+      <header className="glass-chrome shrink-0 border-b">
         <div className="mx-auto flex h-14 max-w-lg items-center gap-3 px-2">
           <Link
             href="/messages"
@@ -274,8 +294,13 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
         </div>
       </header>
 
-      {/* Xabarlar */}
-      <div className="mx-auto w-full max-w-lg flex-1 px-4 py-4">
+      {/*
+        Xabarlar — FAQAT shu qism suriladi.
+
+        `min-h-0` shart: usiz flex bolasi o'z mazmuniga qarab cho'zilib,
+        surish ichkarida emas, butun oynada sodir bo'lardi.
+      */}
+      <div className="mx-auto min-h-0 w-full max-w-lg flex-1 overflow-y-auto px-4 py-4">
         {!thread && (
           <div className="space-y-3">
             <Skeleton className="h-10 w-2/3 rounded-2xl" />
@@ -328,10 +353,10 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Yozish maydoni */}
+      {/* Yozish maydoni — DOIM pastda, qimirlamaydi */}
       <form
         onSubmit={send}
-        className="glass-chrome sticky bottom-0 border-t"
+        className="glass-chrome shrink-0 border-t"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="mx-auto flex max-w-lg items-end gap-2 px-3 py-2.5">
