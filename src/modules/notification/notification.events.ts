@@ -161,6 +161,13 @@ export interface NotificationEventData {
     followerUsername: string;
   };
   'security.password_changed': { revokedSessions: number };
+  'call.missed': {
+    conversationId: string;
+    callerName: string;
+    /** Qabul qiluvchi o'zi rad etganmi. */
+    wasDeclined: boolean;
+    isVideo: boolean;
+  };
 }
 
 export type NotificationEventName = keyof NotificationEventData;
@@ -505,6 +512,24 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
         : "Parolingiz muvaffaqiyatli o'zgartirildi.",
     actionUrl: '/security',
     sourceModule: 'auth',
+  }),
+
+  /**
+   * Javobsiz qo'ng'iroq.
+   *
+   * ── Nima uchun aynan BU hodisa yoziladi ─────────────────────────────
+   * Har bir xabar uchun bildirishnoma yozilmaydi — ular suhbatlar
+   * ro'yxatida o'z joyida turadi. Javobsiz qo'ng'iroq esa boshqacha:
+   * u bir marta sodir bo'ladi va o'tib ketadi. Yozib qo'yilmasa, odam
+   * kim qo'ng'iroq qilganini umuman bilmay qolardi.
+   */
+  'call.missed': ({ conversationId, callerName, wasDeclined, isVideo }) => ({
+    title: wasDeclined ? "Qo'ng'iroq rad etildi" : "Javobsiz qo'ng'iroq",
+    body: wasDeclined
+      ? `${callerName} ning ${isVideo ? 'video ' : ''}qo'ng'irog'ini rad etdingiz.`
+      : `${callerName} sizga ${isVideo ? 'video ' : ''}qo'ng'iroq qildi.`,
+    actionUrl: `/messages/${conversationId}`,
+    sourceModule: 'call',
   }),
 };
 

@@ -2,9 +2,10 @@ import { ConversationKind, Prisma } from '@/generated/prisma/client';
 import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { logger } from '@/lib/logger';
-import { isOnline, isTyping, markTyping } from '@/lib/presence';
+import { isOnline, isTyping, isViewing, markTyping } from '@/lib/presence';
 import { prisma } from '@/lib/prisma';
 import { listCallsForConversation } from '@/modules/call/call.service';
+import { sendPush } from '@/modules/notification/push.service';
 import type { ServiceColor } from '@/config/modules';
 import type {
   ChatPeer,
@@ -549,7 +550,74 @@ export async function sendMessage(conversationId: string, senderId: string, body
 
   logger.info({ conversationId, senderId }, 'Xabar yuborildi');
 
+  /**
+   * Telefonga turtki (push).
+   *
+   * ── Nima uchun bildirishnoma YOZILMAYDI ─────────────────────────────
+   * Har bir xabar uchun bildirishnomalar ro'yxatiga yozuv qo'shilsa,
+   * ellik xabarli suhbat ellikta yozuv qoldirardi va ro'yxat
+   * ishlatib bo'lmas holga kelardi.
+   *
+   * Xabarlar allaqachon o'z joyida — suhbatlar ro'yxatida, o'qilmagan
+   * nishoni bilan. Push esa boshqa vazifani bajaradi: ilova YOPIQ
+   * bo'lganda xabar borligini bildirish.
+   *
+   * ── Nima uchun `void` ───────────────────────────────────────────────
+   * Push yuborilishini kutmaymiz: u tashqi xizmatga murojaat qiladi va
+   * bir necha yuz millisekund olishi mumkin. Xabar esa yuboruvchining
+   * ekranida DARHOL paydo bo'lishi kerak.
+   */
+  if (otherId) {
+    void notifyNewMessage(otherId, conversationId, senderId, body);
+  }
+
   return toMessageView(message, senderId, peerLastRead(row, senderId));
+}
+
+/**
+ * Yangi xabar haqida telefonga push yuboradi.
+ *
+ * Ochiq suhbatga yuborilmaydi: odam xabarni allaqachon ko'rib turibdi.
+ */
+async function notifyNewMessage(
+  recipientId: string,
+  conversationId: string,
+  senderId: string,
+  body: string,
+): Promise<void> {
+  try {
+    if (await isViewing(recipientId, conversationId)) return;
+
+    const sender = await prisma.user.findUnique({
+      where: { id: senderId },
+      select: { firstName: true, lastName: true, profile: { select: { username: true } } },
+    });
+
+    const name =
+      [sender?.firstName, sender?.lastName].filter(Boolean).join(' ') ||
+      (sender?.profile?.username ? `@${sender.profile.username}` : 'Foydalanuvchi');
+
+    await sendPush(recipientId, {
+      title: name,
+      /**
+       * Matn qisqartiriladi.
+       *
+       * Telefon ekranida uzun xabar baribir kesiladi, lekin uni to'liq
+       * yuborish har bir push'ni og'irlashtiradi.
+       */
+      body: body.length > 120 ? `${body.slice(0, 120)}…` : body,
+      url: `/messages/${conversationId}`,
+      /**
+       * Nishon SUHBAT bo'yicha: bir suhbatdan kelgan o'nta xabar
+       * ekranda o'nta bildirishnoma emas, bittasi bo'lib turadi.
+       */
+      tag: `chat-${conversationId}`,
+      // Xabar kechikib yetsa ham foydali — sutkagacha saqlanadi.
+      ttlSeconds: 60 * 60 * 24,
+    });
+  } catch (error) {
+    logger.warn({ err: error, recipientId }, "Xabar haqida push yuborib bo'lmadi");
+  }
 }
 
 /** Suhbatni o'qilgan deb belgilaydi. */

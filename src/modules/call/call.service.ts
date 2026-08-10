@@ -1,10 +1,12 @@
 import { CALL_ALIVE_TTL_SECONDS, MAX_CALL_SECONDS, RING_TIMEOUT_SECONDS, STUN_SERVERS } from '@/config/calls';
-import { CallStatus, ConversationKind, Prisma } from '@/generated/prisma/client';
+import { CallKind, CallStatus, ConversationKind, Prisma } from '@/generated/prisma/client';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/api/errors';
 import { isCallAlive, pushCallEvent, touchCallAlive } from '@/lib/call-signal';
 import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
+import { notifyUser } from '@/modules/notification/notification.service';
+import { sendPush } from '@/modules/notification/push.service';
 import type { CallSignalInput, StartCallInput } from '@/modules/call/call.schemas';
 import type { CallSignal, CallStatusName, CallView, IceServerConfig } from '@/modules/call/call.types';
 
@@ -216,6 +218,57 @@ function otherSide(row: CallRow, userId: string): string {
   return row.callerId === userId ? row.calleeId : row.callerId;
 }
 
+/** Chaqiruvchining ko'rinadigan ismi. */
+function callerName(row: CallRow): string {
+  const person = row.caller;
+  const fullName = [person.firstName, person.lastName].filter(Boolean).join(' ');
+
+  return fullName || (person.profile?.username ? `@${person.profile.username}` : 'Foydalanuvchi');
+}
+
+/** Kelayotgan qo'ng'iroq haqida telefonga turtki yuboradi. */
+async function notifyIncomingCall(row: CallRow): Promise<void> {
+  const isVideo = row.kind === CallKind.VIDEO;
+
+  await sendPush(row.calleeId, {
+    title: `${isVideo ? 'Video qo' : 'Qo'}'ng'iroq`,
+    body: `${callerName(row)} sizga qo'ng'iroq qilmoqda.`,
+    url: `/messages/${row.conversationId}`,
+    /**
+     * Nishon barcha qo'ng'iroqlar uchun BIR XIL.
+     *
+     * Odam ikki marta qo'ng'iroq qilsa, ekranda ikkita chaqiruv emas,
+     * bittasi — eng oxirgisi turadi.
+     */
+    tag: 'navix-call',
+    /**
+     * Muddat QISQA.
+     *
+     * Telefon o'chiq bo'lsa, push xizmati xabarni saqlab turadi.
+     * Lekin tugagan qo'ng'iroqning chaqirig'ini yarim soatdan keyin
+     * ko'rsatish faqat chalkashtiradi — odam qayta qo'ng'iroq qilib,
+     * hech kim kutmayotganini bilib qolardi.
+     */
+    ttlSeconds: RING_TIMEOUT_SECONDS,
+  });
+}
+
+/**
+ * Javobsiz qo'ng'iroq haqida yozib qo'yadi.
+ *
+ * Suhbat tarixida ham ko'rinadi, lekin bildirishnomalar ro'yxatida
+ * turishi ham kerak: odam suhbatni ochmasdan ham kim qo'ng'iroq
+ * qilganini bilishi shart.
+ */
+async function notifyMissedCall(row: CallRow, wasDeclined: boolean): Promise<void> {
+  await notifyUser(row.calleeId, 'call.missed', {
+    conversationId: row.conversationId,
+    callerName: callerName(row),
+    wasDeclined,
+    isVideo: row.kind === CallKind.VIDEO,
+  });
+}
+
 /** Ikkala tomonga ham holat o'zgarganini bildiradi. */
 async function broadcastState(row: CallRow): Promise<void> {
   await Promise.all([
@@ -306,6 +359,16 @@ export async function startCall(callerId: string, input: StartCallInput): Promis
    */
   await pushCallEvent(calleeId, { kind: 'ring', call: toCallView(row, calleeId) });
 
+  /**
+   * Telefonga turtki — ilova yopiq bo'lsa ham chaqiruv ko'rinsin.
+   *
+   * ── Nima uchun kutilmaydi ────────────────────────────────────────────
+   * Push tashqi xizmatga boradi va bir necha yuz millisekund olishi
+   * mumkin. Chaqiruvchi esa "chalinmoqda" ekranini DARHOL ko'rishi
+   * kerak.
+   */
+  void notifyIncomingCall(row);
+
   logger.info({ callId: row.id, callerId, calleeId, kind: input.kind }, "Qo'ng'iroq boshlandi");
 
   return toCallView(row, callerId);
@@ -386,6 +449,16 @@ export async function endCall(
   });
 
   await broadcastState(row);
+
+  /**
+   * Javob berilmagan qo'ng'iroq yozib qo'yiladi.
+   *
+   * "Tugadi" holatida yozilmaydi: gaplashilgan qo'ng'iroq haqida
+   * eslatishning ma'nosi yo'q, u allaqachon suhbat tarixida turibdi.
+   */
+  if (status === 'MISSED' || status === 'DECLINED') {
+    void notifyMissedCall(row, status === 'DECLINED');
+  }
 
   logger.info({ callId, status, durationSeconds }, "Qo'ng'iroq tugadi");
 

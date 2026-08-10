@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { AppError } from '@/lib/api/errors';
 import { requireAuth } from '@/modules/auth/auth.guard';
 import { logger } from '@/lib/logger';
-import { markOnline } from '@/lib/presence';
+import { markOnline, markViewing } from '@/lib/presence';
 import { getThread, markDelivered } from '@/modules/chat/chat.service';
 
 /**
@@ -106,9 +106,15 @@ export async function GET(request: NextRequest, context: RouteContext): Promise<
 
       try {
         while (Date.now() - startedAt < STREAM_LIFETIME_MS) {
-          // "Onlayn" belgisini yangilab turamiz.
           if (Date.now() - lastPresenceAt > PRESENCE_REFRESH_MS) {
-            await markOnline(auth.userId);
+            /**
+             * Ikki belgi birga yangilanadi: "onlaynman" va "shu
+             * suhbatni ochib turibman".
+             *
+             * Ikkinchisi push uchun kerak — ochiq suhbatga xabar
+             * kelganda telefonni bezovta qilishning ma'nosi yo'q.
+             */
+            await Promise.all([markOnline(auth.userId), markViewing(auth.userId, id)]);
             lastPresenceAt = Date.now();
           }
 

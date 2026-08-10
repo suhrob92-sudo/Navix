@@ -252,32 +252,33 @@ model User {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  profile         UserProfile?
-  roles           UserRoleAssignment[]
-  sessions        Session[]
-  wallet          Wallet?
-  addresses       Address[]
-  notifications   Notification[]
-  auditLogs       AuditLog[]
-  savedAccounts   SavedAccount[]
-  payments        ServicePayment[]
-  foodOrders      FoodOrder[]
-  restaurants     Restaurant[]
-  shops           Shop[]               @relation("ShopOwner")
-  marketOrders    MarketOrder[]
-  deliveries      Delivery[]           @relation("CourierDeliveries")
-  companies       Company[]            @relation("CompanyOwner")
-  applications    JobApplication[]
-  parcels         Parcel[]
-  bookings        HotelBooking[]
-  tickets         TripBooking[]
-  following       Follow[]             @relation("Following")
-  followers       Follow[]             @relation("Followers")
-  businessFollows BusinessFollow[]
-  chatMemberships ConversationMember[]
-  sentMessages    Message[]
-  outgoingCalls   Call[]               @relation("CallCaller")
-  incomingCalls   Call[]               @relation("CallCallee")
+  profile           UserProfile?
+  roles             UserRoleAssignment[]
+  sessions          Session[]
+  wallet            Wallet?
+  addresses         Address[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  savedAccounts     SavedAccount[]
+  payments          ServicePayment[]
+  foodOrders        FoodOrder[]
+  restaurants       Restaurant[]
+  shops             Shop[]               @relation("ShopOwner")
+  marketOrders      MarketOrder[]
+  deliveries        Delivery[]           @relation("CourierDeliveries")
+  companies         Company[]            @relation("CompanyOwner")
+  applications      JobApplication[]
+  parcels           Parcel[]
+  bookings          HotelBooking[]
+  tickets           TripBooking[]
+  following         Follow[]             @relation("Following")
+  followers         Follow[]             @relation("Followers")
+  businessFollows   BusinessFollow[]
+  chatMemberships   ConversationMember[]
+  sentMessages      Message[]
+  outgoingCalls     Call[]               @relation("CallCaller")
+  incomingCalls     Call[]               @relation("CallCallee")
+  pushSubscriptions PushSubscription[]
 
   @@index([status])
   @@index([createdAt])
@@ -2079,4 +2080,46 @@ model Call {
   @@index([calleeId, status])
   @@index([callerId, status])
   @@map("calls")
+}
+
+/// Brauzerga "turtki" (push) yuborish uchun obuna.
+///
+/// ── Nima uchun kerak ──────────────────────────────────────────────────
+/// Ilova ochiq bo'lganda xabar jonli ulanish orqali keladi. Lekin ilova
+/// YOPIQ bo'lsa hech narsa kelmaydi — odam xabarni ham, qo'ng'iroqni ham
+/// o'tkazib yuboradi.
+///
+/// Push esa brauzerning o'z xizmati orqali boradi: telefon ilovani
+/// ochmasdan ham xabarni ko'rsatadi.
+///
+/// ── Nima uchun qurilma emas, OBUNA ────────────────────────────────────
+/// Bitta odamda bir nechta qurilma va brauzer bo'lishi mumkin, har biri
+/// alohida obuna beradi. Shuning uchun bu jadval "qurilmalar" emas —
+/// aynan obunalar ro'yxati.
+model PushSubscription {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+
+  /// Brauzer bergan manzil — push aynan shu yerga yuboriladi.
+  ///
+  /// Yagona (`@unique`): bitta brauzer ikki marta obuna bo'lsa,
+  /// eskisi yangilanadi, ikkinchi nusxa paydo bo'lmaydi. Aks holda
+  /// bitta qurilmaga bir xil xabar ikki marta borardi.
+  endpoint String @unique @db.VarChar(500)
+
+  /// Shifrlash kalitlari — ularsiz xabar mazmunini yuborib bo'lmaydi.
+  p256dh String @db.VarChar(255)
+  auth   String @db.VarChar(255)
+
+  /// Qaysi qurilma ekanini odam taniy olishi uchun.
+  deviceLabel String @db.VarChar(100)
+
+  createdAt  DateTime  @default(now())
+  /// Oxirgi marta muvaffaqiyatli push yuborilgan payt.
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }

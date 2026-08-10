@@ -160,6 +160,12 @@ const SAMPLES = {
     followerUsername: 'bobur_k',
   },
   'security.password_changed': { revokedSessions: 3 },
+  'call.missed': {
+    conversationId: '7f3a1c2e-8b4d-4e6a-9c1f-2d5e8a7b3c94',
+    callerName: 'Bobur Karimov',
+    wasDeclined: false,
+    isVideo: false,
+  },
 } as const;
 
 const EVENTS = Object.keys(NOTIFICATION_TEMPLATES) as NotificationEventName[];
@@ -243,5 +249,49 @@ describe('bildirishnoma matnlari', () => {
 
     expect(withDevices.body).toContain('3');
     expect(withoutDevices.body).not.toContain('0 ta');
+  });
+});
+
+describe("javobsiz qo'ng'iroq matni", () => {
+  it('rad etilgan va javobsiz holat FARQLANADI', () => {
+    // Ikkalasi bir xil yozilsa, odam nima bo'lganini bilmay qolardi.
+    const missed = buildNotification('call.missed', {
+      conversationId: '7f3a1c2e-8b4d-4e6a-9c1f-2d5e8a7b3c94',
+      callerName: 'Bobur',
+      wasDeclined: false,
+      isVideo: false,
+    });
+
+    const declined = buildNotification('call.missed', {
+      conversationId: '7f3a1c2e-8b4d-4e6a-9c1f-2d5e8a7b3c94',
+      callerName: 'Bobur',
+      wasDeclined: true,
+      isVideo: false,
+    });
+
+    expect(missed.title).not.toBe(declined.title);
+    expect(missed.body).not.toBe(declined.body);
+  });
+
+  it("video qo'ng'iroq alohida aytiladi", () => {
+    const video = buildNotification('call.missed', {
+      conversationId: '7f3a1c2e-8b4d-4e6a-9c1f-2d5e8a7b3c94',
+      callerName: 'Bobur',
+      wasDeclined: false,
+      isVideo: true,
+    });
+
+    expect(video.body).toContain('video');
+  });
+
+  it('havola aynan SHU suhbatga olib boradi', () => {
+    const template = buildNotification('call.missed', {
+      conversationId: '7f3a1c2e-8b4d-4e6a-9c1f-2d5e8a7b3c94',
+      callerName: 'Bobur',
+      wasDeclined: false,
+      isVideo: false,
+    });
+
+    expect(template.actionUrl).toBe('/messages/7f3a1c2e-8b4d-4e6a-9c1f-2d5e8a7b3c94');
   });
 });

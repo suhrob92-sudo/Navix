@@ -66,6 +66,40 @@ export async function isOnline(userId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Foydalanuvchi hozir shu suhbatni ochib turganini belgilaydi.
+ *
+ * ── Nima uchun kerak ──────────────────────────────────────────────────
+ * Yangi xabar kelganda telefonga push yuboriladi. Lekin odam AYNAN
+ * shu suhbatni ochib o'tirgan bo'lsa, xabarni allaqachon ko'rib
+ * turibdi — unga push yuborish bezovta qilishdan boshqa narsa emas.
+ *
+ * Belgi qisqa yashaydi: suhbat yopilishi bilan o'zi so'nadi va
+ * "yopdim" degan alohida so'rov kerak bo'lmaydi.
+ */
+export async function markViewing(userId: string, conversationId: string): Promise<void> {
+  try {
+    await getRedis().set(cacheKey.viewing(userId), conversationId, 'EX', PRESENCE_TTL_SECONDS);
+  } catch (error) {
+    logger.warn({ err: error, userId }, "Ochiq suhbat belgisini yozib bo'lmadi");
+  }
+}
+
+/**
+ * Foydalanuvchi shu suhbatni ochib turibdimi.
+ *
+ * Redis ishlamasa "yo'q" deymiz: push kelib qolgani — xabar umuman
+ * kelmaganidan yaxshiroq.
+ */
+export async function isViewing(userId: string, conversationId: string): Promise<boolean> {
+  try {
+    return (await getRedis().get(cacheKey.viewing(userId))) === conversationId;
+  } catch (error) {
+    logger.warn({ err: error, userId }, "Ochiq suhbat belgisini o'qib bo'lmadi");
+    return false;
+  }
+}
+
 /** "Yozmoqda" belgisini qo'yadi. */
 export async function markTyping(conversationId: string, userId: string): Promise<void> {
   try {

@@ -57,6 +57,8 @@ export const cacheKey = {
   callInbox: (userId: string) => `navix:call:inbox:${userId}`,
   /** Qo'ng'iroq hali tirikmi (brauzer yopilib qolmadimi). */
   callAlive: (callId: string) => `navix:call:alive:${callId}`,
+  /** Foydalanuvchi hozir qaysi suhbatni ochib turgani. */
+  viewing: (userId: string) => `navix:viewing:${userId}`,
 } as const;
 
 /**

@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { PageIntro } from '@/components/app/page-intro';
+import { PushToggle } from '@/components/app/push-toggle';
 import { formatRelativeUz } from '@/lib/date';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -92,6 +93,16 @@ export function NotificationsContent() {
             ) : undefined
           }
         />
+
+        {/*
+          Push sozlamasi ro'yxatdan YUQORIDA.
+
+          Odam bu sahifaga aynan "xabarlarni ko'rish" uchun kiradi —
+          "telefonga ham kelsinmi?" savoli shu yerda o'z joyida.
+        */}
+        <div className="mb-4">
+          <PushToggle />
+        </div>
 
         {actionError && (
           <Alert variant="error" className="mb-4">

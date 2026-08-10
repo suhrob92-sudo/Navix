@@ -134,6 +134,37 @@ const serverSchema = z.object({
 
   /** TURN serveri paroli. */
   TURN_CREDENTIAL: z.string().min(1).optional(),
+
+  // --- Push bildirishnomalar ----------------------------------------------
+
+  /**
+   * VAPID kalitlari — push yuborish uchun "imzo".
+   *
+   * ── Nima uchun kerak ───────────────────────────────────────────────
+   * Push xabar brauzer ishlab chiqaruvchisining serveri (Google,
+   * Mozilla) orqali o'tadi. U serverga "bu xabarni haqiqatan Navix
+   * yubordi" deb isbotlash kerak — aks holda istalgan odam sizning
+   * foydalanuvchilaringizga xabar yuborardi.
+   *
+   * VAPID aynan shu isbot: ochiq kalit brauzerga beriladi, maxfiy
+   * kalit bilan har bir xabar imzolanadi.
+   *
+   * IXTIYORIY: berilmasa push umuman o'chadi va ilova bemalol
+   * ishlayveradi — faqat ilova yopiq bo'lganda xabar kelmaydi.
+   *
+   * Kalit juftini yaratish:  npm run push:keys
+   */
+  VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+  VAPID_PRIVATE_KEY: z.string().min(1).optional(),
+
+  /**
+   * Push xizmatiga ko'rsatiladigan aloqa manzili.
+   *
+   * Xabar yuborishda muammo chiqsa, brauzer ishlab chiqaruvchisi shu
+   * manzilga murojaat qiladi. `mailto:` yoki sayt manzili bo'lishi
+   * kerak.
+   */
+  VAPID_SUBJECT: z.string().min(1).default('mailto:support@navix.uz'),
 });
 
 /**
@@ -165,6 +196,20 @@ const refinedServerSchema = serverSchema.superRefine((env, ctx) => {
         message: 'TURN_URL berilganda TURN_CREDENTIAL majburiy',
       });
     }
+  }
+
+  /**
+   * VAPID kalitlari — ikkalasi birga yoki umuman yo'q.
+   *
+   * Bittasi berilib, ikkinchisi unutilsa, push jimgina ishlamay
+   * qolardi va sababini topish qiyin bo'lardi.
+   */
+  if (Boolean(env.VAPID_PUBLIC_KEY) !== Boolean(env.VAPID_PRIVATE_KEY)) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['VAPID_PRIVATE_KEY'],
+      message: "VAPID kalitlari IKKALASI birga berilishi kerak (yoki ikkalasi ham bo'lmasin)",
+    });
   }
 
   if (env.SMS_PROVIDER !== 'eskiz') return;
