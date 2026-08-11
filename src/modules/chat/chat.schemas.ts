@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { paginationQuerySchema } from '@/lib/api/pagination';
 import { usernameParamSchema } from '@/modules/profile/social.schemas';
-import { isOwnImageUrl } from '@/modules/upload/upload.types';
+import { isOwnImageUrl, MAX_VOICE_SECONDS } from '@/modules/upload/upload.types';
 
 /**
  * Chat moduli uchun validatsiya.
@@ -74,10 +74,35 @@ export const sendMessageSchema = z
       .max(500)
       .refine(isOwnImageUrl, "Rasm manzili noto'g'ri. Rasmni qaytadan yuklang.")
       .optional(),
+    /** Ovozli xabar — rasm bilan bir xil qoidaga bo'ysunadi. */
+    voiceUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .refine(isOwnImageUrl, "Ovoz manzili noto'g'ri. Qaytadan yozib ko'ring.")
+      .optional(),
+    /**
+     * Ovoz davomiyligi (soniya).
+     *
+     * Brauzer o'lchaydi, ya'ni unga to'liq ishonib bo'lmaydi. Lekin
+     * yolg'on qiymatning zarari yo'q: u faqat ekranda ko'rsatiladi.
+     * Chegara esa mantiqsiz qiymatning oldini oladi.
+     */
+    voiceSeconds: z.coerce.number().int().min(1).max(MAX_VOICE_SECONDS).optional(),
   })
   .refine(
-    (value) => value.body.length > 0 || Boolean(value.imageUrl),
-    "Xabar bo'sh: matn yozing yoki rasm biriktiring.",
+    (value) => value.body.length > 0 || Boolean(value.imageUrl) || Boolean(value.voiceUrl),
+    "Xabar bo'sh: matn yozing, rasm yoki ovoz biriktiring.",
+  )
+  /**
+   * Ovoz va davomiyligi BIRGA keladi.
+   *
+   * Davomiyliksiz ovozli xabar ekranda "0:00" bo'lib turardi va odam
+   * uni buzilgan deb o'ylardi. Baza ham shu shartni tekshiradi.
+   */
+  .refine(
+    (value) => Boolean(value.voiceUrl) === (value.voiceSeconds !== undefined),
+    'Ovozli xabar davomiyligi berilmagan.',
   );
 
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;

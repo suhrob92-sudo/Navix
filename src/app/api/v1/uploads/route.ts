@@ -5,7 +5,7 @@ import { withApiHandler } from '@/lib/api/handler';
 import { apiSuccess } from '@/lib/api/response';
 import { enforcePublicRateLimit } from '@/lib/rate-limit';
 import { requireAuth } from '@/modules/auth/auth.guard';
-import { uploadImage } from '@/modules/upload/upload.service';
+import { uploadFile } from '@/modules/upload/upload.service';
 import { MAX_UPLOAD_BYTES, type UploadPurpose, type UploadResponse } from '@/modules/upload/upload.types';
 
 /**
@@ -18,7 +18,7 @@ import { MAX_UPLOAD_BYTES, type UploadPurpose, type UploadResponse } from '@/mod
  */
 export const dynamic = 'force-dynamic';
 
-const PURPOSES: readonly UploadPurpose[] = ['AVATAR', 'POST', 'CHAT'];
+const PURPOSES: readonly UploadPurpose[] = ['AVATAR', 'POST', 'CHAT', 'VOICE'];
 
 export const POST = withApiHandler(async (request: NextRequest, { requestId }) => {
   const auth = await requireAuth(request);
@@ -52,7 +52,7 @@ export const POST = withApiHandler(async (request: NextRequest, { requestId }) =
 
   const data = Buffer.from(await file.arrayBuffer());
 
-  const stored = await uploadImage(auth.userId, purpose, data);
+  const stored = await uploadFile(auth.userId, purpose, data);
 
   return apiSuccess<UploadResponse>(stored, { requestId, status: 201 });
 });

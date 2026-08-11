@@ -4,6 +4,7 @@
 import {
   ArrowLeft,
   BadgeCheck,
+  Mic,
   Phone,
   PhoneIncoming,
   PhoneMissed,
@@ -13,17 +14,20 @@ import {
   Video,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
 
 import { ServiceIcon } from '@/components/app/service-icon';
 import { Alert } from '@/components/ui/alert';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { VoicePlayer } from '@/components/chat/voice-player';
+import { VoiceRecorderBar } from '@/components/chat/voice-recorder-bar';
 import { ImageAttach } from '@/components/upload/image-attach';
 import { useApiClient } from '@/hooks/use-api';
 import { useChatStream } from '@/hooks/use-chat-stream';
-import { useImageUpload } from '@/hooks/use-image-upload';
+import { useFileUpload } from '@/hooks/use-file-upload';
+import { useVoiceRecorder, isVoiceRecordingSupported } from '@/hooks/use-voice-recorder';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzTime } from '@/lib/date';
 import { cn } from '@/lib/utils';
@@ -66,7 +70,9 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const image = useImageUpload('CHAT');
+  const image = useFileUpload('CHAT');
+  const voiceUpload = useFileUpload('VOICE');
+  const recorder = useVoiceRecorder();
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastTypingAt = useRef(0);
@@ -152,6 +158,59 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
     if (url) setImageUrl(url);
   }
 
+  /**
+   * Yozib olingan ovozni yuboradi.
+   *
+   * ── Nima uchun vaqtinchalik xabar YO'Q ───────────────────────────────
+   * Matn va rasmda nusxa darhol ekranda paydo bo'ladi. Ovozda esa
+   * fayl avval yuklanishi kerak va bu bir necha soniya olishi mumkin.
+   * Nusxa qo'yilsa, u tinglab bo'lmaydigan holatda turardi — bu esa
+   * "buzilgan" degan taassurot berardi.
+   *
+   * Shuning uchun tugma "yuborilmoqda" holatiga o'tadi va xabar
+   * tayyor bo'lgach paydo bo'ladi.
+   */
+  async function sendVoice(): Promise<void> {
+    if (isSending) return;
+
+    setIsSending(true);
+    setError(null);
+
+    try {
+      const recording = await recorder.stop();
+
+      if (!recording) {
+        setError("Ovoz yozilmadi. Qaytadan urinib ko'ring.");
+
+        return;
+      }
+
+      /**
+       * `Blob` dan `File` yasaymiz: yuklash maydoni nom kutadi.
+       * Nom faqat kengaytma uchun kerak — serverda u ishlatilmaydi.
+       */
+      const extension = recording.blob.type.includes('mp4') ? 'm4a' : 'webm';
+      const file = new File([recording.blob], `ovoz.${extension}`, { type: recording.blob.type });
+
+      const url = await voiceUpload.upload(file);
+
+      if (!url) {
+        setError(voiceUpload.error ?? "Ovozni yuklab bo'lmadi.");
+
+        return;
+      }
+
+      await request<SendMessageResponse>(`/api/v1/chat/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        body: { body: '', voiceUrl: url, voiceSeconds: recording.seconds },
+      });
+    } catch (caught) {
+      setError(toUserMessage(caught));
+    } finally {
+      setIsSending(false);
+    }
+  }
+
   async function send(event: FormEvent): Promise<void> {
     event.preventDefault();
 
@@ -176,6 +235,8 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
       id: `pending-${Date.now()}`,
       body,
       imageUrl: attached,
+      voiceUrl: null,
+      voiceSeconds: null,
       isMine: true,
       createdAt: new Date().toISOString(),
       status: 'SENT',
@@ -208,6 +269,27 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
       setIsSending(false);
     }
   }
+
+  /**
+   * Brauzer ovoz yozishni qo'llab-quvvatlaydimi.
+   *
+   * ── Nima uchun `useSyncExternalStore` ───────────────────────────────
+   * Tekshiruv `window` va `MediaRecorder` ga qaraydi — ular serverda
+   * yo'q. To'g'ridan-to'g'ri hisoblansa, server "yo'q" deb chizardi,
+   * brauzer esa "bor" deb, va React bu farqni xato deb hisoblardi
+   * (hydration mismatch).
+   *
+   * Bu hook aynan shu holat uchun: u serverga va brauzerga ALOHIDA
+   * javob berish imkonini beradi. Effekt ichida holat o'zgartirish
+   * ham mumkin edi, lekin u ortiqcha qayta chizishga olib keladi va
+   * React uni ataylab man qiladi.
+   */
+  const canRecord = useSyncExternalStore(
+    // Qiymat hech qachon o'zgarmaydi — obuna bo'sh.
+    () => () => undefined,
+    isVoiceRecordingSupported,
+    () => false,
+  );
 
   const peer = thread?.peer ?? null;
 
@@ -377,44 +459,79 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="mx-auto flex max-w-lg items-end gap-2 px-3 py-2.5">
-          <ImageAttach
-            value={imageUrl}
-            isUploading={image.isUploading}
-            disabled={isSending}
-            onSelect={(file) => void attachImage(file)}
-            onRemove={() => setImageUrl(null)}
-            className="shrink-0"
-          />
+          {recorder.isRecording ? (
+            <VoiceRecorderBar
+              seconds={recorder.seconds}
+              isSending={isSending}
+              onCancel={recorder.cancel}
+              onSend={() => void sendVoice()}
+            />
+          ) : (
+            <>
+              <ImageAttach
+                value={imageUrl}
+                isUploading={image.isUploading}
+                disabled={isSending}
+                onSelect={(file) => void attachImage(file)}
+                onRemove={() => setImageUrl(null)}
+                className="shrink-0"
+              />
 
-          <textarea
-            value={draft}
-            onChange={(event) => handleDraftChange(event.target.value)}
-            onKeyDown={(event) => {
-              // Telefonda Enter yangi qator, kompyuterda yuborish.
-              if (event.key === 'Enter' && !event.shiftKey && window.innerWidth >= 640) {
-                void send(event);
-              }
-            }}
-            placeholder="Xabar yozing..."
-            aria-label="Xabar matni"
-            rows={1}
-            className="bg-card/60 border-border focus-visible:ring-ring max-h-32 min-h-11 flex-1 resize-none rounded-2xl border px-4 py-2.5 text-base outline-none focus-visible:ring-2"
-          />
+              <textarea
+                value={draft}
+                onChange={(event) => handleDraftChange(event.target.value)}
+                onKeyDown={(event) => {
+                  // Telefonda Enter yangi qator, kompyuterda yuborish.
+                  if (event.key === 'Enter' && !event.shiftKey && window.innerWidth >= 640) {
+                    void send(event);
+                  }
+                }}
+                placeholder="Xabar yozing..."
+                aria-label="Xabar matni"
+                rows={1}
+                className="bg-card/60 border-border focus-visible:ring-ring max-h-32 min-h-11 flex-1 resize-none rounded-2xl border px-4 py-2.5 text-base outline-none focus-visible:ring-2"
+              />
 
-          <Button
-            type="submit"
-            size="icon"
-            disabled={(!draft.trim() && !imageUrl) || isSending || image.isUploading}
-            aria-label="Yuborish"
-            className="shrink-0 rounded-full"
-          >
-            <SendHorizontal className="size-5" aria-hidden="true" />
-          </Button>
+              {/*
+            Matn bo'sh bo'lsa MIKROFON, aks holda YUBORISH ko'rinadi.
+
+            ── Nima uchun ikkalasi bir joyda ──────────────────────────
+            Telefon ekranida joy kam. Ikkala tugma yonma-yon tursa,
+            ular kichrayadi va noto'g'ri bosish osonlashadi.
+
+            Bu yechim barcha mashhur chat ilovalarida qo'llaniladi va
+            odamlarga tanish.
+          */}
+              {canRecord && !draft.trim() && !imageUrl ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  disabled={isSending}
+                  onClick={() => void recorder.start()}
+                  aria-label="Ovozli xabar yozish"
+                  className="text-muted-foreground hover:text-foreground shrink-0 rounded-full"
+                >
+                  <Mic className="size-5" aria-hidden="true" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={(!draft.trim() && !imageUrl) || isSending || image.isUploading}
+                  aria-label="Yuborish"
+                  className="shrink-0 rounded-full"
+                >
+                  <SendHorizontal className="size-5" aria-hidden="true" />
+                </Button>
+              )}
+            </>
+          )}
         </div>
 
-        {image.error && (
+        {(image.error || recorder.error || voiceUpload.error) && (
           <p className="text-destructive px-4 pb-2 text-xs" role="alert">
-            {image.error}
+            {image.error ?? recorder.error ?? voiceUpload.error}
           </p>
         )}
 
@@ -462,6 +579,10 @@ function MessageBubble({ message }: { message: MessageView }) {
             : 'bg-secondary text-secondary-foreground rounded-bl-md',
         )}
       >
+        {message.voiceUrl && message.voiceSeconds !== null && (
+          <VoicePlayer url={message.voiceUrl} seconds={message.voiceSeconds} isMine={message.isMine} />
+        )}
+
         {message.imageUrl && (
           /*
             Rasm puffak ichida — matn bilan bir xil kenglikda. Balandligi

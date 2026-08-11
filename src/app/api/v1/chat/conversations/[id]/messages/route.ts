@@ -27,7 +27,12 @@ export const POST = withApiHandler<Params>(async (request: NextRequest, { reques
 
   await enforcePublicRateLimit('chatSend', auth.userId, 'Juda tez yozyapsiz. Biroz sekinlashtiring.');
 
-  const message = await sendMessage(id, auth.userId, input.body, input.imageUrl ?? null);
+  const message = await sendMessage(id, auth.userId, {
+    body: input.body,
+    imageUrl: input.imageUrl ?? null,
+    voiceUrl: input.voiceUrl ?? null,
+    voiceSeconds: input.voiceSeconds ?? null,
+  });
 
   return apiSuccess({ message }, { requestId, status: 201 });
 });

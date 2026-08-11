@@ -7,7 +7,7 @@ import { ImageAttach } from '@/components/upload/image-attach';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { useImageUpload } from '@/hooks/use-image-upload';
+import { useFileUpload } from '@/hooks/use-file-upload';
 import { cn } from '@/lib/utils';
 import { POST_MAX_LENGTH } from '@/modules/feed/feed.types';
 
@@ -32,7 +32,7 @@ export function PostComposer({ isSending, onSubmit }: PostComposerProps) {
   const [body, setBody] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-  const image = useImageUpload('POST');
+  const image = useFileUpload('POST');
 
   const trimmed = body.trim();
   /**

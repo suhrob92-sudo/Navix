@@ -26,11 +26,19 @@ export const dynamic = 'force-dynamic';
 
 type Params = { key: string[] };
 
-/** Kengaytmadan turni aniqlaydi — brauzer rasmni shunga qarab chizadi. */
+/** Kengaytmadan turni aniqlaydi — brauzer faylni shunga qarab ochadi. */
 function contentTypeFor(key: string): string {
   if (key.endsWith('.png')) return 'image/png';
   if (key.endsWith('.webp')) return 'image/webp';
   if (key.endsWith('.gif')) return 'image/gif';
+
+  /*
+    Ovoz turlari: brauzer `<audio>` elementini aynan shu sarlavhaga
+    qarab ochadi. Noto'g'ri tur berilsa, ovoz umuman ijro etilmasdi.
+  */
+  if (key.endsWith('.webm')) return 'audio/webm';
+  if (key.endsWith('.m4a')) return 'audio/mp4';
+  if (key.endsWith('.ogg')) return 'audio/ogg';
 
   return 'image/jpeg';
 }

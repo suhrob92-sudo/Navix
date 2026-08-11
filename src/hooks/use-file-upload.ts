@@ -15,17 +15,18 @@ import {
 } from '@/modules/upload/upload.types';
 
 /**
- * Rasm yuklash — tanlashdan manzilgacha.
+ * Fayl yuklash — tanlashdan manzilgacha.
  *
  * ── Nima uchun alohida hook ───────────────────────────────────────────
- * Rasm UCH joyda yuklanadi: post, chat va avatar. Uchalasida ham
- * ketma-ketlik bir xil: tekshir → kichraytir → yubor → manzilni ol.
+ * Fayl TO'RT joyda yuklanadi: post, chat, avatar va ovozli xabar.
+ * Hammasida ketma-ketlik bir xil: tekshir → tayyorla → yubor →
+ * manzilni ol.
  *
  * Bu ketma-ketlik har joyda qayta yozilsa, ertaga kichraytirish
- * o'lchami o'zgarganda uchta joyni tahrirlash kerak bo'lardi va
+ * o'lchami o'zgarganda to'rtta joyni tahrirlash kerak bo'lardi va
  * bittasi albatta unutilardi.
  */
-export interface ImageUploadState {
+export interface FileUploadState {
   isUploading: boolean;
   error: string | null;
   clearError: () => void;
@@ -33,7 +34,7 @@ export interface ImageUploadState {
   upload: (file: File) => Promise<string | null>;
 }
 
-export function useImageUpload(purpose: UploadPurpose): ImageUploadState {
+export function useFileUpload(purpose: UploadPurpose): FileUploadState {
   const request = useApiClient();
 
   const [isUploading, setIsUploading] = useState(false);
@@ -43,6 +44,8 @@ export function useImageUpload(purpose: UploadPurpose): ImageUploadState {
     async (file: File): Promise<string | null> => {
       setError(null);
 
+      const isVoice = purpose === 'VOICE';
+
       /**
        * Tur BRAUZERDA ham tekshiriladi.
        *
@@ -50,7 +53,7 @@ export function useImageUpload(purpose: UploadPurpose): ImageUploadState {
        * aniqlaydi), balki QULAYLIK: noto'g'ri fayl tanlagan odam
        * javobni yuklashdan oldin, darhol ko'radi.
        */
-      if (!file.type.startsWith('image/')) {
+      if (!isVoice && !file.type.startsWith('image/')) {
         setError('Faqat rasm tanlang.');
 
         return null;
@@ -59,18 +62,25 @@ export function useImageUpload(purpose: UploadPurpose): ImageUploadState {
       setIsUploading(true);
 
       try {
+        /**
+         * Ovoz KICHRAYTIRILMAYDI.
+         *
+         * Kichraytirish rasm uchun yozilgan (canvas orqali). Ovoz
+         * allaqachon past tezlikda yozilgan — ikki daqiqalik xabar
+         * ~350 KB.
+         */
         const maxDimension = purpose === 'AVATAR' ? AVATAR_MAX_DIMENSION : IMAGE_MAX_DIMENSION;
-        const prepared = await resizeImage(file, maxDimension);
+        const prepared = isVoice ? file : await resizeImage(file, maxDimension);
 
         if (prepared.size > MAX_UPLOAD_BYTES) {
-          setError(`Rasm juda katta (${formatFileSize(prepared.size)}).`);
+          setError(`Fayl juda katta (${formatFileSize(prepared.size)}).`);
 
           return null;
         }
 
         const form = new FormData();
         form.append('purpose', purpose);
-        form.append('file', prepared, file.name || 'rasm');
+        form.append('file', prepared, file.name || 'fayl');
 
         /**
          * `Content-Type` QO'LDA qo'yilmaydi.

@@ -1992,6 +1992,18 @@ model Message {
   /// Biriktirilgan rasm manzili.
   imageUrl String? @db.VarChar(500)
 
+  /// Ovozli xabar manzili.
+  voiceUrl String? @db.VarChar(500)
+
+  /// Ovozli xabar davomiyligi (soniya).
+  ///
+  /// ── Nima uchun SAQLANADI ────────────────────────────────────────────
+  /// Davomiylikni fayldan ham o'qish mumkin edi, lekin buning uchun
+  /// brauzer butun faylni yuklab olishi kerak bo'lardi. Ro'yxatda esa
+  /// o'nlab ovozli xabar bo'lishi mumkin — ya'ni odam hech birini
+  /// tinglamasa ham hammasi yuklanardi.
+  voiceSeconds Int?
+
   /// Qabul qiluvchining qurilmasiga yetib borgan payt.
   ///
   /// ── Nima uchun alohida ustun ───────────────────────────────────────

@@ -1,5 +1,5 @@
 /**
- * Rasm yuklash — brauzer va server uchun umumiy turlar.
+ * Fayl yuklash — brauzer va server uchun umumiy turlar.
  */
 
 /**
@@ -11,12 +11,45 @@
  * "chatdagi rasmlarni tozalash" kabi ish faqat maqsad ma'lum bo'lganda
  * bajarilishi mumkin.
  */
-export type UploadPurpose = 'AVATAR' | 'POST' | 'CHAT';
+export type UploadPurpose = 'AVATAR' | 'POST' | 'CHAT' | 'VOICE';
 
 /** Qabul qilinadigan rasm turlari. */
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
 
 export type AllowedImageType = (typeof ALLOWED_IMAGE_TYPES)[number];
+
+/**
+ * Qabul qilinadigan ovoz turlari.
+ *
+ * ── Nima uchun aynan shular ──────────────────────────────────────────
+ * Brauzer ovozni O'ZI tanlagan formatda yozadi va tanlov qurilmaga
+ * bog'liq:
+ *  · Android va kompyuterdagi Chrome → WebM (Opus kodeki);
+ *  · iPhone va Safari → MP4 (AAC kodeki).
+ *
+ * Ikkalasi ham qabul qilinadi, aks holda iPhone egalari ovozli xabar
+ * yubora olmasdi.
+ */
+export const ALLOWED_AUDIO_TYPES = ['audio/webm', 'audio/mp4', 'audio/ogg'] as const;
+
+export type AllowedAudioType = (typeof ALLOWED_AUDIO_TYPES)[number];
+
+export type AllowedUploadType = AllowedImageType | AllowedAudioType;
+
+/**
+ * Ovozli xabarning eng uzun davomiyligi — 2 daqiqa.
+ *
+ * ── Nima uchun cheklov ───────────────────────────────────────────────
+ * Uzun ovozli xabar suhbatdosh uchun yuk: uni tinglash uchun vaqt
+ * ajratish kerak va tez ko'z yugurtirib bo'lmaydi.
+ *
+ * Ikki daqiqa — fikrni aytishga yetadi. Undan uzunini yozmoqchi bo'lgan
+ * odam odatda qo'ng'iroq qilgani ma'qul.
+ */
+export const MAX_VOICE_SECONDS = 120;
+
+/** Ovozli xabar shu tezlikda yoziladi (bit/soniya). */
+export const VOICE_BITRATE = 24_000;
 
 /**
  * Eng katta hajm — 5 MB.
@@ -63,13 +96,6 @@ export function formatFileSize(bytes: number): string {
   return `${Number.isInteger(megabytes) ? megabytes : megabytes.toFixed(1)} MB`;
 }
 
-/**
- * Rasm turiga mos fayl kengaytmasi.
- *
- * Kengaytma kerak: brauzer va CDN fayl turini ko'pincha aynan shundan
- * aniqlaydi. Kengaytmasiz rasm yuklab olinganda "nomsiz fayl" bo'lib
- * tushardi.
- */
 /**
  * Manzildan ichki kalitni ajratadi.
  *
@@ -123,10 +149,36 @@ export function isOwnImageUrl(url: string): boolean {
   return keyFromUrl(url) !== null;
 }
 
-export function extensionFor(type: AllowedImageType): string {
+/**
+ * Fayl turiga mos kengaytma.
+ *
+ * Kengaytma kerak: brauzer va CDN fayl turini ko'pincha aynan shundan
+ * aniqlaydi. Kengaytmasiz fayl yuklab olinganda "nomsiz fayl" bo'lib
+ * tushardi.
+ */
+export function extensionFor(type: AllowedUploadType): string {
   if (type === 'image/png') return 'png';
   if (type === 'image/webp') return 'webp';
   if (type === 'image/gif') return 'gif';
+  if (type === 'audio/webm') return 'webm';
+  if (type === 'audio/mp4') return 'm4a';
+  if (type === 'audio/ogg') return 'ogg';
 
   return 'jpg';
+}
+
+/**
+ * Davomiylikni odam tiliga o'giradi: 95 → "1:35".
+ *
+ * ── Nima uchun `Intl` EMAS ───────────────────────────────────────────
+ * Loyihadagi barcha formatlash qo'lda: `Intl` server va brauzerda
+ * boshqacha natija berib, React "hydration mismatch" xatosini
+ * chiqarardi.
+ */
+export function formatDuration(seconds: number): string {
+  const safe = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(safe / 60);
+  const rest = safe % 60;
+
+  return `${minutes}:${String(rest).padStart(2, '0')}`;
 }

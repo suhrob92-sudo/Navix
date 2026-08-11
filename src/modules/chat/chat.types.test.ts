@@ -5,6 +5,7 @@ import {
   CHAT_FILTERS,
   formatLastMessage,
   formatUnread,
+  messageKindText,
   peerStatusText,
   statusMark,
   type ConversationListItem,
@@ -22,6 +23,7 @@ const BASE: ConversationListItem = {
     profileUrl: '/u/aziz',
   },
   lastMessage: 'Salom!',
+  lastMessageKind: 'TEXT',
   lastMessageIsMine: false,
   lastMessageAt: '2026-08-09T10:00:00.000Z',
   unreadCount: 0,
@@ -182,6 +184,7 @@ describe('formatLastMessage — rasmli xabar', () => {
         profileUrl: '/u/bobur_k',
       },
       lastMessage: null,
+      lastMessageKind: 'TEXT',
       lastMessageIsMine: false,
       lastMessageAt: '2026-08-11T03:00:00.000Z',
       unreadCount: 0,
@@ -191,11 +194,17 @@ describe('formatLastMessage — rasmli xabar', () => {
 
   it("matnsiz rasm uchun maxsus matn ko'rsatiladi", () => {
     // Aks holda ro'yxatda bo'sh qator turardi.
-    expect(formatLastMessage(item({ lastMessage: '' }))).toBe('Rasm');
+    expect(formatLastMessage(item({ lastMessage: '', lastMessageKind: 'IMAGE' }))).toBe('Rasm');
   });
 
   it("o'z rasmim ham belgilanadi", () => {
-    expect(formatLastMessage(item({ lastMessage: '', lastMessageIsMine: true }))).toBe('Siz: Rasm');
+    expect(formatLastMessage(item({ lastMessage: '', lastMessageKind: 'IMAGE', lastMessageIsMine: true }))).toBe(
+      'Siz: Rasm',
+    );
+  });
+
+  it('ovozli xabar ham nomlanadi', () => {
+    expect(formatLastMessage(item({ lastMessage: '', lastMessageKind: 'VOICE' }))).toBe('Ovozli xabar');
   });
 
   it("xabar umuman yo'q holati farqlanadi", () => {
@@ -217,5 +226,44 @@ describe('sendMessageSchema — rasm bilan', () => {
 
   it('BEGONA rasm manzili rad etiladi', () => {
     expect(sendMessageSchema.safeParse({ imageUrl: 'https://tracker.example.com/p.gif' }).success).toBe(false);
+  });
+});
+
+describe('messageKindText', () => {
+  it('rasm va ovoz nomlanadi', () => {
+    expect(messageKindText('IMAGE')).toBe('Rasm');
+    expect(messageKindText('VOICE')).toBe('Ovozli xabar');
+  });
+
+  it("matnli xabarda qo'shimcha yozuv yo'q", () => {
+    // Matn o'zi ko'rinadi — uning oldiga "Matn" deb yozish ma'nosiz.
+    expect(messageKindText('TEXT')).toBe('');
+  });
+});
+
+describe('sendMessageSchema — ovoz bilan', () => {
+  const voice = '/api/v1/files/voice/a/b.webm';
+
+  it('matnsiz ovozli xabar qabul qilinadi', () => {
+    expect(sendMessageSchema.safeParse({ voiceUrl: voice, voiceSeconds: 12 }).success).toBe(true);
+  });
+
+  it('davomiyliksiz ovoz rad etiladi', () => {
+    // Aks holda ekranda "0:00" turardi va odam uni buzilgan deb o'ylardi.
+    expect(sendMessageSchema.safeParse({ voiceUrl: voice }).success).toBe(false);
+  });
+
+  it('ovozsiz davomiylik rad etiladi', () => {
+    expect(sendMessageSchema.safeParse({ body: 'salom', voiceSeconds: 5 }).success).toBe(false);
+  });
+
+  it('juda uzun ovoz rad etiladi', () => {
+    expect(sendMessageSchema.safeParse({ voiceUrl: voice, voiceSeconds: 121 }).success).toBe(false);
+  });
+
+  it('BEGONA ovoz manzili rad etiladi', () => {
+    expect(sendMessageSchema.safeParse({ voiceUrl: 'https://example.com/a.mp3', voiceSeconds: 5 }).success).toBe(
+      false,
+    );
   });
 });

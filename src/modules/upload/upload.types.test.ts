@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { detectImageType } from '@/modules/upload/upload.service';
+import { detectAudioType, detectImageType } from '@/modules/upload/upload.service';
 import {
   extensionFor,
+  formatDuration,
   formatFileSize,
   isOwnImageUrl,
   keyFromUrl,
   MAX_UPLOAD_BYTES,
+  MAX_VOICE_SECONDS,
 } from '@/modules/upload/upload.types';
 
 describe('formatFileSize', () => {
@@ -126,5 +128,76 @@ describe('detectImageType', () => {
 
   it('juda kichik fayl rad etiladi', () => {
     expect(detectImageType(Buffer.from([0xff, 0xd8]))).toBeNull();
+  });
+});
+
+describe('formatDuration', () => {
+  it('soniyalar ikki xonada yoziladi', () => {
+    expect(formatDuration(5)).toBe('0:05');
+    expect(formatDuration(65)).toBe('1:05');
+  });
+
+  it('chegaraviy qiymat', () => {
+    expect(formatDuration(MAX_VOICE_SECONDS)).toBe('2:00');
+  });
+
+  it('kasr soniya butunlanadi', () => {
+    expect(formatDuration(12.9)).toBe('0:12');
+  });
+
+  it('manfiy qiymat nolga tenglashtiriladi', () => {
+    // Hisob manfiy chiqsa ekranda "-1:-5" turmasligi kerak.
+    expect(formatDuration(-4)).toBe('0:00');
+  });
+});
+
+describe('extensionFor — ovoz', () => {
+  it('har bir ovoz turiga kengaytma bor', () => {
+    expect(extensionFor('audio/webm')).toBe('webm');
+    expect(extensionFor('audio/mp4')).toBe('m4a');
+    expect(extensionFor('audio/ogg')).toBe('ogg');
+  });
+});
+
+describe('detectAudioType', () => {
+  /**
+   * ── Bu testlarning MA'NOSI ──────────────────────────────────────────
+   * Brauzer yuboradigan tur — shunchaki matn. Ovoz o'rniga boshqa fayl
+   * yuborilsa, suhbatdoshda "tinglab bo'lmaydigan ovozli xabar" paydo
+   * bo'lardi.
+   */
+  it('WebM taniydi (Android va Chrome)', () => {
+    const data = Buffer.alloc(32);
+    data[0] = 0x1a;
+    data[1] = 0x45;
+    data[2] = 0xdf;
+    data[3] = 0xa3;
+
+    expect(detectAudioType(data)).toBe('audio/webm');
+  });
+
+  it('MP4 taniydi (iPhone va Safari)', () => {
+    const data = Buffer.alloc(32);
+    data.write('ftyp', 4, 'ascii');
+
+    expect(detectAudioType(data)).toBe('audio/mp4');
+  });
+
+  it('OGG taniydi', () => {
+    const data = Buffer.alloc(32);
+    data.write('OggS', 0, 'ascii');
+
+    expect(detectAudioType(data)).toBe('audio/ogg');
+  });
+
+  it('rasm ovoz sifatida qabul qilinmaydi', () => {
+    const png = Buffer.alloc(32);
+    for (const [index, byte] of [0x89, 0x50, 0x4e, 0x47].entries()) png[index] = byte;
+
+    expect(detectAudioType(png)).toBeNull();
+  });
+
+  it('juda kichik fayl rad etiladi', () => {
+    expect(detectAudioType(Buffer.from([0x1a, 0x45]))).toBeNull();
   });
 });

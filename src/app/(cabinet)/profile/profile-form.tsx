@@ -15,7 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar } from '@/components/ui/avatar';
 import { BIO_MAX_LENGTH } from '@/config/profile';
 import { useApiClient } from '@/hooks/use-api';
-import { useImageUpload } from '@/hooks/use-image-upload';
+import { useFileUpload } from '@/hooks/use-file-upload';
 import { ApiClientError, toUserMessage } from '@/lib/api-client';
 import { formatUzPhone } from '@/lib/phone';
 import {
@@ -50,7 +50,7 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
   const [lastName, setLastName] = useState(profile.lastName ?? '');
   const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl ?? '');
 
-  const avatar = useImageUpload('AVATAR');
+  const avatar = useFileUpload('AVATAR');
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   /** Rasm tanlandi: yuklanadi va ko'rinishga qo'yiladi (saqlash alohida). */

@@ -8,7 +8,9 @@ import {
   formatFileSize,
   keyFromUrl,
   MAX_UPLOAD_BYTES,
+  type AllowedAudioType,
   type AllowedImageType,
+  type AllowedUploadType,
   type UploadPurpose,
 } from '@/modules/upload/upload.types';
 
@@ -56,10 +58,46 @@ export function detectImageType(data: Buffer): AllowedImageType | null {
   return null;
 }
 
+/**
+ * Fayl boshidagi baytlar bo'yicha OVOZ turini aniqlaydi.
+ *
+ * Rasmdagi kabi: brauzer aytgan turga ishonilmaydi, tur faylning
+ * o'zidan o'qiladi.
+ */
+export function detectAudioType(data: Buffer): AllowedAudioType | null {
+  if (data.length < 12) return null;
+
+  /**
+   * WebM (va Matroska) — EBML sarlavhasi: 1A 45 DF A3.
+   *
+   * Android va kompyuterdagi Chrome ovozni shu formatda yozadi.
+   */
+  if (data[0] === 0x1a && data[1] === 0x45 && data[2] === 0xdf && data[3] === 0xa3) {
+    return 'audio/webm';
+  }
+
+  // OGG: "OggS"
+  if (data.toString('ascii', 0, 4) === 'OggS') {
+    return 'audio/ogg';
+  }
+
+  /**
+   * MP4 / M4A — 4-baytdan boshlab "ftyp".
+   *
+   * iPhone va Safari ovozni shu formatda yozadi.
+   */
+  if (data.toString('ascii', 4, 8) === 'ftyp') {
+    return 'audio/mp4';
+  }
+
+  return null;
+}
+
 /** Maqsad bo'yicha papka nomi. */
 function folderFor(purpose: UploadPurpose): string {
   if (purpose === 'AVATAR') return 'avatars';
   if (purpose === 'CHAT') return 'chat';
+  if (purpose === 'VOICE') return 'voice';
 
   return 'posts';
 }
@@ -76,35 +114,48 @@ function folderFor(purpose: UploadPurpose): string {
  * Foydalanuvchi ID'si esa papkada qoladi — kerak bo'lganda "shu
  * odamning fayllari" ni topish uchun.
  */
-function buildKey(userId: string, purpose: UploadPurpose, type: AllowedImageType): string {
+function buildKey(userId: string, purpose: UploadPurpose, type: AllowedUploadType): string {
   return `${folderFor(purpose)}/${userId}/${randomUUID()}.${extensionFor(type)}`;
 }
 
-export async function uploadImage(userId: string, purpose: UploadPurpose, data: Buffer): Promise<StoredFile> {
+/**
+ * Faylni yuklaydi.
+ *
+ * ── Nima uchun MAQSAD turni belgilaydi ───────────────────────────────
+ * "Ovozli xabar" maqsadida rasm yuklab bo'lmaydi va aksincha. Aks
+ * holda ovoz o'rniga rasm yuborilib, suhbatdoshda "tinglab
+ * bo'lmaydigan ovozli xabar" paydo bo'lardi.
+ */
+export async function uploadFile(userId: string, purpose: UploadPurpose, data: Buffer): Promise<StoredFile> {
   if (data.length === 0) {
     throw new ValidationError("Fayl bo'sh.");
   }
 
   if (data.length > MAX_UPLOAD_BYTES) {
     throw new ValidationError(
-      `Rasm juda katta (${formatFileSize(data.length)}). Chegara — ${formatFileSize(MAX_UPLOAD_BYTES)}.`,
+      `Fayl juda katta (${formatFileSize(data.length)}). Chegara — ${formatFileSize(MAX_UPLOAD_BYTES)}.`,
     );
   }
 
-  const type = detectImageType(data);
+  const isVoice = purpose === 'VOICE';
+  const type: AllowedUploadType | null = isVoice ? detectAudioType(data) : detectImageType(data);
 
   if (!type) {
-    throw new ValidationError('Faqat rasm yuklash mumkin (JPEG, PNG, WebP yoki GIF).');
+    throw new ValidationError(
+      isVoice
+        ? "Ovoz faylini o'qib bo'lmadi. Qaytadan yozib ko'ring."
+        : 'Faqat rasm yuklash mumkin (JPEG, PNG, WebP yoki GIF).',
+    );
   }
 
   const stored = await putObject(buildKey(userId, purpose, type), data, type);
 
-  logger.info({ userId, purpose, key: stored.key, bytes: data.length }, 'Rasm yuklandi');
+  logger.info({ userId, purpose, key: stored.key, bytes: data.length }, 'Fayl yuklandi');
 
   return stored;
 }
 
-/** Rasmni o'chiradi (manzil bo'yicha). Begona manzil e'tiborsiz qoldiriladi. */
+/** Faylni o'chiradi (manzil bo'yicha). Begona manzil e'tiborsiz qoldiriladi. */
 export async function deleteImageByUrl(url: string | null | undefined): Promise<void> {
   const key = keyFromUrl(url);
 

@@ -8,10 +8,11 @@ import { listCallsForConversation } from '@/modules/call/call.service';
 import { requireCanMessage } from '@/modules/moderation/moderation.service';
 import { sendPush } from '@/modules/notification/push.service';
 import type { ServiceColor } from '@/config/modules';
-import { IMAGE_MESSAGE_TEXT } from '@/modules/chat/chat.types';
+import { messageKindText } from '@/modules/chat/chat.types';
 import type {
   ChatPeer,
   ConversationListItem,
+  MessageKind,
   MessageStatus,
   MessageView,
   OpenConversationResponse,
@@ -78,7 +79,7 @@ const CONVERSATION_SELECT = {
   },
   messages: {
     where: { deletedAt: null },
-    select: { body: true, imageUrl: true, senderId: true, createdAt: true },
+    select: { body: true, imageUrl: true, voiceUrl: true, senderId: true, createdAt: true },
     orderBy: { createdAt: 'desc' as const },
     take: 1,
   },
@@ -168,6 +169,15 @@ async function countUnread(
   return new Map(rows.map((row) => [row.conversationId, row._count._all]));
 }
 
+/** Xabar turi: ro'yxatda matnsiz xabar o'rniga nima yozilishi uchun. */
+function resolveMessageKind(message: { imageUrl: string | null; voiceUrl: string | null } | null): MessageKind {
+  if (!message) return 'TEXT';
+  if (message.voiceUrl) return 'VOICE';
+  if (message.imageUrl) return 'IMAGE';
+
+  return 'TEXT';
+}
+
 export async function listConversations(
   viewerId: string,
   query: ConversationQuery,
@@ -219,6 +229,7 @@ export async function listConversations(
        * yo'q" degani, bo'sh satr esa "xabar bor, lekin matnsiz".
        */
       lastMessage: lastMessage ? lastMessage.body : null,
+      lastMessageKind: resolveMessageKind(lastMessage),
       lastMessageIsMine: lastMessage?.senderId === viewerId,
       lastMessageAt: (row.lastMessageAt ?? row.createdAt).toISOString(),
       unreadCount: unread.get(row.id) ?? 0,
@@ -444,6 +455,8 @@ function toMessageView(
     id: string;
     body: string;
     imageUrl: string | null;
+    voiceUrl: string | null;
+    voiceSeconds: number | null;
     senderId: string;
     createdAt: Date;
     deliveredAt: Date | null;
@@ -456,8 +469,10 @@ function toMessageView(
     id: row.id,
     // O'chirilgan xabar MATNI yuborilmaydi — u brauzerda ko'rinib qolmasligi kerak.
     body: row.deletedAt ? '' : row.body,
-    // Rasm ham xuddi shunday: o'chirilgan xabarda u ko'rinmasligi kerak.
+    // Rasm va ovoz ham xuddi shunday: o'chirilgan xabarda ko'rinmaydi.
     imageUrl: row.deletedAt ? null : row.imageUrl,
+    voiceUrl: row.deletedAt ? null : row.voiceUrl,
+    voiceSeconds: row.deletedAt ? null : row.voiceSeconds,
     isMine: row.senderId === viewerId,
     createdAt: row.createdAt.toISOString(),
     status: resolveStatus(row, viewerId, peerLastReadAt),
@@ -486,6 +501,8 @@ export async function getThread(conversationId: string, viewerId: string): Promi
       id: true,
       body: true,
       imageUrl: true,
+      voiceUrl: true,
+      voiceSeconds: true,
       senderId: true,
       createdAt: true,
       deliveredAt: true,
@@ -521,12 +538,30 @@ export async function getThread(conversationId: string, viewerId: string): Promi
   };
 }
 
+export interface SendMessagePayload {
+  body: string;
+  imageUrl?: string | null;
+  voiceUrl?: string | null;
+  voiceSeconds?: number | null;
+}
+
+/**
+ * Xabar yuboradi.
+ *
+ * ── Nima uchun ARGUMENTLAR obyektda ──────────────────────────────────
+ * Ilgari ular ketma-ket yozilardi: `(id, senderId, body, imageUrl)`.
+ * Ovoz qo'shilishi bilan ular oltitaga yetardi va chaqiruvda qaysi
+ * biri qaysi joyda ekanini eslab qolish kerak bo'lardi — bu esa
+ * "rasm o'rniga ovoz uzatib yuborish" kabi jimgina xatoga eng ochiq
+ * joy.
+ */
 export async function sendMessage(
   conversationId: string,
   senderId: string,
-  body: string,
-  imageUrl: string | null = null,
+  payload: SendMessagePayload,
 ): Promise<MessageView> {
+  const { body, imageUrl = null, voiceUrl = null, voiceSeconds = null } = payload;
+
   const row = await requireMembership(conversationId, senderId);
 
   const otherId = peerUserId(row, senderId);
@@ -553,11 +588,13 @@ export async function sendMessage(
 
   const [message] = await prisma.$transaction([
     prisma.message.create({
-      data: { conversationId, senderId, body, imageUrl, deliveredAt },
+      data: { conversationId, senderId, body, imageUrl, voiceUrl, voiceSeconds, deliveredAt },
       select: {
         id: true,
         body: true,
         imageUrl: true,
+        voiceUrl: true,
+        voiceSeconds: true,
         senderId: true,
         createdAt: true,
         deliveredAt: true,
@@ -605,7 +642,13 @@ export async function sendMessage(
    * ekranida DARHOL paydo bo'lishi kerak.
    */
   if (otherId) {
-    void notifyNewMessage(otherId, conversationId, senderId, body);
+    /**
+     * Matnsiz xabarda push'da turining nomi ko'rinadi
+     * ("Rasm", "Ovozli xabar") — bo'sh bildirishnoma foydasiz.
+     */
+    const preview = body || messageKindText(voiceUrl ? 'VOICE' : imageUrl ? 'IMAGE' : 'TEXT');
+
+    void notifyNewMessage(otherId, conversationId, senderId, preview);
   }
 
   return toMessageView(message, senderId, peerLastRead(row, senderId));
@@ -642,7 +685,7 @@ async function notifyNewMessage(
        * Telefon ekranida uzun xabar baribir kesiladi, lekin uni to'liq
        * yuborish har bir push'ni og'irlashtiradi.
        */
-      body: body.length === 0 ? IMAGE_MESSAGE_TEXT : body.length > 120 ? `${body.slice(0, 120)}…` : body,
+      body: body.length > 120 ? `${body.slice(0, 120)}…` : body,
       url: `/messages/${conversationId}`,
       /**
        * Nishon SUHBAT bo'yicha: bir suhbatdan kelgan o'nta xabar

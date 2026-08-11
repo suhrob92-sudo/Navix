@@ -26,6 +26,15 @@ export interface ConversationListItem {
   peer: ChatPeer;
   /** Oxirgi xabar matni. Hali xabar bo'lmasa `null`. */
   lastMessage: string | null;
+  /**
+   * Oxirgi xabar TURI.
+   *
+   * ── Nima uchun kerak ────────────────────────────────────────────────
+   * Rasm va ovozli xabarda matn bo'sh bo'lishi mumkin. Tursiz ro'yxatda
+   * bo'sh qator turardi va odam "nima keldi?" deb har bir suhbatni
+   * ochib ko'rishga majbur bo'lardi.
+   */
+  lastMessageKind: MessageKind;
   /** Oxirgi xabarni MEN yuborganmanmi. */
   lastMessageIsMine: boolean;
   /** Oxirgi xabar vaqti — ISO. Xabar bo'lmasa suhbat yaratilgan vaqt. */
@@ -51,6 +60,10 @@ export interface MessageView {
   body: string;
   /** Biriktirilgan rasm. O'chirilgan xabarda `null`. */
   imageUrl: string | null;
+  /** Ovozli xabar manzili. O'chirilgan xabarda `null`. */
+  voiceUrl: string | null;
+  /** Ovozli xabar davomiyligi (soniya). */
+  voiceSeconds: number | null;
   /** Xabarni MEN yubordimmi. */
   isMine: boolean;
   createdAt: string;
@@ -123,18 +136,36 @@ export function formatLastMessage(item: ConversationListItem): string {
   if (item.lastMessage === null) return "Hali xabar yo'q";
 
   /**
-   * Matnsiz rasm uchun MAXSUS matn.
+   * Matnsiz xabar uchun MAXSUS matn.
    *
-   * Aks holda ro'yxatda bo'sh qator turardi va odam "nima keldi?"
-   * deb suhbatni ochishga majbur bo'lardi.
+   * Rasm va ovozli xabarda matn bo'sh bo'lishi mumkin — o'shanda
+   * turining nomi ko'rsatiladi.
    */
-  const text = item.lastMessage.length > 0 ? item.lastMessage : IMAGE_MESSAGE_TEXT;
+  const text = item.lastMessage.length > 0 ? item.lastMessage : messageKindText(item.lastMessageKind);
 
   return item.lastMessageIsMine ? `Siz: ${text}` : text;
 }
 
+/**
+ * Xabar turi.
+ *
+ * Matn bo'sh bo'lganda ro'yxatda nima yozilishini shu belgilaydi.
+ */
+export type MessageKind = 'TEXT' | 'IMAGE' | 'VOICE';
+
 /** Rasmli (matnsiz) xabar ro'yxatlarda va push'da shunday ko'rinadi. */
 export const IMAGE_MESSAGE_TEXT = 'Rasm';
+
+/** Ovozli xabar ro'yxatlarda va push'da shunday ko'rinadi. */
+export const VOICE_MESSAGE_TEXT = 'Ovozli xabar';
+
+/** Matnsiz xabar o'rniga ko'rsatiladigan matn. */
+export function messageKindText(kind: MessageKind): string {
+  if (kind === 'VOICE') return VOICE_MESSAGE_TEXT;
+  if (kind === 'IMAGE') return IMAGE_MESSAGE_TEXT;
+
+  return '';
+}
 
 /** Xabar holati uchun belgi: ✓ yoki ✓✓. */
 export function statusMark(status: MessageStatus): string {
