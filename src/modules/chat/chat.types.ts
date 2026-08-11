@@ -1,3 +1,4 @@
+import type { ChatWallpaperName } from '@/config/chat-wallpapers';
 import type { ServiceColor } from '@/config/modules';
 import type { CallView } from '@/modules/call/call.types';
 
@@ -64,11 +65,37 @@ export interface MessageView {
   voiceUrl: string | null;
   /** Ovozli xabar davomiyligi (soniya). */
   voiceSeconds: number | null;
+  /**
+   * Javob berilgan xabar — qisqacha ko'rinishi.
+   *
+   * ── Nima uchun TO'LIQ xabar emas ────────────────────────────────────
+   * Iqtibosda faqat ikki narsa kerak: kim yozgan va nima yozgan.
+   * To'liq xabar yuborilsa, javoblar zanjiri bo'lgan suhbatda bir
+   * xil ma'lumot bir necha marta takrorlanardi.
+   */
+  replyTo: MessageQuote | null;
+  /** Tahrirlangan bo'lsa — vaqti. Aks holda `null`. */
+  editedAt: string | null;
   /** Xabarni MEN yubordimmi. */
   isMine: boolean;
   createdAt: string;
   /** Holat faqat O'Z xabarlarimda ma'noga ega. */
   status: MessageStatus;
+  isDeleted: boolean;
+}
+
+/**
+ * Javob berilgan xabarning qisqacha ko'rinishi.
+ *
+ * Asl xabar o'chirilgan bo'lsa, `isDeleted` bilan belgilanadi —
+ * iqtibosda "o'chirilgan xabar" deb ko'rsatiladi.
+ */
+export interface MessageQuote {
+  id: string;
+  /** Kim yozgan: "Siz" yoki suhbatdoshning ismi. */
+  authorName: string;
+  /** Qisqartirilgan matn. Matnsiz xabarda turining nomi. */
+  preview: string;
   isDeleted: boolean;
 }
 
@@ -80,6 +107,17 @@ export interface ThreadView {
   /** Ikkinchi tomon hozir yozmoqdami. */
   isPeerTyping: boolean;
   messages: MessageView[];
+  /**
+   * Suhbat oynasining foni — SHU foydalanuvchi tanlagani.
+   *
+   * ── Nima uchun suhbat javobida ──────────────────────────────────────
+   * Fon profilda saqlanadi, lekin u faqat shu yerda kerak. Alohida
+   * so'rov qilinsa, suhbat ochilganda fon bir lahza "sakrab"
+   * o'zgarardi. Bu yerda esa u xabarlar bilan BIRGA keladi va
+   * qo'shimcha so'rov ham, qo'shimcha baza murojaati ham talab
+   * qilmaydi: qiymat allaqachon olinadigan a'zolik yozuvida turadi.
+   */
+  wallpaper: ChatWallpaperName;
   /**
    * Shu suhbatdagi TUGAGAN qo'ng'iroqlar.
    *
@@ -158,6 +196,38 @@ export const IMAGE_MESSAGE_TEXT = 'Rasm';
 
 /** Ovozli xabar ro'yxatlarda va push'da shunday ko'rinadi. */
 export const VOICE_MESSAGE_TEXT = 'Ovozli xabar';
+
+/** Iqtibosdagi matn shuncha belgidan uzun bo'lmaydi. */
+export const QUOTE_PREVIEW_LENGTH = 80;
+
+/**
+ * Iqtibos uchun qisqacha matn.
+ *
+ * ── Nima uchun QISQARTIRILADI ────────────────────────────────────────
+ * Uzun xabarga javob berilganda iqtibos butun ekranni egallardi va
+ * javobning o'zi ko'rinmay qolardi.
+ */
+export function quotePreview(body: string, kind: MessageKind, isDeleted: boolean): string {
+  if (isDeleted) return DELETED_MESSAGE_TEXT;
+
+  const text = body.trim() || messageKindText(kind);
+
+  return text.length > QUOTE_PREVIEW_LENGTH ? `${text.slice(0, QUOTE_PREVIEW_LENGTH)}…` : text;
+}
+
+/** O'chirilgan xabar o'rnida ko'rinadigan matn. */
+export const DELETED_MESSAGE_TEXT = "Xabar o'chirilgan";
+
+/**
+ * Xabarni tahrirlash mumkinmi.
+ *
+ * ── Nima uchun FAQAT matnli xabar ────────────────────────────────────
+ * Rasm va ovozni tahrirlab bo'lmaydi — ularni qayta yuborish kerak.
+ * Matnli xabarda esa xato tuzatish eng ko'p uchraydigan ehtiyoj.
+ */
+export function canEditMessage(message: MessageView): boolean {
+  return message.isMine && !message.isDeleted && message.voiceUrl === null && message.imageUrl === null;
+}
 
 /** Matnsiz xabar o'rniga ko'rsatiladigan matn. */
 export function messageKindText(kind: MessageKind): string {

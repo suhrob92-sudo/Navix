@@ -340,6 +340,16 @@ model UserProfile {
   /// Marketing xabarnomalariga rozilik.
   marketingOptIn Boolean         @default(false)
 
+  /// Suhbat oynasining foni.
+  ///
+  /// ── Nima uchun rasm EMAS, NOM saqlanadi ─────────────────────────────
+  /// Foydalanuvchi o'z rasmini qo'ysa, u har suhbat ochilganda
+  /// yuklanardi va sekin mobil internetda chat kechikib ochilardi.
+  ///
+  /// Tayyor fonlar esa CSS bilan chiziladi: hajmi nol, har qanday
+  /// ekranga moslashadi va qorong'i mavzuda o'zi to'g'rilanadi.
+  chatWallpaper  String          @default("DEFAULT") @db.VarChar(20)
+
   /// Tanishtiruv (onboarding) qachon tugatilgan.
   ///
   /// ── Nima uchun BAZADA, brauzerda emas ───────────────────────────────
@@ -2004,6 +2014,24 @@ model Message {
   /// tinglamasa ham hammasi yuklanardi.
   voiceSeconds Int?
 
+  /// Xabar tahrirlangan payt.
+  ///
+  /// ── Nima uchun bu KO'RSATILADI ──────────────────────────────────────
+  /// Tahrirlash yashirin bo'lsa, suhbatdosh o'qigan gapi keyin
+  /// o'zgartirilishi mumkin bo'lardi — bu nizoga eng ochiq yo'l.
+  /// "tahrirlangan" belgisi ishonchni saqlaydi.
+  editedAt DateTime?
+
+  /// Qaysi xabarga javob berilgan.
+  ///
+  /// ── Nima uchun havola, NUSXA emas ───────────────────────────────────
+  /// Iqtibos matnini nusxalab qo'yish oson edi, lekin unda asl xabar
+  /// tahrirlansa yoki o'chirilsa, iqtibosda eski matn qolib ketardi.
+  ///
+  /// `onDelete: SetNull` — javob berilgan xabar o'chirilsa, javobning
+  /// o'zi YO'QOLMAYDI, faqat havolasi uziladi.
+  replyToId String? @db.Uuid
+
   /// Qabul qiluvchining qurilmasiga yetib borgan payt.
   ///
   /// ── Nima uchun alohida ustun ───────────────────────────────────────
@@ -2023,6 +2051,8 @@ model Message {
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo      Message?     @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies      Message[]    @relation("MessageReply")
 
   @@index([conversationId, createdAt])
   @@map("messages")

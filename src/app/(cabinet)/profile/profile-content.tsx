@@ -46,6 +46,8 @@ export interface ProfileResponse {
   website: string | null;
   gender: string | null;
   messagePrivacy: string;
+  /** Suhbat oynasining foni — `config/chat-wallpapers.ts` dagi nom. */
+  chatWallpaper: string;
   preferences: {
     dateOfBirth: string | null;
     language: string;

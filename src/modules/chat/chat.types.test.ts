@@ -1,14 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { conversationQuerySchema, openConversationSchema, sendMessageSchema } from '@/modules/chat/chat.schemas';
+import {
+  conversationQuerySchema,
+  editMessageSchema,
+  openConversationSchema,
+  sendMessageSchema,
+} from '@/modules/chat/chat.schemas';
 import {
   CHAT_FILTERS,
+  canEditMessage,
+  DELETED_MESSAGE_TEXT,
   formatLastMessage,
   formatUnread,
   messageKindText,
   peerStatusText,
+  QUOTE_PREVIEW_LENGTH,
+  quotePreview,
   statusMark,
   type ConversationListItem,
+  type MessageView,
 } from '@/modules/chat/chat.types';
 
 const BASE: ConversationListItem = {
@@ -265,5 +275,120 @@ describe('sendMessageSchema — ovoz bilan', () => {
     expect(sendMessageSchema.safeParse({ voiceUrl: 'https://example.com/a.mp3', voiceSeconds: 5 }).success).toBe(
       false,
     );
+  });
+});
+
+// ── Javob, tahrirlash va o'chirish ────────────────────────────────────
+
+function message(overrides: Partial<MessageView> = {}): MessageView {
+  return {
+    id: '9f8b1f2e-3f4a-4c5b-8d6e-7a8b9c0d1e2f',
+    body: 'Salom!',
+    imageUrl: null,
+    voiceUrl: null,
+    voiceSeconds: null,
+    replyTo: null,
+    editedAt: null,
+    isMine: true,
+    createdAt: '2026-08-11T10:00:00.000Z',
+    status: 'SENT',
+    isDeleted: false,
+    ...overrides,
+  };
+}
+
+describe('quotePreview', () => {
+  it("matnni o'z holicha beradi", () => {
+    expect(quotePreview('Salom!', 'TEXT', false)).toBe('Salom!');
+  });
+
+  it('uzun matnni qisqartiradi', () => {
+    const preview = quotePreview('a'.repeat(200), 'TEXT', false);
+
+    // Uzun iqtibos butun ekranni egallab, javobning o'zi ko'rinmay qolardi.
+    expect(preview).toBe(`${'a'.repeat(QUOTE_PREVIEW_LENGTH)}…`);
+  });
+
+  it("chegaradagi matn qisqartirilmaydi", () => {
+    const exact = 'a'.repeat(QUOTE_PREVIEW_LENGTH);
+
+    expect(quotePreview(exact, 'TEXT', false)).toBe(exact);
+  });
+
+  it("matnsiz xabarda TURI ko'rsatiladi", () => {
+    expect(quotePreview('', 'IMAGE', false)).toBe('Rasm');
+    expect(quotePreview('   ', 'VOICE', false)).toBe('Ovozli xabar');
+  });
+
+  /**
+   * ENG MUHIM TEKSHIRUV.
+   *
+   * O'chirilgan xabarning matni iqtibosda qolib ketsa, "o'chirdim"
+   * degani yolg'on bo'lardi: matn boshqa xabar ichida ko'rinib turardi.
+   */
+  it("o'chirilgan xabarning MATNI ko'rsatilmaydi", () => {
+    expect(quotePreview('Maxfiy gap', 'TEXT', true)).toBe(DELETED_MESSAGE_TEXT);
+  });
+});
+
+describe('canEditMessage', () => {
+  it("o'z matnli xabarim tahrirlanadi", () => {
+    expect(canEditMessage(message())).toBe(true);
+  });
+
+  it('begona xabar tahrirlanmaydi', () => {
+    expect(canEditMessage(message({ isMine: false }))).toBe(false);
+  });
+
+  it("o'chirilgan xabar tahrirlanmaydi", () => {
+    expect(canEditMessage(message({ isDeleted: true }))).toBe(false);
+  });
+
+  /**
+   * Rasm va ovozning "matni" yo'q. Tahrirlashga ruxsat berilsa,
+   * rasmli xabar matnli bo'lib qolardi.
+   */
+  it('rasm va ovoz tahrirlanmaydi', () => {
+    expect(canEditMessage(message({ imageUrl: '/api/v1/files/chat/a.webp' }))).toBe(false);
+    expect(canEditMessage(message({ voiceUrl: '/api/v1/files/voice/a.webm', voiceSeconds: 4 }))).toBe(false);
+  });
+});
+
+describe('sendMessageSchema — javob', () => {
+  const id = '3f2504e0-4f89-41d3-9a0c-0305e82c3301';
+
+  it('javob ID sini qabul qiladi', () => {
+    expect(sendMessageSchema.parse({ body: 'ha', replyToId: id }).replyToId).toBe(id);
+  });
+
+  it("ID bo'lmagan qiymatni rad etadi", () => {
+    expect(sendMessageSchema.safeParse({ body: 'ha', replyToId: 'salom' }).success).toBe(false);
+  });
+
+  it('javobsiz xabar ham qabul qilinadi', () => {
+    expect(sendMessageSchema.parse({ body: 'ha' }).replyToId).toBeUndefined();
+  });
+});
+
+describe('editMessageSchema', () => {
+  it("matnni tozalab qabul qiladi", () => {
+    expect(editMessageSchema.parse({ body: '  Tuzatildi  ' }).body).toBe('Tuzatildi');
+  });
+
+  /**
+   * Yuborishda bo'sh matn mumkin (rasm o'zi xabar), tahrirlashda esa
+   * yo'q: xabar ko'rinmas bo'lib qolardi.
+   */
+  it("bo'sh matnni rad etadi", () => {
+    expect(editMessageSchema.safeParse({ body: '   ' }).success).toBe(false);
+  });
+
+  it('juda uzun matnni rad etadi', () => {
+    expect(editMessageSchema.safeParse({ body: 'a'.repeat(4001) }).success).toBe(false);
+  });
+
+  it("tahrir vaqtini mijozdan qabul qilmaydi", () => {
+    // Aks holda "tahrirlangan" belgisini aylanib o'tish mumkin bo'lardi.
+    expect(editMessageSchema.parse({ body: 'ha', editedAt: null })).not.toHaveProperty('editedAt');
   });
 });

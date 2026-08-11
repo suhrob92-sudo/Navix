@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { isChatWallpaperName } from '@/config/chat-wallpapers';
 import { BIO_MAX_LENGTH, LOCATION_MAX_LENGTH, WEBSITE_MAX_LENGTH } from '@/config/profile';
 import { passwordSchema } from '@/modules/auth/auth.schemas';
 import { usernameSchema } from '@/modules/profile/social.schemas';
@@ -155,6 +156,18 @@ export const updateProfileSchema = z
       ),
     gender: z.enum(['MALE', 'FEMALE']).nullable().optional(),
     messagePrivacy: z.enum(['EVERYONE', 'FOLLOWERS', 'NOBODY']).optional(),
+    /**
+     * Suhbat oynasining foni.
+     *
+     * Ro'yxat `config/chat-wallpapers.ts` da — u yerda fonlarning CSS
+     * sinflari ham turadi. Ikki joyda saqlansa, yangi fon qo'shilganda
+     * bittasi unutilib, sozlama "saqlanmayapti" bo'lib qolardi.
+     */
+    chatWallpaper: z
+      .string()
+      .max(20)
+      .refine(isChatWallpaperName, "Fon ro'yxatdan tanlanishi kerak")
+      .optional(),
   })
   // Bo'sh so'rov yuborilishining oldini olamiz — bu odatda dasturchi xatosi.
   .refine((data) => Object.keys(data).length > 0, "O'zgartirish uchun kamida bitta maydon yuboring");

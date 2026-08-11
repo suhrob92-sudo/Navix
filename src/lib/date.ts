@@ -202,3 +202,39 @@ export function formatRelativeUz(value: Date | string, now: Date = new Date()): 
 
   return isSameYear ? formatUzDateTime(date, 'short') : formatUzDate(date, 'long');
 }
+
+/**
+ * Suhbatdagi kun ajratkichi uchun sarlavha.
+ *
+ * ── Nima uchun kerak ──────────────────────────────────────────────────
+ * Chatda har xabarda faqat soat ko'rinadi. Uzun suhbatda esa "14:30"
+ * qaysi kunniki ekani bilinmaydi: kecha ham, uch hafta oldin ham
+ * "14:30" bo'lishi mumkin.
+ *
+ * Kun ajratkichi bu savolni butunlay yopadi va suhbatni ko'z bilan
+ * qismlarga bo'ladi. Barcha mashhur chat ilovalarida shunday.
+ *
+ * ── Nima uchun `formatRelativeUz` EMAS ────────────────────────────────
+ * U vaqtni ham qo'shadi ("Bugun, 14:30") va "12 daqiqa oldin" deb
+ * yozadi. Ajratkichda esa faqat KUN kerak — vaqt har xabarning o'zida
+ * turibdi.
+ *
+ * @param now Hozirgi vaqt. Sinovlarda aniq qiymat berish uchun ochiq.
+ */
+export function formatUzDayLabel(value: Date | string, now: Date = new Date()): string {
+  const date = typeof value === 'string' ? new Date(value) : value;
+
+  const tashkentDate = toTashkent(date);
+  const tashkentNow = toTashkent(now);
+
+  if (isSameTashkentDay(tashkentDate, tashkentNow)) return 'Bugun';
+
+  const yesterday = new Date(tashkentNow.getTime() - 24 * 60 * 60_000);
+
+  if (isSameTashkentDay(tashkentDate, yesterday)) return 'Kecha';
+
+  // Boshqa yildagi kun yilsiz yozilsa, "3-avg" qaysi yilniki noaniq qolardi.
+  return tashkentDate.getUTCFullYear() === tashkentNow.getUTCFullYear()
+    ? formatUzDate(date, 'short')
+    : formatUzDate(date, 'long');
+}

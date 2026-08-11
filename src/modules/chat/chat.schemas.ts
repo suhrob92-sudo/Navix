@@ -89,6 +89,15 @@ export const sendMessageSchema = z
      * Chegara esa mantiqsiz qiymatning oldini oladi.
      */
     voiceSeconds: z.coerce.number().int().min(1).max(MAX_VOICE_SECONDS).optional(),
+    /**
+     * Javob berilayotgan xabar.
+     *
+     * Bu yerda faqat ko'rinish tekshiriladi. Xabar SHU suhbatdanmi —
+     * buni xizmat qatlami tekshiradi: begona suhbat xabarining ID'sini
+     * yuborib, uning matnini iqtibosda ko'rish yo'li ochiq qolmasligi
+     * kerak.
+     */
+    replyToId: z.uuid("Javob berilayotgan xabar noto'g'ri").optional(),
   })
   .refine(
     (value) => value.body.length > 0 || Boolean(value.imageUrl) || Boolean(value.voiceUrl),
@@ -106,6 +115,25 @@ export const sendMessageSchema = z
   );
 
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
+
+/**
+ * PATCH /api/v1/chat/conversations/{id}/messages/{messageId}
+ *
+ * ── Nima uchun matn BO'SH bo'la olmaydi ──────────────────────────────
+ * Yuborishda bo'sh matnga ruxsat bor: rasm yoki ovoz o'zi xabar
+ * bo'ladi. Tahrirlashda esa faqat MATNLI xabar o'zgartiriladi —
+ * bo'sh matn xabarni ko'rinmas holga keltirardi. Kerak bo'lsa uni
+ * o'chirish tugmasi bor.
+ */
+export const editMessageSchema = z.object({
+  body: z
+    .string()
+    .trim()
+    .min(1, "Xabar bo'sh bo'lmasligi kerak")
+    .max(4000, "Xabar juda uzun (4000 belgidan ko'p)"),
+});
+
+export type EditMessageInput = z.infer<typeof editMessageSchema>;
 
 /** GET /api/v1/chat/conversations/{id}/stream */
 export const streamQuerySchema = z.object({

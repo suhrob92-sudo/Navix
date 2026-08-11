@@ -32,6 +32,7 @@ export const POST = withApiHandler<Params>(async (request: NextRequest, { reques
     imageUrl: input.imageUrl ?? null,
     voiceUrl: input.voiceUrl ?? null,
     voiceSeconds: input.voiceSeconds ?? null,
+    replyToId: input.replyToId ?? null,
   });
 
   return apiSuccess({ message }, { requestId, status: 201 });

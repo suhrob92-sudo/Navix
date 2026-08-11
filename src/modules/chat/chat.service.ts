@@ -1,5 +1,5 @@
 import { ConversationKind, Prisma } from '@/generated/prisma/client';
-import { ConflictError, NotFoundError } from '@/lib/api/errors';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { logger } from '@/lib/logger';
 import { isOnline, isTyping, isViewing, markTyping } from '@/lib/presence';
@@ -7,8 +7,10 @@ import { prisma } from '@/lib/prisma';
 import { listCallsForConversation } from '@/modules/call/call.service';
 import { requireCanMessage } from '@/modules/moderation/moderation.service';
 import { sendPush } from '@/modules/notification/push.service';
+import { deleteImageByUrl } from '@/modules/upload/upload.service';
+import { resolveWallpaper, type ChatWallpaperName } from '@/config/chat-wallpapers';
 import type { ServiceColor } from '@/config/modules';
-import { messageKindText } from '@/modules/chat/chat.types';
+import { messageKindText, quotePreview } from '@/modules/chat/chat.types';
 import type {
   ChatPeer,
   ConversationListItem,
@@ -72,7 +74,14 @@ const CONVERSATION_SELECT = {
           firstName: true,
           lastName: true,
           avatarUrl: true,
-          profile: { select: { username: true, isVerified: true } },
+          /**
+           * `chatWallpaper` shu yerda olinadi.
+           *
+           * Ko'ruvchining o'zi ham a'zo, ya'ni bu yozuv baribir
+           * o'qiladi. Fonni alohida so'rov bilan olish jonli oqimda
+           * har 1.5 soniyada bitta ortiqcha murojaat degani bo'lardi.
+           */
+          profile: { select: { username: true, isVerified: true, chatWallpaper: true } },
         },
       },
     },
@@ -450,21 +459,53 @@ function resolveStatus(
   return message.deliveredAt ? 'DELIVERED' : 'SENT';
 }
 
-function toMessageView(
-  row: {
-    id: string;
-    body: string;
-    imageUrl: string | null;
-    voiceUrl: string | null;
-    voiceSeconds: number | null;
-    senderId: string;
-    createdAt: Date;
-    deliveredAt: Date | null;
-    deletedAt: Date | null;
+/** Xabar o'qishda ishlatiladigan maydonlar. */
+const MESSAGE_SELECT = {
+  id: true,
+  body: true,
+  imageUrl: true,
+  voiceUrl: true,
+  voiceSeconds: true,
+  senderId: true,
+  createdAt: true,
+  deliveredAt: true,
+  deletedAt: true,
+  editedAt: true,
+  /**
+   * Javob berilgan xabar — FAQAT ko'rsatish uchun kerakli maydonlar.
+   *
+   * To'liq yozuv olinsa, javoblar zanjirida bir xil ma'lumot bir necha
+   * marta uzatilardi.
+   */
+  replyTo: {
+    select: {
+      id: true,
+      body: true,
+      senderId: true,
+      imageUrl: true,
+      voiceUrl: true,
+      deletedAt: true,
+      sender: { select: { firstName: true, lastName: true, profile: { select: { username: true } } } },
+    },
   },
+} as const;
+
+type MessageRow = Prisma.MessageGetPayload<{ select: typeof MESSAGE_SELECT }>;
+
+/** Iqtibosdagi ismni yasaydi: o'zimniki bo'lsa "Siz". */
+function quoteAuthorName(
+  sender: { firstName: string | null; lastName: string | null; profile: { username: string } | null },
+  senderId: string,
   viewerId: string,
-  peerLastReadAt: Date | null,
-): MessageView {
+): string {
+  if (senderId === viewerId) return 'Siz';
+
+  const fullName = [sender.firstName, sender.lastName].filter(Boolean).join(' ');
+
+  return fullName || (sender.profile?.username ? `@${sender.profile.username}` : 'Foydalanuvchi');
+}
+
+function toMessageView(row: MessageRow, viewerId: string, peerLastReadAt: Date | null): MessageView {
   return {
     id: row.id,
     // O'chirilgan xabar MATNI yuborilmaydi — u brauzerda ko'rinib qolmasligi kerak.
@@ -473,6 +514,19 @@ function toMessageView(
     imageUrl: row.deletedAt ? null : row.imageUrl,
     voiceUrl: row.deletedAt ? null : row.voiceUrl,
     voiceSeconds: row.deletedAt ? null : row.voiceSeconds,
+    replyTo: row.replyTo
+      ? {
+          id: row.replyTo.id,
+          authorName: quoteAuthorName(row.replyTo.sender, row.replyTo.senderId, viewerId),
+          preview: quotePreview(
+            row.replyTo.body,
+            row.replyTo.voiceUrl ? 'VOICE' : row.replyTo.imageUrl ? 'IMAGE' : 'TEXT',
+            row.replyTo.deletedAt !== null,
+          ),
+          isDeleted: row.replyTo.deletedAt !== null,
+        }
+      : null,
+    editedAt: row.editedAt?.toISOString() ?? null,
     isMine: row.senderId === viewerId,
     createdAt: row.createdAt.toISOString(),
     status: resolveStatus(row, viewerId, peerLastReadAt),
@@ -492,22 +546,19 @@ function peerLastRead(row: ConversationRow, viewerId: string): Date | null {
   return row.members.find((member) => member.userId !== viewerId)?.lastReadAt ?? null;
 }
 
+/** Ko'ruvchi tanlagan suhbat foni. */
+function viewerWallpaper(row: ConversationRow, viewerId: string): ChatWallpaperName {
+  const own = row.members.find((member) => member.userId === viewerId);
+
+  return resolveWallpaper(own?.user.profile?.chatWallpaper).value;
+}
+
 export async function getThread(conversationId: string, viewerId: string): Promise<ThreadView> {
   const row = await requireMembership(conversationId, viewerId);
 
   const messages = await prisma.message.findMany({
     where: { conversationId },
-    select: {
-      id: true,
-      body: true,
-      imageUrl: true,
-      voiceUrl: true,
-      voiceSeconds: true,
-      senderId: true,
-      createdAt: true,
-      deliveredAt: true,
-      deletedAt: true,
-    },
+    select: MESSAGE_SELECT,
     orderBy: { createdAt: 'asc' },
     take: MAX_THREAD_MESSAGES,
   });
@@ -534,6 +585,7 @@ export async function getThread(conversationId: string, viewerId: string): Promi
     isPeerOnline: online,
     isPeerTyping: typing,
     messages: messages.map((message) => toMessageView(message, viewerId, lastRead)),
+    wallpaper: viewerWallpaper(row, viewerId),
     calls,
   };
 }
@@ -543,6 +595,7 @@ export interface SendMessagePayload {
   imageUrl?: string | null;
   voiceUrl?: string | null;
   voiceSeconds?: number | null;
+  replyToId?: string | null;
 }
 
 /**
@@ -560,11 +613,30 @@ export async function sendMessage(
   senderId: string,
   payload: SendMessagePayload,
 ): Promise<MessageView> {
-  const { body, imageUrl = null, voiceUrl = null, voiceSeconds = null } = payload;
+  const { body, imageUrl = null, voiceUrl = null, voiceSeconds = null, replyToId = null } = payload;
 
   const row = await requireMembership(conversationId, senderId);
 
   const otherId = peerUserId(row, senderId);
+
+  /**
+   * Javob berilayotgan xabar SHU suhbatdanmi.
+   *
+   * ── Nima uchun bu tekshiruv MAJBURIY ────────────────────────────────
+   * `replyToId` brauzerdan keladi. Tekshiruvsiz begona suhbatdagi
+   * xabarning ID'sini yuborish mumkin bo'lardi va uning MATNI
+   * iqtibosda ko'rinardi — ya'ni begona yozishmani o'qish yo'li.
+   */
+  if (replyToId) {
+    const quoted = await prisma.message.findFirst({
+      where: { id: replyToId, conversationId },
+      select: { id: true },
+    });
+
+    if (!quoted) {
+      throw new NotFoundError('Javob berilayotgan xabar');
+    }
+  }
 
   /**
    * Blok HAR XABARDA tekshiriladi.
@@ -588,18 +660,8 @@ export async function sendMessage(
 
   const [message] = await prisma.$transaction([
     prisma.message.create({
-      data: { conversationId, senderId, body, imageUrl, voiceUrl, voiceSeconds, deliveredAt },
-      select: {
-        id: true,
-        body: true,
-        imageUrl: true,
-        voiceUrl: true,
-        voiceSeconds: true,
-        senderId: true,
-        createdAt: true,
-        deliveredAt: true,
-        deletedAt: true,
-      },
+      data: { conversationId, senderId, body, imageUrl, voiceUrl, voiceSeconds, replyToId, deliveredAt },
+      select: MESSAGE_SELECT,
     }),
     /**
      * `lastMessageAt` shu yerda yangilanadi.
@@ -698,6 +760,110 @@ async function notifyNewMessage(
   } catch (error) {
     logger.warn({ err: error, recipientId }, "Xabar haqida push yuborib bo'lmadi");
   }
+}
+
+/**
+ * Xabarni tahrirlaydi.
+ *
+ * ── Nima uchun VAQT CHEGARASI yo'q ──────────────────────────────────
+ * WhatsApp 15 daqiqa beradi, Telegram esa 48 soat. Ikkalasi ham
+ * shartli chegara: asosiy himoya — "tahrirlangan" belgisi, u
+ * suhbatdoshga matn o'zgarganini har doim aytadi.
+ *
+ * Chegara qo'yilsa, "kecha yozgan xatoimni tuzata olmayman" degan
+ * ma'nosiz to'siq paydo bo'lardi.
+ */
+export async function editMessage(
+  conversationId: string,
+  messageId: string,
+  userId: string,
+  body: string,
+): Promise<MessageView> {
+  const row = await requireMembership(conversationId, userId);
+
+  const message = await prisma.message.findFirst({
+    where: { id: messageId, conversationId },
+    select: { id: true, senderId: true, deletedAt: true, imageUrl: true, voiceUrl: true },
+  });
+
+  if (!message || message.deletedAt) {
+    throw new NotFoundError('Xabar');
+  }
+
+  if (message.senderId !== userId) {
+    throw new ForbiddenError("Faqat o'z xabaringizni tahrirlay olasiz.");
+  }
+
+  /**
+   * Rasm va ovoz tahrirlanmaydi.
+   *
+   * Ularning "matni" yo'q — o'zgartirish uchun qayta yuborish kerak.
+   * Tahrirlashga ruxsat berilsa, rasmli xabar matnli bo'lib qolardi.
+   */
+  if (message.imageUrl || message.voiceUrl) {
+    throw new ValidationError("Rasm va ovozli xabarni tahrirlab bo'lmaydi.");
+  }
+
+  const updated = await prisma.message.update({
+    where: { id: messageId },
+    data: { body, editedAt: new Date() },
+    select: MESSAGE_SELECT,
+  });
+
+  logger.info({ conversationId, messageId, userId }, 'Xabar tahrirlandi');
+
+  return toMessageView(updated, userId, peerLastRead(row, userId));
+}
+
+/**
+ * Xabarni o'chiradi.
+ *
+ * ── Nima uchun QATOR o'chirilmaydi ──────────────────────────────────
+ * Suhbatning tartibi buzilmasligi kerak: o'chirilgan xabar o'rnida
+ * "Xabar o'chirilgan" turadi. Bundan tashqari unga berilgan javoblar
+ * ham havolasiz qolmaydi.
+ *
+ * ── Nima uchun HAMMA uchun o'chadi ──────────────────────────────────
+ * "Faqat menda o'chirish" ham bor imkoniyat, lekin u har xabar uchun
+ * kim ko'rgan-ko'rmaganini alohida saqlashni talab qiladi. Odam esa
+ * odatda "u ko'rmasin" deb o'chiradi — ya'ni kerakli xulq aynan shu.
+ */
+export async function deleteMessage(
+  conversationId: string,
+  messageId: string,
+  userId: string,
+): Promise<void> {
+  await requireMembership(conversationId, userId);
+
+  const message = await prisma.message.findFirst({
+    where: { id: messageId, conversationId },
+    select: { id: true, senderId: true, deletedAt: true, imageUrl: true, voiceUrl: true },
+  });
+
+  if (!message || message.deletedAt) {
+    throw new NotFoundError('Xabar');
+  }
+
+  if (message.senderId !== userId) {
+    throw new ForbiddenError("Faqat o'z xabaringizni o'chira olasiz.");
+  }
+
+  await prisma.message.update({
+    where: { id: messageId },
+    /**
+     * Rasm va ovoz manzillari ham TOZALANADI.
+     *
+     * Ular qolsa, manzilni bilgan odam faylni baribir ocha olardi —
+     * ya'ni "o'chirdim" degani yolg'on bo'lardi.
+     */
+    data: { deletedAt: new Date(), imageUrl: null, voiceUrl: null, voiceSeconds: null },
+  });
+
+  // Fayllarning o'zi ham o'chiriladi (kutilmaydi — javob tez bo'lishi kerak).
+  void deleteImageByUrl(message.imageUrl);
+  void deleteImageByUrl(message.voiceUrl);
+
+  logger.info({ conversationId, messageId, userId }, "Xabar o'chirildi");
 }
 
 /** Suhbatni o'qilgan deb belgilaydi. */

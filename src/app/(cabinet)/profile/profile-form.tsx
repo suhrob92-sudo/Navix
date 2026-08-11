@@ -7,6 +7,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle } from '@/components/ui/card';
+import { WallpaperPicker } from '@/components/chat/wallpaper-picker';
+import { resolveWallpaper, type ChatWallpaperName } from '@/config/chat-wallpapers';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -70,6 +72,7 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
   const [website, setWebsite] = useState(profile.website ?? '');
   const [gender, setGender] = useState(profile.gender ?? '');
   const [messagePrivacy, setMessagePrivacy] = useState(profile.messagePrivacy);
+  const [chatWallpaper, setChatWallpaper] = useState<ChatWallpaperName>(resolveWallpaper(profile.chatWallpaper).value);
 
   /**
    * Serverdan kelgan OXIRGI javob.
@@ -163,6 +166,7 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
       website: website.trim() || null,
       gender: gender || null,
       messagePrivacy,
+      chatWallpaper,
     });
 
     if (!parsed.success) {
@@ -495,7 +499,7 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
           <Field
             id="messagePrivacy"
             label="Kim menga xabar yoza oladi"
-            hint="Xabar almashish keyingi bosqichda ishga tushadi"
+            hint="Bloklangan odamlar bu sozlamadan qat'i nazar yoza olmaydi"
             errors={fieldErrors.messagePrivacy}
           >
             <Select
@@ -506,6 +510,19 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
               disabled={isSaving}
             />
           </Field>
+        </div>
+      </Card>
+
+      {/* Suhbat foni */}
+      <Card variant="glass" className="animate-fade-up" style={{ animationDelay: '210ms' }}>
+        <CardTitle className="text-base">Suhbat foni</CardTitle>
+
+        <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+          Fon faqat SIZGA ko&apos;rinadi — suhbatdoshingizda o&apos;zi tanlagani turadi.
+        </p>
+
+        <div className="mt-5">
+          <WallpaperPicker value={chatWallpaper} onChange={setChatWallpaper} disabled={isSaving} />
         </div>
       </Card>
 

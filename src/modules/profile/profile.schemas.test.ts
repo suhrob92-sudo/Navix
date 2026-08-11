@@ -194,6 +194,18 @@ describe('profil tahrirlash — ijtimoiy maydonlar', () => {
   });
 
   /**
+   * Fon nomi bazaga TO'G'RIDAN-TO'G'RI yoziladi (`VarChar(20)`).
+   *
+   * Ro'yxatdan tashqari qiymat o'tkazilsa, suhbat oynasi noma'lum
+   * sinf bilan chizilardi va fon umuman ko'rinmasdi.
+   */
+  it("ro'yxatdan tashqari suhbat fonini rad etadi", () => {
+    expect(updateProfileSchema.safeParse({ chatWallpaper: 'DOTS' }).success).toBe(true);
+    expect(updateProfileSchema.safeParse({ chatWallpaper: 'KOSMOS' }).success).toBe(false);
+    expect(updateProfileSchema.safeParse({ chatWallpaper: 'dots' }).success).toBe(false);
+  });
+
+  /**
    * Tasdiqlangan nishonni foydalanuvchi O'ZIGA bera olmasligi kerak —
    * uni faqat admin qo'yadi.
    */

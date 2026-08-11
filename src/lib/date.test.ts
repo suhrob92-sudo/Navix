@@ -5,6 +5,7 @@ import {
   formatRelativeUz,
   formatUzDate,
   formatUzDateTime,
+  formatUzDayLabel,
   formatUzTime,
   isoWeekday,
   startOfTashkentDay,
@@ -228,5 +229,41 @@ describe('isoWeekday', () => {
 
   it('shanbani 6 deb beradi', () => {
     expect(isoWeekday('2026-08-08')).toBe(6);
+  });
+});
+
+/**
+ * Suhbatdagi kun ajratkichi.
+ *
+ * Chatda faqat soat ko'rinadi, shuning uchun kun ajratkichi noto'g'ri
+ * bo'lsa butun suhbat vaqt bo'yicha chalkashib ketadi.
+ */
+describe('formatUzDayLabel', () => {
+  const now = new Date('2026-08-03T12:00:00.000Z');
+
+  it('bugun', () => {
+    expect(formatUzDayLabel('2026-08-03T06:03:00.000Z', now)).toBe('Bugun');
+  });
+
+  it('kecha', () => {
+    expect(formatUzDayLabel('2026-08-02T06:03:00.000Z', now)).toBe('Kecha');
+  });
+
+  it("shu yildagi eskiroq kun — vaqtsiz, qisqa oy nomi bilan", () => {
+    expect(formatUzDayLabel('2026-07-20T06:03:00.000Z', now)).toBe('20-iyl');
+  });
+
+  it("o'tgan yil — yil ham ko'rsatiladi", () => {
+    expect(formatUzDayLabel('2025-12-31T06:03:00.000Z', now)).toBe('31-dekabr, 2025');
+  });
+
+  it("kun chegarasi Toshkent bo'yicha hisoblanadi", () => {
+    // 2-avgust 20:00 UTC = 3-avgust 01:00 Toshkentda, ya'ni BUGUN.
+    expect(formatUzDayLabel('2026-08-02T20:00:00.000Z', now)).toBe('Bugun');
+  });
+
+  it("bir daqiqa oldingi xabar ham 'Bugun' — 'Hozir' emas", () => {
+    // `formatRelativeUz` dan farqi: ajratkichda faqat KUN kerak.
+    expect(formatUzDayLabel('2026-08-03T11:59:30.000Z', now)).toBe('Bugun');
   });
 });

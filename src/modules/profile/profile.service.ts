@@ -45,6 +45,8 @@ export interface ProfilePayload {
   website: string | null;
   gender: string | null;
   messagePrivacy: string;
+  /** Suhbat oynasining foni — `config/chat-wallpapers.ts` dagi nom. */
+  chatWallpaper: string;
   preferences: {
     dateOfBirth: Date | null;
     language: string;
@@ -80,6 +82,7 @@ const PROFILE_SELECT = {
       website: true,
       gender: true,
       messagePrivacy: true,
+      chatWallpaper: true,
       dateOfBirth: true,
       language: true,
       theme: true,
@@ -109,6 +112,7 @@ function toProfilePayload(user: {
     website: string | null;
     gender: string | null;
     messagePrivacy: string;
+    chatWallpaper: string;
     dateOfBirth: Date | null;
     language: string;
     theme: string;
@@ -134,6 +138,7 @@ function toProfilePayload(user: {
     website: user.profile?.website ?? null,
     gender: user.profile?.gender ?? null,
     messagePrivacy: user.profile?.messagePrivacy ?? 'EVERYONE',
+    chatWallpaper: user.profile?.chatWallpaper ?? 'DEFAULT',
     preferences: {
       dateOfBirth: user.profile?.dateOfBirth ?? null,
       // Profil yozuvi bo'lmasa standart qiymatlarni qaytaramiz —
@@ -229,6 +234,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
     ...(input.website !== undefined ? { website: input.website } : {}),
     ...(input.gender !== undefined ? { gender: input.gender } : {}),
     ...(input.messagePrivacy !== undefined ? { messagePrivacy: input.messagePrivacy } : {}),
+    ...(input.chatWallpaper !== undefined ? { chatWallpaper: input.chatWallpaper } : {}),
   };
 
   const updated = await prisma
