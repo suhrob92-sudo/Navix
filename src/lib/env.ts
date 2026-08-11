@@ -165,6 +165,24 @@ const serverSchema = z.object({
    * kerak.
    */
   VAPID_SUBJECT: z.string().min(1).default('mailto:support@navix.uz'),
+
+  // --- Fayl saqlash (rasmlar) ---------------------------------------------
+
+  /**
+   * Vercel Blob kaliti — rasmlar shu yerda saqlanadi.
+   *
+   * ── Nima uchun fayllar SERVERDA saqlanmaydi ────────────────────────
+   * Vercel'da ilova "serversiz" ishlaydi: har so'rov yangi, vaqtinchalik
+   * muhitda bajariladi va diskka yozilgan narsa bir necha daqiqadan
+   * keyin yo'qoladi. Ya'ni yuklangan rasm ertasi kuni ochilmasdi.
+   *
+   * IXTIYORIY: berilmasa fayllar MAHALLIY papkaga (`.uploads/`)
+   * yoziladi. Bu faqat ishlab chiqish uchun — shunda kalitsiz ham
+   * hamma narsani sinab ko'rish mumkin.
+   *
+   * Kalitni olish: Vercel → loyiha → Storage → Create → Blob.
+   */
+  BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
 });
 
 /**

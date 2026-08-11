@@ -3,6 +3,7 @@ import { ForbiddenError, NotFoundError } from '@/lib/api/errors';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { blockedUserIds, findBlock, isBlockedBetween } from '@/modules/moderation/moderation.service';
+import { deleteImageByUrl } from '@/modules/upload/upload.service';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { sendPush } from '@/modules/notification/push.service';
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
@@ -57,6 +58,7 @@ function postSelect(viewerId: string) {
   return {
     id: true,
     body: true,
+    imageUrl: true,
     likeCount: true,
     commentCount: true,
     createdAt: true,
@@ -74,6 +76,8 @@ function toPostView(row: PostRow, viewerId: string): PostView {
     id: row.id,
     // O'chirilgan postning MATNI yuborilmaydi — u brauzerda ko'rinib qolmasligi kerak.
     body: row.deletedAt ? '' : row.body,
+    // Rasm ham xuddi shunday.
+    imageUrl: row.deletedAt ? null : row.imageUrl,
     author: toAuthorView(row.author),
     createdAt: row.createdAt.toISOString(),
     likeCount: row.likeCount,
@@ -251,9 +255,13 @@ export async function listUserPosts(
 // Post
 // ─────────────────────────────────────────────────────────────────────
 
-export async function createPost(authorId: string, body: string): Promise<PostView> {
+export async function createPost(
+  authorId: string,
+  body: string,
+  imageUrl: string | null = null,
+): Promise<PostView> {
   const row = await prisma.post.create({
-    data: { authorId, body },
+    data: { authorId, body, imageUrl },
     select: postSelect(authorId),
   });
 
@@ -296,7 +304,7 @@ export async function getPost(postId: string, viewerId: string): Promise<PostVie
 export async function deletePost(postId: string, userId: string): Promise<void> {
   const post = await prisma.post.findUnique({
     where: { id: postId },
-    select: { id: true, authorId: true, deletedAt: true },
+    select: { id: true, authorId: true, deletedAt: true, imageUrl: true },
   });
 
   if (!post || post.deletedAt) {
@@ -307,7 +315,24 @@ export async function deletePost(postId: string, userId: string): Promise<void> 
     throw new ForbiddenError("Faqat o'z postingizni o'chira olasiz.");
   }
 
-  await prisma.post.update({ where: { id: postId }, data: { deletedAt: new Date() } });
+  await prisma.post.update({
+    where: { id: postId },
+    // Rasm manzili ham tozalanadi — faylning o'zi quyida o'chiriladi.
+    data: { deletedAt: new Date(), imageUrl: null },
+  });
+
+  /**
+   * Rasm FAYLI ham o'chiriladi.
+   *
+   * ── Nima uchun kutilmaydi (`void`) ──────────────────────────────────
+   * Fayl tashqi xizmatda (Vercel Blob) turadi va uni o'chirish bir
+   * necha yuz millisekund olishi mumkin. Post esa ekrandan DARHOL
+   * yo'qolishi kerak.
+   *
+   * Fayl o'chmay qolsa ham zarari yo'q: unga endi hech qanday havola
+   * yo'q, ya'ni uni hech kim ocholmaydi.
+   */
+  void deleteImageByUrl(post.imageUrl);
 
   logger.info({ userId, postId }, "Post o'chirildi");
 }

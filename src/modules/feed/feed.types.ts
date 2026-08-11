@@ -13,8 +13,10 @@ export interface PostAuthorView {
 
 export interface PostView {
   id: string;
-  /** O'chirilgan postda BO'SH bo'ladi. */
+  /** O'chirilgan postda BO'SH bo'ladi. Rasm bo'lsa matnsiz ham bo'lishi mumkin. */
   body: string;
+  /** Biriktirilgan rasm. O'chirilgan postda `null`. */
+  imageUrl: string | null;
   author: PostAuthorView;
   createdAt: string;
 
@@ -123,3 +125,14 @@ export function formatReactionCount(count: number): string {
  * javob berganini bilmaydi.
  */
 export const DELETED_POST_TEXT = "Bu post o'chirilgan.";
+
+/**
+ * Postda ko'rsatiladigan narsa bormi.
+ *
+ * Matn ham, rasm ham bo'lmasa — post yaratilmasligi kerak. Bu
+ * tekshiruv brauzerda tugmani o'chirish uchun ishlatiladi; server
+ * va baza ham xuddi shu qoidani mustaqil tekshiradi.
+ */
+export function hasPostContent(body: string, imageUrl: string | null): boolean {
+  return body.trim().length > 0 || imageUrl !== null;
+}

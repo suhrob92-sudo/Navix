@@ -10,6 +10,7 @@ import {
 import {
   authorDisplayName,
   formatReactionCount,
+  hasPostContent,
   COMMENT_MAX_LENGTH,
   POST_MAX_LENGTH,
   type PostAuthorView,
@@ -126,5 +127,43 @@ describe('createCommentSchema', () => {
 
   it('juda uzun izoh rad etiladi', () => {
     expect(createCommentSchema.safeParse({ body: 'x'.repeat(COMMENT_MAX_LENGTH + 1) }).success).toBe(false);
+  });
+});
+
+describe('hasPostContent', () => {
+  it("matn bo'lsa yetarli", () => {
+    expect(hasPostContent('Salom', null)).toBe(true);
+  });
+
+  it("rasm o'zi ham post", () => {
+    // "Mana shu manzara" degan postga matn shart emas.
+    expect(hasPostContent('', '/api/v1/files/posts/a/b.webp')).toBe(true);
+  });
+
+  it("ikkalasi ham yo'q bo'lsa post emas", () => {
+    expect(hasPostContent('   ', null)).toBe(false);
+  });
+});
+
+describe('createPostSchema — rasm bilan', () => {
+  const image = '/api/v1/files/posts/a/b.webp';
+
+  it('matnsiz, rasmli post qabul qilinadi', () => {
+    const result = createPostSchema.safeParse({ imageUrl: image });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("matn ham, rasm ham bo'lmasa rad etiladi", () => {
+    expect(createPostSchema.safeParse({ body: '   ' }).success).toBe(false);
+    expect(createPostSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('BEGONA rasm manzili rad etiladi', () => {
+    /**
+     * Begona sayt rasmi biriktirilsa, lentani ko'rgan har bir odamning
+     * IP manzili o'sha saytga yetib borardi.
+     */
+    expect(createPostSchema.safeParse({ imageUrl: 'https://tracker.example.com/p.gif' }).success).toBe(false);
   });
 });

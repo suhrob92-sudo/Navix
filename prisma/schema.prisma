@@ -1986,7 +1986,11 @@ model Message {
   conversationId String @db.Uuid
   senderId       String @db.Uuid
 
+  /// Xabar matni. Rasm yuborilgan bo'lsa BO'SH bo'lishi mumkin.
   body String @db.VarChar(4000)
+
+  /// Biriktirilgan rasm manzili.
+  imageUrl String? @db.VarChar(500)
 
   /// Qabul qiluvchining qurilmasiga yetib borgan payt.
   ///
@@ -2250,7 +2254,17 @@ model Post {
   ///
   /// Uzunlik ataylab cheklangan: uzun maqola uchun bu joy emas va
   /// cheklovsiz matn lentani o'qib bo'lmas holga keltirardi.
+  ///
+  /// Rasm biriktirilgan bo'lsa BO'SH bo'lishi mumkin.
   body String @db.VarChar(1000)
+
+  /// Biriktirilgan rasm manzili.
+  ///
+  /// ── Nima uchun faqat BITTA rasm ─────────────────────────────────────
+  /// Bir nechta rasm uchun alohida jadval kerak bo'lardi (tartib,
+  /// o'chirish, galereya). Bitta rasm esa postlarning aksariyat
+  /// qismini qoplaydi va uni keyin kengaytirish mumkin.
+  imageUrl String? @db.VarChar(500)
 
   likeCount    Int @default(0)
   commentCount Int @default(0)

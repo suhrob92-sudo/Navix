@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { COMMENT_MAX_LENGTH, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
+import { isOwnImageUrl } from '@/modules/upload/upload.types';
 
 /**
  * Lenta uchun validatsiya.
@@ -52,9 +53,40 @@ function bodyField(max: number, emptyMessage: string) {
   return z.string().trim().min(1, emptyMessage).max(max, `Matn ${max} belgidan oshmasligi kerak.`);
 }
 
-export const createPostSchema = z.object({
-  body: bodyField(POST_MAX_LENGTH, "Post bo'sh bo'lmasligi kerak."),
-});
+/**
+ * Biriktirilgan rasm manzili.
+ *
+ * ── Nima uchun BEGONA manzil qabul qilinmaydi ────────────────────────
+ * Manzilni brauzer yuboradi, ya'ni uni istalgan qiymatga
+ * o'zgartirish mumkin. Begona saytdagi rasm biriktirilsa, u lentani
+ * ko'rgan HAR BIR odamning IP manzilini o'sha saytga yetkazardi va
+ * egasi rasmni istalgan payt boshqasiga almashtira olardi.
+ *
+ * Shuning uchun faqat o'zimiz yuklagan rasm o'tadi
+ * (`isOwnImageUrl` — `upload.types.ts` da sabab batafsil).
+ */
+const attachedImageField = z
+  .string()
+  .trim()
+  .max(500)
+  .refine(isOwnImageUrl, "Rasm manzili noto'g'ri. Rasmni qaytadan yuklang.");
+
+/**
+ * Post yozish.
+ *
+ * ── Nima uchun matn BO'SH bo'lishi mumkin ────────────────────────────
+ * Rasm o'zi ham post: "mana shu manzara" degan postga matn shart
+ * emas. Lekin ikkalasi ham bo'sh bo'lsa — post yaratilmaydi.
+ */
+export const createPostSchema = z
+  .object({
+    body: z.string().trim().max(POST_MAX_LENGTH, `Matn ${POST_MAX_LENGTH} belgidan oshmasligi kerak.`).default(''),
+    imageUrl: attachedImageField.optional(),
+  })
+  .refine(
+    (value) => value.body.length > 0 || Boolean(value.imageUrl),
+    "Post bo'sh: matn yozing yoki rasm biriktiring.",
+  );
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { BIO_MAX_LENGTH, LOCATION_MAX_LENGTH, WEBSITE_MAX_LENGTH } from '@/config/profile';
 import { passwordSchema } from '@/modules/auth/auth.schemas';
 import { usernameSchema } from '@/modules/profile/social.schemas';
+import { isOwnImageUrl } from '@/modules/upload/upload.types';
 
 /** Profil ma'lumotlarini tahrirlash uchun validatsiya qoidalari. */
 
@@ -64,7 +65,25 @@ export const updateProfileSchema = z
     firstName: nameSchema.optional(),
     // `null` — familiyani o'chirish uchun.
     lastName: nameSchema.nullable().optional(),
-    avatarUrl: z.string().url("Rasm manzili noto'g'ri").max(500).nullable().optional(),
+    /**
+     * Profil rasmi.
+     *
+     * ── Nima uchun BEGONA havola qabul qilinmaydi ──────────────────────
+     * Avval bu maydon istalgan havolani qabul qilardi (yuklash yo'q
+     * edi). Endi rasm ilovaning o'ziga yuklanadi va begona havola
+     * qabul qilinmaydi: profilni ko'rgan HAR BIR odamning IP manzili
+     * o'sha begona saytga yetib borardi va egasi rasmni istalgan payt
+     * boshqasiga almashtira olardi.
+     *
+     * `null` — rasmni olib tashlash.
+     */
+    avatarUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .refine(isOwnImageUrl, "Rasm manzili noto'g'ri. Rasmni qaytadan yuklang.")
+      .nullable()
+      .optional(),
     dateOfBirth: z
       .string()
       .regex(/^\d{4}-\d{2}-\d{2}$/, "Sana YYYY-MM-DD ko'rinishida bo'lishi kerak")

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import { BadgeCheck, Heart, MessageCircle, Trash2 } from 'lucide-react';
@@ -84,16 +85,32 @@ export function PostCard({ post, onToggleLike, onDelete, isDetail = false, isBus
         `whitespace-pre-wrap` — odam yozgan qatorlar saqlanadi.
         `break-words` — bo'shliqsiz uzun matn kartadan chiqib ketmaydi.
       */}
-      <p
-        className={cn(
-          'mt-3 text-sm leading-relaxed break-words whitespace-pre-wrap',
-          post.isDeleted && 'text-muted-foreground italic',
-          // Lentada uzun post qisqartiriladi, o'z sahifasida to'liq turadi.
-          !isDetail && !post.isDeleted && 'line-clamp-6',
-        )}
-      >
-        {post.isDeleted ? DELETED_POST_TEXT : post.body}
-      </p>
+      {(post.body.length > 0 || post.isDeleted) && (
+        <p
+          className={cn(
+            'mt-3 text-sm leading-relaxed break-words whitespace-pre-wrap',
+            post.isDeleted && 'text-muted-foreground italic',
+            // Lentada uzun post qisqartiriladi, o'z sahifasida to'liq turadi.
+            !isDetail && !post.isDeleted && 'line-clamp-6',
+          )}
+        >
+          {post.isDeleted ? DELETED_POST_TEXT : post.body}
+        </p>
+      )}
+
+      {post.imageUrl && !post.isDeleted && (
+        /*
+          Rasm postning bir qismi — u ham bosilganda post sahifasiga
+          olib boradi. Balandligi cheklangan: baland rasm butun ekranni
+          egallab, lentani aylantirishni qiyinlashtirardi.
+        */
+        <img
+          src={post.imageUrl}
+          alt=""
+          loading="lazy"
+          className="border-border mt-3 max-h-96 w-full rounded-xl border object-cover"
+        />
+      )}
 
       {!post.isDeleted && (
         <div className="text-muted-foreground mt-3 flex items-center gap-1">

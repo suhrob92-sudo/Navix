@@ -191,6 +191,15 @@ export const PUBLIC_RATE_LIMITS = {
    * Cheklov faqat robotni to'xtatish uchun.
    */
   postLike: { limit: 120, windowSeconds: 60 },
+  /**
+   * Rasm yuklash: soatiga 60 ta.
+   *
+   * ── Nima uchun chegara KERAK ────────────────────────────────────────
+   * Har bir rasm joy egallaydi va u PULGA tushadi. Cheklovsiz skript
+   * bir kechada saqlash limitini to'ldirib, hisobni to'xtatib
+   * qo'yishi mumkin edi — shunda hamma rasmlar ochilmay qolardi.
+   */
+  upload: { limit: 60, windowSeconds: 60 * 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;

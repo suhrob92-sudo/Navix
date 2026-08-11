@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { paginationQuerySchema } from '@/lib/api/pagination';
 import { usernameParamSchema } from '@/modules/profile/social.schemas';
+import { isOwnImageUrl } from '@/modules/upload/upload.types';
 
 /**
  * Chat moduli uchun validatsiya.
@@ -47,18 +48,37 @@ export const openConversationSchema = z
 export type OpenConversationInput = z.infer<typeof openConversationSchema>;
 
 /** POST /api/v1/chat/conversations/{id}/messages */
-export const sendMessageSchema = z.object({
-  /**
-   * Xabar matni.
-   *
-   * Bo'sh xabar yuborilmaydi: ro'yxatda bo'sh qator paydo bo'lardi
-   * va uni o'chirishdan boshqa iloji qolmasdi.
-   *
-   * Chegara 4000 — bazadagi ustun bilan bir xil. Kattaroq matn
-   * bazaga umuman yozilmasdi va xato tushunarsiz bo'lardi.
-   */
-  body: z.string().trim().min(1, "Xabar bo'sh").max(4000, "Xabar juda uzun (4000 belgidan ko'p)"),
-});
+export const sendMessageSchema = z
+  .object({
+    /**
+     * Xabar matni.
+     *
+     * Rasm biriktirilgan bo'lsa bo'sh bo'lishi mumkin, aks holda
+     * bo'sh xabar yuborilmaydi: ro'yxatda bo'sh qator paydo bo'lardi
+     * va uni o'chirishdan boshqa iloji qolmasdi.
+     *
+     * Chegara 4000 — bazadagi ustun bilan bir xil. Kattaroq matn
+     * bazaga umuman yozilmasdi va xato tushunarsiz bo'lardi.
+     */
+    body: z.string().trim().max(4000, "Xabar juda uzun (4000 belgidan ko'p)").default(''),
+    /**
+     * Biriktirilgan rasm.
+     *
+     * Faqat o'zimiz yuklagan manzil qabul qilinadi — begona sayt
+     * rasmini biriktirish suhbatdoshning IP manzilini o'sha saytga
+     * yetkazardi.
+     */
+    imageUrl: z
+      .string()
+      .trim()
+      .max(500)
+      .refine(isOwnImageUrl, "Rasm manzili noto'g'ri. Rasmni qaytadan yuklang.")
+      .optional(),
+  })
+  .refine(
+    (value) => value.body.length > 0 || Boolean(value.imageUrl),
+    "Xabar bo'sh: matn yozing yoki rasm biriktiring.",
+  );
 
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 

@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import {
@@ -19,8 +20,10 @@ import { Alert } from '@/components/ui/alert';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ImageAttach } from '@/components/upload/image-attach';
 import { useApiClient } from '@/hooks/use-api';
 import { useChatStream } from '@/hooks/use-chat-stream';
+import { useImageUpload } from '@/hooks/use-image-upload';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzTime } from '@/lib/date';
 import { cn } from '@/lib/utils';
@@ -58,9 +61,12 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
   const { start } = useCall();
 
   const [draft, setDraft] = useState('');
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [pending, setPending] = useState<MessageView[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const image = useImageUpload('CHAT');
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastTypingAt = useRef(0);
@@ -140,16 +146,25 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
     });
   }
 
+  async function attachImage(file: File): Promise<void> {
+    const url = await image.upload(file);
+
+    if (url) setImageUrl(url);
+  }
+
   async function send(event: FormEvent): Promise<void> {
     event.preventDefault();
 
     const body = draft.trim();
+    const attached = imageUrl;
 
-    if (!body || isSending) return;
+    // Rasm o'zi ham xabar: matn shart emas.
+    if ((!body && !attached) || isSending || image.isUploading) return;
 
     setIsSending(true);
     setError(null);
     setDraft('');
+    setImageUrl(null);
 
     /**
      * Vaqtinchalik xabar — u faqat ekranda, bazada emas.
@@ -160,6 +175,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
     const temporary: MessageView = {
       id: `pending-${Date.now()}`,
       body,
+      imageUrl: attached,
       isMine: true,
       createdAt: new Date().toISOString(),
       status: 'SENT',
@@ -171,7 +187,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
     try {
       const result = await request<SendMessageResponse>(`/api/v1/chat/conversations/${conversationId}/messages`, {
         method: 'POST',
-        body: { body },
+        body: { body, ...(attached ? { imageUrl: attached } : {}) },
       });
 
       /**
@@ -184,8 +200,9 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
       setPending((current) => current.map((item) => (item.id === temporary.id ? { ...result.message } : item)));
     } catch (caught) {
       setPending((current) => current.filter((item) => item.id !== temporary.id));
-      // Yozilgan matn yo'qolmasin — odam uni qaytadan yozmasin.
+      // Yozilgan matn va biriktirilgan rasm yo'qolmasin.
       setDraft(body);
+      setImageUrl(attached);
       setError(toUserMessage(caught));
     } finally {
       setIsSending(false);
@@ -360,6 +377,15 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="mx-auto flex max-w-lg items-end gap-2 px-3 py-2.5">
+          <ImageAttach
+            value={imageUrl}
+            isUploading={image.isUploading}
+            disabled={isSending}
+            onSelect={(file) => void attachImage(file)}
+            onRemove={() => setImageUrl(null)}
+            className="shrink-0"
+          />
+
           <textarea
             value={draft}
             onChange={(event) => handleDraftChange(event.target.value)}
@@ -378,13 +404,19 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
           <Button
             type="submit"
             size="icon"
-            disabled={!draft.trim() || isSending}
+            disabled={(!draft.trim() && !imageUrl) || isSending || image.isUploading}
             aria-label="Yuborish"
             className="shrink-0 rounded-full"
           >
             <SendHorizontal className="size-5" aria-hidden="true" />
           </Button>
         </div>
+
+        {image.error && (
+          <p className="text-destructive px-4 pb-2 text-xs" role="alert">
+            {image.error}
+          </p>
+        )}
 
         {/*
           Ulanish uzilganini YASHIRMAYMIZ: odam xabari yetmayotganini
@@ -430,14 +462,30 @@ function MessageBubble({ message }: { message: MessageView }) {
             : 'bg-secondary text-secondary-foreground rounded-bl-md',
         )}
       >
-        <p
-          className={cn(
-            'text-sm leading-relaxed break-words whitespace-pre-wrap',
-            message.isDeleted && 'italic opacity-70',
-          )}
-        >
-          {message.isDeleted ? "Xabar o'chirilgan" : message.body}
-        </p>
+        {message.imageUrl && (
+          /*
+            Rasm puffak ichida — matn bilan bir xil kenglikda. Balandligi
+            cheklangan: baland rasm butun ekranni egallab, suhbatni
+            aylantirishni qiyinlashtirardi.
+          */
+          <img
+            src={message.imageUrl}
+            alt=""
+            loading="lazy"
+            className={cn('max-h-72 w-full rounded-xl object-cover', message.body && 'mb-2')}
+          />
+        )}
+
+        {(message.body.length > 0 || message.isDeleted) && (
+          <p
+            className={cn(
+              'text-sm leading-relaxed break-words whitespace-pre-wrap',
+              message.isDeleted && 'italic opacity-70',
+            )}
+          >
+            {message.isDeleted ? "Xabar o'chirilgan" : message.body}
+          </p>
+        )}
 
         <p
           className={cn(

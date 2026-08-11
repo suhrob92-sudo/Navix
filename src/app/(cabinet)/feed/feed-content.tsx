@@ -36,14 +36,14 @@ export function FeedContent() {
   const list = useCursorList<PostView>(`/api/v1/feed?tab=${tab}`, 'posts');
   const actions = usePostActions(list.setItems);
 
-  async function publish(body: string): Promise<boolean> {
+  async function publish(body: string, imageUrl: string | null): Promise<boolean> {
     setIsSending(true);
     setSendError(null);
 
     try {
       const result = await request<{ post: PostView }>('/api/v1/posts', {
         method: 'POST',
-        body: { body },
+        body: { body, ...(imageUrl ? { imageUrl } : {}) },
       });
 
       /**

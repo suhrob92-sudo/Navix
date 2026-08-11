@@ -27,7 +27,7 @@ export const POST = withApiHandler<Params>(async (request: NextRequest, { reques
 
   await enforcePublicRateLimit('chatSend', auth.userId, 'Juda tez yozyapsiz. Biroz sekinlashtiring.');
 
-  const message = await sendMessage(id, auth.userId, input.body);
+  const message = await sendMessage(id, auth.userId, input.body, input.imageUrl ?? null);
 
   return apiSuccess({ message }, { requestId, status: 201 });
 });

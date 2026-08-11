@@ -8,6 +8,7 @@ import { listCallsForConversation } from '@/modules/call/call.service';
 import { requireCanMessage } from '@/modules/moderation/moderation.service';
 import { sendPush } from '@/modules/notification/push.service';
 import type { ServiceColor } from '@/config/modules';
+import { IMAGE_MESSAGE_TEXT } from '@/modules/chat/chat.types';
 import type {
   ChatPeer,
   ConversationListItem,
@@ -77,7 +78,7 @@ const CONVERSATION_SELECT = {
   },
   messages: {
     where: { deletedAt: null },
-    select: { body: true, senderId: true, createdAt: true },
+    select: { body: true, imageUrl: true, senderId: true, createdAt: true },
     orderBy: { createdAt: 'desc' as const },
     take: 1,
   },
@@ -212,7 +213,12 @@ export async function listConversations(
     return {
       id: row.id,
       peer: resolvePeer(row, viewerId),
-      lastMessage: lastMessage?.body ?? null,
+      /**
+       * Rasmli xabarda matn bo'sh bo'lishi mumkin — u BO'SH SATR
+       * bo'lib qaytadi, `null` emas. Farqi muhim: `null` "hali xabar
+       * yo'q" degani, bo'sh satr esa "xabar bor, lekin matnsiz".
+       */
+      lastMessage: lastMessage ? lastMessage.body : null,
       lastMessageIsMine: lastMessage?.senderId === viewerId,
       lastMessageAt: (row.lastMessageAt ?? row.createdAt).toISOString(),
       unreadCount: unread.get(row.id) ?? 0,
@@ -437,6 +443,7 @@ function toMessageView(
   row: {
     id: string;
     body: string;
+    imageUrl: string | null;
     senderId: string;
     createdAt: Date;
     deliveredAt: Date | null;
@@ -449,6 +456,8 @@ function toMessageView(
     id: row.id,
     // O'chirilgan xabar MATNI yuborilmaydi — u brauzerda ko'rinib qolmasligi kerak.
     body: row.deletedAt ? '' : row.body,
+    // Rasm ham xuddi shunday: o'chirilgan xabarda u ko'rinmasligi kerak.
+    imageUrl: row.deletedAt ? null : row.imageUrl,
     isMine: row.senderId === viewerId,
     createdAt: row.createdAt.toISOString(),
     status: resolveStatus(row, viewerId, peerLastReadAt),
@@ -476,6 +485,7 @@ export async function getThread(conversationId: string, viewerId: string): Promi
     select: {
       id: true,
       body: true,
+      imageUrl: true,
       senderId: true,
       createdAt: true,
       deliveredAt: true,
@@ -511,7 +521,12 @@ export async function getThread(conversationId: string, viewerId: string): Promi
   };
 }
 
-export async function sendMessage(conversationId: string, senderId: string, body: string): Promise<MessageView> {
+export async function sendMessage(
+  conversationId: string,
+  senderId: string,
+  body: string,
+  imageUrl: string | null = null,
+): Promise<MessageView> {
   const row = await requireMembership(conversationId, senderId);
 
   const otherId = peerUserId(row, senderId);
@@ -538,10 +553,11 @@ export async function sendMessage(conversationId: string, senderId: string, body
 
   const [message] = await prisma.$transaction([
     prisma.message.create({
-      data: { conversationId, senderId, body, deliveredAt },
+      data: { conversationId, senderId, body, imageUrl, deliveredAt },
       select: {
         id: true,
         body: true,
+        imageUrl: true,
         senderId: true,
         createdAt: true,
         deliveredAt: true,
@@ -626,7 +642,7 @@ async function notifyNewMessage(
        * Telefon ekranida uzun xabar baribir kesiladi, lekin uni to'liq
        * yuborish har bir push'ni og'irlashtiradi.
        */
-      body: body.length > 120 ? `${body.slice(0, 120)}…` : body,
+      body: body.length === 0 ? IMAGE_MESSAGE_TEXT : body.length > 120 ? `${body.slice(0, 120)}…` : body,
       url: `/messages/${conversationId}`,
       /**
        * Nishon SUHBAT bo'yicha: bir suhbatdan kelgan o'nta xabar

@@ -49,6 +49,8 @@ export type MessageStatus = 'SENT' | 'DELIVERED' | 'SEEN';
 export interface MessageView {
   id: string;
   body: string;
+  /** Biriktirilgan rasm. O'chirilgan xabarda `null`. */
+  imageUrl: string | null;
   /** Xabarni MEN yubordimmi. */
   isMine: boolean;
   createdAt: string;
@@ -120,8 +122,19 @@ export type ChatFilter = (typeof CHAT_FILTERS)[number]['value'];
 export function formatLastMessage(item: ConversationListItem): string {
   if (item.lastMessage === null) return "Hali xabar yo'q";
 
-  return item.lastMessageIsMine ? `Siz: ${item.lastMessage}` : item.lastMessage;
+  /**
+   * Matnsiz rasm uchun MAXSUS matn.
+   *
+   * Aks holda ro'yxatda bo'sh qator turardi va odam "nima keldi?"
+   * deb suhbatni ochishga majbur bo'lardi.
+   */
+  const text = item.lastMessage.length > 0 ? item.lastMessage : IMAGE_MESSAGE_TEXT;
+
+  return item.lastMessageIsMine ? `Siz: ${text}` : text;
 }
+
+/** Rasmli (matnsiz) xabar ro'yxatlarda va push'da shunday ko'rinadi. */
+export const IMAGE_MESSAGE_TEXT = 'Rasm';
 
 /** Xabar holati uchun belgi: ✓ yoki ✓✓. */
 export function statusMark(status: MessageStatus): string {

@@ -167,3 +167,55 @@ describe('sendMessageSchema', () => {
     expect(sendMessageSchema.parse({ body: 'salom', status: 'SEEN' })).not.toHaveProperty('status');
   });
 });
+
+describe('formatLastMessage — rasmli xabar', () => {
+  function item(overrides: Partial<ConversationListItem>): ConversationListItem {
+    return {
+      id: '1',
+      peer: {
+        kind: 'DIRECT',
+        handle: 'bobur_k',
+        name: 'Bobur Karimov',
+        avatarUrl: null,
+        color: null,
+        isVerified: false,
+        profileUrl: '/u/bobur_k',
+      },
+      lastMessage: null,
+      lastMessageIsMine: false,
+      lastMessageAt: '2026-08-11T03:00:00.000Z',
+      unreadCount: 0,
+      ...overrides,
+    };
+  }
+
+  it("matnsiz rasm uchun maxsus matn ko'rsatiladi", () => {
+    // Aks holda ro'yxatda bo'sh qator turardi.
+    expect(formatLastMessage(item({ lastMessage: '' }))).toBe('Rasm');
+  });
+
+  it("o'z rasmim ham belgilanadi", () => {
+    expect(formatLastMessage(item({ lastMessage: '', lastMessageIsMine: true }))).toBe('Siz: Rasm');
+  });
+
+  it("xabar umuman yo'q holati farqlanadi", () => {
+    // `null` — "hali xabar yo'q", bo'sh satr esa "xabar bor, matnsiz".
+    expect(formatLastMessage(item({ lastMessage: null }))).toBe("Hali xabar yo'q");
+  });
+});
+
+describe('sendMessageSchema — rasm bilan', () => {
+  const image = '/api/v1/files/chat/a/b.webp';
+
+  it('matnsiz, rasmli xabar qabul qilinadi', () => {
+    expect(sendMessageSchema.safeParse({ imageUrl: image }).success).toBe(true);
+  });
+
+  it("matn ham, rasm ham bo'lmasa rad etiladi", () => {
+    expect(sendMessageSchema.safeParse({ body: '  ' }).success).toBe(false);
+  });
+
+  it('BEGONA rasm manzili rad etiladi', () => {
+    expect(sendMessageSchema.safeParse({ imageUrl: 'https://tracker.example.com/p.gif' }).success).toBe(false);
+  });
+});

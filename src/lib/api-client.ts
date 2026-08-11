@@ -68,6 +68,17 @@ export async function apiRequest<TData>(path: string, options: RequestOptions = 
 
   let response: Response;
 
+  /**
+   * Fayl yuborilayotgan bo'lsa, tana O'Z HOLICHA uzatiladi.
+   *
+   * ── Nima uchun `content-type` OLIB TASHLANADI ──────────────────────
+   * `multipart/form-data` sarlavhasi ichida chegara belgisi bo'ladi
+   * (`boundary=----WebKitFormBoundary...`) va uni brauzer o'zi
+   * yozadi. Biz "application/json" deb yozib qo'ysak, server tanani
+   * umuman ocholmasdi — fayl "yo'q" bo'lib ko'rinardi.
+   */
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
   try {
     response = await fetch(path, {
       ...init,
@@ -75,11 +86,11 @@ export async function apiRequest<TData>(path: string, options: RequestOptions = 
       // Refresh token cookie'si yuborilishi uchun majburiy.
       credentials: 'same-origin',
       headers: {
-        'content-type': 'application/json',
+        ...(isFormData ? {} : { 'content-type': 'application/json' }),
         ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
         ...headers,
       },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      ...(body === undefined ? {} : { body: isFormData ? (body as FormData) : JSON.stringify(body) }),
     });
   } catch (error) {
     /**

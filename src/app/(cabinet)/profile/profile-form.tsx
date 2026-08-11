@@ -1,8 +1,8 @@
 'use client';
 
-import { AtSign, Check, Loader2 } from 'lucide-react';
+import { AtSign, Check, ImagePlus, Loader2 } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar } from '@/components/ui/avatar';
 import { BIO_MAX_LENGTH } from '@/config/profile';
 import { useApiClient } from '@/hooks/use-api';
+import { useImageUpload } from '@/hooks/use-image-upload';
 import { ApiClientError, toUserMessage } from '@/lib/api-client';
 import { formatUzPhone } from '@/lib/phone';
 import {
@@ -48,6 +49,16 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
   const [firstName, setFirstName] = useState(profile.firstName ?? '');
   const [lastName, setLastName] = useState(profile.lastName ?? '');
   const [avatarUrl, setAvatarUrl] = useState(profile.avatarUrl ?? '');
+
+  const avatar = useImageUpload('AVATAR');
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  /** Rasm tanlandi: yuklanadi va ko'rinishga qo'yiladi (saqlash alohida). */
+  async function pickAvatar(file: File): Promise<void> {
+    const url = await avatar.upload(file);
+
+    if (url) setAvatarUrl(url);
+  }
   const [dateOfBirth, setDateOfBirth] = useState(profile.preferences.dateOfBirth?.slice(0, 10) ?? '');
   const [language, setLanguage] = useState(profile.preferences.language);
   const [theme, setTheme] = useState(profile.preferences.theme);
@@ -214,10 +225,62 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
           */}
           <div className="flex items-center gap-4">
             <Avatar src={avatarUrl.trim() || null} name={`${firstName} ${lastName}`} size="lg" />
-            <p className="text-muted-foreground text-xs leading-relaxed">
-              Rasm havolasi pastda. Fayl yuklash imkoniyati saqlash xizmati ulangach qo&apos;shiladi.
-            </p>
+
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isSaving || avatar.isUploading}
+                  isLoading={avatar.isUploading}
+                  loadingText="Yuklanmoqda..."
+                  onClick={() => avatarInputRef.current?.click()}
+                >
+                  <ImagePlus className="size-4" aria-hidden="true" />
+                  {avatarUrl ? 'Rasmni almashtirish' : 'Rasm yuklash'}
+                </Button>
+
+                {avatarUrl && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={isSaving || avatar.isUploading}
+                    onClick={() => setAvatarUrl('')}
+                  >
+                    Olib tashlash
+                  </Button>
+                )}
+              </div>
+
+              <p className="text-muted-foreground mt-2 text-xs leading-relaxed">
+                Rasm avtomatik kichraytiriladi. Saqlash tugmasini bosishni unutmang.
+              </p>
+            </div>
+
+            {/*
+              Fayl maydoni YASHIRIN: brauzerning o'z tugmasi har
+              qurilmada boshqacha ko'rinadi va uni loyihaning uslubiga
+              moslab bo'lmaydi.
+            */}
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+
+                // Bir xil faylni ikkinchi marta tanlash uchun maydon tozalanadi.
+                event.target.value = '';
+
+                if (file) void pickAvatar(file);
+              }}
+            />
           </div>
+
+          {avatar.error && <Alert variant="error">{avatar.error}</Alert>}
 
           <Field
             id="username"
@@ -365,24 +428,6 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
               onChange={(event) => setDateOfBirth(event.target.value)}
               max={new Date().toISOString().slice(0, 10)}
               hasError={Boolean(fieldErrors.dateOfBirth)}
-              disabled={isSaving}
-            />
-          </Field>
-
-          <Field
-            id="avatarUrl"
-            label="Profil rasmi havolasi"
-            hint="Rasm joylash imkoniyati keyingi bosqichda qo'shiladi"
-            errors={fieldErrors.avatarUrl}
-          >
-            <Input
-              id="avatarUrl"
-              type="url"
-              inputMode="url"
-              placeholder="https://..."
-              value={avatarUrl}
-              onChange={(event) => setAvatarUrl(event.target.value)}
-              hasError={Boolean(fieldErrors.avatarUrl)}
               disabled={isSaving}
             />
           </Field>

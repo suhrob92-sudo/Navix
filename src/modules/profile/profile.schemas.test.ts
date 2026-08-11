@@ -68,9 +68,31 @@ describe('updateProfileSchema', () => {
     });
   });
 
-  it("noto'g'ri rasm havolasini rad etadi", () => {
-    expect(updateProfileSchema.safeParse({ avatarUrl: 'rasm.jpg' }).success).toBe(false);
-    expect(updateProfileSchema.safeParse({ avatarUrl: 'https://cdn.navix.uz/a.jpg' }).success).toBe(true);
+  describe('profil rasmi', () => {
+    it("o'zimiz yuklagan rasmni qabul qiladi", () => {
+      expect(updateProfileSchema.safeParse({ avatarUrl: '/api/v1/files/avatars/u1/a.webp' }).success).toBe(true);
+      expect(
+        updateProfileSchema.safeParse({
+          avatarUrl: 'https://s1.public.blob.vercel-storage.com/avatars/u1/a.webp',
+        }).success,
+      ).toBe(true);
+    });
+
+    it('rasmni olib tashlashga ruxsat beradi', () => {
+      expect(updateProfileSchema.safeParse({ avatarUrl: null }).success).toBe(true);
+    });
+
+    /**
+     * ── Bu testning MA'NOSI ────────────────────────────────────────────
+     * Avval bu maydon istalgan havolani qabul qilardi. Endi rasm
+     * ilovaning o'ziga yuklanadi: begona havola profilni ko'rgan har
+     * bir odamning IP manzilini o'sha saytga yetkazardi va egasi
+     * rasmni istalgan payt boshqasiga almashtira olardi.
+     */
+    it('BEGONA havolani rad etadi', () => {
+      expect(updateProfileSchema.safeParse({ avatarUrl: 'rasm.jpg' }).success).toBe(false);
+      expect(updateProfileSchema.safeParse({ avatarUrl: 'https://cdn.navix.uz/a.jpg' }).success).toBe(false);
+    });
   });
 
   it("noma'lum tilni rad etadi", () => {

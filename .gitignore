@@ -62,3 +62,7 @@ navbat.csv
 
 # Redis mahalliy dump — bu ishlab chiqish keshi, kodga aloqasi yo'q.
 dump.rdb
+
+# Mahalliy fayl saqlash (BLOB_READ_WRITE_TOKEN berilmaganda ishlatiladi).
+# Bu foydalanuvchilar yuklagan rasmlar — kodga aloqasi yo'q.
+/.uploads
