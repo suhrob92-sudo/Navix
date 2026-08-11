@@ -30,10 +30,32 @@ interface DependencyCheck {
 interface HealthPayload {
   status: 'healthy' | 'degraded';
   uptimeSeconds: number;
+  /**
+   * Hozir ishlab turgan versiya (git commit).
+   *
+   * ── Nima uchun kerak ────────────────────────────────────────────────
+   * "Men tuzatdim, lekin baribir eski xato chiqyapti" — eng ko'p
+   * uchraydigan chalkashlik. Sababi odatda oddiy: yangi versiya hali
+   * chiqmagan yoki brauzerda eski sahifa qolgan.
+   *
+   * Bu maydon shu savolga bir soniyada javob beradi.
+   *
+   * Sir emas: kod ochiq va commit belgisi bilan hech narsa qilib
+   * bo'lmaydi.
+   */
+  version: string;
+  environment: string;
   dependencies: {
     database: DependencyCheck;
     redis: DependencyCheck;
   };
+}
+
+/** Vercel har deploy'da commit belgisini shu o'zgaruvchiga yozadi. */
+function resolveVersion(): string {
+  const sha = process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GIT_COMMIT_SHA;
+
+  return sha ? sha.slice(0, 7) : 'local';
 }
 
 /** Bitta bog'liqlikni tekshiradi va javob vaqtini o'lchaydi. */
@@ -63,6 +85,8 @@ export const GET = withApiHandler(async (_request: NextRequest, { requestId }) =
   const payload: HealthPayload = {
     status: isHealthy ? 'healthy' : 'degraded',
     uptimeSeconds: Math.round(process.uptime()),
+    version: resolveVersion(),
+    environment: process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'development',
     dependencies: { database, redis: redisCheck },
   };
 

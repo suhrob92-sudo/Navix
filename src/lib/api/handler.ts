@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import * as Sentry from '@sentry/nextjs';
+
 import type { NextRequest, NextResponse } from 'next/server';
 import type { Logger } from 'pino';
 import { ZodError, type ZodType } from 'zod';
@@ -80,13 +82,14 @@ export function withApiHandler<TParams = Record<string, string>>(
       );
       return response;
     } catch (error) {
-      return handleRouteError(error, requestId, startedAt, log);
+      return handleRouteError(error, request, requestId, startedAt, log);
     }
   };
 }
 
 function handleRouteError(
   error: unknown,
+  request: NextRequest,
   requestId: string,
   startedAt: number,
   log: Logger,
@@ -124,6 +127,31 @@ function handleRouteError(
 
   // Kutilmagan xatolik: to'liq ma'lumot faqat log'ga.
   log.error({ err: error, durationMs }, 'Kutilmagan server xatosi');
+
+  /**
+   * Kutilmagan xato KUZATUV xizmatiga ham yuboriladi.
+   *
+   * ── Nima uchun bu ALOHIDA kerak edi ─────────────────────────────────
+   * Bu o'ram barcha xatolarni tutadi va foydalanuvchiga toza javob
+   * qaytaradi. Aynan shu sababli ular Next.js'ning o'z xato ilgagiga
+   * (`onRequestError`) UMUMAN yetib bormasdi — ya'ni Sentry sozlangan
+   * bo'lsa ham API xatolari ko'rinmasdi.
+   *
+   * Faqat KUTILMAGAN xatolar yuboriladi. "Parol noto'g'ri" yoki
+   * "topilmadi" kabi javoblar odatiy ish oqimi: ular yuborilsa,
+   * hisobot shovqinga to'lib ketardi va haqiqiy nosozliklar
+   * ko'rinmay qolardi.
+   */
+  Sentry.captureException(error, {
+    tags: { requestId },
+    /**
+     * So'rov TANASI yuborilmaydi.
+     *
+     * Unda parol, telefon raqami yoki yozishma bo'lishi mumkin.
+     * Xatoni tushunish uchun esa manzil va usul yetarli.
+     */
+    extra: { method: request.method, path: new URL(request.url).pathname },
+  });
 
   /**
    * Ishlab chiqish rejimida xato matni javobga ham qo'shiladi.

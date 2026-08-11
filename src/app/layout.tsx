@@ -4,6 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 
 import { ThemeProvider } from '@/components/providers/theme-provider';
+import { WebVitals } from '@/components/providers/web-vitals';
 import { siteConfig } from '@/config/site';
 import { AuthProvider } from '@/modules/auth/auth-context';
 
@@ -67,6 +68,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <ThemeProvider>
           <AuthProvider>{children}</AuthProvider>
         </ThemeProvider>
+
+        {/* Tezlik o'lchovi — hech narsa chizmaydi. */}
+        <WebVitals />
       </body>
     </html>
   );

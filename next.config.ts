@@ -1,3 +1,4 @@
+import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
 
 import { protectedPathPatterns } from './src/config/protected-routes';
@@ -113,4 +114,50 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+/**
+ * Xato kuzatuvi (Sentry) uchun o'ram.
+ *
+ * ── Nima uchun o'ram KERAK ────────────────────────────────────────────
+ * Production'da JavaScript siqiladi: o'zgaruvchilar `a`, `b`, `c` ga
+ * aylanadi va xato hisoboti "a is not a function at line 1:48211"
+ * ko'rinishida keladi — undan hech narsa tushunib bo'lmaydi.
+ *
+ * O'ram build vaqtida "manba xaritasi" (source map) yasab yuboradi va
+ * hisobotda xato AYNAN qaysi faylning qaysi qatorida bo'lganini
+ * ko'rsatadi.
+ *
+ * ── Kalitsiz ham ishlaydi ─────────────────────────────────────────────
+ * `SENTRY_AUTH_TOKEN` berilmasa, xarita yuborilmaydi va build
+ * odatdagidek davom etadi. Ya'ni bu o'ram ilovani hech qachon
+ * to'xtatib qo'ymaydi.
+ */
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  /**
+   * Build jurnali JIM.
+   *
+   * Sentry sukut bo'yicha o'nlab qator inglizcha matn chiqaradi.
+   * Telefon ekranida u haqiqiy xato xabarini surib yuboradi.
+   */
+  silent: true,
+
+  /**
+   * Manba xaritalari brauzerga BERILMAYDI.
+   *
+   * Ular Sentry'ga yuklanadi va o'chiriladi. Aks holda istalgan odam
+   * ilovaning to'liq kodini yuklab olardi.
+   */
+  widenClientFileUpload: true,
+  sourcemaps: { deleteSourcemapsAfterUpload: true },
+
+  /**
+   * `tunnelRoute` ATAYLAB ishlatilmadi.
+   *
+   * U Turbopack bilan yaratilmaydi — build o'tadi, lekin `/monitoring`
+   * manzili umuman paydo bo'lmaydi va xatolar jimgina yo'qoladi.
+   * Shuning uchun tunnel QO'LDA yozilgan: `src/app/monitoring/route.ts`.
+   */
+});

@@ -475,9 +475,60 @@ if (env.SMS_PROVIDER === 'eskiz') {
   );
 }
 
-// ── 6. Loyiha fayllari ────────────────────────────────────────────────
+// ── 6. Ixtiyoriy xizmatlar ────────────────────────────────────────────
 
-head('6) Loyiha fayllari');
+head("6) Ixtiyoriy xizmatlar");
+
+/**
+ * Bu xizmatlarsiz ilova ISHLAYDI, lekin ba'zi imkoniyatlar o'chiq
+ * bo'ladi. Shuning uchun ular "muammo" emas, "ogohlantirish".
+ *
+ * Har birida aynan NIMA ishlamasligi yozilgan — shunda qaysi birini
+ * hozir sozlash kerakligini o'zingiz hal qilasiz.
+ */
+if (env.BLOB_READ_WRITE_TOKEN) {
+  ok('Rasm saqlash (Vercel Blob) sozlangan');
+} else {
+  warn(
+    "BLOB_READ_WRITE_TOKEN yo'q — RASMLAR YO'QOLADI",
+    'Vercel -> loyiha -> Storage -> Create -> Blob. Usiz yuklangan rasm ' +
+      "bir necha daqiqadan keyin ochilmay qoladi (u yerda disk vaqtinchalik).",
+  );
+}
+
+if (env.NEXT_PUBLIC_SENTRY_DSN) {
+  ok('Xato kuzatuvi (Sentry) sozlangan');
+} else {
+  warn(
+    "NEXT_PUBLIC_SENTRY_DSN yo'q — xatolar ko'rinmaydi",
+    "sentry.io da bepul loyiha oching va DSN ni qo'shing. Usiz production'da " +
+      'nima buzilganini faqat foydalanuvchi aytganda bilasiz.',
+  );
+}
+
+if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY) {
+  ok('Push bildirishnomalar sozlangan');
+} else {
+  warn(
+    "VAPID kalitlari yo'q — push yuborilmaydi",
+    "Kalit yaratish: npm run push:keys. Usiz ilova YOPIQ bo'lganda xabar va " +
+      "qo'ng'iroq haqida bildirishnoma kelmaydi.",
+  );
+}
+
+if (env.TURN_URL) {
+  ok("Qo'ng'iroq uchun zaxira yo'l (TURN) sozlangan");
+} else {
+  warn(
+    "TURN_URL yo'q — ba'zi tarmoqlarda qo'ng'iroq ulanmaydi",
+    'Mobil operatorlarning bir qismida ikki telefon bevosita ulana olmaydi. ' +
+      "Video qo'ng'iroqda bu muammo ko'proq uchraydi.",
+  );
+}
+
+// ── 7. Loyiha fayllari ────────────────────────────────────────────────
+
+head('7) Loyiha fayllari');
 
 for (const file of ['vercel.json', 'prisma/schema.prisma', 'package.json']) {
   if (fs.existsSync(path.join(ROOT, file))) {

@@ -1,5 +1,6 @@
 'use client';
 
+import * as Sentry from '@sentry/nextjs';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect } from 'react';
@@ -18,6 +19,15 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
   useEffect(() => {
     // Brauzer konsoliga yozamiz; server tomonidagi to'liq log Next.js tomonidan yozilgan bo'ladi.
     console.error('Sahifa xatosi:', error);
+
+    /**
+     * Xato KUZATUV xizmatiga ham yuboriladi.
+     *
+     * Konsoldagi yozuv faqat foydalanuvchining o'z telefonida qoladi
+     * va biz uni hech qachon ko'rmaymiz. Odam esa odatda shikoyat
+     * qilmaydi — shunchaki ilovani yopadi.
+     */
+    Sentry.captureException(error);
   }, [error]);
 
   return (
