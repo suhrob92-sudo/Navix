@@ -169,6 +169,28 @@ export const PUBLIC_RATE_LIMITS = {
    * o'g'irlash usuli, ya'ni haqiqiy shikoyatlar ko'milib qolardi.
    */
   userReport: { limit: 20, windowSeconds: 60 * 60 },
+  /**
+   * Post yozish: soatiga 20 ta.
+   *
+   * Har bir post obunachilarning lentasiga tushadi. Odam uchun soatiga
+   * yigirmata juda bemalol, skript uchun esa lentani egallab olishga
+   * yetmaydi.
+   */
+  postCreate: { limit: 20, windowSeconds: 60 * 60 },
+  /**
+   * Izoh: daqiqasiga 20 ta.
+   *
+   * Izoh postdan tez-tez yoziladi (suhbat kabi), lekin u ham begona
+   * odamga bildirishnoma yuboradi.
+   */
+  postComment: { limit: 20, windowSeconds: 60 },
+  /**
+   * Yoqtirish: daqiqasiga 120 ta.
+   *
+   * Lentani aylanib chiqib ko'plab post yoqtirish tabiiy holat.
+   * Cheklov faqat robotni to'xtatish uchun.
+   */
+  postLike: { limit: 120, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;

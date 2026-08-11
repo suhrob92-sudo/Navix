@@ -1,0 +1,32 @@
+import type { NextRequest } from 'next/server';
+
+import { withApiHandler } from '@/lib/api/handler';
+import { apiSuccess } from '@/lib/api/response';
+import { requireAuth } from '@/modules/auth/auth.guard';
+import { deletePost, getPost } from '@/modules/feed/feed.service';
+
+/**
+ * GET    /api/v1/posts/[id] — bitta post.
+ * DELETE /api/v1/posts/[id] — postni o'chirish (faqat muallif).
+ */
+export const dynamic = 'force-dynamic';
+
+type Params = { id: string };
+
+export const GET = withApiHandler<Params>(async (request: NextRequest, { requestId, params }) => {
+  const auth = await requireAuth(request);
+  const { id } = await params;
+
+  const post = await getPost(id, auth.userId);
+
+  return apiSuccess({ post }, { requestId, headers: { 'cache-control': 'no-store' } });
+});
+
+export const DELETE = withApiHandler<Params>(async (request: NextRequest, { requestId, params }) => {
+  const auth = await requireAuth(request);
+  const { id } = await params;
+
+  await deletePost(id, auth.userId);
+
+  return apiSuccess({ isDeleted: true }, { requestId });
+});

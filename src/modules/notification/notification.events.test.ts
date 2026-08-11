@@ -159,6 +159,15 @@ const SAMPLES = {
     followerName: 'Bobur Karimov',
     followerUsername: 'bobur_k',
   },
+  'feed.post_liked': {
+    postId: '2b6f8d41-9c3e-4a5b-8d7f-1e0c9a4b6d23',
+    actorName: 'Bobur Karimov',
+  },
+  'feed.post_commented': {
+    postId: '2b6f8d41-9c3e-4a5b-8d7f-1e0c9a4b6d23',
+    actorName: 'Bobur Karimov',
+    preview: "Juda to'g'ri aytdingiz",
+  },
   'security.password_changed': { revokedSessions: 3 },
   'call.missed': {
     conversationId: '7f3a1c2e-8b4d-4e6a-9c1f-2d5e8a7b3c94',

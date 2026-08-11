@@ -46,6 +46,8 @@ export const PROTECTED_PREFIXES = [
   '/notifications',
   /** Xabarlar: `/messages`. */
   '/messages',
+  /** Lenta va bitta post: `/feed`, `/feed/<id>`. */
+  '/feed',
   '/security',
   '/wallet',
   '/payments',

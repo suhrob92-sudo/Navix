@@ -283,6 +283,9 @@ model User {
   blocksReceived    UserBlock[]          @relation("BlocksReceived")
   reportsMade       UserReport[]         @relation("ReportsMade")
   reportsReceived   UserReport[]         @relation("ReportsReceived")
+  posts             Post[]               @relation("PostAuthor")
+  postLikes         PostLike[]           @relation("PostLikes")
+  postComments      PostComment[]        @relation("CommentAuthor")
 
   @@index([status])
   @@index([createdAt])
@@ -2220,4 +2223,95 @@ model UserReport {
   @@index([status, createdAt])
   @@index([targetId])
   @@map("user_reports")
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Lenta (Feed)
+// ─────────────────────────────────────────────────────────────────────
+
+/// Foydalanuvchi posti.
+///
+/// ── Nima uchun sonlar USTUNDA saqlanadi ───────────────────────────────
+/// `likeCount` va `commentCount` ni har safar sanash mumkin edi
+/// (obunachilar soni aynan shunday sanaladi). Lekin lentada bir ekranda
+/// o'nlab post bo'ladi va har biri uchun ikkitadan sanash so'rovi
+/// yuborilardi — bu ro'yxatni sekinlashtiradigan eng katta sabab.
+///
+/// Post obunachidan farqli o'laroq KO'P o'qiladi va KAM o'zgaradi,
+/// shuning uchun bu yerda son ustunda turgani to'g'ri. Sonlar
+/// tranzaksiya ichida yangilanadi — ya'ni ular hech qachon "adashib"
+/// qolmaydi.
+model Post {
+  id String @id @default(uuid()) @db.Uuid
+
+  authorId String @db.Uuid
+
+  /// Post matni.
+  ///
+  /// Uzunlik ataylab cheklangan: uzun maqola uchun bu joy emas va
+  /// cheklovsiz matn lentani o'qib bo'lmas holga keltirardi.
+  body String @db.VarChar(1000)
+
+  likeCount    Int @default(0)
+  commentCount Int @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// O'chirilgan post — yozuv saqlanadi, matni ko'rsatilmaydi.
+  ///
+  /// Butunlay o'chirilsa, unga yozilgan izohlar ham yo'qolardi va
+  /// shikoyat kelganda tekshiradigan narsa qolmasdi.
+  deletedAt DateTime?
+
+  author   User          @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  likes    PostLike[]
+  comments PostComment[]
+
+  /// Lenta aynan shu tartibda o'qiladi: yangi postlar birinchi.
+  @@index([createdAt])
+  /// Profildagi "uning postlari" ro'yxati uchun.
+  @@index([authorId, createdAt])
+  @@map("posts")
+}
+
+/// Postga qo'yilgan yoqtirish.
+model PostLike {
+  id String @id @default(uuid()) @db.Uuid
+
+  postId String @db.Uuid
+  userId String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation("PostLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Bitta odam bitta postni ikki marta yoqtira olmaydi.
+  ///
+  /// Tugma tez-tez bosilishi mumkin, kod esa o'qish va yozish orasida
+  /// ulgurmasligi mumkin. Yagona ishonchli to'siq — bazadagi shart.
+  @@unique([postId, userId])
+  /// "Men yoqtirgan postlar" va lentadagi holat uchun.
+  @@index([userId])
+  @@map("post_likes")
+}
+
+/// Postga yozilgan izoh.
+model PostComment {
+  id String @id @default(uuid()) @db.Uuid
+
+  postId   String @db.Uuid
+  authorId String @db.Uuid
+
+  body String @db.VarChar(500)
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author User @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  /// Izohlar eskisidan yangisiga qarab o'qiladi — suhbat kabi.
+  @@index([postId, createdAt])
+  @@map("post_comments")
 }

@@ -4,6 +4,7 @@ import {
   ClipboardList,
   Home,
   MapPin,
+  Newspaper,
   Search,
   Settings,
   ShieldCheck,
@@ -44,11 +45,20 @@ export interface AppNavItem {
   isCenter?: boolean;
 }
 
+/**
+ * ── Nima uchun bu yerda "Buyurtmalar" O'RNIDA "Lenta" turadi ──────────
+ * Panelda beshta joy bor va u o'zgarmaydi (yuqoridagi izohga qarang).
+ * Lenta — kunda bir necha marta ochiladigan bo'lim: u bir bosishda
+ * bo'lmasa, umuman ochilmaydi.
+ *
+ * Buyurtmalar esa haftada bir marta kerak bo'ladi va u YO'QOLMADI:
+ * Profil menyusidagi "Mening buyurtmalarim" o'sha sahifani ochadi.
+ */
 export const APP_NAV: readonly AppNavItem[] = [
   { href: '/dashboard', label: 'Bosh sahifa', icon: Home, exact: true },
   { href: '/search', label: 'Qidiruv', icon: Search },
   { href: '/assistant', label: 'AI', icon: NavixMark, isCenter: true },
-  { href: '/orders', label: 'Buyurtmalar', icon: ClipboardList },
+  { href: '/feed', label: 'Lenta', icon: Newspaper },
   { href: '/profile', label: 'Profil', icon: User },
 ] as const;
 

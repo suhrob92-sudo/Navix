@@ -160,6 +160,16 @@ export interface NotificationEventData {
     followerName: string;
     followerUsername: string;
   };
+  'feed.post_liked': {
+    postId: string;
+    actorName: string;
+  };
+  'feed.post_commented': {
+    postId: string;
+    actorName: string;
+    /** Izohning boshi — ochmasdan turib nima yozilganini bilish uchun. */
+    preview: string;
+  };
   'security.password_changed': { revokedSessions: number };
   'call.missed': {
     conversationId: string;
@@ -502,6 +512,20 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
     body: `${followerName} sizga obuna bo'ldi.`,
     actionUrl: followerUsername ? `/u/${followerUsername}` : '/profile',
     sourceModule: 'profile',
+  }),
+
+  'feed.post_liked': ({ postId, actorName }) => ({
+    title: 'Postingiz yoqdi',
+    body: `${actorName} postingizni yoqtirdi.`,
+    actionUrl: `/feed/${postId}`,
+    sourceModule: 'feed',
+  }),
+
+  'feed.post_commented': ({ postId, actorName, preview }) => ({
+    title: 'Yangi izoh',
+    body: `${actorName}: ${preview}`,
+    actionUrl: `/feed/${postId}`,
+    sourceModule: 'feed',
   }),
 
   'security.password_changed': ({ revokedSessions }) => ({

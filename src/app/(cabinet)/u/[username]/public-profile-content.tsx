@@ -18,6 +18,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { UserPosts } from '@/components/feed/user-posts';
 import { ReportDialog } from '@/components/moderation/report-dialog';
 import { Alert } from '@/components/ui/alert';
 import { Avatar } from '@/components/ui/avatar';
@@ -480,6 +481,12 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                 )}
               </div>
             </section>
+
+            {/*
+              Bloklangan odamning postlari ko'rsatilmaydi: server ham
+              ularni bermaydi va so'rov faqat xato bilan tugardi.
+            */}
+            {!profile.isBlocked && <UserPosts username={profile.username} isOwn={profile.isOwn} />}
 
             <ConfirmDialog
               open={isBlockOpen}
