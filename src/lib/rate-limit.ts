@@ -200,6 +200,18 @@ export const PUBLIC_RATE_LIMITS = {
    * qo'yishi mumkin edi — shunda hamma rasmlar ochilmay qolardi.
    */
   upload: { limit: 60, windowSeconds: 60 * 60 },
+  /**
+   * Brauzer xatosi haqida hisobot: daqiqasiga 30 ta.
+   *
+   * ── Nima uchun chegara SAXIY ────────────────────────────────────────
+   * Bitta buzilgan sahifa bir necha xil xato chiqarishi mumkin va
+   * ularning hammasi kerak. Brauzer tomoni bir xil xatoni ikki marta
+   * yubormaydi, ya'ni 30 ta — bu 30 ta HAR XIL xato.
+   *
+   * Chegara IP bo'yicha: bu manzilda foydalanuvchi noma'lum
+   * (xato tizimga kirgunga qadar ham yuz berishi mumkin).
+   */
+  clientError: { limit: 30, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;

@@ -67,19 +67,24 @@ har so'rov xato bilan tugaydi.
 
 ## 2. Kuchli tavsiya — bularsiz ishlaydi, lekin ko'r bo'lasiz
 
-### 2.1. Xato kuzatuvi (Sentry)
+### 2.1. Xatolarni kuzatish — sozlash KERAK EMAS
 
-`NEXT_PUBLIC_SENTRY_DSN` — [sentry.io](https://sentry.io) da bepul
-loyiha oching (Next.js tanlang) va DSN ni nusxalang.
+Xatolar avtomatik yig'iladi va admin panelda ko'rinadi:
 
-**Nima uchun:** usiz production'da nima buzilganini faqat foydalanuvchi
-aytganda bilasiz. Amalda esa odam shikoyat qilmaydi — u ilovani yopadi
-va qaytmaydi.
+```
+https://<sizning-domeningiz>/admin/errors
+```
 
-Ixtiyoriy, lekin foydali: `SENTRY_ORG`, `SENTRY_PROJECT` va
-`SENTRY_AUTH_TOKEN`. Ular bo'lsa xato hisobotida **aynan qaysi faylning
-qaysi qatori** ko'rsatiladi. Usiz hisobot siqilgan kod bo'yicha keladi
-va undan hech narsa tushunib bo'lmaydi.
+Server xatolari ham, brauzerdagi xatolar ham shu yerga tushadi. Bir xil
+xatolar bitta qatorga yig'iladi va yonida "necha marta takrorlangan"
+soni turadi.
+
+**Nima uchun tashqi xizmat emas:** Sentry kabi xizmatlar kuchli, lekin
+ular O'zbekistondan har doim ham ochilmaydi. Ochilmaydigan kuzatuv —
+kuzatuv yo'qligi bilan bir xil.
+
+**Ishga tushirgan kuningiz shu sahifani ochib turing.** Birinchi
+soatlarda eng ko'p xato chiqadi va ular odatda oson tuzatiladi.
 
 ### 2.2. Push bildirishnomalar
 
@@ -121,13 +126,22 @@ hozir ishlab turgan versiya (git commit) ko'rinadi — "men tuzatdim,
 lekin baribir eski xato chiqyapti" degan chalkashlik shu bilan hal
 bo'ladi.
 
-### 3.2. Havola qanday ko'rinadi
+### 3.2. Xatolar bormi
+
+```
+https://<sizning-domeningiz>/admin/errors
+```
+
+Bo'sh bo'lsa — hammasi joyida. Xato chiqsa, matnini o'qing: unda
+qaysi manzilda va nima bo'lgani yozilgan.
+
+### 3.3. Havola qanday ko'rinadi
 
 Domenni o'zingizga Telegram'da yuboring. Rasm, nom va tavsif
 ko'rinishi kerak. Ko'rinmasa — Telegram eski nusxani saqlab qolgan
 bo'lishi mumkin, `?v=2` qo'shib qayta yuboring.
 
-### 3.3. Birinchi haqiqiy foydalanuvchi
+### 3.4. Birinchi haqiqiy foydalanuvchi
 
 O'zingizning ikkinchi raqamingiz bilan **to'liq yo'lni** bosib o'ting:
 ro'yxatdan o'tish → SMS kodi → profil → hamyonni to'ldirish →

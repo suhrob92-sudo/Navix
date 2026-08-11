@@ -2329,3 +2329,77 @@ model PostComment {
   @@index([postId, createdAt])
   @@map("post_comments")
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Xatolar jurnali
+// ─────────────────────────────────────────────────────────────────────
+
+/// Xato qayerda yuz berdi.
+enum ErrorSource {
+  /// Serverdagi API yoki sahifa.
+  SERVER
+  /// Foydalanuvchining brauzeri.
+  BROWSER
+}
+
+/// Ilovadagi xato.
+///
+/// ── Nima uchun tashqi xizmat EMAS ─────────────────────────────────────
+/// Sentry kabi xizmatlar kuchli, lekin ular O'zbekistondan har doim
+/// ham ochilmaydi (VPN'siz to'siladi, VPN bilan esa ularning o'zi
+/// to'sadi). Kuzatuv ochilmaydigan joyda turgani — kuzatuv yo'qligi
+/// bilan bir xil.
+///
+/// Shuning uchun xatolar O'Z bazamizda saqlanadi va admin panelda
+/// ko'rinadi. Hech qanday tashqi xizmat, ro'yxatdan o'tish yoki VPN
+/// kerak emas.
+///
+/// ── Nima uchun har xato ALOHIDA qator emas ────────────────────────────
+/// Bitta buzilgan sahifa bir kechada minglab bir xil xato yozardi va
+/// jadval o'qib bo'lmas holga kelardi. Shuning uchun bir xil xatolar
+/// BIR qatorga yig'iladi va `count` oshiriladi.
+model ErrorLog {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Bir xil xatolarni birlashtiruvchi barmoq izi.
+  ///
+  /// Turi, matni va manzilidan hisoblanadi. Yagona — shu sababli
+  /// bir xil xato ikkinchi marta qator yaratmaydi.
+  fingerprint String @unique @db.VarChar(64)
+
+  source ErrorSource
+
+  /// Xato turi: "TypeError", "PrismaClientKnownRequestError".
+  kind String @db.VarChar(120)
+
+  /// Xato matni (qisqartirilgan).
+  message String @db.VarChar(1000)
+
+  /// Qaysi manzilda yuz berdi. So'rov parametrlari OLIB TASHLANADI:
+  /// ularda token yoki telefon raqami bo'lishi mumkin.
+  path String @db.VarChar(300)
+
+  /// HTTP usuli — faqat server xatolarida.
+  method String? @db.VarChar(10)
+
+  /// Xato izi (stack). Uzunligi cheklangan: to'liq iz bir necha
+  /// kilobayt bo'lishi mumkin va uning oxiri odatda foydasiz.
+  stack String? @db.VarChar(4000)
+
+  /// Necha marta takrorlangan.
+  count Int @default(1)
+
+  /// Ko'rib chiqilganmi. Yopilgan xato ro'yxatda birinchi turmaydi.
+  isResolved Boolean @default(false)
+
+  /// Qaysi versiyada (git commit) yuz berdi.
+  version String? @db.VarChar(40)
+
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  /// Yangi xatolar birinchi; yopilganlari pastda.
+  @@index([isResolved, lastSeenAt])
+  @@index([lastSeenAt])
+  @@map("error_logs")
+}

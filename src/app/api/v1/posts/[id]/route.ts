@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 
 import { withApiHandler } from '@/lib/api/handler';
+import { parseIdParam } from '@/lib/api/params';
 import { apiSuccess } from '@/lib/api/response';
 import { requireAuth } from '@/modules/auth/auth.guard';
 import { deletePost, getPost } from '@/modules/feed/feed.service';
@@ -15,7 +16,7 @@ type Params = { id: string };
 
 export const GET = withApiHandler<Params>(async (request: NextRequest, { requestId, params }) => {
   const auth = await requireAuth(request);
-  const { id } = await params;
+  const id = parseIdParam((await params).id);
 
   const post = await getPost(id, auth.userId);
 
@@ -24,7 +25,7 @@ export const GET = withApiHandler<Params>(async (request: NextRequest, { request
 
 export const DELETE = withApiHandler<Params>(async (request: NextRequest, { requestId, params }) => {
   const auth = await requireAuth(request);
-  const { id } = await params;
+  const id = parseIdParam((await params).id);
 
   await deletePost(id, auth.userId);
 

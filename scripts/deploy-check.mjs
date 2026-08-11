@@ -479,6 +479,10 @@ if (env.SMS_PROVIDER === 'eskiz') {
 
 head("6) Ixtiyoriy xizmatlar");
 
+// Xato kuzatuvi sozlama TALAB QILMAYDI: xatolar o'z bazamizga
+// yoziladi va admin paneldagi "Xatolar" bo'limida ko'rinadi.
+ok("Xato kuzatuvi ichki — sozlash kerak emas", '/admin/errors');
+
 /**
  * Bu xizmatlarsiz ilova ISHLAYDI, lekin ba'zi imkoniyatlar o'chiq
  * bo'ladi. Shuning uchun ular "muammo" emas, "ogohlantirish".
@@ -493,16 +497,6 @@ if (env.BLOB_READ_WRITE_TOKEN) {
     "BLOB_READ_WRITE_TOKEN yo'q — RASMLAR YO'QOLADI",
     'Vercel -> loyiha -> Storage -> Create -> Blob. Usiz yuklangan rasm ' +
       "bir necha daqiqadan keyin ochilmay qoladi (u yerda disk vaqtinchalik).",
-  );
-}
-
-if (env.NEXT_PUBLIC_SENTRY_DSN) {
-  ok('Xato kuzatuvi (Sentry) sozlangan');
-} else {
-  warn(
-    "NEXT_PUBLIC_SENTRY_DSN yo'q — xatolar ko'rinmaydi",
-    "sentry.io da bepul loyiha oching va DSN ni qo'shing. Usiz production'da " +
-      'nima buzilganini faqat foydalanuvchi aytganda bilasiz.',
   );
 }
 

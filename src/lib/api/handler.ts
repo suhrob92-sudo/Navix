@@ -1,7 +1,5 @@
 import { randomUUID } from 'node:crypto';
 
-import * as Sentry from '@sentry/nextjs';
-
 import type { NextRequest, NextResponse } from 'next/server';
 import type { Logger } from 'pino';
 import { ZodError, type ZodType } from 'zod';
@@ -10,6 +8,7 @@ import { AppError, ErrorCode, RateLimitError, ValidationError, type FieldErrors 
 import { apiError, type ApiErrorBody } from '@/lib/api/response';
 import { isProduction } from '@/lib/env';
 import { logger } from '@/lib/logger';
+import { recordServerError } from '@/modules/error-log/error-log.service';
 
 /**
  * Har bir API route uchun umumiy "o'ram" (wrapper).
@@ -87,6 +86,21 @@ export function withApiHandler<TParams = Record<string, string>>(
   };
 }
 
+/**
+ * Xato "yaroqsiz ID" sababli chiqqanmi.
+ *
+ * Prisma bunday holatda `P2023` kodini beradi. Kod bo'yicha tekshirish
+ * matn bo'yicha tekshirishdan ishonchliroq: matn tilga va versiyaga
+ * qarab o'zgaradi.
+ */
+function isInvalidIdError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+
+  const code = (error as { code?: unknown }).code;
+
+  return code === 'P2023';
+}
+
 function handleRouteError(
   error: unknown,
   request: NextRequest,
@@ -125,33 +139,57 @@ function handleRouteError(
     });
   }
 
+  /**
+   * Bazaga YAROQSIZ ID yuborilgan.
+   *
+   * ── Nima uchun bu 404, 500 emas ─────────────────────────────────────
+   * Manzilga UUID o'rniga boshqa narsa yozilsa (`/api/v1/posts/salom`),
+   * Postgres "invalid input syntax for type uuid" deb xato tashlaydi.
+   *
+   * Lekin bu SERVER nosozligi emas: shunchaki so'ralgan narsa yo'q.
+   * 500 qaytarilsa, foydalanuvchi "sayt buzildi" deb o'ylardi va
+   * xatolar jurnali shunday so'rovlar bilan to'lib ketardi.
+   *
+   * Har bir manzilda alohida tekshiruv ham bor (`parseIdParam`), bu
+   * yerdagi qoida esa unutilgan joylarni qoplaydi.
+   */
+  if (isInvalidIdError(error)) {
+    log.warn({ durationMs }, 'Yaroqsiz ID — topilmadi deb javob berildi');
+
+    return apiError({
+      requestId,
+      code: ErrorCode.NOT_FOUND,
+      message: 'Topilmadi.',
+      status: 404,
+    });
+  }
+
   // Kutilmagan xatolik: to'liq ma'lumot faqat log'ga.
   log.error({ err: error, durationMs }, 'Kutilmagan server xatosi');
 
   /**
-   * Kutilmagan xato KUZATUV xizmatiga ham yuboriladi.
+   * Kutilmagan xato JURNALGA ham yoziladi.
    *
    * ── Nima uchun bu ALOHIDA kerak edi ─────────────────────────────────
    * Bu o'ram barcha xatolarni tutadi va foydalanuvchiga toza javob
    * qaytaradi. Aynan shu sababli ular Next.js'ning o'z xato ilgagiga
-   * (`onRequestError`) UMUMAN yetib bormasdi — ya'ni Sentry sozlangan
-   * bo'lsa ham API xatolari ko'rinmasdi.
+   * (`onRequestError`) UMUMAN yetib bormasdi — ya'ni API xatolari
+   * hech qayerda ko'rinmasdi.
    *
-   * Faqat KUTILMAGAN xatolar yuboriladi. "Parol noto'g'ri" yoki
-   * "topilmadi" kabi javoblar odatiy ish oqimi: ular yuborilsa,
-   * hisobot shovqinga to'lib ketardi va haqiqiy nosozliklar
+   * Faqat KUTILMAGAN xatolar yoziladi. "Parol noto'g'ri" yoki
+   * "topilmadi" kabi javoblar odatiy ish oqimi: ular yozilsa,
+   * jurnal shovqinga to'lib ketardi va haqiqiy nosozliklar
    * ko'rinmay qolardi.
+   *
+   * ── Nima uchun KUTILMAYDI (`void`) ──────────────────────────────────
+   * Jurnalga yozish — bazaga qo'shimcha so'rov. Foydalanuvchi esa
+   * javobni kutib turibdi.
+   *
+   * So'rov TANASI yozilmaydi: unda parol, telefon raqami yoki
+   * yozishma bo'lishi mumkin. Xatoni tushunish uchun manzil va usul
+   * yetarli.
    */
-  Sentry.captureException(error, {
-    tags: { requestId },
-    /**
-     * So'rov TANASI yuborilmaydi.
-     *
-     * Unda parol, telefon raqami yoki yozishma bo'lishi mumkin.
-     * Xatoni tushunish uchun esa manzil va usul yetarli.
-     */
-    extra: { method: request.method, path: new URL(request.url).pathname },
-  });
+  void recordServerError(error, new URL(request.url).pathname, request.method);
 
   /**
    * Ishlab chiqish rejimida xato matni javobga ham qo'shiladi.

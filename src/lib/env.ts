@@ -255,25 +255,6 @@ const clientSchema = z.object({
 
   /** Ilova nomi (brend). */
   NEXT_PUBLIC_APP_NAME: z.string().min(1).default('Navix'),
-
-  /**
-   * Sentry manzili (DSN) — xatolar shu yerga yuboriladi.
-   *
-   * ── Nima uchun `NEXT_PUBLIC_` ─────────────────────────────────────
-   * Xatolar SERVERDA ham, BRAUZERDA ham yuz beradi. Brauzerdagi xato
-   * yuborilishi uchun manzil brauzerga yetib borishi kerak.
-   *
-   * DSN — maxfiy kalit EMAS: u faqat "xatolarni shu loyihaga yoz"
-   * degan manzil. U bilan hech narsani o'qib bo'lmaydi.
-   *
-   * IXTIYORIY: berilmasa xato kuzatuvi butunlay o'chadi va ilova
-   * bemalol ishlayveradi.
-   */
-  NEXT_PUBLIC_SENTRY_DSN: z
-    .string()
-    .url()
-    .optional()
-    .or(z.literal('').transform(() => undefined)),
 });
 
 export type ServerEnv = z.infer<typeof serverSchema>;
@@ -292,7 +273,6 @@ function parseClientEnv(): ClientEnv {
   const parsed = clientSchema.safeParse({
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
-    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   });
 
   if (!parsed.success) {

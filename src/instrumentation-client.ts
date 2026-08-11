@@ -1,9 +1,7 @@
-import * as Sentry from '@sentry/nextjs';
-
-import { IGNORED_ERRORS, SENTRY_DSN, SENTRY_ENVIRONMENT, TRACES_SAMPLE_RATE } from '@/lib/observability';
+import { reportClientError } from '@/lib/client-error-reporter';
 
 /**
- * Brauzerdagi xato kuzatuvi.
+ * Brauzerdagi xatolarni ushlash.
  *
  * ── Nima uchun brauzer tomoni ALOHIDA kerak ───────────────────────────
  * Serverdagi loglar faqat server xatolarini ko'rsatadi. Ilovaning
@@ -13,45 +11,24 @@ import { IGNORED_ERRORS, SENTRY_DSN, SENTRY_ENVIRONMENT, TRACES_SAMPLE_RATE } fr
  *
  * Foydalanuvchi esa ko'pincha shikoyat qilmaydi: u shunchaki ilovani
  * yopadi va qaytmaydi.
+ *
+ * ── Bu fayl NIMA UCHUN shu yerda ──────────────────────────────────────
+ * Next.js `instrumentation-client.ts` faylini ilova ishga tushishidan
+ * OLDIN bajaradi. Ya'ni tinglovchilar birinchi xatodan ham oldin
+ * o'rnatiladi — aks holda eng erta xatolar tushib qolardi.
  */
-Sentry.init({
-  dsn: SENTRY_DSN,
-  environment: SENTRY_ENVIRONMENT,
-  tracesSampleRate: TRACES_SAMPLE_RATE,
-  ignoreErrors: IGNORED_ERRORS,
 
-  /**
-   * Hisobotlar BIZNING domenimiz orqali o'tadi.
-   *
-   * Reklama to'sarlari (AdBlock, uBlock) Sentry domenini to'sadi va
-   * usiz brauzerdagi xatolarning katta qismi umuman yetib kelmasdi.
-   *
-   * Uzatuvchi yo'l: `src/app/monitoring/route.ts`.
-   */
-  tunnel: '/monitoring',
-
-  /**
-   * Shaxsiy ma'lumot yuborilmaydi (server tomonidagi kabi).
-   *
-   * Brauzerda bu ayniqsa muhim: sahifada telefon raqami, hamyon
-   * balansi va yozishmalar bo'lishi mumkin.
-   */
-  sendDefaultPii: false,
-
-  beforeSend(event) {
-    if (event.request) {
-      delete event.request.cookies;
-      delete event.request.headers;
-    }
-
-    return event;
-  },
+/** Kutilmagan xato (masalan `undefined` funksiyani chaqirish). */
+window.addEventListener('error', (event) => {
+  reportClientError(event.error ?? event.message, window.location.pathname);
 });
 
 /**
- * Sahifadan sahifaga o'tishni kuzatadi.
+ * Ushlanmagan `Promise` xatosi.
  *
- * Usiz o'tish vaqti o'lchanmasdi: Next.js sahifani to'liq qayta
- * yuklamaydi, ya'ni brauzerning odatdagi o'lchovlari ishlamaydi.
+ * Bu eng ko'p uchraydigan tur: `await` qilingan so'rov xato bersa va
+ * uni hech kim tutmasa, shu hodisa chiqadi.
  */
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+window.addEventListener('unhandledrejection', (event) => {
+  reportClientError(event.reason, window.location.pathname);
+});

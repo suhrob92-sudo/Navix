@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 
 import { parseJsonBody, parseSearchParams, withApiHandler } from '@/lib/api/handler';
+import { parseIdParam } from '@/lib/api/params';
 import { apiSuccess } from '@/lib/api/response';
 import { enforcePublicRateLimit } from '@/lib/rate-limit';
 import { requireAuth } from '@/modules/auth/auth.guard';
@@ -17,7 +18,7 @@ type Params = { id: string };
 
 export const GET = withApiHandler<Params>(async (request: NextRequest, { requestId, params }) => {
   const auth = await requireAuth(request);
-  const { id } = await params;
+  const id = parseIdParam((await params).id);
   const query = parseSearchParams(request, commentsQuerySchema);
 
   const result = await listComments(id, auth.userId, query);
@@ -27,7 +28,7 @@ export const GET = withApiHandler<Params>(async (request: NextRequest, { request
 
 export const POST = withApiHandler<Params>(async (request: NextRequest, { requestId, params }) => {
   const auth = await requireAuth(request);
-  const { id } = await params;
+  const id = parseIdParam((await params).id);
   const input = await parseJsonBody(request, createCommentSchema);
 
   await enforcePublicRateLimit('postComment', auth.userId, "Juda ko'p izoh yozyapsiz. Biroz kuting.");

@@ -1,12 +1,12 @@
 'use client';
 
-import * as Sentry from '@sentry/nextjs';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
 import { Container } from '@/components/ui/container';
+import { reportClientError } from '@/lib/client-error-reporter';
 
 /**
  * Sahifada kutilmagan xatolik yuz berganda ko'rsatiladigan ekran.
@@ -21,13 +21,13 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
     console.error('Sahifa xatosi:', error);
 
     /**
-     * Xato KUZATUV xizmatiga ham yuboriladi.
+     * Xato JURNALGA ham yuboriladi.
      *
      * Konsoldagi yozuv faqat foydalanuvchining o'z telefonida qoladi
      * va biz uni hech qachon ko'rmaymiz. Odam esa odatda shikoyat
      * qilmaydi — shunchaki ilovani yopadi.
      */
-    Sentry.captureException(error);
+    reportClientError(error, window.location.pathname);
   }, [error]);
 
   return (

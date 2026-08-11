@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 
 import { withApiHandler } from '@/lib/api/handler';
+import { parseIdParam } from '@/lib/api/params';
 import { apiSuccess } from '@/lib/api/response';
 import { requireAuth } from '@/modules/auth/auth.guard';
 import { deleteComment } from '@/modules/feed/feed.service';
@@ -17,7 +18,7 @@ type Params = { id: string; commentId: string };
 
 export const DELETE = withApiHandler<Params>(async (request: NextRequest, { requestId, params }) => {
   const auth = await requireAuth(request);
-  const { commentId } = await params;
+  const commentId = parseIdParam((await params).commentId);
 
   await deleteComment(commentId, auth.userId);
 

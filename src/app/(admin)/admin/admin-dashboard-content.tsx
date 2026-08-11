@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   ArrowLeftRight,
   ArrowUpRight,
+  Bug,
   ChevronRight,
   Flag,
   Receipt,
@@ -53,6 +54,7 @@ function DashboardBody() {
    */
   const { user } = useAuth();
   const canSeeReports = hasPermission(user?.roles ?? [], Permission.PLATFORM_REPORT_MANAGE);
+  const canSeeErrors = hasPermission(user?.roles ?? [], Permission.PLATFORM_AUDIT_READ);
 
   /**
    * Har 60 soniyada yangilanadi: admin panel ochiq turganda raqamlar
@@ -196,6 +198,21 @@ function DashboardBody() {
 
             <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
           </Link>
+
+          {canSeeErrors && (
+            <Link href="/admin/errors" className="border-border/60 flex items-center gap-3 border-t p-4">
+              <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
+                <Bug className="size-4.5" aria-hidden="true" />
+              </span>
+
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">Xatolar</span>
+                <span className="text-muted-foreground block text-xs">Ilovada nima buzilayotgani</span>
+              </span>
+
+              <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+            </Link>
+          )}
 
           {canSeeReports && (
             <Link href="/admin/reports" className="border-border/60 flex items-center gap-3 border-t p-4">

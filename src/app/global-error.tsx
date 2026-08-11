@@ -1,7 +1,8 @@
 'use client';
 
-import * as Sentry from '@sentry/nextjs';
 import { useEffect } from 'react';
+
+import { reportClientError } from '@/lib/client-error-reporter';
 
 /**
  * ENG YUQORI darajadagi xato ekrani.
@@ -23,7 +24,7 @@ import { useEffect } from 'react';
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   useEffect(() => {
     // Bu darajadagi xato eng jiddiysi — u albatta yozib olinishi kerak.
-    Sentry.captureException(error);
+    reportClientError(error, window.location.pathname);
   }, [error]);
 
   return (
