@@ -16,7 +16,7 @@ import { useApiQuery } from '@/hooks/use-api';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { formatUsername, type UserSearchResponse, type UserSearchResult } from '@/modules/profile/social.types';
 import {
-  APP_MODULES,
+  getPublicModules,
   MODULE_CATEGORIES,
   ModuleStatus,
   type AppModule,
@@ -48,7 +48,7 @@ export function SearchContent() {
   const normalizedQuery = query.trim().toLowerCase();
 
   const results = useMemo(() => {
-    return APP_MODULES.filter((appModule) => {
+    return getPublicModules().filter((appModule) => {
       if (activeCategory !== 'all' && appModule.category !== activeCategory) return false;
       if (!normalizedQuery) return true;
 

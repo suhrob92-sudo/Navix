@@ -1,4 +1,4 @@
-import { APP_MODULES, ModuleStatus, type AppModule } from '@/config/modules';
+import { getPublicModules, ModuleStatus, type AppModule } from '@/config/modules';
 import { toSearchText } from '@/lib/search';
 
 /**
@@ -41,11 +41,13 @@ interface ModulePhrase {
 const PLANNED_PHRASES: ModulePhrase[] = buildPhrases(ModuleStatus.PLANNED);
 
 function buildPhrases(status: AppModule['status']): ModulePhrase[] {
-  return APP_MODULES.filter((module) => module.status === status).flatMap((module) =>
-    module.aiIntents
-      .map((phrase) => ({ module, words: toSearchText(phrase).split(' ').filter(Boolean) }))
-      .filter((entry) => entry.words.length > 0),
-  );
+  return getPublicModules()
+    .filter((module) => module.status === status)
+    .flatMap((module) =>
+      module.aiIntents
+        .map((phrase) => ({ module, words: toSearchText(phrase).split(' ').filter(Boolean) }))
+        .filter((entry) => entry.words.length > 0),
+    );
 }
 
 /**

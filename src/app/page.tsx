@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { Container } from '@/components/ui/container';
-import { APP_MODULES, MODULE_CATEGORIES, ModuleStatus, getModulesByCategory } from '@/config/modules';
+import { MODULE_CATEGORIES, ModuleStatus, getModulesByCategory, getPublicModules } from '@/config/modules';
 import { siteConfig } from '@/config/site';
 
 /** AI yordamchi nimalarni qila olishini ko'rsatuvchi namunalar. */
@@ -45,7 +45,14 @@ const PLATFORM_PILLARS = [
 ] as const;
 
 export default function HomePage() {
-  const liveModuleCount = APP_MODULES.filter((module) => module.status === ModuleStatus.LIVE).length;
+  /**
+   * Sanoqlar FAQAT ochiq modullar bo'yicha.
+   *
+   * Admin paneli ham reyestrda turadi, lekin u mijozga taklif
+   * qilinadigan xizmat emas — sanoqqa qo'shilsa, raqam yolg'on bo'lardi.
+   */
+  const publicModules = getPublicModules();
+  const liveModuleCount = publicModules.filter((module) => module.status === ModuleStatus.LIVE).length;
 
   return (
     <>
@@ -90,7 +97,7 @@ export default function HomePage() {
                 style={{ animationDelay: '320ms' }}
               >
                 {[
-                  { label: 'Reja qilingan modul', value: APP_MODULES.length },
+                  { label: 'Reja qilingan modul', value: publicModules.length },
                   { label: 'Ishga tushgan modul', value: liveModuleCount },
                   { label: "Xizmat yo'nalishi", value: MODULE_CATEGORIES.length },
                 ].map((stat) => (

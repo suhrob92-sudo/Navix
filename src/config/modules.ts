@@ -92,6 +92,20 @@ export interface AppModule {
    * aytsa — shu modul ishga tushadi.
    */
   aiIntents: string[];
+  /**
+   * XIZMAT modulimi — oddiy foydalanuvchiga ko'rsatilmaydi.
+   *
+   * ── Nima uchun kerak ────────────────────────────────────────────────
+   * Admin panel ham shu reyestrda turadi: uning manzili va nomi bir
+   * joyda bo'lishi qulay. Lekin u ochiq sahifada, qidiruvda va AI
+   * javoblarida chiqmasligi kerak.
+   *
+   * Bu xavfsizlik chorasi EMAS — panelning o'zi ruxsat bilan
+   * himoyalangan. Bu shunchaki to'g'ri ko'rinish masalasi: mijozga
+   * "Foydalanuvchilarni boshqarish" degan xizmatni taklif qilish
+   * ma'nosiz va hujum yuzasini bekorga e'lon qiladi.
+   */
+  isInternal?: boolean;
 }
 
 export interface ModuleCategoryMeta {
@@ -292,7 +306,7 @@ export const APP_MODULES: readonly AppModule[] = [
     href: '/assistant',
     icon: Bot,
     category: ModuleCategory.PLATFORM,
-    status: ModuleStatus.PLANNED,
+    status: ModuleStatus.LIVE,
     color: 'indigo',
     aiIntents: ['yordam ber', 'assistant', 'nima qila olasan'],
   },
@@ -309,23 +323,39 @@ export const APP_MODULES: readonly AppModule[] = [
   },
   {
     id: 'chat',
-    name: 'Chat',
-    description: "Haydovchi, sotuvchi va qo'llab-quvvatlash bilan yozishing.",
-    href: '/chat',
+    name: 'Xabarlar',
+    description: "Yozishmalar, ovozli xabar va qo'ng'iroqlar.",
+    /**
+     * Manzil `/messages` — `/chat` EMAS.
+     *
+     * Reyestrda `/chat` yozilgan edi, lekin bunday sahifa hech qachon
+     * bo'lmagan: suhbatlar boshidan `/messages` da qurilgan. Ya'ni
+     * qidiruvdan bosilgan har bir havola 404 ga olib borardi.
+     */
+    href: '/messages',
     icon: MessageCircle,
     category: ModuleCategory.PLATFORM,
-    status: ModuleStatus.PLANNED,
+    status: ModuleStatus.LIVE,
     color: 'sky',
-    aiIntents: ['chat och', 'xabar yoz', "operator bilan bog'la"],
+    aiIntents: ['chat och', 'xabar yoz', 'xabarlarim', 'suhbat och', "operator bilan bog'la"],
   },
   {
     id: 'orders',
     name: 'Buyurtmalarim',
-    description: 'Barcha modullardagi buyurtmalar yagona tarixda.',
+    /**
+     * Tavsif HAQIQATGA mos.
+     *
+     * Ilgari "barcha modullardagi buyurtmalar yagona tarixda" deb
+     * yozilgan edi, lekin sahifa faqat OVQAT buyurtmalarini
+     * ko'rsatadi. Marketplace, mehmonxona va chiptalar o'z
+     * bo'limlarida turadi. Yolg'on va'da — foydalanuvchi buyurtmasini
+     * topa olmay, uni yo'qolgan deb o'ylardi.
+     */
+    description: 'Ovqat buyurtmalari tarixi va holati.',
     href: '/orders',
     icon: PackageSearch,
     category: ModuleCategory.PLATFORM,
-    status: ModuleStatus.PLANNED,
+    status: ModuleStatus.LIVE,
     color: 'violet',
     aiIntents: ['buyurtmalarim', 'buyurtma holati', "tarix ko'rsat"],
   },
@@ -347,9 +377,10 @@ export const APP_MODULES: readonly AppModule[] = [
     href: '/admin',
     icon: LayoutDashboard,
     category: ModuleCategory.PLATFORM,
-    status: ModuleStatus.PLANNED,
+    status: ModuleStatus.LIVE,
     color: 'slate',
     aiIntents: ['admin panel', 'boshqaruv paneli'],
+    isInternal: true,
   },
   {
     id: 'security',
@@ -358,11 +389,22 @@ export const APP_MODULES: readonly AppModule[] = [
     href: '/security',
     icon: ShieldCheck,
     category: ModuleCategory.PLATFORM,
-    status: ModuleStatus.PLANNED,
+    status: ModuleStatus.LIVE,
     color: 'rose',
     aiIntents: ['xavfsizlik', "parolni o'zgartir", 'qurilmalarim'],
   },
 ] as const;
+
+/**
+ * Foydalanuvchiga KO'RSATILADIGAN modullar.
+ *
+ * Xizmat modullari (admin panel) chiqarib tashlanadi. Barcha ro'yxatlar
+ * — ochiq sahifa, qidiruv, AI javoblari — shu funksiyadan oziqlanishi
+ * kerak, aks holda birortasida admin paneli chiqib qolardi.
+ */
+export function getPublicModules(): AppModule[] {
+  return APP_MODULES.filter((module) => !module.isInternal);
+}
 
 /**
  * Bosh sahifadagi "Tezkor xizmatlar" to'ri uchun modullar.
@@ -379,9 +421,9 @@ export function getModuleById(id: string): AppModule | undefined {
   return APP_MODULES.find((module) => module.id === id);
 }
 
-/** Guruh bo'yicha modullarni qaytaradi. */
+/** Guruh bo'yicha modullarni qaytaradi (xizmat modullarisiz). */
 export function getModulesByCategory(category: ModuleCategoryValue): AppModule[] {
-  return APP_MODULES.filter((module) => module.category === category);
+  return getPublicModules().filter((module) => module.category === category);
 }
 
 /**
@@ -392,7 +434,14 @@ export function matchModuleByIntent(userText: string): AppModule | undefined {
   const normalized = userText.toLowerCase().trim();
   if (!normalized) return undefined;
 
-  return APP_MODULES.find((module) =>
+  /**
+   * Xizmat modullari qidirilmaydi.
+   *
+   * Aks holda "admin panel" deb yozgan har qanday odamga yordamchi
+   * havola berardi. Panelning o'zi ruxsat so'raydi, lekin uni taklif
+   * qilishning ma'nosi yo'q.
+   */
+  return getPublicModules().find((module) =>
     module.aiIntents.some((intent) => normalized.includes(intent.toLowerCase())),
   );
 }
