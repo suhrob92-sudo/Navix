@@ -42,6 +42,14 @@ export const AuditAction = {
    * topib bo'lmasdi.
    */
   USER_PASSWORD_SET_BY_CLI: 'user.password.set_by_cli',
+  /**
+   * Foydalanuvchi hisobini O'ZI yopdi.
+   *
+   * Yozuv shaxsiy ma'lumot emas — hodisa qaydi. Hisobning o'zida
+   * ism ham, telefon ham qolmaydi, lekin "shu kuni yopilgan" degan
+   * fakt nizoda kerak bo'ladi.
+   */
+  USER_ACCOUNT_DELETED: 'user.account.deleted',
   SESSION_REVOKED: 'session.revoked',
 
   // Moliyaviy amallar — nizo chiqqanda aynan shular tekshiriladi.

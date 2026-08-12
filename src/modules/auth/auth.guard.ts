@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 
 import { ForbiddenError, UnauthorizedError } from '@/lib/api/errors';
+import { isSessionBlocked } from '@/lib/session-block';
 import { hasAnyPermission, hasPermission, type PermissionValue, type RoleValue } from '@/config/rbac';
 import { verifyAccessToken, type AccessTokenPayload } from '@/modules/auth/token.service';
 
@@ -48,7 +49,25 @@ export async function requireAuth(request: NextRequest): Promise<AuthContext> {
     throw new UnauthorizedError('Avtorizatsiya talab qilinadi. Tizimga kiring.');
   }
 
-  return verifyAccessToken(token);
+  const payload = await verifyAccessToken(token);
+
+  /**
+   * Sessiya BEKOR QILINGANMI — bu tekshiruv majburiy.
+   *
+   * ── Nima uchun (haqiqiy xato) ───────────────────────────────────────
+   * Ilgari faqat token imzosi tekshirilardi. Token esa 15 daqiqa
+   * yashaydi va imzosi o'zgarmaydi. Ya'ni "barcha qurilmalardan
+   * chiqish" tugmasi 15 daqiqagacha HECH NARSA qilmasdi: o'g'irlangan
+   * telefon ishlatib turaverardi.
+   *
+   * Endi bekor qilingan sessiyalar Redis'da qora ro'yxatda turadi va
+   * ular darhol rad etiladi.
+   */
+  if (await isSessionBlocked(payload.sessionId)) {
+    throw new UnauthorizedError('Sessiya tugatilgan. Qaytadan kiring.');
+  }
+
+  return payload;
 }
 
 /**
@@ -56,11 +75,16 @@ export async function requireAuth(request: NextRequest): Promise<AuthContext> {
  * Mehmon ham, kirgan foydalanuvchi ham ko'ra oladigan sahifalar uchun.
  */
 export async function optionalAuth(request: NextRequest): Promise<AuthContext | null> {
-  const token = extractBearerToken(request);
-  if (!token) return null;
+  if (!extractBearerToken(request)) return null;
 
   try {
-    return await verifyAccessToken(token);
+    /**
+     * `requireAuth` chaqiriladi — qora ro'yxat tekshiruvi ham u yerda.
+     *
+     * Nusxalab yozilsa, kelajakda bittasiga qo'shilgan tekshiruv
+     * ikkinchisida unutilardi.
+     */
+    return await requireAuth(request);
   } catch {
     return null;
   }

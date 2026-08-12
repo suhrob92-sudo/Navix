@@ -342,16 +342,7 @@ export const APP_MODULES: readonly AppModule[] = [
   {
     id: 'orders',
     name: 'Buyurtmalarim',
-    /**
-     * Tavsif HAQIQATGA mos.
-     *
-     * Ilgari "barcha modullardagi buyurtmalar yagona tarixda" deb
-     * yozilgan edi, lekin sahifa faqat OVQAT buyurtmalarini
-     * ko'rsatadi. Marketplace, mehmonxona va chiptalar o'z
-     * bo'limlarida turadi. Yolg'on va'da — foydalanuvchi buyurtmasini
-     * topa olmay, uni yo'qolgan deb o'ylardi.
-     */
-    description: 'Ovqat buyurtmalari tarixi va holati.',
+    description: 'Ovqat, xarid, mehmonxona, chipta va posilka — bitta tarixda.',
     href: '/orders',
     icon: PackageSearch,
     category: ModuleCategory.PLATFORM,

@@ -211,3 +211,31 @@ export const changePasswordFormSchema = changePasswordFields
 export const usernameAvailabilityQuerySchema = z.object({ username: usernameSchema });
 
 export type UsernameAvailabilityQuery = z.infer<typeof usernameAvailabilityQuerySchema>;
+
+/**
+ * DELETE /api/v1/profile — hisobni yopish.
+ *
+ * ── Nima uchun PAROL so'raladi ────────────────────────────────────────
+ * Bu — qaytarib bo'lmaydigan amal. Telefon ochiq qolgan yoki qo'lidan
+ * ketgan bo'lsa, begona odam bir bosishda hisobni yo'q qila olmasligi
+ * kerak.
+ *
+ * ── Nima uchun "TASDIQLAYMAN" yozdiriladi ─────────────────────────────
+ * Parolni odam yoddan biladi va uni o'ylamasdan kiritishi mumkin.
+ * Qo'lda yozilgan so'z esa "men nima qilayotganimni bilaman" degan
+ * ongli qadam — bank ilovalarida ham shunday.
+ */
+export const DELETE_ACCOUNT_CONFIRMATION = 'TASDIQLAYMAN';
+
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1, 'Parolni kiriting'),
+  confirmation: z
+    .string()
+    .trim()
+    .refine(
+      (value) => value.toUpperCase() === DELETE_ACCOUNT_CONFIRMATION,
+      `Tasdiqlash uchun "${DELETE_ACCOUNT_CONFIRMATION}" deb yozing`,
+    ),
+});
+
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;

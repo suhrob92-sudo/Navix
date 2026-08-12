@@ -2,6 +2,7 @@ import { UnauthorizedError } from '@/lib/api/errors';
 import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
+import { blockSessions } from '@/lib/session-block';
 import { hashToken, signAccessToken, signRefreshToken } from '@/modules/auth/token.service';
 import type { RoleValue } from '@/config/rbac';
 
@@ -331,6 +332,15 @@ export async function revokeSession(sessionId: string): Promise<void> {
     where: { id: sessionId, revokedAt: null },
     data: { revokedAt: new Date() },
   });
+
+  /**
+   * Bazadagi belgi YETARLI EMAS.
+   *
+   * Access token 15 daqiqa yashaydi va u tekshirilganda bazaga
+   * qaralmaydi. Qora ro'yxatsiz bekor qilish o'sha 15 daqiqadan
+   * keyingina kuchga kirardi.
+   */
+  await blockSessions([sessionId]);
 }
 
 /**
@@ -338,14 +348,26 @@ export async function revokeSession(sessionId: string): Promise<void> {
  * Parol o'zgartirilganda majburiy — eski qurilmalar chiqarib yuboriladi.
  */
 export async function revokeAllSessions(userId: string, exceptSessionId?: string): Promise<number> {
-  const result = await prisma.session.updateMany({
-    where: {
-      userId,
-      revokedAt: null,
-      ...(exceptSessionId ? { id: { not: exceptSessionId } } : {}),
-    },
-    data: { revokedAt: new Date() },
-  });
+  const where = {
+    userId,
+    revokedAt: null,
+    ...(exceptSessionId ? { id: { not: exceptSessionId } } : {}),
+  };
+
+  /**
+   * ID'lar OLDIN o'qiladi.
+   *
+   * `updateMany` faqat sonini qaytaradi — qaysi sessiyalar bekor
+   * qilinganini bilmaydi. Ularsiz qora ro'yxatga nima yozishni
+   * aniqlab bo'lmasdi.
+   */
+  const sessions = await prisma.session.findMany({ where, select: { id: true } });
+
+  if (sessions.length === 0) return 0;
+
+  const result = await prisma.session.updateMany({ where, data: { revokedAt: new Date() } });
+
+  await blockSessions(sessions.map((session) => session.id));
 
   return result.count;
 }

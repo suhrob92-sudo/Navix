@@ -24,6 +24,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'user.password.reset_requested': "Parolni tiklashni so'radi",
   'user.password.reset_completed': 'Parolni tikladi',
   'user.password.set_by_cli': "Parol serverdan o'rnatildi",
+  'user.account.deleted': 'Hisobini yopdi',
   'session.revoked': 'Sessiyani bekor qildi',
 
   'wallet.top_up': "Hamyonni to'ldirdi",

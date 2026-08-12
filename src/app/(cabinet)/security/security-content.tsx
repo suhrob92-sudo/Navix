@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { DeleteAccountCard } from '@/components/profile/delete-account-card';
 import { PageIntro } from '@/components/app/page-intro';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -198,6 +199,16 @@ export function SecurityContent() {
             />
           </ul>
         </Card>
+
+        {/*
+          Hisobni yopish — sahifaning ENG PASTIDA.
+
+          Bu ilovadagi eng xavfli amal. Boshqa sozlamalar orasida
+          tursa, tasodifan bosilishi mumkin edi.
+        */}
+        <div className="mt-4 pb-4">
+          <DeleteAccountCard />
+        </div>
       </div>
     </>
   );
