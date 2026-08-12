@@ -4,6 +4,7 @@ import { TRIP_RULES } from '@/config/travel';
 import {
   arrivalAt,
   calculateRefundTiyin,
+  isTicketFinished,
   canCancelTicket,
   departureAt,
   formatDuration,
@@ -187,5 +188,28 @@ describe('holat nomlari', () => {
       expect(TICKET_STATUS_LABELS[status]).toBeTruthy();
       expect(TICKET_STATUS_VARIANTS[status]).toBeTruthy();
     }
+  });
+});
+
+/**
+ * Chipta TUGAGANMI — sana bo'yicha.
+ *
+ * `isBookingFinished` bilan bir xil sabab: chipta bazada `CONFIRMED`
+ * bo'lib qoladi va "safar bo'ldimi" degan savolga faqat sana javob
+ * beradi.
+ */
+describe('isTicketFinished', () => {
+  const now = new Date('2026-08-12T10:00:00.000Z');
+
+  it("kelgusi reys — TUGAMAGAN", () => {
+    expect(isTicketFinished({ status: 'CONFIRMED', departAt: '2026-08-20T08:00:00Z' }, now)).toBe(false);
+  });
+
+  it("jo'nab ketgan reys — TUGAGAN", () => {
+    expect(isTicketFinished({ status: 'CONFIRMED', departAt: '2026-08-12T09:00:00Z' }, now)).toBe(true);
+  });
+
+  it('bekor qilingan — sanadan qat’i nazar tugagan', () => {
+    expect(isTicketFinished({ status: 'CANCELLED', departAt: '2030-01-01T00:00:00Z' }, now)).toBe(true);
   });
 });

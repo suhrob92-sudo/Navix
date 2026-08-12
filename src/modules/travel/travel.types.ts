@@ -233,3 +233,21 @@ export function refundPolicyText(): string {
  * haqiqiy jo'nash payti bo'yicha qilinadi (`departureAt`).
  */
 export { dateKeyFromToday, toDateKey } from '@/lib/date';
+
+/**
+ * Chipta TUGAGANMI (reys jo'nab ketganmi).
+ *
+ * `isBookingFinished` bilan bir xil sabab: bazada chipta `CONFIRMED`
+ * bo'lib qoladi va "safar bo'ldimi" degan savolga faqat SANA javob
+ * beradi. Qoida bitta joyda saqlanadi.
+ */
+export function isTicketFinished(
+  ticket: { status: TicketStatusName; departAt: string | Date },
+  now: Date = new Date(),
+): boolean {
+  if (ticket.status !== 'CONFIRMED') return true;
+
+  const depart = typeof ticket.departAt === 'string' ? new Date(ticket.departAt) : ticket.departAt;
+
+  return depart.getTime() <= now.getTime();
+}

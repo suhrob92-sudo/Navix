@@ -29,6 +29,13 @@ import { deleteImageByUrl } from '@/modules/upload/upload.service';
  * amal, ya'ni eng qattiq tekshiruvga loyiq.
  */
 
+/** Bugungi kunning boshi — sana taqqoslashlari uchun. */
+function startOfToday(): Date {
+  const now = new Date();
+
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
 /** Yopilgan hisobda ism o'rniga shu turadi. */
 export const DELETED_USER_NAME = "O'chirilgan foydalanuvchi";
 
@@ -58,12 +65,32 @@ export interface AccountDeletionBlocker {
 }
 
 export async function checkAccountDeletion(userId: string): Promise<AccountDeletionBlocker[]> {
-  const [wallet, activeFood, activeMarket, activeBookings, activeParcels] = await Promise.all([
+  const [wallet, activeFood, activeMarket, activeBookings, activeTickets, activeParcels] = await Promise.all([
     prisma.wallet.findUnique({ where: { userId }, select: { balance: true, reserved: true } }),
     prisma.foodOrder.count({ where: { userId, status: { in: ACTIVE_FOOD_STATUSES } } }),
     prisma.marketOrder.count({ where: { userId, status: { in: ACTIVE_MARKET_STATUSES } } }),
-    // Mehmonxonada faqat `CONFIRMED` faol: `COMPLETED` va `CANCELLED` tugagan.
-    prisma.hotelBooking.count({ where: { userId, status: 'CONFIRMED' } }),
+    /**
+     * Mehmonxonada holat YETARLI EMAS — sana ham kerak.
+     *
+     * ── Haqiqiy xato, sinovda topilgan ────────────────────────────────
+     * Bandlov bazada `CONFIRMED` bo'lib QOLADI: uni `COMPLETED` ga
+     * o'tkazadigan fon jarayoni yo'q (bu ataylab — ro'yxatlar sanaga
+     * qarab hisoblaydi).
+     *
+     * Faqat holatga qaralganda ikki yil oldingi bandlov ham
+     * "tugallanmagan buyurtma" bo'lib hisoblanardi va odam hisobini
+     * HECH QACHON yopa olmasdi.
+     */
+    prisma.hotelBooking.count({
+      where: { userId, status: 'CONFIRMED', checkOut: { gte: startOfToday() } },
+    }),
+
+    /**
+     * Chiptalar ham xuddi shunday: jo'nab ketgan reys to'siq emas.
+     */
+    prisma.tripBooking.count({
+      where: { userId, status: 'CONFIRMED', departAt: { gte: new Date() } },
+    }),
     /**
      * Posilkada o'z holati YO'Q — u yetkazish yozuvida turadi.
      *
@@ -96,7 +123,7 @@ export async function checkAccountDeletion(userId: string): Promise<AccountDelet
     });
   }
 
-  const active = activeFood + activeMarket + activeBookings + activeParcels;
+  const active = activeFood + activeMarket + activeBookings + activeTickets + activeParcels;
 
   if (active > 0) {
     blockers.push({

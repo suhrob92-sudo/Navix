@@ -1,9 +1,9 @@
 import { prisma } from '@/lib/prisma';
 import { DELIVERY_STATUS_LABELS, DELIVERY_STATUS_VARIANTS } from '@/modules/courier/courier.types';
 import { FOOD_ORDER_STATUS_LABELS, FOOD_ORDER_STATUS_VARIANTS } from '@/modules/food/food.types';
-import { BOOKING_STATUS_LABELS, BOOKING_STATUS_VARIANTS } from '@/modules/hotel/hotel.types';
+import { BOOKING_STATUS_LABELS, BOOKING_STATUS_VARIANTS, isBookingFinished } from '@/modules/hotel/hotel.types';
 import { MARKET_ORDER_STATUS_LABELS, MARKET_ORDER_STATUS_VARIANTS } from '@/modules/market/market.types';
-import { TICKET_STATUS_LABELS, TICKET_STATUS_VARIANTS } from '@/modules/travel/travel.types';
+import { isTicketFinished, TICKET_STATUS_LABELS, TICKET_STATUS_VARIANTS } from '@/modules/travel/travel.types';
 import type { OrdersQuery } from '@/modules/orders/orders.schemas';
 import type { OrderKind, OrdersResponse, UnifiedOrder } from '@/modules/orders/orders.types';
 
@@ -183,6 +183,7 @@ async function loadHotel(userId: string, take: number): Promise<UnifiedOrder[]> 
       status: true,
       totalTiyin: true,
       nights: true,
+      checkOut: true,
       createdAt: true,
       room: { select: { hotel: { select: { name: true, city: true } } } },
     },
@@ -199,7 +200,14 @@ async function loadHotel(userId: string, take: number): Promise<UnifiedOrder[]> 
     totalTiyin: Number(row.totalTiyin),
     statusLabel: BOOKING_STATUS_LABELS[row.status],
     statusVariant: BOOKING_STATUS_VARIANTS[row.status],
-    isFinished: row.status !== 'CONFIRMED',
+    /**
+     * Holat YETARLI EMAS — sana ham kerak.
+     *
+     * Bandlov bazada `CONFIRMED` bo'lib qoladi: uni `COMPLETED` ga
+     * o'tkazadigan fon jarayoni yo'q. Faqat holatga qaralsa, ikki
+     * yil oldingi mehmonxona "Faol" bo'limida turaverardi.
+     */
+    isFinished: isBookingFinished(row),
     createdAt: row.createdAt.toISOString(),
     href: `/hotel/bookings/${row.id}`,
   }));
@@ -214,6 +222,7 @@ async function loadTravel(userId: string, take: number): Promise<UnifiedOrder[]>
       status: true,
       totalTiyin: true,
       seats: true,
+      departAt: true,
       createdAt: true,
       schedule: { select: { fromCity: true, toCity: true } },
     },
@@ -230,7 +239,8 @@ async function loadTravel(userId: string, take: number): Promise<UnifiedOrder[]>
     totalTiyin: Number(row.totalTiyin),
     statusLabel: TICKET_STATUS_LABELS[row.status],
     statusVariant: TICKET_STATUS_VARIANTS[row.status],
-    isFinished: row.status !== 'CONFIRMED',
+    // Bandlov bilan bir xil sabab: jo'nab ketgan reys "faol" emas.
+    isFinished: isTicketFinished(row),
     createdAt: row.createdAt.toISOString(),
     href: `/travel/tickets/${row.id}`,
   }));

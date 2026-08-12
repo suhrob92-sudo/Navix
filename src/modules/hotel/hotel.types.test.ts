@@ -8,6 +8,7 @@ import {
   dateKeyFromToday,
   formatNights,
   formatStars,
+  isBookingFinished,
   toDateKey,
   type BookingStatusName,
 } from '@/modules/hotel/hotel.types';
@@ -163,5 +164,41 @@ describe("ko'rinadigan nomlar", () => {
 
   it('kechalar sonini yozadi', () => {
     expect(formatNights(2)).toBe('2 kecha');
+  });
+});
+
+/**
+ * Bandlov TUGAGANMI — sana bo'yicha.
+ *
+ * ── Nima uchun bu sinov muhim ─────────────────────────────────────────
+ * Bandlov bazada `CONFIRMED` bo'lib QOLADI: uni `COMPLETED` ga
+ * o'tkazadigan fon jarayoni yo'q. Faqat holatga qaralganda ikki yil
+ * oldingi bandlov ham "faol" bo'lib hisoblanardi.
+ *
+ * Bu haqiqiy xatoga olib keldi: hisobni yopish tekshiruvi shunday
+ * yozilgan edi va odam hisobini hech qachon yopa olmasdi.
+ */
+describe('isBookingFinished', () => {
+  const now = new Date('2026-08-12T10:00:00.000Z');
+
+  it("kelgusi bandlov — TUGAMAGAN", () => {
+    expect(isBookingFinished({ status: 'CONFIRMED', checkOut: '2026-08-20' }, now)).toBe(false);
+  });
+
+  it('o’tgan bandlov — TUGAGAN', () => {
+    expect(isBookingFinished({ status: 'CONFIRMED', checkOut: '2024-01-05' }, now)).toBe(true);
+  });
+
+  /**
+   * Chiqish KUNI hali tugamagan — mehmon bugun chiqadi, ya'ni
+   * bandlov hali faol.
+   */
+  it("bugun chiqiladigan bandlov — hali TUGAMAGAN", () => {
+    expect(isBookingFinished({ status: 'CONFIRMED', checkOut: '2026-08-12' }, now)).toBe(false);
+  });
+
+  it('bekor qilingan va yakunlangan — sanadan qat’i nazar tugagan', () => {
+    expect(isBookingFinished({ status: 'CANCELLED', checkOut: '2030-01-01' }, now)).toBe(true);
+    expect(isBookingFinished({ status: 'COMPLETED', checkOut: '2030-01-01' }, now)).toBe(true);
   });
 });

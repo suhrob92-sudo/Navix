@@ -162,3 +162,30 @@ export function formatStars(stars: number): string {
 export function formatNights(nights: number): string {
   return `${nights} kecha`;
 }
+
+/**
+ * Bandlov TUGAGANMI (chiqish sanasi o'tganmi).
+ *
+ * ── Nima uchun holat yetarli emas ─────────────────────────────────────
+ * Bazada bandlov `CONFIRMED` bo'lib QOLADI: uni `COMPLETED` ga
+ * o'tkazadigan fon jarayoni yo'q va u ataylab qilinmagan — holat
+ * o'rniga SANA gapiradi. Ro'yxatlar ham shu qoidaga tayanadi.
+ *
+ * Lekin bu qoidani har joyda qaytadan yozish xatoga olib keldi:
+ * hisobni yopish tekshiruvi faqat holatga qaragani uchun, ikki yil
+ * oldingi bandlov ham "tugallanmagan buyurtma" bo'lib hisoblanardi va
+ * odam hisobini HECH QACHON yopa olmasdi.
+ *
+ * Shuning uchun qoida bitta joyda turadi.
+ */
+export function isBookingFinished(
+  booking: { status: BookingStatusName; checkOut: string | Date },
+  now: Date = new Date(),
+): boolean {
+  if (booking.status !== 'CONFIRMED') return true;
+
+  const checkOut = toDateKey(booking.checkOut);
+
+  // Chiqish KUNI hali tugamagan — bandlov faol hisoblanadi.
+  return checkOut < toDateKey(now);
+}
