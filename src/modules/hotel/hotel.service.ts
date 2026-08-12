@@ -2,6 +2,7 @@ import { BookingStatus, Prisma } from '@/generated/prisma/client';
 import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { AuditAction, recordAudit } from '@/lib/audit';
+import { runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
@@ -294,6 +295,28 @@ export async function createBooking(
   userId: string,
   input: CreateBookingInput,
   meta: OperationMeta = {},
+): Promise<BookingView> {
+  /**
+   * Bir vaqtda kelgan takroriy so'rov.
+   *
+   * Pastdagi tekshiruv ketma-ket so'rovlar uchun yetarli. Ikkita
+   * so'rov BIR VAQTDA kelsa esa ikkalasi ham "yo'q" deb ko'radi va
+   * ikkinchisi yagona indeksga urilib, 500 qaytarardi.
+   */
+  return runIdempotent(
+    () => performCreateBooking(userId, input, meta),
+    async () => {
+      const duplicate = await findTransactionByIdempotencyKey(input.idempotencyKey);
+
+      return duplicate?.sourceId ? getBooking(userId, duplicate.sourceId) : null;
+    },
+  );
+}
+
+async function performCreateBooking(
+  userId: string,
+  input: CreateBookingInput,
+  meta: OperationMeta,
 ): Promise<BookingView> {
   /**
    * TAKRORIY so'rov — tugma ikki marta bosilgan.

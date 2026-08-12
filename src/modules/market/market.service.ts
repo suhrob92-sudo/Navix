@@ -2,6 +2,7 @@ import { MarketOrderStatus, Prisma } from '@/generated/prisma/client';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { AuditAction, recordAudit } from '@/lib/audit';
+import { runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { formatTiyin, somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
@@ -430,6 +431,42 @@ export async function createMarketOrder(
   userId: string,
   input: CreateMarketOrderInput,
   meta: OperationMeta = {},
+): Promise<MarketOrderView> {
+  /**
+   * Bir vaqtda kelgan takroriy so'rov.
+   *
+   * Pastdagi "takror bo'lsa qaytaramiz" tekshiruvi ketma-ket
+   * so'rovlar uchun yetarli. Ikkita so'rov BIR VAQTDA kelsa esa
+   * ikkalasi ham "yo'q" deb ko'radi va ikkinchisi yagona indeksga
+   * urilib, 500 qaytarardi. Endi u birinchisining natijasini oladi.
+   */
+  return runIdempotent(
+    () => performCreateMarketOrder(userId, input, meta),
+    () => findExistingOrder(input.idempotencyKey),
+  );
+}
+
+/** Kalit bo'yicha allaqachon yaratilgan buyurtmani topadi. */
+async function findExistingOrder(idempotencyKey: string): Promise<MarketOrderView | null> {
+  const transaction = await prisma.walletTransaction.findUnique({
+    where: { idempotencyKey },
+    select: { sourceId: true },
+  });
+
+  if (!transaction?.sourceId) return null;
+
+  const existing = await prisma.marketOrder.findUnique({
+    where: { id: transaction.sourceId },
+    select: ORDER_SELECT,
+  });
+
+  return existing ? toOrderView(existing) : null;
+}
+
+async function performCreateMarketOrder(
+  userId: string,
+  input: CreateMarketOrderInput,
+  meta: OperationMeta,
 ): Promise<MarketOrderView> {
   // 1. Takror bo'lsa — eski buyurtmani qaytaramiz, pul ikkinchi marta ketmaydi.
   const duplicate = await prisma.walletTransaction.findUnique({

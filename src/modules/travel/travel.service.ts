@@ -3,6 +3,7 @@ import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { AuditAction, recordAudit } from '@/lib/audit';
 import { isoWeekday, toDateKey } from '@/lib/date';
+import { runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
@@ -259,6 +260,28 @@ export async function createTicket(
   userId: string,
   input: CreateTicketInput,
   meta: OperationMeta = {},
+): Promise<TicketView> {
+  /**
+   * Bir vaqtda kelgan takroriy so'rov.
+   *
+   * Pastdagi tekshiruv ketma-ket so'rovlar uchun yetarli. Ikkita
+   * so'rov BIR VAQTDA kelsa esa ikkalasi ham "yo'q" deb ko'radi va
+   * ikkinchisi yagona indeksga urilib, 500 qaytarardi.
+   */
+  return runIdempotent(
+    () => performCreateTicket(userId, input, meta),
+    async () => {
+      const duplicate = await findTransactionByIdempotencyKey(input.idempotencyKey);
+
+      return duplicate?.sourceId ? getTicket(userId, duplicate.sourceId) : null;
+    },
+  );
+}
+
+async function performCreateTicket(
+  userId: string,
+  input: CreateTicketInput,
+  meta: OperationMeta,
 ): Promise<TicketView> {
   /**
    * TAKRORIY so'rov — tugma ikki marta bosilgan.

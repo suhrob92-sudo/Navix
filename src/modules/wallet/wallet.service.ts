@@ -8,6 +8,7 @@ import {
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { AuditAction, recordAudit } from '@/lib/audit';
+import { runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
@@ -285,6 +286,25 @@ export async function topUp(
   const duplicate = await findByIdempotencyKey(input.idempotencyKey);
   if (duplicate) return duplicate;
 
+  /**
+   * Yuqoridagi tekshiruv YETARLI EMAS.
+   *
+   * Ikkita so'rov bir vaqtda kelsa, ikkalasi ham "yozuv yo'q" deb
+   * ko'radi. Bazadagi yagona indeks ikkinchisini rad etadi — bu
+   * to'g'ri, lekin javob 500 bo'lardi. `runIdempotent` o'sha holatda
+   * birinchi so'rovning natijasini qaytaradi.
+   */
+  return runIdempotent(
+    () => performTopUp(userId, input, meta),
+    () => findByIdempotencyKey(input.idempotencyKey),
+  );
+}
+
+async function performTopUp(
+  userId: string,
+  input: TopUpInput,
+  meta: OperationMeta,
+): Promise<WalletTransactionPayload> {
   const wallet = await getOrCreateWallet(userId);
   assertWalletUsable(wallet.status);
 
@@ -358,6 +378,18 @@ export async function transfer(
   const duplicate = await findByIdempotencyKey(input.idempotencyKey);
   if (duplicate) return duplicate;
 
+  // Bir vaqtda kelgan takroriy so'rov uchun — `topUp` dagi kabi.
+  return runIdempotent(
+    () => performTransfer(userId, input, meta),
+    () => findByIdempotencyKey(input.idempotencyKey),
+  );
+}
+
+async function performTransfer(
+  userId: string,
+  input: TransferInput,
+  meta: OperationMeta,
+): Promise<WalletTransactionPayload> {
   const recipient = await prisma.user.findUnique({
     where: { phone: input.phone },
     select: { id: true, firstName: true, lastName: true, deletedAt: true },
