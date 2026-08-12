@@ -434,32 +434,51 @@ interface OperationMeta {
  * `updateMany` sharti (`courierId IS NULL AND status = 'OFFERED'`)
  * PostgreSQL'da atomar bajariladi: yutqazgan so'rov 0 qator
  * o'zgartiradi va biz buni ko'rib tushunarli javob qaytaramiz.
+ *
+ * ── Nima uchun kuryer qatori QULFLANADI ───────────────────────────────
+ * Chegara (`MAX_ACTIVE_DELIVERIES`) sanoq bilan tekshiriladi, sanoq esa
+ * o'zi himoya emas: kuryer beshta topshiriqni bir vaqtda bossa, beshala
+ * so'rov ham "hozir 0 ta faol" degan javobni oladi va hammasi o'tib
+ * ketadi. Haqiqiy bazada sinaganda chegara 3 bo'lsa ham 4 ta topshiriq
+ * olindi.
+ *
+ * Shuning uchun sanoq va olish BITTA tranzaksiyada bajariladi, oldidan
+ * esa kuryerning o'z qatori `FOR UPDATE` bilan qulflanadi. Shu kuryerdan
+ * kelgan ikkinchi so'rov navbatda kutadi va sanoqni ALLAQACHON o'zgargan
+ * holatda ko'radi.
+ *
+ * Qulf aynan KURYER qatoriga qo'yiladi, topshiriqqa emas: chegara
+ * kuryerga tegishli va turli kuryerlar bir-birini kutmasligi kerak.
  */
 export async function acceptDelivery(
   userId: string,
   deliveryId: string,
   meta: OperationMeta = {},
 ): Promise<DeliveryView> {
-  const activeCount = await prisma.delivery.count({
-    where: { courierId: userId, status: { in: ACTIVE_STATUSES } },
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
+
+    const activeCount = await tx.delivery.count({
+      where: { courierId: userId, status: { in: ACTIVE_STATUSES } },
+    });
+
+    if (activeCount >= MAX_ACTIVE_DELIVERIES) {
+      throw new ConflictError(
+        `Bir vaqtda ko'pi bilan ${MAX_ACTIVE_DELIVERIES} ta topshiriq olish mumkin. Avval birortasini yakunlang.`,
+      );
+    }
+
+    const claimed = await tx.delivery.updateMany({
+      where: { id: deliveryId, courierId: null, status: DeliveryStatus.OFFERED },
+      data: { courierId: userId, status: DeliveryStatus.ACCEPTED, acceptedAt: new Date() },
+    });
+
+    if (claimed.count === 0) {
+      // Topshiriq yo'q ham bo'lishi mumkin, lekin ko'p holatda —
+      // kimdir ulgurgan. Kuryerga aynan shu foydali xabar.
+      throw new ConflictError("Bu topshiriqni boshqa kuryer oldi. Ro'yxatni yangilang.");
+    }
   });
-
-  if (activeCount >= MAX_ACTIVE_DELIVERIES) {
-    throw new ConflictError(
-      `Bir vaqtda ko'pi bilan ${MAX_ACTIVE_DELIVERIES} ta topshiriq olish mumkin. Avval birortasini yakunlang.`,
-    );
-  }
-
-  const claimed = await prisma.delivery.updateMany({
-    where: { id: deliveryId, courierId: null, status: DeliveryStatus.OFFERED },
-    data: { courierId: userId, status: DeliveryStatus.ACCEPTED, acceptedAt: new Date() },
-  });
-
-  if (claimed.count === 0) {
-    // Topshiriq yo'q ham bo'lishi mumkin, lekin ko'p holatda —
-    // kimdir ulgurgan. Kuryerga aynan shu foydali xabar.
-    throw new ConflictError("Bu topshiriqni boshqa kuryer oldi. Ro'yxatni yangilang.");
-  }
 
   const delivery = await getDelivery(userId, deliveryId);
   const courier = await prisma.user.findUniqueOrThrow({
