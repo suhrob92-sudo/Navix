@@ -494,9 +494,14 @@ if (env.BLOB_READ_WRITE_TOKEN) {
   ok('Rasm saqlash (Vercel Blob) sozlangan');
 } else {
   warn(
-    "BLOB_READ_WRITE_TOKEN yo'q — RASMLAR YO'QOLADI",
-    'Vercel -> loyiha -> Storage -> Create -> Blob. Usiz yuklangan rasm ' +
-      "bir necha daqiqadan keyin ochilmay qoladi (u yerda disk vaqtinchalik).",
+    "BLOB_READ_WRITE_TOKEN bu faylda yo'q",
+    'Bu tekshiruv FAQAT ".env.production" ni o\'qiydi — Vercel\'ni emas. ' +
+      'Blob omborini Vercel sahifasidan ulagan bo\'lsangiz, kalit O\'SHA YERDA ' +
+      'yaratiladi va bu faylga tushmaydi: ogohlantirishni e\'tiborsiz qoldiring. ' +
+      'Tekshirish:  npx vercel env ls production  ' +
+      '| Ombor umuman yo\'q bo\'lsa: Vercel -> loyiha -> Storage -> Create -> Blob. ' +
+      "Usiz yuklangan rasm bir necha daqiqadan keyin ochilmay qoladi " +
+      '(u yerda disk vaqtinchalik).',
   );
 }
 
