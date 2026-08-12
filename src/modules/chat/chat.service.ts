@@ -10,11 +10,12 @@ import { sendPush } from '@/modules/notification/push.service';
 import { deleteImageByUrl } from '@/modules/upload/upload.service';
 import { resolveWallpaper, type ChatWallpaperName } from '@/config/chat-wallpapers';
 import type { ServiceColor } from '@/config/modules';
-import { messageKindText, quotePreview } from '@/modules/chat/chat.types';
+import { aggregateReactions, messageKindText, quotePreview } from '@/modules/chat/chat.types';
 import type {
   ChatPeer,
   ConversationListItem,
   MessageKind,
+  MessageReactionView,
   MessageStatus,
   MessageView,
   OpenConversationResponse,
@@ -488,6 +489,15 @@ const MESSAGE_SELECT = {
       sender: { select: { firstName: true, lastName: true, profile: { select: { username: true } } } },
     },
   },
+  /**
+   * Reaksiyalar xabar bilan BIRGA olinadi.
+   *
+   * Alohida so'rov qilinsa, ular jonli oqimga tushmasdi: suhbatdosh
+   * qo'ygan reaksiya faqat sahifa yangilangandan keyin ko'rinardi.
+   *
+   * `emoji` va `userId` yetarli — kim qo'ygani ekranda ko'rsatilmaydi.
+   */
+  reactions: { select: { emoji: true, userId: true } },
 } as const;
 
 type MessageRow = Prisma.MessageGetPayload<{ select: typeof MESSAGE_SELECT }>;
@@ -527,6 +537,14 @@ function toMessageView(row: MessageRow, viewerId: string, peerLastReadAt: Date |
         }
       : null,
     editedAt: row.editedAt?.toISOString() ?? null,
+    /**
+     * O'chirilgan xabarda reaksiyalar ham KO'RSATILMAYDI.
+     *
+     * Qatorlar bazada qoladi (xabar butunlay o'chirilmagani kabi),
+     * lekin ekranda o'chirilgan xabar ostida osilib turgan emoji
+     * mantiqsiz ko'rinardi.
+     */
+    reactions: row.deletedAt ? [] : aggregateReactions(row.reactions, viewerId),
     isMine: row.senderId === viewerId,
     createdAt: row.createdAt.toISOString(),
     status: resolveStatus(row, viewerId, peerLastReadAt),
@@ -864,6 +882,146 @@ export async function deleteMessage(
   void deleteImageByUrl(message.voiceUrl);
 
   logger.info({ conversationId, messageId, userId }, "Xabar o'chirildi");
+}
+
+/**
+ * Xabarga reaksiya qo'yadi, almashtiradi yoki olib tashlaydi.
+ *
+ * ── Nima uchun BITTA amal, uchtasi emas ──────────────────────────────
+ * Brauzer tomonida bularning uchalasi ham bitta harakat: emoji
+ * bosiladi. Uchta alohida endpoint bo'lsa, brauzer avval "qaysi
+ * reaksiyam bor?" deb so'rab, keyin qaysi birini chaqirishni hal
+ * qilishi kerak bo'lardi — ikkita so'rov va ikkisi orasida
+ * o'zgarishga ochiq oraliq.
+ *
+ * Shuning uchun qaror SERVERDA qabul qilinadi:
+ *   yo'q edi          → qo'yiladi
+ *   o'sha emoji bor   → olib tashlanadi (ikkinchi bosish — bekor qilish)
+ *   boshqa emoji bor  → almashtiriladi
+ *
+ * @returns Xabarning YANGI reaksiyalari — brauzer qayta so'ramaydi.
+ */
+export async function toggleReaction(
+  conversationId: string,
+  messageId: string,
+  userId: string,
+  emoji: string,
+): Promise<MessageReactionView[]> {
+  await requireMembership(conversationId, userId);
+
+  const message = await prisma.message.findFirst({
+    where: { id: messageId, conversationId },
+    select: { id: true, senderId: true, deletedAt: true, body: true, imageUrl: true, voiceUrl: true },
+  });
+
+  if (!message || message.deletedAt) {
+    throw new NotFoundError('Xabar');
+  }
+
+  const existing = await prisma.messageReaction.findUnique({
+    where: { messageId_userId: { messageId, userId } },
+    select: { id: true, emoji: true },
+  });
+
+  let isNew = false;
+
+  if (!existing) {
+    /**
+     * `create` P2002 bilan tugashi mumkin: ikkita qurilmadan bir
+     * vaqtda bosilsa, ikkalasi ham "yo'q ekan" deb ko'radi.
+     *
+     * Bazadagi yagona indeks ikkinchisini rad etadi — bu XATO emas,
+     * kutilgan holat. Shuning uchun uni "allaqachon qo'yilgan" deb
+     * qabul qilamiz.
+     */
+    try {
+      await prisma.messageReaction.create({ data: { messageId, userId, emoji } });
+      isNew = true;
+    } catch (error) {
+      const isDuplicate = error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+
+      if (!isDuplicate) throw error;
+    }
+  } else if (existing.emoji === emoji) {
+    // Ikkinchi marta bosish — bekor qilish.
+    await prisma.messageReaction.delete({ where: { id: existing.id } });
+  } else {
+    await prisma.messageReaction.update({ where: { id: existing.id }, data: { emoji } });
+  }
+
+  const rows = await prisma.messageReaction.findMany({
+    where: { messageId },
+    select: { emoji: true, userId: true },
+  });
+
+  /**
+   * Xabar egasiga turtki — faqat YANGI reaksiyada.
+   *
+   * Almashtirish va bekor qilishda bildirishnoma yuborilmaydi: odam
+   * emojini bir necha marta almashtirib ko'rishi mumkin va har
+   * bosishda telefon jiringlashi bezovta qilardi.
+   */
+  if (isNew && message.senderId !== userId) {
+    void notifyReaction(message.senderId, conversationId, userId, emoji, {
+      body: message.body,
+      imageUrl: message.imageUrl,
+      voiceUrl: message.voiceUrl,
+    });
+  }
+
+  logger.info({ conversationId, messageId, userId }, "Reaksiya o'zgardi");
+
+  return aggregateReactions(rows, userId);
+}
+
+/**
+ * Reaksiya haqida xabar egasiga push yuboradi.
+ *
+ * Ochiq suhbatga yuborilmaydi: odam reaksiyani allaqachon ko'rib
+ * turibdi.
+ */
+async function notifyReaction(
+  recipientId: string,
+  conversationId: string,
+  reactorId: string,
+  emoji: string,
+  message: { body: string; imageUrl: string | null; voiceUrl: string | null },
+): Promise<void> {
+  try {
+    if (await isViewing(recipientId, conversationId)) return;
+
+    const reactor = await prisma.user.findUnique({
+      where: { id: reactorId },
+      select: { firstName: true, lastName: true, profile: { select: { username: true } } },
+    });
+
+    const name =
+      [reactor?.firstName, reactor?.lastName].filter(Boolean).join(' ') ||
+      (reactor?.profile?.username ? `@${reactor.profile.username}` : 'Foydalanuvchi');
+
+    /**
+     * Qaysi xabarga qo'yilgani ham yoziladi.
+     *
+     * Faqat "Aziz 👍 qo'ydi" deb yozilsa, o'nlab xabarli suhbatda
+     * qaysi biriga ekani noma'lum qolardi.
+     */
+    const preview = message.body || messageKindText(message.voiceUrl ? 'VOICE' : message.imageUrl ? 'IMAGE' : 'TEXT');
+
+    await sendPush(recipientId, {
+      title: name,
+      body: preview ? `${emoji} — «${preview.length > 60 ? `${preview.slice(0, 60)}…` : preview}»` : emoji,
+      url: `/messages/${conversationId}`,
+      /**
+       * Nishon SUHBATNIKIDAN farq qiladi: reaksiya kelgan xabarni
+       * yangi xabar bildirishnomasi bosib ketmasligi kerak.
+       */
+      tag: `reaction-${conversationId}`,
+      // Reaksiya — ikkinchi darajali xabar, bir soatdan keyin ahamiyatsiz.
+      ttlSeconds: 60 * 60,
+    });
+  } catch (error) {
+    logger.warn({ err: error, recipientId }, "Reaksiya haqida push yuborib bo'lmadi");
+  }
 }
 
 /** Suhbatni o'qilgan deb belgilaydi. */

@@ -1,4 +1,5 @@
 import type { ChatWallpaperName } from '@/config/chat-wallpapers';
+import { REACTIONS } from '@/config/reactions';
 import type { ServiceColor } from '@/config/modules';
 import type { CallView } from '@/modules/call/call.types';
 
@@ -76,12 +77,29 @@ export interface MessageView {
   replyTo: MessageQuote | null;
   /** Tahrirlangan bo'lsa — vaqti. Aks holda `null`. */
   editedAt: string | null;
+  /**
+   * Xabarga qo'yilgan reaksiyalar — emoji bo'yicha YIG'ILGAN holda.
+   *
+   * ── Nima uchun kim qo'ygani yuborilmaydi ────────────────────────────
+   * Suhbatda ikki kishi bor: sanoq va "menikimi" belgisi ismni ham
+   * ayon qiladi. Ismlar ro'yxatini yuborish esa har xabarni og'irroq
+   * qilardi va hech qanday yangi ma'lumot bermasdi.
+   */
+  reactions: MessageReactionView[];
   /** Xabarni MEN yubordimmi. */
   isMine: boolean;
   createdAt: string;
   /** Holat faqat O'Z xabarlarimda ma'noga ega. */
   status: MessageStatus;
   isDeleted: boolean;
+}
+
+/** Bitta emoji va uni qo'yganlar soni. */
+export interface MessageReactionView {
+  emoji: string;
+  count: number;
+  /** Shu reaksiyani MEN qo'yganmanmi. */
+  isMine: boolean;
 }
 
 /**
@@ -136,6 +154,10 @@ export interface ThreadResponse {
 
 export interface SendMessageResponse {
   message: MessageView;
+}
+
+export interface ReactionsResponse {
+  reactions: MessageReactionView[];
 }
 
 export interface ConversationsResponse {
@@ -217,6 +239,68 @@ export function quotePreview(body: string, kind: MessageKind, isDeleted: boolean
 
 /** O'chirilgan xabar o'rnida ko'rinadigan matn. */
 export const DELETED_MESSAGE_TEXT = "Xabar o'chirilgan";
+
+/**
+ * Reaksiya qatorlarini emoji bo'yicha yig'adi.
+ *
+ * ── Nima uchun TARTIB muhim ──────────────────────────────────────────
+ * Jonli ulanish suhbatni JSON matnga aylantirib, oldingisi bilan
+ * solishtiradi va faqat FARQ bo'lsa yuboradi. Tartib har safar
+ * o'zgarsa, hech narsa o'zgarmagan bo'lsa ham matn boshqacha chiqib,
+ * butun suhbat har 1.5 soniyada qayta uzatilardi.
+ *
+ * Shuning uchun tartib qat'iy: avval ko'p qo'yilgani, teng bo'lsa
+ * ro'yxatdagi tartib bo'yicha.
+ */
+export function aggregateReactions(
+  rows: readonly { emoji: string; userId: string }[],
+  viewerId: string,
+): MessageReactionView[] {
+  const byEmoji = new Map<string, MessageReactionView>();
+
+  for (const row of rows) {
+    const existing = byEmoji.get(row.emoji);
+
+    if (existing) {
+      existing.count += 1;
+      existing.isMine ||= row.userId === viewerId;
+    } else {
+      byEmoji.set(row.emoji, { emoji: row.emoji, count: 1, isMine: row.userId === viewerId });
+    }
+  }
+
+  return [...byEmoji.values()].sort((a, b) => {
+    if (a.count !== b.count) return b.count - a.count;
+
+    return reactionOrder(a.emoji) - reactionOrder(b.emoji);
+  });
+}
+
+/** Emojining ro'yxatdagi o'rni. Noma'lum emoji oxirida turadi. */
+function reactionOrder(emoji: string): number {
+  const index = REACTIONS.findIndex((item) => item.emoji === emoji);
+
+  return index === -1 ? REACTIONS.length : index;
+}
+
+/**
+ * Xabarga reaksiya qo'yish mumkinmi.
+ *
+ * O'chirilgan xabar bundan mustasno: unda hech narsa qolmagan va
+ * reaksiya nimaga qo'yilgani tushunarsiz bo'lardi. Vaqtinchalik
+ * (hali yuborilmagan) xabarning ID'si ham haqiqiy emas.
+ */
+export function canReactToMessage(message: MessageView): boolean {
+  return !message.isDeleted && !message.id.startsWith(PENDING_ID_PREFIX);
+}
+
+/**
+ * Hali serverga yetmagan xabar ID'sining boshlanishi.
+ *
+ * Bir joyda saqlanadi: uni tekshiradigan kod ham, yaratadigan kod ham
+ * bir xil qiymatga tayanishi kerak.
+ */
+export const PENDING_ID_PREFIX = 'pending-';
 
 /**
  * Xabarni tahrirlash mumkinmi.

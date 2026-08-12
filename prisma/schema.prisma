@@ -276,6 +276,7 @@ model User {
   businessFollows   BusinessFollow[]
   chatMemberships   ConversationMember[]
   sentMessages      Message[]
+  messageReactions  MessageReaction[]
   outgoingCalls     Call[]               @relation("CallCaller")
   incomingCalls     Call[]               @relation("CallCallee")
   pushSubscriptions PushSubscription[]
@@ -2054,8 +2055,49 @@ model Message {
   replyTo      Message?     @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
   replies      Message[]    @relation("MessageReply")
 
+  reactions MessageReaction[]
+
   @@index([conversationId, createdAt])
   @@map("messages")
+}
+
+/// Xabarga qo'yilgan reaksiya (emoji).
+///
+/// ── Nima uchun alohida jadval ──────────────────────────────────────────
+/// Reaksiyalarni xabar yozuvining o'zida (masalan JSON ustunda) saqlash
+/// ham mumkin edi. Lekin unda ikki odam bir vaqtda reaksiya qo'yganda
+/// biri ikkinchisining yozuvini o'chirib yuborardi: ikkalasi ham ESKI
+/// qiymatni o'qib, o'zinikini qo'shib yozadi.
+///
+/// Alohida qator esa bunday to'qnashuvni butunlay yo'q qiladi — har kim
+/// faqat O'Z qatoriga tegadi.
+model MessageReaction {
+  id String @id @default(uuid()) @db.Uuid
+
+  messageId String @db.Uuid
+  userId    String @db.Uuid
+
+  /// Emoji o'zi — kod sifatida ham, ko'rinish sifatida ham.
+  ///
+  /// Ruxsat etilgan ro'yxat `config/reactions.ts` da va so'rov
+  /// tekshiruvida. Bazada esa faqat uzunlik cheklanadi: yangi emoji
+  /// qo'shish uchun har safar ko'chirish yozish kerak bo'lmasin.
+  emoji String @db.VarChar(16)
+
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Bir odam bitta xabarga BITTA reaksiya qo'yadi.
+  ///
+  /// ── Nima uchun cheklov BAZADA ───────────────────────────────────────
+  /// Tugma ikki marta tez bosilsa yoki ikkita qurilmadan bir vaqtda
+  /// bosilsa, kod ikkita qator yaratib qo'yishi mumkin. O'shanda bitta
+  /// odam sanoqda ikki marta hisoblanardi.
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@map("message_reactions")
 }
 
 /// Qo'ng'iroq turi.

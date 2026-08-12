@@ -127,6 +127,14 @@ export const PUBLIC_RATE_LIMITS = {
    */
   chatSend: { limit: 60, windowSeconds: 60 },
   /**
+   * Reaksiya qo'yish: daqiqasiga 120 marta.
+   *
+   * Xabardan yumshoqroq: reaksiya bir bosishda qo'yiladi va odam
+   * emojini bir necha marta almashtirib ko'rishi normal. Ayni paytda
+   * har bosish push yuborishi mumkin, shuning uchun cheksiz emas.
+   */
+  chatReact: { limit: 120, windowSeconds: 60 },
+  /**
    * Qo'ng'iroq boshlash: daqiqasiga 10 marta.
    *
    * Har bir qo'ng'iroq begona odamning telefonini CHALDIRADI —

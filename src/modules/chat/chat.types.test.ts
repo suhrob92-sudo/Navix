@@ -4,11 +4,15 @@ import {
   conversationQuerySchema,
   editMessageSchema,
   openConversationSchema,
+  reactionSchema,
   sendMessageSchema,
 } from '@/modules/chat/chat.schemas';
 import {
+  aggregateReactions,
   CHAT_FILTERS,
   canEditMessage,
+  canReactToMessage,
+  PENDING_ID_PREFIX,
   DELETED_MESSAGE_TEXT,
   formatLastMessage,
   formatUnread,
@@ -289,6 +293,7 @@ function message(overrides: Partial<MessageView> = {}): MessageView {
     voiceSeconds: null,
     replyTo: null,
     editedAt: null,
+    reactions: [],
     isMine: true,
     createdAt: '2026-08-11T10:00:00.000Z',
     status: 'SENT',
@@ -390,5 +395,132 @@ describe('editMessageSchema', () => {
   it("tahrir vaqtini mijozdan qabul qilmaydi", () => {
     // Aks holda "tahrirlangan" belgisini aylanib o'tish mumkin bo'lardi.
     expect(editMessageSchema.parse({ body: 'ha', editedAt: null })).not.toHaveProperty('editedAt');
+  });
+});
+
+// ── Reaksiyalar ───────────────────────────────────────────────────────
+
+const ME = '11111111-1111-4111-8111-111111111111';
+const PEER = '22222222-2222-4222-8222-222222222222';
+
+describe('aggregateReactions', () => {
+  it("bir xil emojini bitta nishonga yig'adi", () => {
+    const result = aggregateReactions(
+      [
+        { emoji: '👍', userId: ME },
+        { emoji: '👍', userId: PEER },
+      ],
+      ME,
+    );
+
+    expect(result).toEqual([{ emoji: '👍', count: 2, isMine: true }]);
+  });
+
+  it("o'zimniki emasligini to'g'ri belgilaydi", () => {
+    const result = aggregateReactions([{ emoji: '❤️', userId: PEER }], ME);
+
+    expect(result).toEqual([{ emoji: '❤️', count: 1, isMine: false }]);
+  });
+
+  it("reaksiyasiz xabar bo'sh ro'yxat beradi", () => {
+    expect(aggregateReactions([], ME)).toEqual([]);
+  });
+
+  /**
+   * ENG MUHIM TEKSHIRUV.
+   *
+   * Jonli ulanish suhbatni JSON matnga aylantirib solishtiradi. Tartib
+   * beqaror bo'lsa, hech narsa o'zgarmagan bo'lsa ham matn boshqacha
+   * chiqib, butun suhbat har 1.5 soniyada qayta uzatilardi.
+   */
+  it("tartib QAT'IY: avval ko'p qo'yilgani", () => {
+    const result = aggregateReactions(
+      [
+        { emoji: '😂', userId: ME },
+        { emoji: '👍', userId: PEER },
+        { emoji: '👍', userId: 'x' },
+      ],
+      ME,
+    );
+
+    expect(result.map((item) => item.emoji)).toEqual(['👍', '😂']);
+  });
+
+  it("teng sonda ro'yxatdagi tartib saqlanadi", () => {
+    // Kirish tartibi teskari berilsa ham natija bir xil bo'lishi kerak.
+    const forward = aggregateReactions(
+      [
+        { emoji: '👍', userId: ME },
+        { emoji: '❤️', userId: PEER },
+      ],
+      ME,
+    );
+    const backward = aggregateReactions(
+      [
+        { emoji: '❤️', userId: PEER },
+        { emoji: '👍', userId: ME },
+      ],
+      ME,
+    );
+
+    expect(forward.map((item) => item.emoji)).toEqual(['👍', '❤️']);
+    expect(backward.map((item) => item.emoji)).toEqual(['👍', '❤️']);
+  });
+
+  it("noma'lum emoji oxirida turadi", () => {
+    const result = aggregateReactions(
+      [
+        { emoji: '🦄', userId: PEER },
+        { emoji: '🙏', userId: ME },
+      ],
+      ME,
+    );
+
+    expect(result.map((item) => item.emoji)).toEqual(['🙏', '🦄']);
+  });
+});
+
+describe('canReactToMessage', () => {
+  it('oddiy xabarga reaksiya qo\'yiladi', () => {
+    expect(canReactToMessage(message())).toBe(true);
+  });
+
+  it("o'chirilgan xabarga qo'yilmaydi", () => {
+    // Unda hech narsa qolmagan — reaksiya nimaga ekani tushunarsiz.
+    expect(canReactToMessage(message({ isDeleted: true }))).toBe(false);
+  });
+
+  it('hali yuborilmagan xabarga qo\'yilmaydi', () => {
+    // Uning ID si haqiqiy emas — so'rov "topilmadi" bilan tugardi.
+    expect(canReactToMessage(message({ id: `${PENDING_ID_PREFIX}1` }))).toBe(false);
+  });
+});
+
+describe('reactionSchema', () => {
+  it("ro'yxatdagi emojini qabul qiladi", () => {
+    expect(reactionSchema.parse({ emoji: '👍' }).emoji).toBe('👍');
+  });
+
+  /**
+   * Istalgan matnga ruxsat berilsa, emoji o'rniga haqorat yozib
+   * yuborish mumkin bo'lardi — u esa suhbatdoshning ekranida,
+   * o'chirib bo'lmaydigan holda turardi.
+   */
+  it("ro'yxatdan tashqari emojini rad etadi", () => {
+    expect(reactionSchema.safeParse({ emoji: '🦄' }).success).toBe(false);
+  });
+
+  it('oddiy matnni rad etadi', () => {
+    expect(reactionSchema.safeParse({ emoji: 'salom' }).success).toBe(false);
+    expect(reactionSchema.safeParse({ emoji: '' }).success).toBe(false);
+  });
+
+  it('juda uzun qiymatni rad etadi', () => {
+    expect(reactionSchema.safeParse({ emoji: '👍'.repeat(20) }).success).toBe(false);
+  });
+
+  it("kim qo'yganini mijozdan qabul qilmaydi", () => {
+    // Aks holda boshqa odam nomidan reaksiya qo'yish mumkin bo'lardi.
+    expect(reactionSchema.parse({ emoji: '👍', userId: 'x' })).not.toHaveProperty('userId');
   });
 });

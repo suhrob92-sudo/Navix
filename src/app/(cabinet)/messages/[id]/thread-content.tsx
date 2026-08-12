@@ -48,12 +48,17 @@ import { formatUzDayLabel, formatUzTime } from '@/lib/date';
 import { cn } from '@/lib/utils';
 import { useCall } from '@/modules/call/call-provider';
 import { callSummaryText, type CallView } from '@/modules/call/call.types';
+import { ReactionChips } from '@/components/chat/reaction-chips';
 import {
+  canReactToMessage,
   DELETED_MESSAGE_TEXT,
   peerStatusText,
+  PENDING_ID_PREFIX,
   quotePreview,
   statusMark,
+  type MessageReactionView,
   type MessageView,
+  type ReactionsResponse,
   type SendMessageResponse,
 } from '@/modules/chat/chat.types';
 
@@ -128,6 +133,16 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
    */
   const [edited, setEdited] = useState<Record<string, MessageView>>({});
 
+  /**
+   * Reaksiyalarning YANGI holati — server javobidan.
+   *
+   * Tahrir nusxasi bilan bir xil sabab: server javobi tez keladi,
+   * xabarning o'zi esa jonli oqimdan. Usiz emoji bosilgach bir-ikki
+   * soniya hech narsa o'zgarmagandek ko'rinardi va odam ikkinchi
+   * marta bosardi — ya'ni o'z reaksiyasini bekor qilib qo'yardi.
+   */
+  const [reacted, setReacted] = useState<Record<string, ReactionPatch>>({});
+
   /** Iqtibos bosilganda asl xabar qisqa vaqt yoritiladi. */
   const [highlightId, setHighlightId] = useState<string | null>(null);
 
@@ -169,7 +184,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
    */
   const messages = thread
     ? [
-        ...thread.messages.map((real) => applyEdit(real, edited[real.id])),
+        ...thread.messages.map((real) => applyReactions(applyEdit(real, edited[real.id]), reacted[real.id])),
         ...pending.filter((item) => !thread.messages.some((real) => real.id === item.id)),
       ]
     : pending;
@@ -276,6 +291,38 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
     const url = await image.upload(file);
 
     if (url) setImageUrl(url);
+  }
+
+  /**
+   * Reaksiya qo'yadi, almashtiradi yoki olib tashlaydi.
+   *
+   * Qaysi biri bo'lishini SERVER hal qiladi — bu yerda faqat emoji
+   * yuboriladi. Shu sababli ikki qurilmadan bir vaqtda bosilganda ham
+   * natija bir xil bo'ladi.
+   */
+  async function react(messageId: string, emoji: string): Promise<void> {
+    setActionsFor(null);
+    setError(null);
+
+    /**
+     * Nusxa qaysi holat ustiga qo'yilayotgani ESLAB QOLINADI.
+     *
+     * Oqimdan shu xabar yangi holatda kelishi bilan nusxa o'z-o'zidan
+     * amaldan qoladi. Usiz nusxa abadiy qolib, suhbatdosh keyin
+     * qo'ygan reaksiya umuman ko'rinmasdi.
+     */
+    const baseline = JSON.stringify(thread?.messages.find((item) => item.id === messageId)?.reactions ?? []);
+
+    try {
+      const result = await request<ReactionsResponse>(
+        `/api/v1/chat/conversations/${conversationId}/messages/${messageId}/reactions`,
+        { method: 'POST', body: { emoji } },
+      );
+
+      setReacted((current) => ({ ...current, [messageId]: { baseline, reactions: result.reactions } }));
+    } catch (caught) {
+      setError(toUserMessage(caught));
+    }
   }
 
   /** Javob berishni boshlaydi. */
@@ -462,7 +509,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
      * xabar bilan aralashib ketmasligi kerak.
      */
     const temporary: MessageView = {
-      id: `pending-${Date.now()}`,
+      id: `${PENDING_ID_PREFIX}${Date.now()}`,
       body,
       imageUrl: attached,
       voiceUrl: null,
@@ -480,6 +527,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
           }
         : null,
       editedAt: null,
+      reactions: [],
       isMine: true,
       createdAt: new Date().toISOString(),
       status: 'SENT',
@@ -719,6 +767,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
                   isHighlighted={highlightId === item.message.id}
                   onOpenActions={() => setActionsFor(item.message)}
                   onQuoteClick={jumpToMessage}
+                  onToggleReaction={(emoji) => void react(item.message.id, emoji)}
                 />
               );
             })}
@@ -906,6 +955,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
       {actionsFor && (
         <MessageActions
           message={actionsFor}
+          onReact={(emoji) => void react(actionsFor.id, emoji)}
           onReply={() => beginReply(actionsFor)}
           onEdit={() => beginEdit(actionsFor)}
           onDelete={() => {
@@ -935,6 +985,25 @@ function quoteAuthor(message: MessageView | null, peerName: string | undefined):
   if (!message) return '';
 
   return message.isMine ? 'Siz' : (peerName ?? 'Foydalanuvchi');
+}
+
+/**
+ * Reaksiyalarning vaqtinchalik nusxasi.
+ *
+ * `baseline` — nusxa qo'yilgan paytda OQIMDA turgan holat (JSON matn
+ * ko'rinishida). Oqim boshqa holat yuborishi bilan nusxa amaldan
+ * qoladi.
+ */
+interface ReactionPatch {
+  baseline: string;
+  reactions: MessageReactionView[];
+}
+
+/** Reaksiya nusxasini qo'llaydi — faqat oqim hali yangilanmagan bo'lsa. */
+function applyReactions(real: MessageView, patch: ReactionPatch | undefined): MessageView {
+  if (!patch || JSON.stringify(real.reactions) !== patch.baseline) return real;
+
+  return { ...real, reactions: patch.reactions };
 }
 
 /**
@@ -1011,10 +1080,17 @@ interface MessageBubbleProps {
   isHighlighted: boolean;
   onOpenActions: () => void;
   onQuoteClick: (messageId: string) => void;
+  onToggleReaction: (emoji: string) => void;
 }
 
 /** Bitta xabar puffagi. */
-function MessageBubble({ message, isHighlighted, onOpenActions, onQuoteClick }: MessageBubbleProps) {
+function MessageBubble({
+  message,
+  isHighlighted,
+  onOpenActions,
+  onQuoteClick,
+  onToggleReaction,
+}: MessageBubbleProps) {
   /**
    * Amallar UZOQ BOSISH bilan ochiladi.
    *
@@ -1026,13 +1102,13 @@ function MessageBubble({ message, isHighlighted, onOpenActions, onQuoteClick }: 
    * Uning `id` si hali haqiqiy emas — o'chirish yoki tahrirlash
    * so'rovi "topilmadi" bilan tugardi.
    */
-  const isReady = !message.id.startsWith('pending-') && !message.isDeleted;
+  const isReady = canReactToMessage(message);
   const longPress = useLongPress(onOpenActions);
 
   return (
     <li
       data-message-id={message.id}
-      className={cn('flex scroll-mt-4', message.isMine ? 'justify-end' : 'justify-start')}
+      className={cn('flex scroll-mt-4 flex-col', message.isMine ? 'items-end' : 'items-start')}
     >
       <div
         {...(isReady ? longPress : {})}
@@ -1137,6 +1213,14 @@ function MessageBubble({ message, isHighlighted, onOpenActions, onQuoteClick }: 
           )}
         </p>
       </div>
+
+      {/*
+        Reaksiyalar puffakning TAGIDA.
+
+        Ichkariga qo'yilsa, puffak har reaksiyada kengayib, suhbat
+        "sakrab" turardi.
+      */}
+      <ReactionChips reactions={message.reactions} isMine={message.isMine} onToggle={onToggleReaction} />
     </li>
   );
 }

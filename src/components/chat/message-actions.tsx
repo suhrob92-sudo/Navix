@@ -3,11 +3,13 @@
 import { Copy, CornerUpLeft, Pencil, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { ReactionBar } from '@/components/chat/reaction-bar';
 import { cn } from '@/lib/utils';
-import { canEditMessage, type MessageView } from '@/modules/chat/chat.types';
+import { canEditMessage, canReactToMessage, type MessageView } from '@/modules/chat/chat.types';
 
 export interface MessageActionsProps {
   message: MessageView;
+  onReact: (emoji: string) => void;
   onReply: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -35,7 +37,7 @@ export interface MessageActionsProps {
  * `open` xossasi yo'q: varaq ochilishi kerak bo'lgandagina DOM'ga
  * qo'yiladi. Shu sababli holatni tiklash uchun effekt ham kerak emas.
  */
-export function MessageActions({ message, onReply, onEdit, onDelete, onClose }: MessageActionsProps) {
+export function MessageActions({ message, onReact, onReply, onEdit, onDelete, onClose }: MessageActionsProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const [isCopied, setIsCopied] = useState(false);
@@ -67,6 +69,10 @@ export function MessageActions({ message, onReply, onEdit, onDelete, onClose }: 
   const canCopy = message.body.length > 0 && !message.isDeleted;
   const canEdit = canEditMessage(message);
   const canDelete = message.isMine && !message.isDeleted;
+  const canReact = canReactToMessage(message);
+
+  /** Ayni paytda O'ZIM qo'ygan emoji (bo'lsa). */
+  const myReaction = message.reactions.find((item) => item.isMine)?.emoji ?? null;
 
   return (
     <dialog
@@ -92,6 +98,8 @@ export function MessageActions({ message, onReply, onEdit, onDelete, onClose }: 
         className="glass animate-fade-up mx-3 mb-3 overflow-hidden rounded-2xl sm:mx-0"
         style={{ marginBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}
       >
+        {canReact && <ReactionBar current={myReaction} onPick={onReact} />}
+
         {canCopy && (
           <ActionRow icon={Copy} label={isCopied ? 'Nusxalandi' : 'Nusxalash'} onClick={() => void copy()} />
         )}

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { isAllowedReaction, REACTION_MAX_LENGTH } from '@/config/reactions';
 import { paginationQuerySchema } from '@/lib/api/pagination';
 import { usernameParamSchema } from '@/modules/profile/social.schemas';
 import { isOwnImageUrl, MAX_VOICE_SECONDS } from '@/modules/upload/upload.types';
@@ -134,6 +135,24 @@ export const editMessageSchema = z.object({
 });
 
 export type EditMessageInput = z.infer<typeof editMessageSchema>;
+
+/**
+ * POST /api/v1/chat/conversations/{id}/messages/{messageId}/reactions
+ *
+ * ── Nima uchun emoji RO'YXATDAN tekshiriladi ─────────────────────────
+ * Istalgan matnga ruxsat berilsa, u yerga emoji o'rniga oddiy so'z —
+ * yoki haqorat — yozib yuborish mumkin bo'lardi. U esa xabar ostida,
+ * suhbatdoshning ekranida turardi va uni o'chirishning iloji yo'q edi.
+ */
+export const reactionSchema = z.object({
+  emoji: z
+    .string()
+    .trim()
+    .max(REACTION_MAX_LENGTH)
+    .refine(isAllowedReaction, "Bunday reaksiya yo'q"),
+});
+
+export type ReactionInput = z.infer<typeof reactionSchema>;
 
 /** GET /api/v1/chat/conversations/{id}/stream */
 export const streamQuerySchema = z.object({
