@@ -1,19 +1,6 @@
 'use client';
 
-import {
-  AlertTriangle,
-  ArrowLeftRight,
-  ArrowUpRight,
-  Bug,
-  ChevronRight,
-  Flag,
-  Power,
-  Receipt,
-  Store,
-  Users,
-  Wallet,
-  Wrench,
-} from 'lucide-react';
+import { AlertTriangle, ArrowUpRight, ChevronRight, Receipt, Users, Wallet } from 'lucide-react';
 import Link from 'next/link';
 
 import { AdminHeader } from '@/components/admin/admin-header';
@@ -21,9 +8,11 @@ import { ProviderIcon } from '@/components/payments/provider-icon';
 import { StatCard } from '@/components/admin/stat-card';
 import { Alert } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
+import { ADMIN_SECTIONS } from '@/config/admin-nav';
 import { Permission, hasPermission } from '@/config/rbac';
 import { useApiQuery } from '@/hooks/use-api';
 import { formatTiyin } from '@/lib/money';
+import { cn } from '@/lib/utils';
 import { useAuth } from '@/modules/auth/auth-context';
 import type { AdminStats } from '@/modules/admin/admin.types';
 import { RequireAdmin } from '@/modules/admin/require-admin';
@@ -47,18 +36,21 @@ export function AdminDashboardContent() {
 }
 
 function DashboardBody() {
+  const { user } = useAuth();
+
   /**
-   * Shikoyatlar havolasi FAQAT ruxsati borlarga ko'rinadi.
+   * Bo'lim havolasi FAQAT ruxsati borlarga ko'rinadi.
    *
-   * Qo'llab-quvvatlash xodimida bu ruxsat yo'q. Havola unga ham
+   * Qo'llab-quvvatlash xodimida ko'p ruxsat yo'q. Havola unga ham
    * ko'rinsa, u bosib "bo'lim yopiq" ekranini olardi — ishlamaydigan
    * tugma esa har doim xatoga o'xshab ko'rinadi.
+   *
+   * Bu — QULAYLIK. Haqiqiy himoya serverda: har bir manzil o'z
+   * ruxsatini talab qiladi.
    */
-  const { user } = useAuth();
-  const canSeeReports = hasPermission(user?.roles ?? [], Permission.PLATFORM_REPORT_MANAGE);
-  const canSeeErrors = hasPermission(user?.roles ?? [], Permission.PLATFORM_AUDIT_READ);
-  const canManageModules = hasPermission(user?.roles ?? [], Permission.PLATFORM_MODULE_MANAGE);
-  const canManageBusinesses = hasPermission(user?.roles ?? [], Permission.PLATFORM_BUSINESS_MANAGE);
+  const visibleSections = ADMIN_SECTIONS.filter((section) =>
+    hasPermission(user?.roles ?? [], section.permission),
+  );
 
   /**
    * Har 60 soniyada yangilanadi: admin panel ochiq turganda raqamlar
@@ -171,101 +163,42 @@ function DashboardBody() {
           </ul>
         </section>
 
-        {/* Pastki panelga sig'magan bo'limlar */}
+        {/*
+          Bo'limlar ro'yxatdan (`ADMIN_SECTIONS`) quriladi.
+
+          Avval har biri qo'lda yozilgan edi — sakkizta bo'lim
+          yig'ilganda fayl o'qib bo'lmas holga keldi va yangi bo'lim
+          qo'shish nusxa ko'chirishga aylandi. Nusxada esa ruxsatni
+          almashtirish esdan chiqishi mumkin edi.
+        */}
         <Card variant="glass" padding="none" className="animate-fade-up mt-4 overflow-hidden">
-          <Link href="/admin/providers" className="flex items-center gap-3 p-4">
-            <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
-              <Wrench className="size-4.5" aria-hidden="true" />
-            </span>
+          {visibleSections.map((section, index) => {
+            const Icon = section.icon;
 
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium">Xizmatlarni boshqarish</span>
-              <span className="text-muted-foreground block text-xs">
-                {`${data?.providers.active ?? 0} ta faol, jami ${data?.providers.total ?? 0} ta`}
-              </span>
-            </span>
-
-            <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
-          </Link>
-
-          <Link href="/admin/transactions" className="border-border/60 flex items-center gap-3 border-t p-4">
-            <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
-              <ArrowLeftRight className="size-4.5" aria-hidden="true" />
-            </span>
-
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium">Hamyon tranzaksiyalari</span>
-              <span className="text-muted-foreground block text-xs">
-                Barcha pul harakatlari — faqat tekshirish uchun
-              </span>
-            </span>
-
-            <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
-          </Link>
-
-          {canSeeErrors && (
-            <Link href="/admin/errors" className="border-border/60 flex items-center gap-3 border-t p-4">
-              <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
-                <Bug className="size-4.5" aria-hidden="true" />
-              </span>
-
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">Xatolar</span>
-                <span className="text-muted-foreground block text-xs">Ilovada nima buzilayotgani</span>
-              </span>
-
-              <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
-            </Link>
-          )}
-
-          {canSeeReports && (
-            <Link href="/admin/reports" className="border-border/60 flex items-center gap-3 border-t p-4">
-              <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
-                <Flag className="size-4.5" aria-hidden="true" />
-              </span>
-
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">Shikoyatlar</span>
-                <span className="text-muted-foreground block text-xs">Foydalanuvchilar yuborgan shikoyatlar</span>
-              </span>
-
-              <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
-            </Link>
-          )}
-
-          {canManageBusinesses && (
-            <Link href="/admin/businesses" className="border-border/60 flex items-center gap-3 border-t p-4">
-              <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
-                <Store className="size-4.5" aria-hidden="true" />
-              </span>
-
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">Bizneslar</span>
-                <span className="text-muted-foreground block text-xs">
-                  Do&apos;kon, restoran va mehmonxonalarni vaqtincha yopish
+            return (
+              <Link
+                key={section.href}
+                href={section.href}
+                className={cn(
+                  'flex items-center gap-3 p-4',
+                  index > 0 && 'border-border/60 border-t',
+                )}
+              >
+                <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
+                  <Icon className="size-4.5" aria-hidden="true" />
                 </span>
-              </span>
 
-              <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
-            </Link>
-          )}
-
-          {canManageModules && (
-            <Link href="/admin/modules" className="border-border/60 flex items-center gap-3 border-t p-4">
-              <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
-                <Power className="size-4.5" aria-hidden="true" />
-              </span>
-
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-medium">Bo&apos;limlar</span>
-                <span className="text-muted-foreground block text-xs">
-                  Nosozlik chiqqanda bo&apos;limni darhol yopish
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium">{section.label}</span>
+                  <span className="text-muted-foreground block text-xs">
+                    {section.description}
+                  </span>
                 </span>
-              </span>
 
-              <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
-            </Link>
-          )}
+                <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+              </Link>
+            );
+          })}
         </Card>
 
         {/* Eslatma: admin pulni qo'lda o'zgartira olmaydi */}

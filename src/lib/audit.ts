@@ -165,6 +165,14 @@ export const AuditAction = {
   /** Do'kon, restoran yoki mehmonxona vaqtincha yopildi / ochildi. */
   ADMIN_BUSINESS_DISABLED: 'admin.business.disabled',
   ADMIN_BUSINESS_ENABLED: 'admin.business.enabled',
+  /**
+   * Alohida mahsulot, taom, post yoki vakansiya yashirildi.
+   *
+   * Yozuv MAJBURIY: egasi "nega yo'qoldi?" deb so'raydi va javob
+   * xodimning xotirasida emas, jurnalda bo'lishi kerak.
+   */
+  ADMIN_CONTENT_HIDDEN: 'admin.content.hidden',
+  ADMIN_CONTENT_RESTORED: 'admin.content.restored',
 } as const;
 
 export type AuditActionValue = (typeof AuditAction)[keyof typeof AuditAction];

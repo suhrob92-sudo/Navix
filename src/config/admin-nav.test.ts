@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ADMIN_NAV, isAdminNavItemActive } from '@/config/admin-nav';
+import { ADMIN_NAV, ADMIN_SECTIONS, isAdminNavItemActive } from '@/config/admin-nav';
 import { Permission, Role, hasPermission } from '@/config/rbac';
 
 describe('ADMIN_NAV', () => {
@@ -93,5 +93,70 @@ describe('isAdminNavItemActive', () => {
     expect(isAdminNavItemActive('/admin/providers', providers)).toBe(true);
     expect(isAdminNavItemActive('/admin/providers/new', providers)).toBe(true);
     expect(isAdminNavItemActive('/admin/users', providers)).toBe(false);
+  });
+});
+
+describe('ADMIN_SECTIONS', () => {
+  it("barcha manzillar '/admin/' bilan boshlanadi", () => {
+    for (const section of ADMIN_SECTIONS) {
+      expect(section.href.startsWith('/admin/')).toBe(true);
+    }
+  });
+
+  it('manzillar takrorlanmaydi', () => {
+    const hrefs = ADMIN_SECTIONS.map((section) => section.href);
+
+    expect(new Set(hrefs).size).toBe(hrefs.length);
+  });
+
+  it("pastki paneldagi bo'limlar bu yerda TAKRORLANMAYDI", () => {
+    /**
+     * Bir bo'lim ikki joyda turmasligi kerak: xodim uni panelda ham,
+     * kartochkada ham ko'rib, ikkitasi boshqa-boshqa joy deb
+     * o'ylardi.
+     */
+    const navHrefs = new Set(ADMIN_NAV.map((item) => item.href));
+
+    for (const section of ADMIN_SECTIONS) {
+      expect(navHrefs.has(section.href), `${section.href} ikki joyda`).toBe(false);
+    }
+  });
+
+  it("har bir bo'limda izoh bor", () => {
+    for (const section of ADMIN_SECTIONS) {
+      expect(section.description.trim().length).toBeGreaterThan(10);
+    }
+  });
+
+  it("oddiy foydalanuvchi hech qanday kartochkani ko'rmaydi", () => {
+    const visible = ADMIN_SECTIONS.filter((section) =>
+      hasPermission([Role.CUSTOMER] as Parameters<typeof hasPermission>[0], section.permission),
+    );
+
+    expect(visible).toEqual([]);
+  });
+
+  it("qo'llab-quvvatlash xodimi faqat o'ziga tegishlisini ko'radi", () => {
+    const visible = ADMIN_SECTIONS.filter((section) =>
+      hasPermission([Role.SUPPORT] as Parameters<typeof hasPermission>[0], section.permission),
+    ).map((section) => section.href);
+
+    /**
+     * SUPPORT foydalanuvchi murojaatlarini hal qiladi. U bo'limni
+     * yopa olmaydi, kontentni yashira olmaydi va navbat ro'yxatidagi
+     * telefon raqamlarini ko'ra olmaydi.
+     */
+    expect(visible).not.toContain('/admin/modules');
+    expect(visible).not.toContain('/admin/businesses');
+    expect(visible).not.toContain('/admin/content');
+    expect(visible).not.toContain('/admin/waitlist');
+  });
+
+  it("administrator hamma kartochkani ko'radi", () => {
+    const visible = ADMIN_SECTIONS.filter((section) =>
+      hasPermission([Role.ADMIN] as Parameters<typeof hasPermission>[0], section.permission),
+    );
+
+    expect(visible).toHaveLength(ADMIN_SECTIONS.length);
   });
 });

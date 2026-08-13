@@ -1,5 +1,18 @@
 import type { LucideIcon } from 'lucide-react';
-import { LayoutGrid, Receipt, ScrollText, Users, Wrench } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  Bug,
+  FileText,
+  Flag,
+  LayoutGrid,
+  ListOrdered,
+  Power,
+  Receipt,
+  ScrollText,
+  Store,
+  Users,
+  Wrench,
+} from 'lucide-react';
 
 import { Permission, type PermissionValue } from '@/config/rbac';
 
@@ -76,3 +89,80 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
 export function isAdminNavItemActive(pathname: string, item: AdminNavItem): boolean {
   return item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
 }
+
+export interface AdminSection {
+  href: string;
+  label: string;
+  /** Bir jumlalik izoh — kartochkada ko'rinadi. */
+  description: string;
+  icon: LucideIcon;
+  permission: PermissionValue;
+}
+
+/**
+ * Pastki panelga SIG'MAGAN bo'limlar — bosh sahifadagi kartochkalar.
+ *
+ * ── Nima uchun ro'yxat, JSX emas ──────────────────────────────────────
+ * Avval har bir kartochka bosh sahifada qo'lda yozilgan edi: o'n besh
+ * qatorlik JSX, ichida ruxsat tekshiruvi. Sakkizta bo'lim yig'ilganda
+ * fayl o'qib bo'lmas holga keldi va yangi bo'lim qo'shish har safar
+ * nusxa ko'chirishga aylandi — nusxada esa ruxsatni almashtirish
+ * esdan chiqishi mumkin edi.
+ *
+ * Endi bo'lim shu ro'yxatga bitta yozuv sifatida qo'shiladi, ruxsat
+ * esa uning YONIDA turadi — ular ajralib qololmaydi.
+ *
+ * Tartib — ishlatilish chastotasi bo'yicha: kundalik ishlar tepada,
+ * kamdan-kam kerak bo'ladigani pastda.
+ */
+export const ADMIN_SECTIONS: readonly AdminSection[] = [
+  {
+    href: '/admin/transactions',
+    label: 'Hamyon tranzaksiyalari',
+    description: 'Barcha pul harakatlari — faqat tekshirish uchun',
+    icon: ArrowLeftRight,
+    permission: Permission.PLATFORM_TRANSACTION_READ,
+  },
+  {
+    href: '/admin/reports',
+    label: 'Shikoyatlar',
+    description: 'Foydalanuvchilar yuborgan shikoyatlar',
+    icon: Flag,
+    permission: Permission.PLATFORM_REPORT_MANAGE,
+  },
+  {
+    href: '/admin/content',
+    label: 'Kontent',
+    description: 'Mahsulot, taom, post va vakansiyani yashirish',
+    icon: FileText,
+    permission: Permission.PLATFORM_CONTENT_MANAGE,
+  },
+  {
+    href: '/admin/businesses',
+    label: 'Bizneslar',
+    description: "Do'kon, restoran va mehmonxonani vaqtincha yopish",
+    icon: Store,
+    permission: Permission.PLATFORM_BUSINESS_MANAGE,
+  },
+  {
+    href: '/admin/errors',
+    label: 'Xatolar',
+    description: 'Ilovada nima buzilayotgani',
+    icon: Bug,
+    permission: Permission.PLATFORM_AUDIT_READ,
+  },
+  {
+    href: '/admin/waitlist',
+    label: 'Navbat',
+    description: "Ishga tushishdan oldin yozilganlar ro'yxati",
+    icon: ListOrdered,
+    permission: Permission.PLATFORM_WAITLIST_READ,
+  },
+  {
+    href: '/admin/modules',
+    label: "Bo'limlar",
+    description: "Nosozlik chiqqanda bo'limni darhol yopish",
+    icon: Power,
+    permission: Permission.PLATFORM_MODULE_MANAGE,
+  },
+] as const;

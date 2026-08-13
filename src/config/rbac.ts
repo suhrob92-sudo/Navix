@@ -50,6 +50,21 @@ export const Permission = {
    * tekshiruv va qaror talab qiladi.
    */
   PLATFORM_BUSINESS_MANAGE: 'platform:business:manage',
+  /**
+   * Alohida mahsulot, taom, post yoki vakansiyani yashirish.
+   *
+   * Biznesni yopishdan YENGILROQ chora: do'konda mingta mahsulot
+   * bo'lib, ulardan bittasi qoidaga zid bo'lsa, butun do'konni
+   * yopish qolgan 999 tasini ham to'xtatardi.
+   */
+  PLATFORM_CONTENT_MANAGE: 'platform:content:manage',
+  /**
+   * Ishga tushishdan oldingi navbat ro'yxatini ko'rish.
+   *
+   * Ro'yxatda telefon raqamlari bor — ular hali ro'yxatdan
+   * o'tmagan odamlarniki. Shuning uchun bu alohida ruxsat.
+   */
+  PLATFORM_WAITLIST_READ: 'platform:waitlist:read',
 
   // Profil (har bir foydalanuvchi o'zi uchun)
   PROFILE_READ: 'profile:self:read',
@@ -207,6 +222,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
     Permission.PLATFORM_PROVIDER_MANAGE,
     Permission.PLATFORM_MODULE_MANAGE,
     Permission.PLATFORM_BUSINESS_MANAGE,
+    Permission.PLATFORM_CONTENT_MANAGE,
+    Permission.PLATFORM_WAITLIST_READ,
     Permission.PLATFORM_TRANSACTION_READ,
     Permission.PAYMENT_REFUND,
     Permission.CATALOG_PRODUCT_MANAGE,

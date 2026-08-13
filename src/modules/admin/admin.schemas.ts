@@ -243,3 +243,38 @@ export const setBusinessActiveSchema = z
   });
 
 export type SetBusinessActiveInput = z.infer<typeof setBusinessActiveSchema>;
+
+/** GET /api/v1/admin/content */
+export const adminContentQuerySchema = z.object({
+  kind: z.enum(['ALL', 'PRODUCT', 'DISH', 'POST', 'VACANCY']).default('ALL'),
+  status: z.enum(['ALL', 'VISIBLE', 'HIDDEN']).default('ALL'),
+  search: z.string().trim().min(1).max(80).optional(),
+});
+
+export type AdminContentQuery = z.infer<typeof adminContentQuerySchema>;
+
+/**
+ * PATCH /api/v1/admin/content/[kind]/[id]
+ *
+ * Sabab yashirishda majburiy: sotuvchi "mahsulotim nega yo'qoldi?"
+ * deb so'raganda javob jurnalda bo'lishi kerak, xodimning
+ * xotirasida emas.
+ */
+export const setContentVisibleSchema = z
+  .object({
+    isVisible: z.boolean(),
+    reason: z.string().trim().min(5, 'Sababni batafsilroq yozing (kamida 5 ta belgi)').max(200).optional(),
+  })
+  .refine((value) => value.isVisible || Boolean(value.reason), {
+    message: 'Yashirish sababini yozing — u jurnalga yoziladi',
+    path: ['reason'],
+  });
+
+export type SetContentVisibleInput = z.infer<typeof setContentVisibleSchema>;
+
+/** GET /api/v1/admin/waitlist */
+export const adminWaitlistQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().min(1).max(80).optional(),
+});
+
+export type AdminWaitlistQuery = z.infer<typeof adminWaitlistQuerySchema>;
