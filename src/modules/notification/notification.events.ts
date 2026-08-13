@@ -171,6 +171,16 @@ export interface NotificationEventData {
     preview: string;
   };
   'security.password_changed': { revokedSessions: number };
+  'support.replied': {
+    ticketId: string;
+    ticketNumber: string;
+    subject: string;
+  };
+  'support.resolved': {
+    ticketId: string;
+    ticketNumber: string;
+    subject: string;
+  };
   'call.missed': {
     conversationId: string;
     callerName: string;
@@ -536,6 +546,28 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
         : "Parolingiz muvaffaqiyatli o'zgartirildi.",
     actionUrl: '/security',
     sourceModule: 'auth',
+  }),
+
+  /**
+   * Yordam xizmati javob berdi.
+   *
+   * ── Nima uchun bu MAJBURIY ──────────────────────────────────────────
+   * Odam murojaat yozib, javobni kutadi. Xabar bo'lmasa, u ilovani
+   * qayta-qayta ochib tekshirardi — yoki umuman unutib yuborardi va
+   * javob o'qilmay qolardi.
+   */
+  'support.replied': ({ ticketId, ticketNumber, subject }) => ({
+    title: 'Murojaatingizga javob berildi',
+    body: `${ticketNumber} — ${subject}`,
+    actionUrl: `/support/${ticketId}`,
+    sourceModule: 'support',
+  }),
+
+  'support.resolved': ({ ticketId, ticketNumber, subject }) => ({
+    title: 'Murojaatingiz hal qilindi',
+    body: `${ticketNumber} — ${subject}`,
+    actionUrl: `/support/${ticketId}`,
+    sourceModule: 'support',
   }),
 
   /**

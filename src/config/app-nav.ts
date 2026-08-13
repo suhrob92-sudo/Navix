@@ -3,6 +3,7 @@ import {
   Bell,
   ClipboardList,
   Home,
+  LifeBuoy,
   MapPin,
   Newspaper,
   Scale,
@@ -111,6 +112,12 @@ export const PROFILE_MENU: readonly ProfileMenuItem[] = [
     label: 'Sozlamalar',
     description: "Til, mavzu va shaxsiy ma'lumotlar",
     icon: Settings,
+  },
+  {
+    href: '/support',
+    label: 'Yordam',
+    description: 'Savol yoki muammo bo\'lsa — yozing',
+    icon: LifeBuoy,
   },
   /**
    * Huquqiy hujjatlar — menyuning OXIRIDA.

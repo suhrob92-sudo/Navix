@@ -169,6 +169,16 @@ const SAMPLES = {
     preview: "Juda to'g'ri aytdingiz",
   },
   'security.password_changed': { revokedSessions: 3 },
+  'support.replied': {
+    ticketId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93',
+    ticketNumber: 'NVX-S-20260813-A1B2C3',
+    subject: "Buyurtma yetkazilmadi",
+  },
+  'support.resolved': {
+    ticketId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93',
+    ticketNumber: 'NVX-S-20260813-A1B2C3',
+    subject: "Buyurtma yetkazilmadi",
+  },
   'call.missed': {
     conversationId: '7f3a1c2e-8b4d-4e6a-9c1f-2d5e8a7b3c94',
     callerName: 'Bobur Karimov',

@@ -81,6 +81,9 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'admin.business.enabled': 'Biznesni qayta ochdi',
   'admin.content.hidden': 'Kontentni yashirdi',
   'admin.content.restored': 'Kontentni qaytardi',
+  'support.ticket.created': 'Murojaat ochdi',
+  'support.ticket.answered': 'Murojaatga javob berdi',
+  'support.ticket.closed': 'Murojaatni yakunladi',
 };
 
 /**
@@ -133,6 +136,9 @@ export const AUDIT_GROUP_ACTIONS: Record<Exclude<AuditFilterGroup, 'ALL'>, reado
     'admin.business.enabled',
     'admin.content.hidden',
     'admin.content.restored',
+    'support.ticket.created',
+    'support.ticket.answered',
+    'support.ticket.closed',
     'merchant.order.status_changed',
     'seller.order.status_changed',
     'seller.product.created',

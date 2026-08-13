@@ -173,6 +173,17 @@ export const AuditAction = {
    */
   ADMIN_CONTENT_HIDDEN: 'admin.content.hidden',
   ADMIN_CONTENT_RESTORED: 'admin.content.restored',
+
+  /**
+   * Yordam xizmati.
+   *
+   * Murojaat MATNI yozilmaydi — unda odamning shaxsiy holati
+   * bo'lishi mumkin ("pulim yo'q", "kasal bo'lib qoldim").
+   * Jurnalga faqat hodisaning O'ZI tushadi.
+   */
+  SUPPORT_TICKET_CREATED: 'support.ticket.created',
+  SUPPORT_TICKET_ANSWERED: 'support.ticket.answered',
+  SUPPORT_TICKET_CLOSED: 'support.ticket.closed',
 } as const;
 
 export type AuditActionValue = (typeof AuditAction)[keyof typeof AuditAction];

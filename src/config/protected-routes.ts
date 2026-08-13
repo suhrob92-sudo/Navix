@@ -62,6 +62,8 @@ export const PROTECTED_PREFIXES = [
   '/seller',
   '/courier',
   '/employer',
+  /** Yordam xizmati: murojaatlarda shaxsiy ma'lumot bo'ladi. */
+  '/support',
   /**
    * Admin panel.
    *

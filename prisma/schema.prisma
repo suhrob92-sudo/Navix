@@ -288,6 +288,9 @@ model User {
   postLikes         PostLike[]           @relation("PostLikes")
   postComments      PostComment[]        @relation("CommentAuthor")
   moduleSwitches    ModuleSwitch[]       @relation("ModuleSwitchEditor")
+  supportTickets    SupportTicket[]      @relation("SupportTickets")
+  supportAssigned   SupportTicket[]      @relation("SupportAssignee")
+  supportMessages   SupportMessage[]     @relation("SupportMessages")
 
   @@index([status])
   @@index([createdAt])
@@ -2518,4 +2521,117 @@ model ModuleSwitch {
   updatedAt DateTime @updatedAt
 
   @@map("module_switches")
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Yordam xizmati
+// ─────────────────────────────────────────────────────────────────────
+
+/// Murojaatning holati.
+enum SupportTicketStatus {
+  /// Yangi kelgan, hali hech kim ko'rmagan.
+  OPEN
+  /// Xodim javob yozdi, foydalanuvchidan javob kutilmoqda.
+  ANSWERED
+  /// Masala hal qilindi.
+  RESOLVED
+  /// Yopildi — javob berilmasdan (spam, takroriy murojaat).
+  CLOSED
+}
+
+/// Murojaat mavzusi — qaysi bo'lim haqida.
+enum SupportTicketCategory {
+  ORDER
+  PAYMENT
+  ACCOUNT
+  BUG
+  OTHER
+}
+
+/// Foydalanuvchining yordam so'rovi.
+///
+/// ── Nima uchun CHATDAN alohida ────────────────────────────────────────
+/// Ilovada yozishmalar tizimi bor va murojaatni ham o'sha yerda qilish
+/// mumkin edi. Lekin murojaatning chatda yo'q uchta xossasi bor:
+///
+///  · HOLATI — u ochiladi, javob oladi va yopiladi;
+///  · MAVZUSI — qaysi bo'lim haqida ekani ma'lum;
+///  · EGASI — uni bitta odam emas, XODIMLAR JAMOASI ko'radi.
+///
+/// Bulardan tashqari chatda bloklash qoidalari bor: foydalanuvchi
+/// xodimni bloklab qo'ysa, o'z murojaatiga javob ololmay qolardi.
+model SupportTicket {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Murojaat egasi. Hisob o'chirilsa murojaat ham o'chadi.
+  userId String @db.Uuid
+  user   User   @relation("SupportTickets", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Odam o'qiydigan raqam: "NVX-S-20260813-A1B2C3".
+  ///
+  /// Telefonda gaplashganda ID emas, aynan shu raqam aytiladi —
+  /// UUID ni ovoz bilan o'qib bo'lmaydi.
+  ///
+  /// Uzunlik boshqa raqamlar bilan BIR XIL (40). Avval 20 edi va
+  /// raqam bir belgiga sig'may qolgan: murojaat ochish 500 xatosi
+  /// bilan tugardi. Yagona o'lchov shunday xatoni takrorlanmas
+  /// qiladi.
+  ticketNumber String @unique @db.VarChar(40)
+
+  subject  String                @db.VarChar(120)
+  category SupportTicketCategory
+  status   SupportTicketStatus   @default(OPEN)
+
+  /// Murojaatni o'z zimmasiga olgan xodim.
+  ///
+  /// Xodim ishdan ketsa murojaat qolaveradi (`SetNull`) — tarix
+  /// yo'qolmasligi kerak.
+  assigneeId String? @db.Uuid
+  assignee   User?   @relation("SupportAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  /// Oxirgi xabar vaqti — ro'yxat shu bo'yicha saralanadi.
+  ///
+  /// Alohida ustun: har safar xabarlar jadvalidan eng yangisini
+  /// qidirish uzun ro'yxatda sekin ishlardi.
+  lastMessageAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Yopilgan payt — javob berish muddatini o'lchash uchun.
+  resolvedAt DateTime?
+
+  messages SupportMessage[]
+
+  /// Xodim ochiq murojaatlarni birinchi ko'radi.
+  @@index([status, lastMessageAt])
+  /// Foydalanuvchi o'z murojaatlarini ko'radi.
+  @@index([userId, lastMessageAt])
+  @@map("support_tickets")
+}
+
+/// Murojaat ichidagi bitta xabar.
+model SupportMessage {
+  id       String        @id @default(uuid()) @db.Uuid
+  ticketId String        @db.Uuid
+  ticket   SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  /// Kim yozgan. Xodim hisobi o'chirilsa xabar qolaveradi.
+  authorId String? @db.Uuid
+  author   User?   @relation("SupportMessages", fields: [authorId], references: [id], onDelete: SetNull)
+
+  /// Xodim yozganmi.
+  ///
+  /// ── Nima uchun ALOHIDA ustun ────────────────────────────────────────
+  /// Buni `authorId != ticket.userId` orqali hisoblash mumkin edi.
+  /// Lekin xodim hisobi o'chirilsa `authorId` bo'sh qoladi va eski
+  /// xabarlar birdan "foydalanuvchi yozgan" bo'lib ko'rinardi —
+  /// yozishmaning ma'nosi teskari o'girilardi.
+  isStaff Boolean
+
+  body String @db.VarChar(2000)
+
+  createdAt DateTime @default(now())
+
+  @@index([ticketId, createdAt])
+  @@map("support_messages")
 }

@@ -65,6 +65,14 @@ export const Permission = {
    * o'tmagan odamlarniki. Shuning uchun bu alohida ruxsat.
    */
   PLATFORM_WAITLIST_READ: 'platform:waitlist:read',
+  /**
+   * Foydalanuvchilarning murojaatlariga javob berish.
+   *
+   * `SUPPORT` rolida BOR — bu uning asosiy ishi. Aynan shu ruxsat
+   * uchun bu rol yaratilgan edi, lekin unga tegishli bo'lim
+   * mavjud emasdi.
+   */
+  PLATFORM_SUPPORT_MANAGE: 'platform:support:manage',
 
   // Profil (har bir foydalanuvchi o'zi uchun)
   PROFILE_READ: 'profile:self:read',
@@ -207,6 +215,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
     Permission.PLATFORM_ADMIN_ACCESS,
     Permission.PLATFORM_USER_READ,
     Permission.PLATFORM_TRANSACTION_READ,
+    Permission.PLATFORM_SUPPORT_MANAGE,
     Permission.PAYMENT_REFUND,
     Permission.ORDER_MANAGE,
   ],
@@ -224,6 +233,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
     Permission.PLATFORM_BUSINESS_MANAGE,
     Permission.PLATFORM_CONTENT_MANAGE,
     Permission.PLATFORM_WAITLIST_READ,
+    Permission.PLATFORM_SUPPORT_MANAGE,
     Permission.PLATFORM_TRANSACTION_READ,
     Permission.PAYMENT_REFUND,
     Permission.CATALOG_PRODUCT_MANAGE,

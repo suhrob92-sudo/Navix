@@ -5,6 +5,7 @@ import {
   FileText,
   Flag,
   LayoutGrid,
+  LifeBuoy,
   ListOrdered,
   Power,
   Receipt,
@@ -122,6 +123,13 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     description: 'Barcha pul harakatlari — faqat tekshirish uchun',
     icon: ArrowLeftRight,
     permission: Permission.PLATFORM_TRANSACTION_READ,
+  },
+  {
+    href: '/admin/support',
+    label: 'Murojaatlar',
+    description: 'Foydalanuvchilar savollariga javob berish',
+    icon: LifeBuoy,
+    permission: Permission.PLATFORM_SUPPORT_MANAGE,
   },
   {
     href: '/admin/reports',
