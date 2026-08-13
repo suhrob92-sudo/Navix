@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
+import { FilterChip } from '@/components/admin/filter-chip';
 import { ProviderIcon } from '@/components/payments/provider-icon';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -169,21 +170,5 @@ function ProvidersBody() {
         </ul>
       </div>
     </>
-  );
-}
-
-function FilterChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'shrink-0 snap-start rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-        active ? 'border-primary bg-primary text-primary-foreground' : 'border-border hover:bg-secondary',
-      )}
-    >
-      {label}
-    </button>
   );
 }

@@ -7,7 +7,9 @@ import {
   Bug,
   ChevronRight,
   Flag,
+  Power,
   Receipt,
+  Store,
   Users,
   Wallet,
   Wrench,
@@ -55,6 +57,8 @@ function DashboardBody() {
   const { user } = useAuth();
   const canSeeReports = hasPermission(user?.roles ?? [], Permission.PLATFORM_REPORT_MANAGE);
   const canSeeErrors = hasPermission(user?.roles ?? [], Permission.PLATFORM_AUDIT_READ);
+  const canManageModules = hasPermission(user?.roles ?? [], Permission.PLATFORM_MODULE_MANAGE);
+  const canManageBusinesses = hasPermission(user?.roles ?? [], Permission.PLATFORM_BUSINESS_MANAGE);
 
   /**
    * Har 60 soniyada yangilanadi: admin panel ochiq turganda raqamlar
@@ -223,6 +227,40 @@ function DashboardBody() {
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-medium">Shikoyatlar</span>
                 <span className="text-muted-foreground block text-xs">Foydalanuvchilar yuborgan shikoyatlar</span>
+              </span>
+
+              <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+            </Link>
+          )}
+
+          {canManageBusinesses && (
+            <Link href="/admin/businesses" className="border-border/60 flex items-center gap-3 border-t p-4">
+              <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
+                <Store className="size-4.5" aria-hidden="true" />
+              </span>
+
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">Bizneslar</span>
+                <span className="text-muted-foreground block text-xs">
+                  Do&apos;kon, restoran va mehmonxonalarni vaqtincha yopish
+                </span>
+              </span>
+
+              <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+            </Link>
+          )}
+
+          {canManageModules && (
+            <Link href="/admin/modules" className="border-border/60 flex items-center gap-3 border-t p-4">
+              <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
+                <Power className="size-4.5" aria-hidden="true" />
+              </span>
+
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">Bo&apos;limlar</span>
+                <span className="text-muted-foreground block text-xs">
+                  Nosozlik chiqqanda bo&apos;limni darhol yopish
+                </span>
               </span>
 
               <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />

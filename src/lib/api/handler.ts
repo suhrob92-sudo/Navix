@@ -4,10 +4,18 @@ import type { NextRequest, NextResponse } from 'next/server';
 import type { Logger } from 'pino';
 import { ZodError, type ZodType } from 'zod';
 
-import { AppError, ErrorCode, RateLimitError, ValidationError, type FieldErrors } from '@/lib/api/errors';
+import {
+  AppError,
+  ErrorCode,
+  RateLimitError,
+  ServiceUnavailableError,
+  ValidationError,
+  type FieldErrors,
+} from '@/lib/api/errors';
 import { apiError, type ApiErrorBody } from '@/lib/api/response';
 import { isProduction } from '@/lib/env';
 import { logger } from '@/lib/logger';
+import { findDisabledModuleForPath } from '@/modules/admin/module-switch.service';
 import { recordServerError } from '@/modules/error-log/error-log.service';
 
 /**
@@ -69,9 +77,32 @@ export function withApiHandler<TParams = Record<string, string>>(
   return async (request, context) => {
     const requestId = resolveRequestId(request);
     const startedAt = performance.now();
-    const log = logger.child({ requestId, method: request.method, path: new URL(request.url).pathname });
+    const pathname = new URL(request.url).pathname;
+    const log = logger.child({ requestId, method: request.method, path: pathname });
 
     try {
+      /**
+       * Bo'lim yopilganmi — HAR BIR so'rovda tekshiriladi.
+       *
+       * Kartochkani bosh sahifadan yashirish yetarli emas: manzilni
+       * qo'lda yozgan yoki eski sahifasi ochiq qolgan odam baribir
+       * buyurtma bera olardi va pul yechilardi.
+       *
+       * Tekshiruv arzon: natija bir necha soniyaga xotirada saqlanadi
+       * va yopilgan bo'lim bo'lmasa bazaga umuman murojaat qilinmaydi.
+       */
+      const blocked = await findDisabledModuleForPath(pathname);
+
+      if (blocked) {
+        log.warn({ moduleId: blocked.module.id }, "Yopilgan bo'limga so'rov");
+
+        throw new ServiceUnavailableError(
+          blocked.reason
+            ? `${blocked.module.name}: ${blocked.reason}`
+            : `${blocked.module.name} bo'limi vaqtincha yopilgan. Keyinroq urinib ko'ring.`,
+        );
+      }
+
       const response = await handler(request, { ...context, requestId });
       response.headers.set('x-request-id', requestId);
 

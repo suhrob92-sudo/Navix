@@ -75,6 +75,10 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'admin.role.granted': 'Rol berdi',
   'admin.role.revoked': 'Rolni olib tashladi',
   'admin.report.resolved': 'Shikoyatni yopdi',
+  'admin.module.disabled': "Bo'limni vaqtincha yopdi",
+  'admin.module.enabled': "Bo'limni qayta ochdi",
+  'admin.business.disabled': 'Biznesni vaqtincha yopdi',
+  'admin.business.enabled': 'Biznesni qayta ochdi',
 };
 
 /**
@@ -121,6 +125,10 @@ export const AUDIT_GROUP_ACTIONS: Record<Exclude<AuditFilterGroup, 'ALL'>, reado
     'admin.role.granted',
     'admin.role.revoked',
     'admin.report.resolved',
+    'admin.module.disabled',
+    'admin.module.enabled',
+    'admin.business.disabled',
+    'admin.business.enabled',
     'merchant.order.status_changed',
     'seller.order.status_changed',
     'seller.product.created',

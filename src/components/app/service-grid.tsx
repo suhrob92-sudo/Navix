@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { ServiceIcon } from '@/components/app/service-icon';
 import { ModuleStatus, getQuickServices, type AppModule } from '@/config/modules';
+import { useDisabledModules } from '@/hooks/use-module-status';
 import { cn } from '@/lib/utils';
 
 /** Yopiq holatda nechta xizmat ko'rsatiladi (oxirgi katak "Ko'proq" uchun). */
@@ -20,6 +21,7 @@ const COLLAPSED_COUNT = 9;
  */
 export function ServiceGrid() {
   const [isExpanded, setIsExpanded] = useState(false);
+  const disabled = useDisabledModules();
 
   const services = getQuickServices();
   const hasMore = services.length > COLLAPSED_COUNT;
@@ -28,7 +30,11 @@ export function ServiceGrid() {
   return (
     <div className="grid grid-cols-4 gap-x-2 gap-y-5 sm:grid-cols-5">
       {visible.map((service) => (
-        <ServiceTile key={service.id} service={service} />
+        <ServiceTile
+          key={service.id}
+          service={service}
+          closedReason={disabled.has(service.id) ? (disabled.get(service.id) ?? '') : null}
+        />
       ))}
 
       {hasMore && !isExpanded && (
@@ -47,8 +53,18 @@ export function ServiceGrid() {
   );
 }
 
-function ServiceTile({ service }: { service: AppModule }) {
-  const isAvailable = service.status === ModuleStatus.LIVE;
+/**
+ * ── Nima uchun yopilgan xizmat YASHIRILMAYDI ──────────────────────────
+ * Kartochkani butunlay olib tashlash mumkin edi. Lekin odam har kuni
+ * ishlatadigan xizmat kutilmaganda YO'QOLIB qolsa, u "ilova buzildi"
+ * deb o'ylaydi va qo'llab-quvvatlashga yozadi.
+ *
+ * Shuning uchun xizmat o'rnida qoladi, lekin xira ko'rinadi va
+ * bosilmaydi — "tez orada" holatidagi modullar bilan bir xil. Sabab
+ * esa uzoq bosilganda chiqadigan izohda ko'rinadi.
+ */
+function ServiceTile({ service, closedReason }: { service: AppModule; closedReason: string | null }) {
+  const isAvailable = service.status === ModuleStatus.LIVE && closedReason === null;
 
   const content = (
     <>
@@ -73,7 +89,7 @@ function ServiceTile({ service }: { service: AppModule }) {
     return (
       <div
         className="group flex cursor-default flex-col items-center gap-2"
-        title={`${service.name} — tez orada`}
+        title={closedReason ? `${service.name}: ${closedReason || 'vaqtincha yopiq'}` : `${service.name} — tez orada`}
       >
         {content}
       </div>

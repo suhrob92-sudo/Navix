@@ -35,6 +35,21 @@ export const Permission = {
    * istalgan huquqni bera oladi, ya'ni u butun tizimning kaliti.
    */
   PLATFORM_ROLE_MANAGE: 'platform:role:manage',
+  /**
+   * Bo'limni vaqtincha yopish va qayta ochish.
+   *
+   * `SUPPORT` da ATAYLAB yo'q: bo'limni yopish butun mamlakat bo'ylab
+   * buyurtmalarni to'xtatadi va daromadni nolga tushiradi. Bu
+   * murojaatga javob berish darajasidagi qaror emas.
+   */
+  PLATFORM_MODULE_MANAGE: 'platform:module:manage',
+  /**
+   * Do'kon, restoran va mehmonxonani vaqtincha yopish.
+   *
+   * Bu ham `SUPPORT` da yo'q: bitta biznesning daromadini to'xtatish
+   * tekshiruv va qaror talab qiladi.
+   */
+  PLATFORM_BUSINESS_MANAGE: 'platform:business:manage',
 
   // Profil (har bir foydalanuvchi o'zi uchun)
   PROFILE_READ: 'profile:self:read',
@@ -190,6 +205,8 @@ export const ROLE_PERMISSIONS: Readonly<Record<RoleValue, readonly PermissionVal
     Permission.PLATFORM_AUDIT_READ,
     Permission.PLATFORM_REPORT_MANAGE,
     Permission.PLATFORM_PROVIDER_MANAGE,
+    Permission.PLATFORM_MODULE_MANAGE,
+    Permission.PLATFORM_BUSINESS_MANAGE,
     Permission.PLATFORM_TRANSACTION_READ,
     Permission.PAYMENT_REFUND,
     Permission.CATALOG_PRODUCT_MANAGE,

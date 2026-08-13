@@ -287,6 +287,7 @@ model User {
   posts             Post[]               @relation("PostAuthor")
   postLikes         PostLike[]           @relation("PostLikes")
   postComments      PostComment[]        @relation("CommentAuthor")
+  moduleSwitches    ModuleSwitch[]       @relation("ModuleSwitchEditor")
 
   @@index([status])
   @@index([createdAt])
@@ -2486,4 +2487,35 @@ model ErrorLog {
   @@index([isResolved, lastSeenAt])
   @@index([lastSeenAt])
   @@map("error_logs")
+}
+
+/// Bo'limni vaqtincha o'chirib qo'yish (kill-switch).
+///
+/// ── Nima uchun BAZADA, kodda emas ─────────────────────────────────────
+/// Bo'limlar ro'yxati (`src/config/modules.ts`) — kod. Uni o'zgartirish
+/// uchun dastur qayta yig'ilishi va tarqatilishi kerak: bu bir necha
+/// daqiqa. To'lov tizimi ishdan chiqqanda yoki restoran API si javob
+/// bermay qolganda esa bo'limni DARHOL yopish kerak.
+///
+/// ── Nima uchun faqat O'CHIRILGANLARI yoziladi ─────────────────────────
+/// Yozuv YO'Q bo'lsa — bo'lim ochiq. Ya'ni odatiy holat bazaga umuman
+/// tegmaydi va yangi bo'lim qo'shilganda uni bu yerga qo'shish esdan
+/// chiqmaydi: u shundoq ham ochiq bo'ladi.
+model ModuleSwitch {
+  /// `AppModule.id` — "food", "marketplace" va hokazo.
+  moduleId String @id @db.VarChar(40)
+
+  isEnabled Boolean @default(true)
+
+  /// Nima uchun yopilgani — bu matn FOYDALANUVCHIGA ko'rsatiladi,
+  /// shuning uchun ichki qisqartma emas, odam tilida yozilishi kerak.
+  reason String? @db.VarChar(200)
+
+  /// Kim o'zgartirgani. Xodim o'chirilsa yozuv qolaveradi (`SetNull`).
+  updatedById String? @db.Uuid
+  updatedBy   User?   @relation("ModuleSwitchEditor", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("module_switches")
 }

@@ -193,3 +193,53 @@ export const adminTransactionQuerySchema = paginationQuerySchema.extend({
 });
 
 export type AdminTransactionQuery = z.infer<typeof adminTransactionQuerySchema>;
+
+/**
+ * PATCH /api/v1/admin/modules/[id]
+ *
+ * ── Nima uchun sabab YOPISHDA majburiy ────────────────────────────────
+ * Sabab foydalanuvchiga ko'rsatiladi: u "Xizmat ishlamayapti" degan
+ * quruq yozuv o'rniga "Bank tomonida texnik ishlar, soat 18:00 da
+ * tiklanadi" ni o'qiydi va qo'llab-quvvatlashga qo'ng'iroq qilmaydi.
+ *
+ * Qayta OCHISHDA sabab kerak emas — ochilgan bo'lim hech qanday
+ * tushuntirish talab qilmaydi.
+ */
+export const setModuleEnabledSchema = z
+  .object({
+    isEnabled: z.boolean(),
+    reason: z.string().trim().min(5, 'Sababni batafsilroq yozing (kamida 5 ta belgi)').max(200).optional(),
+  })
+  .refine((value) => value.isEnabled || Boolean(value.reason), {
+    message: "Bo'limni yopish sababini yozing — u foydalanuvchiga ko'rsatiladi",
+    path: ['reason'],
+  });
+
+export type SetModuleEnabledInput = z.infer<typeof setModuleEnabledSchema>;
+
+/** GET /api/v1/admin/businesses */
+export const adminBusinessQuerySchema = z.object({
+  kind: z.enum(['ALL', 'SHOP', 'RESTAURANT', 'HOTEL']).default('ALL'),
+  status: z.enum(['ALL', 'ACTIVE', 'INACTIVE']).default('ALL'),
+  search: z.string().trim().min(1).max(80).optional(),
+});
+
+export type AdminBusinessQuery = z.infer<typeof adminBusinessQuerySchema>;
+
+/**
+ * PATCH /api/v1/admin/businesses/[kind]/[id]
+ *
+ * Sabab yopishda majburiy: do'konni yopish uning daromadini
+ * to'xtatadi. Bunday qaror jurnalda izohsiz turmasligi kerak.
+ */
+export const setBusinessActiveSchema = z
+  .object({
+    isActive: z.boolean(),
+    reason: z.string().trim().min(5, 'Sababni batafsilroq yozing (kamida 5 ta belgi)').max(200).optional(),
+  })
+  .refine((value) => value.isActive || Boolean(value.reason), {
+    message: 'Yopish sababini yozing — u jurnalga yoziladi',
+    path: ['reason'],
+  });
+
+export type SetBusinessActiveInput = z.infer<typeof setBusinessActiveSchema>;

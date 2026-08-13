@@ -106,6 +106,31 @@ export interface AppModule {
    * ma'nosiz va hujum yuzasini bekorga e'lon qiladi.
    */
   isInternal?: boolean;
+  /**
+   * Administrator bu bo'limni VAQTINCHA yopa oladimi.
+   *
+   * ── Nima uchun hammasi emas ─────────────────────────────────────────
+   * Ba'zi bo'limlarni yopish ilovani ishlamas holga keltiradi:
+   *
+   *  · hamyon — barcha to'lovlar undan o'tadi;
+   *  · buyurtmalar — odam yopilgan bo'lim tufayli o'z buyurtmasini
+   *    ko'ra olmay qolardi;
+   *  · xavfsizlik — parol o'zgartirish va sessiyalar shu yerda;
+   *  · admin paneli — yopgan odam o'zini qulflab qo'yardi.
+   *
+   * Shuning uchun yopish faqat MUSTAQIL xizmatlarga ruxsat etiladi:
+   * ular ishlamasa ham odam ilovadan foydalanaverdi.
+   */
+  canDisable?: boolean;
+  /**
+   * Shu bo'limga tegishli API manzillari (`/api/v1/` dan keyingi qism).
+   *
+   * Bo'lim yopilganda kartochkani yashirish YETARLI EMAS: manzilni
+   * qo'lda yozgan yoki eski sahifasi ochiq qolgan odam baribir
+   * buyurtma bera olardi. Shuning uchun so'rov API darajasida
+   * to'xtatiladi va aynan shu ro'yxat orqali topiladi.
+   */
+  apiPrefixes?: readonly string[];
 }
 
 export interface ModuleCategoryMeta {
@@ -181,6 +206,8 @@ export const APP_MODULES: readonly AppModule[] = [
     color: 'pink',
     quickOrder: 6,
     aiIntents: ["yuk jo'nat", 'posilka yubor', 'yetkazib berish'],
+    canDisable: true,
+    apiPrefixes: ['parcels'],
   },
   {
     id: 'food',
@@ -193,6 +220,8 @@ export const APP_MODULES: readonly AppModule[] = [
     color: 'rose',
     quickOrder: 2,
     aiIntents: ['ovqat buyurtma qil', 'pizza buyurtma qil', 'ovqat yetkaz', 'och qoldim'],
+    canDisable: true,
+    apiPrefixes: ['food'],
   },
   {
     id: 'marketplace',
@@ -205,6 +234,8 @@ export const APP_MODULES: readonly AppModule[] = [
     color: 'blue',
     quickOrder: 3,
     aiIntents: ['mahsulot qidir', 'marketplace och', 'sotib olmoqchiman'],
+    canDisable: true,
+    apiPrefixes: ['market'],
   },
   {
     id: 'shop',
@@ -229,6 +260,8 @@ export const APP_MODULES: readonly AppModule[] = [
     color: 'orange',
     quickOrder: 4,
     aiIntents: ["kommunal to'la", "to'lov qil", "internet to'la", "telefon to'ldir"],
+    canDisable: true,
+    apiPrefixes: ['payments'],
   },
   {
     id: 'wallet',
@@ -253,6 +286,8 @@ export const APP_MODULES: readonly AppModule[] = [
     color: 'green',
     quickOrder: 5,
     aiIntents: ['ish top', 'vakansiya qidir', 'ishga joylash', 'rezyume'],
+    canDisable: true,
+    apiPrefixes: ['jobs'],
   },
   {
     id: 'business',
@@ -276,6 +311,8 @@ export const APP_MODULES: readonly AppModule[] = [
     color: 'violet',
     quickOrder: 7,
     aiIntents: ['mehmonxona band qil', 'xona top', 'nomer band qil'],
+    canDisable: true,
+    apiPrefixes: ['hotels'],
   },
   {
     id: 'travel',
@@ -298,6 +335,8 @@ export const APP_MODULES: readonly AppModule[] = [
       'reys qidir',
       'samolyot',
     ],
+    canDisable: true,
+    apiPrefixes: ['travel'],
   },
   {
     id: 'ai-assistant',
@@ -309,6 +348,8 @@ export const APP_MODULES: readonly AppModule[] = [
     status: ModuleStatus.LIVE,
     color: 'indigo',
     aiIntents: ['yordam ber', 'assistant', 'nima qila olasan'],
+    canDisable: true,
+    apiPrefixes: ['assistant'],
   },
   {
     id: 'maps',

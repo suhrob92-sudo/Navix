@@ -153,6 +153,18 @@ export const AuditAction = {
    * topiladi.
    */
   ADMIN_REPORT_RESOLVED: 'admin.report.resolved',
+  /**
+   * Bo'lim yopildi yoki qayta ochildi.
+   *
+   * Yozuv MAJBURIY: bo'lim yopilgan paytda odamlar buyurtma bera
+   * olmaydi va daromad to'xtaydi. "Nega o'sha kuni ovqat bo'limi
+   * ishlamagan?" degan savolga javob faqat shu yerdan topiladi.
+   */
+  ADMIN_MODULE_DISABLED: 'admin.module.disabled',
+  ADMIN_MODULE_ENABLED: 'admin.module.enabled',
+  /** Do'kon, restoran yoki mehmonxona vaqtincha yopildi / ochildi. */
+  ADMIN_BUSINESS_DISABLED: 'admin.business.disabled',
+  ADMIN_BUSINESS_ENABLED: 'admin.business.enabled',
 } as const;
 
 export type AuditActionValue = (typeof AuditAction)[keyof typeof AuditAction];
