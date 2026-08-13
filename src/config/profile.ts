@@ -56,6 +56,7 @@ export const RESERVED_USERNAMES: readonly string[] = [
   'call',
   'feed',
   'navbat',
+  'legal',
 ];
 
 /** Nom bandmi (ilova ehtiyoji uchun ajratilganmi). */

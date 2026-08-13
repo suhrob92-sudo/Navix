@@ -11,6 +11,7 @@ import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { PhoneInput, toE164 } from '@/components/ui/phone-input';
+import { PRIVACY_POLICY, TERMS_OF_USE, legalHref } from '@/config/legal';
 import { ApiClientError, apiRequest, toUserMessage } from '@/lib/api-client';
 import { registerFormSchema } from '@/modules/auth/auth.schemas';
 import type { FieldErrors } from '@/lib/api/errors';
@@ -176,6 +177,26 @@ export function RegisterForm() {
       <p className="text-muted-foreground flex items-start gap-2 text-xs leading-relaxed">
         <Phone className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
         Raqamingizga 6 xonali tasdiqlash kodi yuboriladi. SMS xizmati bepul.
+      </p>
+
+      {/*
+        Rozilik ALOHIDA katakcha emas, matn.
+
+        Katakcha qo'yilsa, odam uni o'qimasdan bosardi va "rozilik"
+        shunchaki bir bosishga aylanardi. Bu yerda esa shart aniq
+        yozilgan va hujjatlarning o'zi bir bosish narida — davom
+        etish roziligini bildiradi.
+      */}
+      <p className="text-muted-foreground text-center text-xs leading-relaxed">
+        Davom etish orqali siz{' '}
+        <Link href={legalHref(TERMS_OF_USE.slug)} className="hover:text-foreground underline">
+          {TERMS_OF_USE.title.toLowerCase()}
+        </Link>{' '}
+        va{' '}
+        <Link href={legalHref(PRIVACY_POLICY.slug)} className="hover:text-foreground underline">
+          {PRIVACY_POLICY.title.toLowerCase()}
+        </Link>
+        ga rozilik bildirasiz.
       </p>
     </form>
   );

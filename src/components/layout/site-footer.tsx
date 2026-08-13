@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import { Logo } from '@/components/layout/logo';
 import { Container } from '@/components/ui/container';
+import { LEGAL_DOCUMENTS, legalHref } from '@/config/legal';
 import { MODULE_CATEGORIES, getModulesByCategory } from '@/config/modules';
 import { siteConfig } from '@/config/site';
 
@@ -49,9 +50,26 @@ export function SiteFooter() {
           <p>
             © {currentYear} {siteConfig.name}. Barcha huquqlar himoyalangan.
           </p>
-          <Link href="/navbat" className="hover:text-foreground transition-colors">
-            Navbatga yozilish
-          </Link>
+
+          {/*
+            Huquqiy havolalar ro'yxatdan YASALADI: yangi hujjat
+            qo'shilsa u shu yerda o'zi paydo bo'ladi va pastki menyuni
+            yangilash esdan chiqmaydi.
+          */}
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            {LEGAL_DOCUMENTS.map((document) => (
+              <Link
+                key={document.slug}
+                href={legalHref(document.slug)}
+                className="hover:text-foreground transition-colors"
+              >
+                {document.title}
+              </Link>
+            ))}
+            <Link href="/navbat" className="hover:text-foreground transition-colors">
+              Navbatga yozilish
+            </Link>
+          </nav>
         </div>
       </Container>
     </footer>

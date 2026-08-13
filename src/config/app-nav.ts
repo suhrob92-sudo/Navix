@@ -5,6 +5,7 @@ import {
   Home,
   MapPin,
   Newspaper,
+  Scale,
   Search,
   Settings,
   ShieldCheck,
@@ -110,5 +111,18 @@ export const PROFILE_MENU: readonly ProfileMenuItem[] = [
     label: 'Sozlamalar',
     description: "Til, mavzu va shaxsiy ma'lumotlar",
     icon: Settings,
+  },
+  /**
+   * Huquqiy hujjatlar — menyuning OXIRIDA.
+   *
+   * Ular kundalik ish emas, lekin izlanadigan bo'lsa aynan profildan
+   * izlanadi: "shartlarni qayerdan o'qiyman?" degan savol shu yerda
+   * javob topishi kerak.
+   */
+  {
+    href: '/legal',
+    label: 'Huquqiy hujjatlar',
+    description: 'Shartlar, maxfiylik va oferta',
+    icon: Scale,
   },
 ] as const;

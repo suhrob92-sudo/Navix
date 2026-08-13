@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 
+import { LEGAL_DOCUMENTS, legalHref } from '@/config/legal';
 import { siteConfig } from '@/config/site';
 
 /**
@@ -36,6 +37,25 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 0.8,
     },
+    /**
+     * Huquqiy hujjatlar — tekshiruvchilar aynan shu havolalarni izlaydi.
+     *
+     * To'lov tashkilotlari (Click, Payme) va ilova do'konlari
+     * ariza ko'rib chiqishda offerta va maxfiylik siyosatini
+     * so'raydi. Ular xaritada bo'lsa, havolani qidirib o'tirmaydi.
+     */
+    {
+      url: `${siteConfig.url}/legal`,
+      lastModified: now,
+      changeFrequency: 'yearly',
+      priority: 0.4,
+    },
+    ...LEGAL_DOCUMENTS.map((document) => ({
+      url: `${siteConfig.url}${legalHref(document.slug)}`,
+      lastModified: new Date(document.updatedAt),
+      changeFrequency: 'yearly' as const,
+      priority: 0.4,
+    })),
     {
       url: `${siteConfig.url}/auth/register`,
       lastModified: now,
