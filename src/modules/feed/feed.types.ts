@@ -24,13 +24,18 @@ export interface PostView {
   /** Video davomiyligi (soniya). */
   videoSeconds: number | null;
   /**
-   * Videoga biriktirilgan mahsulot.
+   * Videoga biriktirilgan mahsulotlar.
    *
    * Tomoshabin "qayerdan olsa bo'ladi?" deb izohlarda so'ramasligi
    * uchun: tugma video ustida turadi va to'g'ri mahsulotga olib
    * boradi.
+   *
+   * Ro'yxat: bitta videoda ko'pincha bir nechta narsa ko'rsatiladi
+   * (kiyim + poyabzal + sumka).
    */
-  product: TaggedProductView | null;
+  products: TaggedProductView[];
+  /** Videoni necha marta ko'rishgan. */
+  viewCount: number;
   author: PostAuthorView;
   createdAt: string;
   /**
@@ -177,6 +182,18 @@ export const DELETED_POST_TEXT = "Bu post o'chirilgan.";
  * tekshiruv brauzerda tugmani o'chirish uchun ishlatiladi; server
  * va baza ham xuddi shu qoidani mustaqil tekshiradi.
  */
+/**
+ * Bitta videoga biriktirilishi mumkin bo'lgan eng ko'p mahsulot.
+ *
+ * ── Nima uchun chegara ───────────────────────────────────────────────
+ * Chegarasiz video ostiga o'nlab tugma qo'yish mumkin bo'lardi va u
+ * videoni emas, reklama ro'yxatini ko'rsatardi.
+ *
+ * Beshta — kiyim to'plami uchun ham yetadi (kiyim, shim, poyabzal,
+ * sumka, aksessuar) va ekranni bosib ketmaydi.
+ */
+export const MAX_TAGGED_PRODUCTS = 5;
+
 /** Post video postmi. */
 export function isVideoPost(post: { videoUrl: string | null; isDeleted: boolean }): boolean {
   return post.videoUrl !== null && !post.isDeleted;

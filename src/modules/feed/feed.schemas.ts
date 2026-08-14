@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { COMMENT_MAX_LENGTH, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
+import { COMMENT_MAX_LENGTH, MAX_TAGGED_PRODUCTS, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
 import { MAX_VIDEO_SECONDS } from '@/modules/upload/upload.types';
 import { isOwnImageUrl } from '@/modules/upload/upload.types';
 
@@ -96,8 +96,11 @@ export const createPostSchema = z
       .min(1)
       .max(MAX_VIDEO_SECONDS, `Video ${MAX_VIDEO_SECONDS} soniyadan uzun bo'lmasligi kerak.`)
       .optional(),
-    /** Biriktirilgan mahsulot — mavjudligi xizmatda tekshiriladi. */
-    productId: z.uuid("Mahsulot noto'g'ri tanlandi").optional(),
+    /** Biriktirilgan mahsulotlar — mavjudligi xizmatda tekshiriladi. */
+    productIds: z
+      .array(z.uuid("Mahsulot noto'g'ri tanlandi"))
+      .max(MAX_TAGGED_PRODUCTS, `Ko'pi bilan ${MAX_TAGGED_PRODUCTS} ta mahsulot biriktiriladi.`)
+      .optional(),
   })
   .refine(
     (value) => value.body.length > 0 || Boolean(value.imageUrl) || Boolean(value.videoUrl),
@@ -107,9 +110,9 @@ export const createPostSchema = z
     message: "Bitta postga rasm ham, video ham biriktirib bo'lmaydi.",
     path: ['videoUrl'],
   })
-  .refine((value) => !value.productId || Boolean(value.videoUrl), {
+  .refine((value) => (value.productIds?.length ?? 0) === 0 || Boolean(value.videoUrl), {
     message: 'Mahsulotni faqat videoga biriktirish mumkin.',
-    path: ['productId'],
+    path: ['productIds'],
   });
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;

@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, ShoppingBag, X } from 'lucide-react';
+import { Check, Search, ShoppingBag, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useApiQuery } from '@/hooks/use-api';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { formatTiyin } from '@/lib/money';
-import type { TaggedProductView } from '@/modules/feed/feed.types';
+import { cn } from '@/lib/utils';
+import { MAX_TAGGED_PRODUCTS, type TaggedProductView } from '@/modules/feed/feed.types';
 import type { ProductListItem } from '@/modules/market/market.types';
 
 interface SearchResponse {
@@ -17,7 +18,10 @@ interface SearchResponse {
 }
 
 export interface ProductPickerProps {
+  /** Allaqachon tanlanganlar — ular ro'yxatda belgilangan ko'rinadi. */
+  selected: TaggedProductView[];
   onPick: (product: TaggedProductView) => void;
+  onRemove: (productId: string) => void;
   onCancel: () => void;
 }
 
@@ -33,7 +37,7 @@ export interface ProductPickerProps {
  * Brauzerning o'z elementi fokusni ushlab turishni, Escape bilan
  * yopishni va orqa fonni bloklashni bepul beradi.
  */
-export function ProductPicker({ onPick, onCancel }: ProductPickerProps) {
+export function ProductPicker({ selected, onPick, onRemove, onCancel }: ProductPickerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const [term, setTerm] = useState('');
@@ -62,7 +66,12 @@ export function ProductPicker({ onPick, onCancel }: ProductPickerProps) {
       className="glass animate-scale-in text-foreground m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl p-5 backdrop:bg-black/50 backdrop:backdrop-blur-sm"
     >
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold">Mahsulot biriktirish</h2>
+        <h2 className="text-base font-semibold">
+          Mahsulot biriktirish
+          <span className="text-muted-foreground ml-1.5 text-xs font-normal tabular-nums">
+            {`${selected.length}/${MAX_TAGGED_PRODUCTS}`}
+          </span>
+        </h2>
 
         <Button variant="ghost" size="icon" aria-label="Yopish" onClick={onCancel}>
           <X className="size-5" aria-hidden="true" />
@@ -84,6 +93,12 @@ export function ProductPicker({ onPick, onCancel }: ProductPickerProps) {
         />
       </div>
 
+      {selected.length > 0 && (
+        <p className="text-muted-foreground mt-3 text-xs leading-relaxed">
+          Tanlanganlar ro&apos;yxatda belgilangan. Ularni qayta bosib olib tashlash mumkin.
+        </p>
+      )}
+
       <div className="mt-4 max-h-80 space-y-2 overflow-y-auto">
         {query.length < 2 && (
           <p className="text-muted-foreground py-6 text-center text-sm">
@@ -103,21 +118,33 @@ export function ProductPicker({ onPick, onCancel }: ProductPickerProps) {
           <p className="text-muted-foreground py-6 text-center text-sm">Hech narsa topilmadi.</p>
         )}
 
-        {products.map((product) => (
+        {products.map((product) => {
+          const isPicked = selected.some((item) => item.id === product.id);
+          /** Chegara to'lgan bo'lsa yangi mahsulot tanlab bo'lmaydi. */
+          const isFull = selected.length >= MAX_TAGGED_PRODUCTS;
+
+          return (
           <button
             key={product.id}
             type="button"
+            disabled={!isPicked && isFull}
             onClick={() =>
-              onPick({
-                id: product.id,
-                name: product.name,
-                slug: product.slug,
-                priceTiyin: product.price,
-                shopName: product.shop.name,
-                isAvailable: true,
-              })
+              isPicked
+                ? onRemove(product.id)
+                : onPick({
+                    id: product.id,
+                    name: product.name,
+                    slug: product.slug,
+                    priceTiyin: product.price,
+                    shopName: product.shop.name,
+                    isAvailable: true,
+                  })
             }
-            className="hover:bg-secondary flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors"
+            className={cn(
+              'flex w-full items-center gap-3 rounded-xl p-2 text-left transition-colors',
+              isPicked ? 'bg-primary/10' : 'hover:bg-secondary',
+              !isPicked && isFull && 'cursor-not-allowed opacity-50',
+            )}
           >
             {/*
               Mahsulotda rasm ustuni YO'Q — katalog hozircha faqat
@@ -134,8 +161,23 @@ export function ProductPicker({ onPick, onCancel }: ProductPickerProps) {
                 {`${formatTiyin(product.price)} · ${product.shop.name}`}
               </span>
             </span>
+
+            {/* Tanlanganlik belgisi — ro'yxatda ko'rinib turishi kerak. */}
+            {isPicked && <Check className="text-primary size-5 shrink-0" aria-hidden="true" />}
           </button>
-        ))}
+          );
+        })}
+      </div>
+
+      {/*
+        "Tayyor" tugmasi KERAK: bir nechta tanlashda oyna o'zi
+        yopilmasligi kerak, aks holda ikkinchi mahsulotni qo'shish
+        uchun uni qayta ochish kerak bo'lardi.
+      */}
+      <div className="mt-4 flex justify-end">
+        <Button type="button" onClick={onCancel}>
+          Tayyor
+        </Button>
       </div>
     </dialog>
   );

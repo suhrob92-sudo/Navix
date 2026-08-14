@@ -13,6 +13,7 @@ import {
   formatReactionCount,
   hasPostContent,
   isVideoPost,
+  MAX_TAGGED_PRODUCTS,
   COMMENT_MAX_LENGTH,
   POST_MAX_LENGTH,
   type PostAuthorView,
@@ -252,24 +253,39 @@ describe('video post sxemasi', () => {
     ).toBe(false);
   });
 
+  const productId = '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93';
+
   it("mahsulotni faqat VIDEOGA biriktirish mumkin", () => {
-    const withoutVideo = createPostSchema.safeParse({
-      body: 'salom',
-      productId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93',
-    });
+    const withoutVideo = createPostSchema.safeParse({ body: 'salom', productIds: [productId] });
 
     expect(withoutVideo.success).toBe(false);
 
-    const withVideo = createPostSchema.safeParse({
-      body: 'salom',
-      videoUrl: video,
-      productId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93',
-    });
+    const withVideo = createPostSchema.safeParse({ body: 'salom', videoUrl: video, productIds: [productId] });
 
     expect(withVideo.success).toBe(true);
   });
 
   it("noto'g'ri mahsulot ID rad etiladi", () => {
-    expect(createPostSchema.safeParse({ body: '', videoUrl: video, productId: 'salom' }).success).toBe(false);
+    expect(createPostSchema.safeParse({ body: '', videoUrl: video, productIds: ['salom'] }).success).toBe(false);
+  });
+
+  it('bir nechta mahsulot qabul qilinadi', () => {
+    const many = Array.from({ length: MAX_TAGGED_PRODUCTS }, (_, index) =>
+      `4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c9${index}`,
+    );
+
+    expect(createPostSchema.safeParse({ body: '', videoUrl: video, productIds: many }).success).toBe(true);
+  });
+
+  it('chegaradan ortiq mahsulot rad etiladi', () => {
+    /**
+     * Chegarasiz video ostiga o'nlab tugma qo'yish mumkin bo'lardi
+     * va u videoni emas, reklama ro'yxatini ko'rsatardi.
+     */
+    const tooMany = Array.from({ length: MAX_TAGGED_PRODUCTS + 1 }, (_, index) =>
+      `4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c${String(index).padStart(2, '0')}`,
+    );
+
+    expect(createPostSchema.safeParse({ body: '', videoUrl: video, productIds: tooMany }).success).toBe(false);
   });
 });

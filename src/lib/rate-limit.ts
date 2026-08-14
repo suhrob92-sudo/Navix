@@ -204,6 +204,14 @@ export const PUBLIC_RATE_LIMITS = {
    */
   report: { limit: 20, windowSeconds: 60 * 60 },
   /**
+   * Video ko'rildi: daqiqasiga 60 ta.
+   *
+   * Ko'rishlar soni sotuvchi uchun ko'rsatkich. Chegarasiz skript
+   * uni istalgan songa ko'tarib qo'yardi va son ma'nosini
+   * yo'qotardi. Odam esa bir daqiqada 60 ta videoni ko'ra olmaydi.
+   */
+  videoView: { limit: 60, windowSeconds: 60 },
+  /**
    * Yoqtirish: daqiqasiga 120 ta.
    *
    * Lentani aylanib chiqib ko'plab post yoqtirish tabiiy holat.

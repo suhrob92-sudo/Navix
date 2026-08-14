@@ -1,6 +1,16 @@
 'use client';
 
-import { BadgeCheck, Heart, MessageCircle, Pause, ShoppingBag, Volume2, VolumeX } from 'lucide-react';
+import {
+  BadgeCheck,
+  Eye,
+  Heart,
+  MessageCircle,
+  Pause,
+  ShoppingBag,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
@@ -17,6 +27,8 @@ export interface ReelPlayerProps {
   isMuted: boolean;
   onToggleMuted: () => void;
   onToggleLike: () => void;
+  /** Video ko'rildi deb belgilash — bir ochilishda BIR MARTA. */
+  onViewed?: () => void;
 }
 
 /**
@@ -37,11 +49,32 @@ export interface ReelPlayerProps {
  * batareya tugaydi va eng yomoni — bir vaqtda bir nechta ovoz
  * eshitiladi.
  */
-export function ReelPlayer({ post, isActive, isMuted, onToggleMuted, onToggleLike }: ReelPlayerProps) {
+export function ReelPlayer({
+  post,
+  isActive,
+  isMuted,
+  onToggleMuted,
+  onToggleLike,
+  onViewed,
+}: ReelPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   /** Odam qo'lda to'xtatganmi — faollik o'zgarsa ham tiklanmaydi. */
   const [isPaused, setIsPaused] = useState(false);
+
+  /** Tomosha tezligi — 1x odatiy. */
+  const [speed, setSpeed] = useState(1);
+
+  /** Mahsulotlar ro'yxati ochilganmi (bittadan ko'p bo'lsa). */
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+
+  /**
+   * Ko'rish BIR MARTA sanaladi.
+   *
+   * Odam videoni orqaga-oldinga surib, qayta-qayta ko'rsa, sanoq
+   * har safar oshib ketardi va son ma'nosini yo'qotardi.
+   */
+  const viewedRef = useRef(false);
 
   const name = authorDisplayName(post.author);
   const likeText = formatReactionCount(post.likeCount);
@@ -51,7 +84,22 @@ export function ReelPlayer({ post, isActive, isMuted, onToggleMuted, onToggleLik
     const element = videoRef.current;
     if (!element) return;
 
+    // Tezlik har safar qo'llanadi: element qayta yaratilishi mumkin.
+    element.playbackRate = speed;
+
     if (isActive && !isPaused) {
+      /**
+       * Ko'rish AYNAN shu yerda sanaladi.
+       *
+       * Ro'yxatda ko'rinishi yetarli emas: odam tez surib o'tsa,
+       * u videoni ko'rmagan bo'ladi. O'ynay boshlagani esa
+       * haqiqiy tomosha belgisidir.
+       */
+      if (!viewedRef.current) {
+        viewedRef.current = true;
+        onViewed?.();
+      }
+
       /**
        * `play()` va'da qaytaradi va u RAD ETILISHI mumkin (masalan
        * brauzer avtomatik o'ynashga ruxsat bermasa). Ushlanmasa,
@@ -65,7 +113,7 @@ export function ReelPlayer({ post, isActive, isMuted, onToggleMuted, onToggleLik
       // kelganda o'rtasidan emas, boshidan ko'radi.
       if (!isActive) element.currentTime = 0;
     }
-  }, [isActive, isPaused]);
+  }, [isActive, isPaused, speed, onViewed]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">
@@ -110,6 +158,22 @@ export function ReelPlayer({ post, isActive, isMuted, onToggleMuted, onToggleLik
         )}
       </button>
 
+      {/*
+        Tezlik tugmasi — ovoz tugmasi ostida.
+
+        Uzun ko'rsatma videosini tezroq ko'rish yoki mahsulot
+        tafsilotini sekinroq ko'rish uchun. Ro'yxat qisqa: to'rtta
+        qiymat barmoq bilan aylantirishga qulay.
+      */}
+      <button
+        type="button"
+        onClick={() => setSpeed((current) => SPEEDS[(SPEEDS.indexOf(current) + 1) % SPEEDS.length])}
+        aria-label={`Tezlik: ${speed}x`}
+        className="absolute top-16 right-4 rounded-full bg-black/40 px-2.5 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition-transform active:scale-95"
+      >
+        {`${speed}x`}
+      </button>
+
       {/* O'ng tomondagi amallar ustuni. */}
       <div className="absolute right-3 bottom-44 flex flex-col items-center gap-5">
         <button
@@ -134,6 +198,20 @@ export function ReelPlayer({ post, isActive, isMuted, onToggleMuted, onToggleLik
           <MessageCircle className="size-7 drop-shadow" aria-hidden="true" />
           <span className="text-xs font-medium tabular-nums drop-shadow">{commentText || '0'}</span>
         </Link>
+
+        {/*
+          Ko'rishlar soni — SOTUVCHI uchun asosiy ko'rsatkich.
+
+          "Videomni necha kishi ko'rdi?" degan savolga javob shu
+          yerda turadi va uni ochish uchun hech qayerga o'tish
+          kerak emas.
+        */}
+        <span className="flex flex-col items-center gap-1 text-white">
+          <Eye className="size-7 drop-shadow" aria-hidden="true" />
+          <span className="text-xs font-medium tabular-nums drop-shadow">
+            {formatReactionCount(post.viewCount) || '0'}
+          </span>
+        </span>
       </div>
 
       {/* Pastdagi ma'lumot: muallif, matn va mahsulot tugmasi. */}
@@ -161,11 +239,88 @@ export function ReelPlayer({ post, isActive, isMuted, onToggleMuted, onToggleLik
           <p className="line-clamp-2 text-sm leading-relaxed text-white/90 drop-shadow">{post.body}</p>
         )}
 
-        {post.product && <ProductButton product={post.product} />}
+        {post.products.length === 1 && <ProductButton product={post.products[0]} />}
+
+        {/*
+          Bir nechta mahsulot bo'lsa — BITTA tugma va ro'yxat.
+
+          Hammasini birdan ko'rsatish videoning yarmini bosib
+          qo'yardi: odam esa avval videoni ko'rgani kelgan.
+        */}
+        {post.products.length > 1 && (
+          <button
+            type="button"
+            onClick={() => setIsSheetOpen(true)}
+            className="flex w-full items-center gap-3 rounded-2xl bg-black/50 p-2.5 backdrop-blur-md transition-transform active:scale-[0.98]"
+          >
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/20">
+              <ShoppingBag className="size-5 text-white" aria-hidden="true" />
+            </span>
+
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block text-sm font-medium text-white">
+                {`${post.products.length} ta mahsulot`}
+              </span>
+              <span className="block truncate text-xs text-white/70">
+                {post.products.map((item) => item.name).join(', ')}
+              </span>
+            </span>
+
+            <span className="shrink-0 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-black">
+              Ko&apos;rish
+            </span>
+          </button>
+        )}
       </div>
+
+      {/*
+        Mahsulotlar ro'yxati — pastdan chiqadigan varaq.
+
+        Ro'yxatni video ustiga to'liq yoyish o'rniga pastki qism
+        ishlatiladi: video ko'rinib turadi va odam qaysi kadr
+        haqida gap ketayotganini yodida saqlaydi.
+      */}
+      {isSheetOpen && (
+        <div className="absolute inset-0 z-10 flex flex-col justify-end">
+          <button
+            type="button"
+            aria-label="Yopish"
+            onClick={() => setIsSheetOpen(false)}
+            className="absolute inset-0 cursor-default bg-black/50"
+          />
+
+          <div className="animate-fade-up relative max-h-[70%] overflow-y-auto rounded-t-2xl bg-black/80 p-4 pb-8 backdrop-blur-md">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-white">
+                {`Videodagi mahsulotlar (${post.products.length})`}
+              </p>
+
+              <button
+                type="button"
+                aria-label="Yopish"
+                onClick={() => setIsSheetOpen(false)}
+                className="rounded-full bg-white/15 p-1.5 text-white"
+              >
+                <X className="size-4" aria-hidden="true" />
+              </button>
+            </div>
+
+            <ul className="space-y-2">
+              {post.products.map((item) => (
+                <li key={item.id}>
+                  <ProductButton product={item} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+/** Tomosha tezliklari — barmoq bilan aylantirishga qulay qisqa ro'yxat. */
+const SPEEDS: readonly number[] = [1, 1.5, 2, 0.5];
 
 /**
  * Mahsulot tugmasi — videodan to'g'ri savdo sahifasiga.
@@ -181,7 +336,7 @@ export function ReelPlayer({ post, isActive, isMuted, onToggleMuted, onToggleLik
  * Ochiq yozilgan "Hozir sotuvda yo'q" esa halol va sotuvchiga zaxira
  * tugaganini bildiradi.
  */
-function ProductButton({ product }: { product: NonNullable<PostView['product']> }) {
+function ProductButton({ product }: { product: PostView['products'][number] }) {
   const content = (
     <>
       <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/20">

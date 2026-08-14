@@ -55,7 +55,7 @@ export function FeedContent() {
           ...(draft.videoUrl ? { videoUrl: draft.videoUrl } : {}),
           ...(draft.videoPosterUrl ? { videoPosterUrl: draft.videoPosterUrl } : {}),
           ...(draft.videoSeconds ? { videoSeconds: draft.videoSeconds } : {}),
-          ...(draft.productId ? { productId: draft.productId } : {}),
+          ...(draft.productIds.length > 0 ? { productIds: draft.productIds } : {}),
         },
       });
 

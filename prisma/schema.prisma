@@ -1078,7 +1078,7 @@ model Product {
   category   ProductCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   orderItems MarketOrderItem[]
   /// Shu mahsulot biriktirilgan videolar.
-  posts      Post[]            @relation("PostProduct")
+  postLinks  PostProduct[]
 
   @@index([shopId, isActive])
   @@index([categoryId, sortOrder])
@@ -2405,18 +2405,17 @@ model Post {
   /// Video davomiyligi (soniya) — ro'yxatda ko'rsatiladi.
   videoSeconds Int?
 
-  /// Videoga BIRIKTIRILGAN mahsulot.
+  /// Videoni necha marta ko'rishgan.
   ///
-  /// ── Nima uchun bu bor ───────────────────────────────────────────────
-  /// Odam videoda mahsulotni ko'rsatadi va tomoshabin uni "qayerdan
-  /// olsa bo'ladi?" deb izohlarda so'raydi. Biriktirilgan mahsulot
-  /// bilan savol umuman tug'ilmaydi: video ustida tugma turadi va u
-  /// to'g'ri mahsulot sahifasiga olib boradi.
+  /// ── Nima uchun USTUNDA saqlanadi ────────────────────────────────────
+  /// Har bir ko'rishni alohida qatorga yozib, keyin sanash mumkin
+  /// edi — lekin mashhur videoda bu millionlab qator degani va
+  /// lentaning har ochilishida ular sanalardi.
   ///
-  /// Mahsulot o'chirilsa post qolaveradi (`SetNull`) — video o'z
-  /// qiymatini yo'qotmaydi.
-  productId String?  @db.Uuid
-  product   Product? @relation("PostProduct", fields: [productId], references: [id], onDelete: SetNull)
+  /// Ustun esa bitta son: o'qish tekin, yozish bitta `increment`.
+  /// Buning evaziga "kim ko'rdi" degan savolga javob yo'q, lekin
+  /// u hech kimga kerak emas — sotuvchiga SON kerak.
+  viewCount Int @default(0)
 
   likeCount    Int @default(0)
   commentCount Int @default(0)
@@ -2443,6 +2442,7 @@ model Post {
   likes    PostLike[]
   comments PostComment[]
   reports  UserReport[]  @relation("PostReports")
+  products PostProduct[]
 
   /// Lenta aynan shu tartibda o'qiladi: yangi postlar birinchi.
   @@index([createdAt])
@@ -2452,6 +2452,32 @@ model Post {
   /// Profildagi "uning postlari" ro'yxati uchun.
   @@index([authorId, createdAt])
   @@map("posts")
+}
+
+/// Videoga biriktirilgan mahsulot.
+///
+/// ── Nima uchun ALOHIDA jadval ─────────────────────────────────────────
+/// Avval post jadvalida bitta `productId` ustuni bor edi. Lekin bitta
+/// videoda ko'pincha bir NECHTA narsa ko'rsatiladi: kiyim + poyabzal +
+/// sumka. Bitta ustun bilan odam ulardan faqat bittasini biriktira
+/// olardi va qolganini izohda yozardi — ya'ni muammo yechilmagan
+/// bo'lardi.
+model PostProduct {
+  postId    String @db.Uuid
+  productId String @db.Uuid
+
+  /// Ro'yxatdagi tartib — odam o'zi qo'ygan tartib saqlanadi.
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// Bitta mahsulot bitta videoga bir marta biriktiriladi.
+  @@id([postId, productId])
+  @@index([productId])
+  @@map("post_products")
 }
 
 /// Postga qo'yilgan yoqtirish.

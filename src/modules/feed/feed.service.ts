@@ -7,6 +7,7 @@ import { deleteImageByUrl } from '@/modules/upload/upload.service';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { sendPush } from '@/modules/notification/push.service';
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
+import { MAX_TAGGED_PRODUCTS } from '@/modules/feed/feed.types';
 import type {
   CommentView,
   PostAuthorView,
@@ -67,23 +68,30 @@ function postSelect(viewerId: string) {
     videoUrl: true,
     videoPosterUrl: true,
     videoSeconds: true,
+    viewCount: true,
     /**
-     * Biriktirilgan mahsulot — tugma uchun kerakli MINIMUM.
+     * Biriktirilgan mahsulotlar — tugma uchun kerakli MINIMUM.
      *
      * To'liq mahsulot olinsa, lentadagi har bir video uchun tavsif,
      * zaxira va boshqa ustunlar ham o'qilardi. Tugmada esa faqat
-     * nom, narx va rasm ko'rinadi.
+     * nom va narx ko'rinadi.
      */
-    product: {
+    products: {
       select: {
-        id: true,
-        name: true,
-        slug: true,
-        price: true,
-        isActive: true,
-        stock: true,
-        shop: { select: { name: true, isActive: true } },
+        sortOrder: true,
+        product: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            price: true,
+            isActive: true,
+            stock: true,
+            shop: { select: { name: true, isActive: true } },
+          },
+        },
       },
+      orderBy: { sortOrder: 'asc' },
     },
     likeCount: true,
     commentCount: true,
@@ -138,7 +146,8 @@ function toPostView(row: PostRow, viewerId: string): PostView {
     videoUrl: row.deletedAt ? null : row.videoUrl,
     videoPosterUrl: row.deletedAt ? null : row.videoPosterUrl,
     videoSeconds: row.deletedAt ? null : row.videoSeconds,
-    product: row.deletedAt || !row.product ? null : toTaggedProduct(row.product),
+    products: row.deletedAt ? [] : row.products.map((link) => toTaggedProduct(link.product)),
+    viewCount: row.viewCount,
     author: toAuthorView(row.author),
     createdAt: row.createdAt.toISOString(),
     editedAt: row.editedAt?.toISOString() ?? null,
@@ -336,28 +345,12 @@ export interface CreatePostData {
   videoUrl?: string | null;
   videoPosterUrl?: string | null;
   videoSeconds?: number | null;
-  productId?: string | null;
+  productIds?: string[];
 }
 
 export async function createPost(authorId: string, data: CreatePostData): Promise<PostView> {
-  /**
-   * Biriktirilgan mahsulot TEKSHIRILADI.
-   *
-   * ID brauzerdan keladi, ya'ni uni istalgan qiymatga o'zgartirish
-   * mumkin. Tekshirilmasa, odam yopilgan do'konning mahsulotini
-   * yoki umuman mavjud bo'lmagan ID ni biriktirib qo'yardi va
-   * tugma bo'sh sahifaga olib borardi.
-   */
-  if (data.productId) {
-    const product = await prisma.product.findFirst({
-      where: { id: data.productId, isActive: true, shop: { isActive: true } },
-      select: { id: true },
-    });
-
-    if (!product) {
-      throw new NotFoundError('Mahsulot');
-    }
-  }
+  /** Takrorlangan ID lar olib tashlanadi — odam bir narsani ikki marta tanlashi mumkin. */
+  const productIds = [...new Set(data.productIds ?? [])];
 
   /**
    * Mahsulotni faqat VIDEOGA biriktirish mumkin.
@@ -365,8 +358,34 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
    * Oddiy postda tugma qo'yadigan joy yo'q va u reklama uchun
    * eng oson yo'lga aylanardi: matnsiz post + mahsulot tugmasi.
    */
-  if (data.productId && !data.videoUrl) {
+  if (productIds.length > 0 && !data.videoUrl) {
     throw new ConflictError('Mahsulotni faqat videoga biriktirish mumkin.');
+  }
+
+  if (productIds.length > MAX_TAGGED_PRODUCTS) {
+    throw new ConflictError(`Bitta videoga ko'pi bilan ${MAX_TAGGED_PRODUCTS} ta mahsulot biriktiriladi.`);
+  }
+
+  /**
+   * Mahsulotlar TEKSHIRILADI.
+   *
+   * ID brauzerdan keladi, ya'ni uni istalgan qiymatga o'zgartirish
+   * mumkin. Tekshirilmasa, odam yopilgan do'konning mahsulotini
+   * yoki umuman mavjud bo'lmagan ID ni biriktirib qo'yardi va
+   * tugma bo'sh sahifaga olib borardi.
+   *
+   * Hammasi BITTA so'rovda tekshiriladi: beshta mahsulot uchun
+   * beshta so'rov yuborish keraksiz.
+   */
+  if (productIds.length > 0) {
+    const found = await prisma.product.findMany({
+      where: { id: { in: productIds }, isActive: true, shop: { isActive: true } },
+      select: { id: true },
+    });
+
+    if (found.length !== productIds.length) {
+      throw new NotFoundError('Mahsulot');
+    }
   }
 
   const row = await prisma.post.create({
@@ -377,12 +396,16 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
       videoUrl: data.videoUrl ?? null,
       videoPosterUrl: data.videoPosterUrl ?? null,
       videoSeconds: data.videoSeconds ?? null,
-      productId: data.productId ?? null,
+      // Tartib odam tanlagan tartibda saqlanadi.
+      products: { create: productIds.map((id, index) => ({ productId: id, sortOrder: index })) },
     },
     select: postSelect(authorId),
   });
 
-  logger.info({ authorId, postId: row.id, hasVideo: Boolean(data.videoUrl) }, 'Yangi post');
+  logger.info(
+    { authorId, postId: row.id, hasVideo: Boolean(data.videoUrl), products: productIds.length },
+    'Yangi post',
+  );
 
   return toPostView(row, authorId);
 }
@@ -513,6 +536,47 @@ export async function deletePost(postId: string, userId: string): Promise<void> 
   void deleteImageByUrl(post.imageUrl);
 
   logger.info({ userId, postId }, "Post o'chirildi");
+}
+
+/**
+ * Videoni ko'rilgan deb belgilaydi.
+ *
+ * ── Nima uchun sonni oshirishdan boshqa hech narsa qilinmaydi ─────────
+ * "Kim ko'rdi" ni saqlash mumkin edi, lekin mashhur videoda bu
+ * millionlab qator degani va bu ma'lumot hech kimga kerak emas:
+ * sotuvchiga SON kerak — "videomni necha kishi ko'rdi".
+ *
+ * ── Nima uchun takrorlanish TEKSHIRILMAYDI ────────────────────────────
+ * Bir odam videoni ikki marta ko'rsa, sanoq ikki marta oshadi. Buni
+ * to'xtatish uchun har bir ko'rish yozib borilishi kerak bo'lardi —
+ * ya'ni yuqoridagi millionlab qator.
+ *
+ * Instagram va TikTok ham xuddi shunday sanaydi: bu "ko'rishlar",
+ * "ko'rgan odamlar" emas. Brauzer tomonida esa bitta video bitta
+ * ochilishda BIR MARTA sanaladi.
+ */
+export async function markVideoViewed(postId: string, viewerId: string): Promise<void> {
+  /**
+   * O'Z videosi sanalmaydi.
+   *
+   * Aks holda muallif o'z videosini qayta-qayta ochib, sonni
+   * ko'tarib qo'yardi — va bu son sotuvchi uchun ma'nosiz bo'lardi.
+   */
+  const updated = await prisma.post.updateMany({
+    where: { id: postId, deletedAt: null, videoUrl: { not: null }, authorId: { not: viewerId } },
+    data: { viewCount: { increment: 1 } },
+  });
+
+  if (updated.count === 0) {
+    /**
+     * Xato TASHLANMAYDI.
+     *
+     * Ko'rish — yordamchi ma'lumot. O'z videosi bo'lsa yoki post
+     * o'chirilgan bo'lsa, brauzerga xato qaytarishning ma'nosi
+     * yo'q: u baribir hech narsa qila olmaydi.
+     */
+    return;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────

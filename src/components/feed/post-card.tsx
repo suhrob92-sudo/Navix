@@ -278,7 +278,10 @@ export function PostCard({
             className="border-border max-h-96 w-full rounded-xl border bg-black"
           />
 
-          {post.product && <PostProductButton product={post.product} />}
+          {/* Bir nechta mahsulot — hammasi ro'yxat bo'lib turadi. */}
+          {post.products.map((item) => (
+            <PostProductButton key={item.id} product={item} />
+          ))}
 
           <Link
             href="/reels"
@@ -378,7 +381,7 @@ export function PostCard({
  * To'liq ekranli pleyerdagidan farqi FONDA: u yerda video ustida
  * turadi va shaffof bo'lishi kerak, bu yerda esa kartochka ichida.
  */
-function PostProductButton({ product }: { product: NonNullable<PostView['product']> }) {
+function PostProductButton({ product }: { product: PostView['products'][number] }) {
   const inner = (
     <>
       <span className="bg-secondary text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">

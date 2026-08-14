@@ -9,8 +9,10 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useApiClient } from '@/hooks/use-api';
 import { useCursorList } from '@/hooks/use-cursor-list';
 import { usePostActions } from '@/hooks/use-post-actions';
+import { useAuth } from '@/modules/auth/auth-context';
 import { RequireAuth } from '@/modules/auth/require-auth';
 import type { PostView } from '@/modules/feed/feed.types';
 
@@ -39,8 +41,54 @@ export function ReelsContent() {
 }
 
 function ReelsBody() {
+  const request = useApiClient();
+  const { user } = useAuth();
   const list = useCursorList<PostView>('/api/v1/feed?tab=VIDEO&limit=10', 'posts');
   const actions = usePostActions(list.setItems);
+
+  /**
+   * Ko'rish serverga BIR MARTA yuboriladi.
+   *
+   * Odam videoni orqaga surib qayta ko'rsa, `ReelPlayer` ichidagi
+   * belgi buni to'xtatadi. Lekin ro'yxat qayta chizilganda komponent
+   * yangidan tug'ilishi mumkin — shuning uchun ikkinchi qulf shu
+   * yerda, sahifa darajasida.
+   */
+  const viewedRef = useRef(new Set<string>());
+
+  const markViewed = useCallback(
+    (post: PostView) => {
+      const postId = post.id;
+
+      if (viewedRef.current.has(postId)) return;
+
+      /**
+       * O'Z videosi sanalmaydi.
+       *
+       * Server ham uni sanamaydi (sotuvchi o'zi ochib sonni
+       * ko'tarib qo'ymasligi uchun). Shuning uchun ekranda ham
+       * ko'tarilmasligi kerak: aks holda son sahifa yangilanganda
+       * orqaga tushib, yolg'on ko'rsatgan bo'lardi.
+       */
+      if (post.author.userId === user?.id) return;
+
+      viewedRef.current.add(postId);
+
+      /**
+       * Javob KUTILMAYDI va xato YUTILADI.
+       *
+       * Ko'rishlar soni — yordamchi ma'lumot. Uning yiqilishi
+       * tomoshani to'xtatmasligi kerak.
+       */
+      void request(`/api/v1/posts/${postId}/view`, { method: 'POST', body: {} }).catch(() => {});
+
+      // Ekranda ham darhol ko'rinadi — server javobi kutilmaydi.
+      list.setItems((current) =>
+        current.map((post) => (post.id === postId ? { ...post, viewCount: post.viewCount + 1 } : post)),
+      );
+    },
+    [request, list, user?.id],
+  );
 
   /** Hozir qaysi video ekranda. */
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -170,6 +218,7 @@ function ReelsBody() {
               isMuted={isMuted}
               onToggleMuted={() => setIsMuted((current) => !current)}
               onToggleLike={() => actions.toggleLike(post)}
+              onViewed={() => markViewed(post)}
             />
           </div>
         ))}

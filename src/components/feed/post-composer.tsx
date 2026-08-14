@@ -13,7 +13,7 @@ import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { uploadVideo } from '@/lib/video-upload';
 import { useAuth } from '@/modules/auth/auth-context';
-import { POST_MAX_LENGTH, type TaggedProductView } from '@/modules/feed/feed.types';
+import { MAX_TAGGED_PRODUCTS, POST_MAX_LENGTH, type TaggedProductView } from '@/modules/feed/feed.types';
 import { MAX_VIDEO_SECONDS, formatDuration } from '@/modules/upload/upload.types';
 
 /** Yuborilayotgan postning to'liq tarkibi. */
@@ -23,7 +23,7 @@ export interface ComposerDraft {
   videoUrl: string | null;
   videoPosterUrl: string | null;
   videoSeconds: number | null;
-  productId: string | null;
+  productIds: string[];
 }
 
 export interface PostComposerProps {
@@ -57,7 +57,7 @@ export function PostComposer({ isSending, onSubmit }: PostComposerProps) {
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
 
-  const [product, setProduct] = useState<TaggedProductView | null>(null);
+  const [products, setProducts] = useState<TaggedProductView[]>([]);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const image = useFileUpload('POST');
@@ -81,14 +81,14 @@ export function PostComposer({ isSending, onSubmit }: PostComposerProps) {
       videoUrl: video?.url ?? null,
       videoPosterUrl: video?.posterUrl ?? null,
       videoSeconds: video?.seconds ?? null,
-      productId: product?.id ?? null,
+      productIds: products.map((item) => item.id),
     });
 
     if (sent) {
       setBody('');
       setImageUrl(null);
       setVideo(null);
-      setProduct(null);
+      setProducts([]);
       setVideoError(null);
     }
   }
@@ -172,7 +172,7 @@ export function PostComposer({ isSending, onSubmit }: PostComposerProps) {
             disabled={isBusy}
             onClick={() => {
               setVideo(null);
-              setProduct(null);
+              setProducts([]);
             }}
             className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white transition-transform active:scale-95 disabled:opacity-60"
           >
@@ -181,29 +181,36 @@ export function PostComposer({ isSending, onSubmit }: PostComposerProps) {
         </div>
       )}
 
-      {/* Biriktirilgan mahsulot — faqat video bo'lganda. */}
-      {product && (
-        <div className="border-border bg-secondary/40 mt-3 flex items-center gap-3 rounded-xl border p-2.5">
-          <span className="bg-secondary text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
-            <ShoppingBag className="size-4" aria-hidden="true" />
-          </span>
+      {/* Biriktirilgan mahsulotlar — faqat video bo'lganda. */}
+      {products.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {products.map((item) => (
+            <li
+              key={item.id}
+              className="border-border bg-secondary/40 flex items-center gap-3 rounded-xl border p-2.5"
+            >
+              <span className="bg-secondary text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+                <ShoppingBag className="size-4" aria-hidden="true" />
+              </span>
 
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium">{product.name}</span>
-            <span className="text-muted-foreground block truncate text-xs">
-              {`${formatTiyin(product.priceTiyin)} · ${product.shopName}`}
-            </span>
-          </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{item.name}</span>
+                <span className="text-muted-foreground block truncate text-xs">
+                  {`${formatTiyin(item.priceTiyin)} · ${item.shopName}`}
+                </span>
+              </span>
 
-          <button
-            type="button"
-            aria-label="Mahsulotni olib tashlash"
-            onClick={() => setProduct(null)}
-            className="text-muted-foreground hover:text-destructive -m-1 shrink-0 rounded-lg p-1 transition-colors"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </button>
-        </div>
+              <button
+                type="button"
+                aria-label={`${item.name} — olib tashlash`}
+                onClick={() => setProducts((current) => current.filter((row) => row.id !== item.id))}
+                className="text-muted-foreground hover:text-destructive -m-1 shrink-0 rounded-lg p-1 transition-colors"
+              >
+                <X className="size-4" aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -253,10 +260,10 @@ export function PostComposer({ isSending, onSubmit }: PostComposerProps) {
           Oddiy postda tugma qo'yadigan joy yo'q va u reklama uchun
           eng oson yo'lga aylanardi.
         */}
-        {video && !product && (
+        {video && products.length < MAX_TAGGED_PRODUCTS && (
           <Button type="button" variant="ghost" size="sm" disabled={isBusy} onClick={() => setIsPickerOpen(true)}>
             <ShoppingBag className="size-4" aria-hidden="true" />
-            Mahsulot
+            {products.length === 0 ? 'Mahsulot' : "Yana qo'shish"}
           </Button>
         )}
 
@@ -281,15 +288,14 @@ export function PostComposer({ isSending, onSubmit }: PostComposerProps) {
       </div>
 
       <p className="text-muted-foreground mt-2 text-xs">
-        {`Video ${MAX_VIDEO_SECONDS} soniyagacha. Videoga mahsulot biriktirsangiz, tomoshabin uni bir bosishda topadi.`}
+        {`Video ${MAX_VIDEO_SECONDS} soniyagacha. Videoga ${MAX_TAGGED_PRODUCTS} tagacha mahsulot biriktirish mumkin — tomoshabin ularni bir bosishda topadi.`}
       </p>
 
       {isPickerOpen && (
         <ProductPicker
-          onPick={(picked) => {
-            setProduct(picked);
-            setIsPickerOpen(false);
-          }}
+          selected={products}
+          onPick={(picked) => setProducts((current) => [...current, picked])}
+          onRemove={(productId) => setProducts((current) => current.filter((row) => row.id !== productId))}
           onCancel={() => setIsPickerOpen(false)}
         />
       )}
