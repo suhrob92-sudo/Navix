@@ -219,6 +219,14 @@ export const PUBLIC_RATE_LIMITS = {
    */
   postLike: { limit: 120, windowSeconds: 60 },
   /**
+   * Ulashish va mahsulot tugmasi: daqiqasiga 30 ta.
+   *
+   * Ikkala son ham sotuvchining ko'rsatkichi. Chegarasiz skript
+   * ularni istalgan songa ko'tarib, "bu video ishlayapti" degan
+   * yolg'on manzara yaratardi.
+   */
+  postShare: { limit: 30, windowSeconds: 60 },
+  /**
    * Rasm yuklash: soatiga 60 ta.
    *
    * ── Nima uchun chegara KERAK ────────────────────────────────────────

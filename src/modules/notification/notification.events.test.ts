@@ -168,6 +168,24 @@ const SAMPLES = {
     actorName: 'Bobur Karimov',
     preview: "Juda to'g'ri aytdingiz",
   },
+  'feed.comment_replied': {
+    postId: '2b6f8d41-9c3e-4a5b-8d7f-1e0c9a4b6d23',
+    actorName: 'Bobur Karimov',
+    preview: 'Men ham shunday deb hisoblayman',
+  },
+  'feed.comment_liked': {
+    postId: '2b6f8d41-9c3e-4a5b-8d7f-1e0c9a4b6d23',
+    actorName: 'Bobur Karimov',
+  },
+  'feed.mentioned': {
+    postId: '2b6f8d41-9c3e-4a5b-8d7f-1e0c9a4b6d23',
+    actorName: 'Bobur Karimov',
+  },
+  'feed.product_clicked': {
+    postId: '2b6f8d41-9c3e-4a5b-8d7f-1e0c9a4b6d23',
+    productName: 'Sport sumkasi 40L',
+    clickCount: 10,
+  },
   'security.password_changed': { revokedSessions: 3 },
   'support.replied': {
     ticketId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93',

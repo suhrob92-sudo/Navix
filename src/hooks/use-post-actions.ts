@@ -24,6 +24,17 @@ export interface PostActions {
   error: string | null;
   clearError: () => void;
   toggleLike: (post: PostView) => void;
+  /**
+   * Ikki marta bosilganda — FAQAT qo'yadi, olib tashlamaydi.
+   *
+   * Instagramda ham shunday: tez-tez bosilganda yoqtirish
+   * tasodifan o'chib ketmasligi kerak.
+   */
+  likeOnly: (post: PostView) => void;
+  toggleSave: (post: PostView) => void;
+  sharePost: (post: PostView) => Promise<void>;
+  /** Videodagi mahsulot tugmasi bosildi — sotuvchi ko'rsatkichi uchun. */
+  trackProductClick: (postId: string, productId: string) => void;
   editPost: (postId: string, body: string) => Promise<void>;
   deletePost: (postId: string) => void;
   reportPost: (postId: string, reason: string, note: string) => Promise<void>;
@@ -73,6 +84,91 @@ export function usePostActions(update: (updater: (current: PostView[]) => PostVi
       })();
     },
     [applyLike, request],
+  );
+
+  const likeOnly = useCallback(
+    (post: PostView) => {
+      if (post.isLiked) return;
+
+      toggleLike(post);
+    },
+    [toggleLike],
+  );
+
+  /**
+   * Saqlash — optimistik, yoqtirish bilan bir xil sabab.
+   *
+   * Xato bo'lsa belgi orqaga qaytadi: odam "saqladim" deb o'ylab,
+   * ro'yxatda topa olmasligi eng yomon holat bo'lardi.
+   */
+  const toggleSave = useCallback(
+    (post: PostView) => {
+      const wasSaved = post.isSaved;
+
+      setError(null);
+      update((current) =>
+        current.map((item) => (item.id === post.id ? { ...item, isSaved: !wasSaved } : item)),
+      );
+
+      void (async () => {
+        try {
+          await request(`/api/v1/posts/${post.id}/save`, {
+            method: wasSaved ? 'DELETE' : 'POST',
+            ...(wasSaved ? {} : { body: {} }),
+          });
+        } catch (caught) {
+          update((current) =>
+            current.map((item) => (item.id === post.id ? { ...item, isSaved: wasSaved } : item)),
+          );
+          setError(toUserMessage(caught));
+        }
+      })();
+    },
+    [request, update],
+  );
+
+  /**
+   * Ulashish SONI.
+   *
+   * Ulashishning o'zi (Telegram, nusxalash) komponentda bajariladi —
+   * bu yerda faqat son yangilanadi.
+   *
+   * ── Nima uchun xato YUTILADI ────────────────────────────────────────
+   * Havola allaqachon nusxalangan yoki Telegramga uzatilgan bo'ladi.
+   * "Ulashib bo'lmadi" degan xato yolg'on bo'lardi: ulashish bo'ldi,
+   * faqat SON yangilanmadi.
+   */
+  const sharePost = useCallback(
+    async (post: PostView) => {
+      update((current) =>
+        current.map((item) => (item.id === post.id ? { ...item, shareCount: item.shareCount + 1 } : item)),
+      );
+
+      try {
+        await request(`/api/v1/posts/${post.id}/share`, { method: 'POST', body: {} });
+      } catch {
+        // Ataylab jim: yuqoridagi izohga qarang.
+      }
+    },
+    [request, update],
+  );
+
+  /**
+   * Mahsulot bosilishi.
+   *
+   * ── Nima uchun javob KUTILMAYDI ─────────────────────────────────────
+   * Bosilgan zahoti brauzer mahsulot sahifasiga o'tadi. Javobni
+   * kutish o'tishni sekinlashtirardi, foyda esa yo'q: son
+   * sotuvchiga keyin kerak bo'ladi, hozir emas.
+   */
+  const trackProductClick = useCallback(
+    (postId: string, productId: string) => {
+      void request(`/api/v1/posts/${postId}/products/${productId}/click`, {
+        method: 'POST',
+        body: {},
+      }).catch(() => {});
+    },
+    [request],
   );
 
   const deletePost = useCallback(
@@ -157,5 +253,17 @@ export function usePostActions(update: (updater: (current: PostView[]) => PostVi
 
   const clearError = useCallback(() => setError(null), []);
 
-  return { busyPostId, error, clearError, toggleLike, editPost, deletePost, reportPost };
+  return {
+    busyPostId,
+    error,
+    clearError,
+    toggleLike,
+    likeOnly,
+    toggleSave,
+    sharePost,
+    trackProductClick,
+    editPost,
+    deletePost,
+    reportPost,
+  };
 }

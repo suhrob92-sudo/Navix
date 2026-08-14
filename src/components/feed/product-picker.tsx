@@ -138,6 +138,8 @@ export function ProductPicker({ selected, onPick, onRemove, onCancel }: ProductP
                     priceTiyin: product.price,
                     shopName: product.shop.name,
                     isAvailable: true,
+                    // Bosishlar soni faqat post yaratilgach paydo bo'ladi.
+                    clickCount: 0,
                   })
             }
             className={cn(

@@ -218,6 +218,9 @@ function ReelsBody() {
               isMuted={isMuted}
               onToggleMuted={() => setIsMuted((current) => !current)}
               onToggleLike={() => actions.toggleLike(post)}
+              onToggleSave={() => actions.toggleSave(post)}
+              onShared={() => void actions.sharePost(post)}
+              onProductClick={(productId) => actions.trackProductClick(post.id, productId)}
               onViewed={() => markViewed(post)}
             />
           </div>

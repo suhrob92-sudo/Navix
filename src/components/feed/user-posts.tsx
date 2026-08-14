@@ -2,7 +2,7 @@
 
 import { Newspaper } from 'lucide-react';
 
-import { PostCard } from '@/components/feed/post-card';
+import { PostList } from '@/components/feed/post-list';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -59,17 +59,7 @@ export function UserPosts({ username, isOwn }: UserPostsProps) {
         />
       )}
 
-      {list.items.map((post) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          isBusy={actions.busyPostId === post.id}
-          onToggleLike={() => actions.toggleLike(post)}
-          onEdit={(body) => actions.editPost(post.id, body)}
-          onDelete={() => actions.deletePost(post.id)}
-          onReport={(reason, note) => actions.reportPost(post.id, reason, note)}
-        />
-      ))}
+      <PostList posts={list.items} actions={actions} />
 
       {list.hasMore && (
         <Button

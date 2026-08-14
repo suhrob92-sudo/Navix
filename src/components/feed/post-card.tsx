@@ -3,18 +3,23 @@
 
 import {
   BadgeCheck,
+  Bookmark,
   Clapperboard,
   Flag,
   Heart,
   MessageCircle,
   MoreHorizontal,
+  MousePointerClick,
   Pencil,
+  Share2,
   ShoppingBag,
   Trash2,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
+import { RichText } from '@/components/feed/rich-text';
+import { ShareSheet } from '@/components/feed/share-sheet';
 import { ReportDialog } from '@/components/moderation/report-dialog';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -26,8 +31,10 @@ import { cn } from '@/lib/utils';
 import {
   authorDisplayName,
   formatReactionCount,
+  needsTruncation,
   DELETED_POST_TEXT,
   POST_MAX_LENGTH,
+  POST_PREVIEW_LENGTH,
   type PostView,
 } from '@/modules/feed/feed.types';
 import type { ReportReasonName } from '@/modules/moderation/moderation.types';
@@ -36,6 +43,18 @@ export interface PostCardProps {
   post: PostView;
   /** Yoqtirish tugmasi bosildi. */
   onToggleLike: () => void;
+  /**
+   * Rasm/videoga IKKI MARTA bosildi — faqat yoqtirish qo'yiladi.
+   *
+   * Berilmasa ikki marta bosish umuman ishlamaydi.
+   */
+  onDoubleTapLike?: () => void;
+  /** Saqlash tugmasi bosildi. Berilmasa tugma ko'rinmaydi. */
+  onToggleSave?: () => void;
+  /** Ulashish bajarildi — son shu yerda oshadi. */
+  onShared?: () => void;
+  /** Videodagi mahsulot tugmasi bosildi. */
+  onProductClick?: (productId: string) => void;
   /** O'chirish tasdiqlandi. Berilmasa o'chirish tugmasi ko'rinmaydi. */
   onDelete?: () => void;
   /** Matn tahrirlandi. Berilmasa tahrirlash tugmasi ko'rinmaydi. */
@@ -63,6 +82,10 @@ export interface PostCardProps {
 export function PostCard({
   post,
   onToggleLike,
+  onDoubleTapLike,
+  onToggleSave,
+  onShared,
+  onProductClick,
   onDelete,
   onEdit,
   onReport,
@@ -73,6 +96,16 @@ export function PostCard({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isReported, setIsReported] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+
+  /** Uzun matn to'liq ochilganmi. */
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  /** Ikki marta bosilgandagi yurakcha animatsiyasi ko'rinyaptimi. */
+  const [isHeartFlying, setIsHeartFlying] = useState(false);
+
+  /** Oxirgi bosish vaqti — ikki marta bosishni aniqlash uchun. */
+  const lastTapRef = useRef(0);
 
   /** Tahrirlash rejimi: `null` — o'chiq, satr — tahrirlanayotgan matn. */
   const [draft, setDraft] = useState<string | null>(null);
@@ -80,6 +113,38 @@ export function PostCard({
   const name = authorDisplayName(post.author);
   const likeText = formatReactionCount(post.likeCount);
   const commentText = formatReactionCount(post.commentCount);
+  const shareText = formatReactionCount(post.shareCount);
+
+  const isLong = needsTruncation(post.body);
+  const visibleBody =
+    isDetail || isExpanded || !isLong ? post.body : `${post.body.slice(0, POST_PREVIEW_LENGTH)}…`;
+
+  /**
+   * Ikki marta bosish — Instagramning eng tanilgan harakati.
+   *
+   * ── Nima uchun `ondblclick` ISHLATILMAYDI ────────────────────────────
+   * Telefon brauzerlarida `dblclick` hodisasi ishonchsiz: barmoq
+   * bilan tez ikki marta bosilganda u ko'pincha umuman kelmaydi
+   * yoki sahifani kattalashtirib yuboradi.
+   *
+   * Vaqtni o'zimiz o'lchash esa har joyda bir xil ishlaydi.
+   */
+  function handleMediaTap() {
+    if (!onDoubleTapLike) return;
+
+    const now = Date.now();
+
+    if (now - lastTapRef.current < 300) {
+      lastTapRef.current = 0;
+      onDoubleTapLike();
+      setIsHeartFlying(true);
+      setTimeout(() => setIsHeartFlying(false), 700);
+
+      return;
+    }
+
+    lastTapRef.current = now;
+  }
 
   const canEdit = post.isMine && !post.isDeleted && Boolean(onEdit);
   const canDelete = post.isMine && !post.isDeleted && Boolean(onDelete);
@@ -245,16 +310,33 @@ export function PostCard({
           `break-words` — bo'shliqsiz uzun matn kartadan chiqib ketmaydi.
         */
         (post.body.length > 0 || post.isDeleted) && (
-          <p
-            className={cn(
-              'mt-3 text-sm leading-relaxed break-words whitespace-pre-wrap',
-              post.isDeleted && 'text-muted-foreground italic',
-              // Lentada uzun post qisqartiriladi, o'z sahifasida to'liq turadi.
-              !isDetail && !post.isDeleted && 'line-clamp-6',
+          <div className="mt-3">
+            <p
+              className={cn(
+                'text-sm leading-relaxed break-words whitespace-pre-wrap',
+                post.isDeleted && 'text-muted-foreground italic',
+              )}
+            >
+              {post.isDeleted ? DELETED_POST_TEXT : <RichText body={visibleBody} />}
+            </p>
+
+            {/*
+              "Ko'proq" — sahifa ALMASHMAYDI.
+
+              Havola qilib qo'yilsa, odam uzun postni o'qish uchun
+              lentadan chiqib ketardi va qaytganda o'qigan joyini
+              yo'qotardi.
+            */}
+            {!isDetail && !post.isDeleted && isLong && (
+              <button
+                type="button"
+                onClick={() => setIsExpanded((current) => !current)}
+                className="text-muted-foreground hover:text-foreground mt-1 text-xs font-medium transition-colors"
+              >
+                {isExpanded ? "Yig'ish" : "Ko'proq"}
+              </button>
             )}
-          >
-            {post.isDeleted ? DELETED_POST_TEXT : post.body}
-          </p>
+          </div>
         )
       )}
 
@@ -280,7 +362,12 @@ export function PostCard({
 
           {/* Bir nechta mahsulot — hammasi ro'yxat bo'lib turadi. */}
           {post.products.map((item) => (
-            <PostProductButton key={item.id} product={item} />
+            <PostProductButton
+              key={item.id}
+              product={item}
+              showClicks={post.isMine}
+              onClick={() => onProductClick?.(item.id)}
+            />
           ))}
 
           <Link
@@ -295,16 +382,25 @@ export function PostCard({
 
       {post.imageUrl && !post.isDeleted && (
         /*
-          Rasm postning bir qismi — u ham bosilganda post sahifasiga
-          olib boradi. Balandligi cheklangan: baland rasm butun ekranni
-          egallab, lentani aylantirishni qiyinlashtirardi.
+          Rasm postning bir qismi. Balandligi cheklangan: baland rasm
+          butun ekranni egallab, lentani aylantirishni qiyinlashtirardi.
+
+          Ikki marta bosilsa — yoqtiriladi va yurakcha uchib chiqadi.
         */
-        <img
-          src={post.imageUrl}
-          alt=""
-          loading="lazy"
-          className="border-border mt-3 max-h-96 w-full rounded-xl border object-cover"
-        />
+        <div className="relative mt-3" onPointerDown={handleMediaTap}>
+          <img
+            src={post.imageUrl}
+            alt=""
+            loading="lazy"
+            className="border-border max-h-96 w-full rounded-xl border object-cover"
+          />
+
+          {isHeartFlying && (
+            <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <Heart className="animate-heart-pop size-20 fill-white text-white drop-shadow-lg" aria-hidden="true" />
+            </span>
+          )}
+        </div>
       )}
 
       {!post.isDeleted && draft === null && (
@@ -340,7 +436,66 @@ export function PostCard({
               {commentText && <span className="tabular-nums">{commentText}</span>}
             </Link>
           )}
+
+          {onShared && (
+            <button
+              type="button"
+              aria-label="Ulashish"
+              onClick={() => setIsShareOpen(true)}
+              className="hover:bg-secondary flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors active:scale-[0.97]"
+            >
+              <Share2 className="size-4" aria-hidden="true" />
+              {shareText && <span className="tabular-nums">{shareText}</span>}
+            </button>
+          )}
+
+          {/*
+            Saqlash tugmasi ENG O'NGDA — yolg'iz.
+
+            U qolganlaridan boshqa turdagi amal: yoqtirish, izoh va
+            ulashish OMMAVIY, saqlash esa SHAXSIY. Ular orasiga
+            qo'yilsa, odam saqlash ham ko'rinadi deb o'ylardi.
+          */}
+          {onToggleSave && (
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={onToggleSave}
+              aria-pressed={post.isSaved}
+              aria-label={post.isSaved ? 'Saqlanganlardan olib tashlash' : 'Saqlash'}
+              className={cn(
+                'ml-auto flex items-center rounded-full px-3 py-1.5 text-xs transition-colors',
+                'hover:bg-secondary active:scale-[0.97] disabled:opacity-60',
+                post.isSaved && 'text-primary',
+              )}
+            >
+              <Bookmark className={cn('size-4', post.isSaved && 'fill-current')} aria-hidden="true" />
+            </button>
+          )}
         </div>
+      )}
+
+      {/* Mavzular — matndan tashqarida ham bosiladigan qilib. */}
+      {post.hashtags.length > 0 && !post.isDeleted && draft === null && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {post.hashtags.map((tag) => (
+            <Link
+              key={tag}
+              href={`/feed/tag/${tag}`}
+              className="bg-secondary text-muted-foreground hover:text-foreground rounded-full px-2.5 py-1 text-xs transition-colors"
+            >
+              {`#${tag}`}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {isShareOpen && onShared && (
+        <ShareSheet
+          post={post}
+          onShared={onShared}
+          onClose={() => setIsShareOpen(false)}
+        />
       )}
 
       {onDelete && (
@@ -381,7 +536,16 @@ export function PostCard({
  * To'liq ekranli pleyerdagidan farqi FONDA: u yerda video ustida
  * turadi va shaffof bo'lishi kerak, bu yerda esa kartochka ichida.
  */
-function PostProductButton({ product }: { product: PostView['products'][number] }) {
+function PostProductButton({
+  product,
+  showClicks,
+  onClick,
+}: {
+  product: PostView['products'][number];
+  /** Bosishlar sonini ko'rsatish — FAQAT post egasiga. */
+  showClicks: boolean;
+  onClick: () => void;
+}) {
   const inner = (
     <>
       <span className="bg-secondary text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
@@ -394,6 +558,22 @@ function PostProductButton({ product }: { product: PostView['products'][number] 
           {product.isAvailable ? `${formatTiyin(product.priceTiyin)} · ${product.shopName}` : "Hozir sotuvda yo'q"}
         </span>
       </span>
+
+      {/*
+        Bosishlar soni — sotuvchining ko'rsatkichi.
+
+        Faqat post EGASIGA ko'rinadi: raqobatchi kimning qaysi
+        videosi ishlayotganini kuzatib turmasligi kerak.
+      */}
+      {showClicks && product.clickCount > 0 && (
+        <span
+          className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs tabular-nums"
+          title="Nechta odam ochdi"
+        >
+          <MousePointerClick className="size-3.5" aria-hidden="true" />
+          {product.clickCount}
+        </span>
+      )}
 
       {product.isAvailable && (
         <span className="bg-primary text-primary-foreground shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold">
@@ -414,6 +594,7 @@ function PostProductButton({ product }: { product: PostView['products'][number] 
   return (
     <Link
       href={`/marketplace/p/${product.slug}`}
+      onClick={onClick}
       className="border-border bg-secondary/40 hover:bg-secondary flex items-center gap-3 rounded-xl border p-2.5 transition-colors"
     >
       {inner}

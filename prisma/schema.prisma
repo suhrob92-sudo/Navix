@@ -287,6 +287,8 @@ model User {
   posts             Post[]               @relation("PostAuthor")
   postLikes         PostLike[]           @relation("PostLikes")
   postComments      PostComment[]        @relation("CommentAuthor")
+  postSaves         PostSave[]           @relation("PostSaves")
+  commentLikes      CommentLike[]        @relation("CommentLikes")
   moduleSwitches    ModuleSwitch[]       @relation("ModuleSwitchEditor")
   supportTickets    SupportTicket[]      @relation("SupportTickets")
   supportAssigned   SupportTicket[]      @relation("SupportAssignee")
@@ -353,7 +355,7 @@ model UserProfile {
   ///
   /// Tayyor fonlar esa CSS bilan chiziladi: hajmi nol, har qanday
   /// ekranga moslashadi va qorong'i mavzuda o'zi to'g'rilanadi.
-  chatWallpaper  String          @default("DEFAULT") @db.VarChar(20)
+  chatWallpaper String @default("DEFAULT") @db.VarChar(20)
 
   /// Tanishtiruv (onboarding) qachon tugatilgan.
   ///
@@ -2333,9 +2335,6 @@ model UserReport {
   reporter User @relation("ReportsMade", fields: [reporterId], references: [id], onDelete: Cascade)
   target   User @relation("ReportsReceived", fields: [targetId], references: [id], onDelete: Cascade)
 
-  /// Moderator ro'yxati uchun: yangi shikoyatlar birinchi.
-  @@index([status, createdAt])
-  @@index([targetId])
   /// Bir odam bir postga BIR MARTA shikoyat qiladi.
   ///
   /// Usiz norozi odam tugmani o'n marta bosib, moderator ro'yxatini
@@ -2343,6 +2342,9 @@ model UserReport {
   /// ular orasida yo'qolardi.
   @@unique([reporterId, postId])
   @@unique([reporterId, commentId])
+  /// Moderator ro'yxati uchun: yangi shikoyatlar birinchi.
+  @@index([status, createdAt])
+  @@index([targetId])
   @@map("user_reports")
 }
 
@@ -2420,6 +2422,14 @@ model Post {
   likeCount    Int @default(0)
   commentCount Int @default(0)
 
+  /// Post necha marta ulashilgan.
+  ///
+  /// ── Nima uchun bu son MUHIM ─────────────────────────────────────────
+  /// Yoqtirish — "menga yoqdi". Ulashish — "buni boshqalar ham
+  /// ko'rsin". Ikkinchisi ancha kuchli belgi va aynan u yangi
+  /// odamlarni ilovaga olib keladi.
+  shareCount Int @default(0)
+
   /// Post tahrirlangan payt.
   ///
   /// ── Nima uchun `updatedAt` YETARLI EMAS ─────────────────────────────
@@ -2443,6 +2453,8 @@ model Post {
   comments PostComment[]
   reports  UserReport[]  @relation("PostReports")
   products PostProduct[]
+  saves    PostSave[]
+  hashtags PostHashtag[]
 
   /// Lenta aynan shu tartibda o'qiladi: yangi postlar birinchi.
   @@index([createdAt])
@@ -2468,6 +2480,16 @@ model PostProduct {
 
   /// Ro'yxatdagi tartib — odam o'zi qo'ygan tartib saqlanadi.
   sortOrder Int @default(0)
+
+  /// Tugma necha marta bosilgan.
+  ///
+  /// ── Nima uchun bu son KO'RISHDAN muhimroq ───────────────────────────
+  /// Ko'rish — video ekranda o'ynadi. Bosish — odam mahsulotni ochdi,
+  /// ya'ni sotib olishga bir qadam qoldi.
+  ///
+  /// Sotuvchi shu ikki sonni taqqoslab, videosi sotuvga ishlayaptimi
+  /// yoki shunchaki tomosha bo'lyaptimi — bilib oladi.
+  clickCount Int @default(0)
 
   createdAt DateTime @default(now())
 
@@ -2511,16 +2533,127 @@ model PostComment {
 
   body String @db.VarChar(500)
 
+  /// Qaysi izohga javob. `null` — bu asosiy izoh.
+  ///
+  /// ── Nima uchun FAQAT BIR daraja ─────────────────────────────────────
+  /// Javobga javob, unga yana javob... deb cheksiz chuqurlashsa,
+  /// telefon ekranida matn o'ng chetga siqilib, o'qib bo'lmas holga
+  /// keladi.
+  ///
+  /// Shuning uchun javobning javobi ham AYNAN SHU asosiy izohga
+  /// biriktiriladi — YouTube ham xuddi shunday qiladi.
+  parentId String? @db.Uuid
+
+  /// Izohga qo'yilgan yoqtirishlar soni.
+  likeCount Int @default(0)
+
+  /// Javoblar soni — ro'yxatni ochmasdan turib ko'rinadi.
+  replyCount Int @default(0)
+
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
-  post    Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author  User         @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  reports UserReport[] @relation("CommentReports")
+  post    Post          @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  User          @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  reports UserReport[]  @relation("CommentReports")
+  parent  PostComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies PostComment[] @relation("CommentReplies")
+  likes   CommentLike[]
 
   /// Izohlar eskisidan yangisiga qarab o'qiladi — suhbat kabi.
   @@index([postId, createdAt])
+  /// Bitta izohning javoblari.
+  @@index([parentId, createdAt])
   @@map("post_comments")
+}
+
+/// Izohga qo'yilgan yoqtirish.
+model CommentLike {
+  id String @id @default(uuid()) @db.Uuid
+
+  commentId String @db.Uuid
+  userId    String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  comment PostComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User        @relation("CommentLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Bir odam bir izohni ikki marta yoqtira olmaydi.
+  @@unique([commentId, userId])
+  @@index([userId])
+  @@map("comment_likes")
+}
+
+/// Saqlangan post — "keyin ko'raman" ro'yxati.
+///
+/// ── Nima uchun yoqtirishdan ALOHIDA ───────────────────────────────────
+/// Yoqtirish — OMMAVIY: muallif ko'radi, soni hammaga ko'rinadi.
+/// Saqlash — SHAXSIY: uni faqat saqlagan odam ko'radi.
+///
+/// Ikkalasini birlashtirsak, odam mahsulotni keyin sotib olish uchun
+/// belgilaganida buni butun dunyoga e'lon qilgan bo'lardi.
+model PostSave {
+  id String @id @default(uuid()) @db.Uuid
+
+  postId String @db.Uuid
+  userId String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation("PostSaves", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  /// "Saqlanganlarim" ro'yxati — oxirgi saqlangani birinchi.
+  @@index([userId, createdAt])
+  @@map("post_saves")
+}
+
+/// Xeshteg — `#poyabzal` kabi mavzu belgisi.
+///
+/// ── Nima uchun ALOHIDA jadval ─────────────────────────────────────────
+/// Xeshteglarni post matnidan har safar qidirish mumkin edi, lekin
+/// `LIKE '%#poyabzal%'` butun jadvalni o'qiydi va ming postda ham
+/// sekinlashadi.
+///
+/// Alohida jadval bilan "shu mavzudagi postlar" so'rovi indeks
+/// bo'yicha bajariladi.
+model Hashtag {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Belgi — KICHIK harflarda, `#` siz saqlanadi.
+  ///
+  /// `#Poyabzal` va `#poyabzal` bir xil mavzu: ularni ajratsak,
+  /// bitta mavzu o'nlab bo'lakka bo'linib ketardi.
+  tag String @unique @db.VarChar(50)
+
+  /// Nechta postda ishlatilgan — mashhur mavzular ro'yxati uchun.
+  postCount Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  posts PostHashtag[]
+
+  /// "Mashhur mavzular" ro'yxati.
+  @@index([postCount])
+  @@map("hashtags")
+}
+
+/// Post va xeshteg orasidagi bog'lanish.
+model PostHashtag {
+  postId    String @db.Uuid
+  hashtagId String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  hashtag Hashtag @relation(fields: [hashtagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, hashtagId])
+  /// "Shu mavzudagi postlar" — yangisidan eskisiga.
+  @@index([hashtagId, createdAt])
+  @@map("post_hashtags")
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -2700,8 +2833,8 @@ model SupportTicket {
   /// qidirish uzun ro'yxatda sekin ishlardi.
   lastMessageAt DateTime @default(now())
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
   /// Yopilgan payt — javob berish muddatini o'lchash uchun.
   resolvedAt DateTime?
 

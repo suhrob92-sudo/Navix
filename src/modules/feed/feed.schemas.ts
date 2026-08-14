@@ -39,9 +39,24 @@ export type FeedQuery = z.infer<typeof feedQuerySchema>;
 export const commentsQuerySchema = z.object({
   cursor: feedCursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(50).default(30),
+  /**
+   * Qaysi izohning javoblari.
+   *
+   * Berilmasa — FAQAT asosiy izohlar qaytadi. Javoblar aralashib
+   * ketsa, kim kimga javob berayotgani bilinmay qolardi.
+   */
+  parentId: z.uuid("Izoh noto'g'ri").optional(),
 });
 
 export type CommentsQuery = z.infer<typeof commentsQuerySchema>;
+
+/** Mavzu sahifasi uchun so'rov. */
+export const hashtagQuerySchema = z.object({
+  cursor: feedCursorSchema.optional(),
+  limit: z.coerce.number().int().min(1).max(30).default(20),
+});
+
+export type HashtagQuery = z.infer<typeof hashtagQuerySchema>;
 
 /**
  * Matn maydoni uchun umumiy qoida.
@@ -133,6 +148,13 @@ export type UpdatePostInput = z.infer<typeof updatePostSchema>;
 
 export const createCommentSchema = z.object({
   body: bodyField(COMMENT_MAX_LENGTH, "Izoh bo'sh bo'lmasligi kerak."),
+  /**
+   * Qaysi izohga javob.
+   *
+   * Berilmasa — bu asosiy izoh. Xizmat javobning javobini ham
+   * ASOSIY izohga biriktiradi (bir daraja qoidasi).
+   */
+  parentId: z.uuid("Izoh noto'g'ri").optional(),
 });
 
 export type CreateCommentInput = z.infer<typeof createCommentSchema>;

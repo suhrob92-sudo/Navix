@@ -8,8 +8,10 @@ import { notifyUser } from '@/modules/notification/notification.service';
 import { sendPush } from '@/modules/notification/push.service';
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
 import { MAX_TAGGED_PRODUCTS } from '@/modules/feed/feed.types';
+import { extractHashtags, extractMentions, isValidHashtag } from '@/modules/feed/feed.text';
 import type {
   CommentView,
+  HashtagView,
   PostAuthorView,
   PostView,
   TaggedProductView,
@@ -79,6 +81,7 @@ function postSelect(viewerId: string) {
     products: {
       select: {
         sortOrder: true,
+        clickCount: true,
         product: {
           select: {
             id: true,
@@ -93,14 +96,22 @@ function postSelect(viewerId: string) {
       },
       orderBy: { sortOrder: 'asc' },
     },
+    /** Mavzular — matnda ko'k rangda, ro'yxatda qidiruv uchun. */
+    hashtags: {
+      select: { hashtag: { select: { tag: true } } },
+      orderBy: { hashtag: { tag: 'asc' } },
+    },
     likeCount: true,
     commentCount: true,
+    shareCount: true,
     createdAt: true,
     editedAt: true,
     deletedAt: true,
     authorId: true,
     author: { select: AUTHOR_SELECT },
     likes: { where: { userId: viewerId }, select: { id: true }, take: 1 },
+    /** Yoqtirish kabi: faqat SO'RAGAN odamning saqlashi tekshiriladi. */
+    saves: { where: { userId: viewerId }, select: { id: true }, take: 1 },
   } as const;
 }
 
@@ -117,15 +128,18 @@ type PostRow = Prisma.PostGetPayload<{ select: ReturnType<typeof postSelect> }>;
  * Video esa o'z joyida qoladi: u mahsulotsiz ham qiziqarli
  * bo'lishi mumkin.
  */
-function toTaggedProduct(row: {
-  id: string;
-  name: string;
-  slug: string;
-  price: bigint;
-  isActive: boolean;
-  stock: number;
-  shop: { name: string; isActive: boolean };
-}): TaggedProductView {
+function toTaggedProduct(
+  row: {
+    id: string;
+    name: string;
+    slug: string;
+    price: bigint;
+    isActive: boolean;
+    stock: number;
+    shop: { name: string; isActive: boolean };
+  },
+  clickCount: number,
+): TaggedProductView {
   return {
     id: row.id,
     name: row.name,
@@ -133,10 +147,13 @@ function toTaggedProduct(row: {
     priceTiyin: Number(row.price),
     shopName: row.shop.name,
     isAvailable: row.isActive && row.shop.isActive && row.stock > 0,
+    clickCount,
   };
 }
 
 function toPostView(row: PostRow, viewerId: string): PostView {
+  const isMine = row.authorId === viewerId;
+
   return {
     id: row.id,
     // O'chirilgan postning MATNI yuborilmaydi — u brauzerda ko'rinib qolmasligi kerak.
@@ -146,15 +163,27 @@ function toPostView(row: PostRow, viewerId: string): PostView {
     videoUrl: row.deletedAt ? null : row.videoUrl,
     videoPosterUrl: row.deletedAt ? null : row.videoPosterUrl,
     videoSeconds: row.deletedAt ? null : row.videoSeconds,
-    products: row.deletedAt ? [] : row.products.map((link) => toTaggedProduct(link.product)),
+    products: row.deletedAt
+      ? []
+      : /**
+         * Bosishlar soni FAQAT postning egasiga yuboriladi.
+         *
+         * Begonaga `0` ketadi — ya'ni raqam brauzerga umuman
+         * yetib bormaydi. Uni faqat ekranda yashirish yetarli
+         * emasdi: so'rov javobini ko'rish oson.
+         */
+        row.products.map((link) => toTaggedProduct(link.product, isMine ? link.clickCount : 0)),
     viewCount: row.viewCount,
+    hashtags: row.deletedAt ? [] : row.hashtags.map((link) => link.hashtag.tag),
     author: toAuthorView(row.author),
     createdAt: row.createdAt.toISOString(),
     editedAt: row.editedAt?.toISOString() ?? null,
     likeCount: row.likeCount,
     commentCount: row.commentCount,
+    shareCount: row.shareCount,
     isLiked: row.likes.length > 0,
-    isMine: row.authorId === viewerId,
+    isSaved: row.saves.length > 0,
+    isMine,
     isDeleted: row.deletedAt !== null,
   };
 }
@@ -388,24 +417,32 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
     }
   }
 
-  const row = await prisma.post.create({
-    data: {
-      authorId,
-      body: data.body,
-      imageUrl: data.imageUrl ?? null,
-      videoUrl: data.videoUrl ?? null,
-      videoPosterUrl: data.videoPosterUrl ?? null,
-      videoSeconds: data.videoSeconds ?? null,
-      // Tartib odam tanlagan tartibda saqlanadi.
-      products: { create: productIds.map((id, index) => ({ productId: id, sortOrder: index })) },
-    },
-    select: postSelect(authorId),
+  const row = await prisma.$transaction(async (tx) => {
+    const created = await tx.post.create({
+      data: {
+        authorId,
+        body: data.body,
+        imageUrl: data.imageUrl ?? null,
+        videoUrl: data.videoUrl ?? null,
+        videoPosterUrl: data.videoPosterUrl ?? null,
+        videoSeconds: data.videoSeconds ?? null,
+        // Tartib odam tanlagan tartibda saqlanadi.
+        products: { create: productIds.map((id, index) => ({ productId: id, sortOrder: index })) },
+      },
+      select: { id: true },
+    });
+
+    await syncHashtags(tx, created.id, data.body);
+
+    return tx.post.findUniqueOrThrow({ where: { id: created.id }, select: postSelect(authorId) });
   });
 
   logger.info(
     { authorId, postId: row.id, hasVideo: Boolean(data.videoUrl), products: productIds.length },
     'Yangi post',
   );
+
+  void notifyMentioned(authorId, row.id, data.body);
 
   return toPostView(row, authorId);
 }
@@ -454,10 +491,17 @@ export async function updatePost(postId: string, userId: string, body: string): 
     throw new ConflictError("Post bo'sh qololmaydi: matn yozing yoki postni o'chiring.");
   }
 
-  const row = await prisma.post.update({
-    where: { id: postId },
-    data: { body: body.trim(), editedAt: new Date() },
-    select: postSelect(userId),
+  const row = await prisma.$transaction(async (tx) => {
+    await tx.post.update({
+      where: { id: postId },
+      data: { body: body.trim(), editedAt: new Date() },
+      select: { id: true },
+    });
+
+    // Matn o'zgardi — mavzular ham qayta hisoblanadi.
+    await syncHashtags(tx, postId, body);
+
+    return tx.post.findUniqueOrThrow({ where: { id: postId }, select: postSelect(userId) });
   });
 
   logger.info({ userId, postId }, 'Post tahrirlandi');
@@ -512,15 +556,26 @@ export async function deletePost(postId: string, userId: string): Promise<void> 
    * `deletedAt` ni QAYTA yozardi va o'chirilgan vaqt haqiqatdan
    * ajralib qolardi.
    */
-  const claimed = await prisma.post.updateMany({
-    where: { id: postId, deletedAt: null },
-    // Rasm manzili ham tozalanadi — faylning o'zi quyida o'chiriladi.
-    data: { deletedAt: new Date(), imageUrl: null },
-  });
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.post.updateMany({
+      where: { id: postId, deletedAt: null },
+      // Rasm manzili ham tozalanadi — faylning o'zi quyida o'chiriladi.
+      data: { deletedAt: new Date(), imageUrl: null },
+    });
 
-  if (claimed.count === 0) {
-    throw new NotFoundError('Post');
-  }
+    if (claimed.count === 0) {
+      throw new NotFoundError('Post');
+    }
+
+    /**
+     * Mavzu bog'lanishlari ham uziladi.
+     *
+     * Aks holda "#poyabzal" ro'yxatida o'chirilgan postlar sanalib
+     * turardi: mavzuda "12 ta post" deb yozilardi-yu, ochilganda
+     * beshtasi ko'rinardi.
+     */
+    await syncHashtags(tx, postId, '');
+  });
 
   /**
    * Rasm FAYLI ham o'chiriladi.
@@ -577,6 +632,134 @@ export async function markVideoViewed(postId: string, viewerId: string): Promise
      */
     return;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Mavzular (xeshteg)
+// ─────────────────────────────────────────────────────────────────────
+
+/** Tranzaksiya ichidagi Prisma mijozi. */
+type TxClient = Prisma.TransactionClient;
+
+/**
+ * Post matnidagi mavzularni bazaga moslashtiradi.
+ *
+ * ── Nima uchun "moslashtirish", oddiy qo'shish emas ───────────────────
+ * Post tahrirlanganda mavzu qo'shilishi ham, olib tashlanishi ham
+ * mumkin. Faqat qo'shsak, olib tashlangan mavzu bazada qolib,
+ * "#poyabzal" ro'yxatida umuman aloqasiz post ko'rinardi.
+ *
+ * ── Nima uchun `postCount` alohida saqlanadi ──────────────────────────
+ * Har safar sanash mumkin edi, lekin "mashhur mavzular" ro'yxati
+ * lentaning har ochilishida chiziladi va u paytda o'nlab mavzuni
+ * sanash kerak bo'lardi.
+ */
+async function syncHashtags(tx: TxClient, postId: string, body: string): Promise<void> {
+  const wanted = extractHashtags(body);
+
+  const current = await tx.postHashtag.findMany({
+    where: { postId },
+    select: { hashtagId: true, hashtag: { select: { tag: true } } },
+  });
+
+  const currentTags = current.map((link) => link.hashtag.tag);
+  const toRemove = current.filter((link) => !wanted.includes(link.hashtag.tag));
+  const toAdd = wanted.filter((tag) => !currentTags.includes(tag));
+
+  if (toRemove.length > 0) {
+    const removeIds = toRemove.map((link) => link.hashtagId);
+
+    await tx.postHashtag.deleteMany({ where: { postId, hashtagId: { in: removeIds } } });
+    await tx.hashtag.updateMany({
+      where: { id: { in: removeIds } },
+      data: { postCount: { decrement: 1 } },
+    });
+  }
+
+  if (toAdd.length === 0) return;
+
+  /**
+   * `skipDuplicates` — poyga uchun.
+   *
+   * Ikki odam bir vaqtda `#yangi` yozgan bo'lsa, ikkalasi ham
+   * "bunday mavzu yo'q" deb ko'rib, ikkalasi ham yaratishga
+   * urinadi. Bittasi xato olardi — `skipDuplicates` bilan esa
+   * ikkalasi ham muvaffaqiyatli tugaydi.
+   */
+  await tx.hashtag.createMany({
+    data: toAdd.map((tag) => ({ tag })),
+    skipDuplicates: true,
+  });
+
+  const rows = await tx.hashtag.findMany({ where: { tag: { in: toAdd } }, select: { id: true } });
+
+  await tx.postHashtag.createMany({
+    data: rows.map((row) => ({ postId, hashtagId: row.id })),
+    skipDuplicates: true,
+  });
+
+  await tx.hashtag.updateMany({
+    where: { id: { in: rows.map((row) => row.id) } },
+    data: { postCount: { increment: 1 } },
+  });
+}
+
+/**
+ * Mashhur mavzular.
+ *
+ * Postsiz qolgan mavzular ko'rsatilmaydi: ular post o'chirilganda
+ * paydo bo'ladi va ro'yxatni bo'sh havolalar bilan to'ldirardi.
+ */
+export async function listTrendingHashtags(limit = 12): Promise<HashtagView[]> {
+  const rows = await prisma.hashtag.findMany({
+    where: { postCount: { gt: 0 } },
+    orderBy: [{ postCount: 'desc' }, { tag: 'asc' }],
+    take: limit,
+    select: { tag: true, postCount: true },
+  });
+
+  return rows.map((row) => ({ tag: row.tag, postCount: row.postCount }));
+}
+
+/**
+ * Bitta mavzudagi postlar.
+ *
+ * ── Nima uchun bloklash bu yerda ham tekshiriladi ────────────────────
+ * Mavzu sahifasi lentani chetlab o'tadigan ikkinchi yo'l. Bu yerda
+ * tekshirilmasa, bloklagan odam o'zi bloklagan odamning postlarini
+ * mavzu orqali bemalol ko'rardi.
+ */
+export async function listPostsByHashtag(
+  tag: string,
+  viewerId: string,
+  cursor?: string,
+  limit = 20,
+): Promise<{ posts: PostView[]; nextCursor: string | null }> {
+  if (!isValidHashtag(tag)) {
+    throw new NotFoundError('Mavzu');
+  }
+
+  const hidden = await blockedUserIds(viewerId);
+
+  const rows = await prisma.post.findMany({
+    where: {
+      ...LIVE_AUTHOR,
+      ...olderThan(cursor),
+      hashtags: { some: { hashtag: { tag: tag.toLowerCase() } } },
+      ...(hidden.length > 0 ? { authorId: { notIn: hidden } } : {}),
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit + 1,
+    select: postSelect(viewerId),
+  });
+
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+
+  return {
+    posts: page.map((row) => toPostView(row, viewerId)),
+    nextCursor: hasMore && page.length > 0 ? buildCursor(page[page.length - 1]) : null,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -670,6 +853,37 @@ export async function unlikePost(
 // Izohlar
 // ─────────────────────────────────────────────────────────────────────
 
+/** Izohni o'qishda kerak bo'ladigan maydonlar. */
+function commentSelect(viewerId: string) {
+  return {
+    id: true,
+    body: true,
+    createdAt: true,
+    authorId: true,
+    parentId: true,
+    likeCount: true,
+    replyCount: true,
+    author: { select: AUTHOR_SELECT },
+    likes: { where: { userId: viewerId }, select: { id: true }, take: 1 },
+  } as const;
+}
+
+type CommentRow = Prisma.PostCommentGetPayload<{ select: ReturnType<typeof commentSelect> }>;
+
+function toCommentView(row: CommentRow, viewerId: string): CommentView {
+  return {
+    id: row.id,
+    body: row.body,
+    author: toAuthorView(row.author),
+    createdAt: row.createdAt.toISOString(),
+    isMine: row.authorId === viewerId,
+    parentId: row.parentId,
+    likeCount: row.likeCount,
+    isLiked: row.likes.length > 0,
+    replyCount: row.replyCount,
+  };
+}
+
 export async function listComments(
   postId: string,
   viewerId: string,
@@ -683,15 +897,16 @@ export async function listComments(
       postId,
       deletedAt: null,
       author: { deletedAt: null, status: { not: 'SUSPENDED' } },
+      /**
+       * Javoblar asosiy ro'yxatga ARALASHMAYDI.
+       *
+       * `parentId` berilmasa faqat asosiy izohlar chiqadi; berilsa —
+       * faqat o'sha izohning javoblari.
+       */
+      parentId: query.parentId ?? null,
       ...newerThan(query.cursor),
     },
-    select: {
-      id: true,
-      body: true,
-      createdAt: true,
-      authorId: true,
-      author: { select: AUTHOR_SELECT },
-    },
+    select: commentSelect(viewerId),
     // Izohlar suhbat kabi o'qiladi: eskisidan yangisiga.
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     take: query.limit + 1,
@@ -701,49 +916,161 @@ export async function listComments(
   const page = hasMore ? rows.slice(0, query.limit) : rows;
 
   return {
-    comments: page.map((row) => ({
-      id: row.id,
-      body: row.body,
-      author: toAuthorView(row.author),
-      createdAt: row.createdAt.toISOString(),
-      isMine: row.authorId === viewerId,
-    })),
+    comments: page.map((row) => toCommentView(row, viewerId)),
     nextCursor: hasMore && page.length > 0 ? buildCursor(page[page.length - 1]) : null,
   };
 }
 
-export async function addComment(postId: string, authorId: string, body: string): Promise<CommentView> {
+export async function addComment(
+  postId: string,
+  authorId: string,
+  body: string,
+  parentId?: string,
+): Promise<CommentView> {
   const post = await requireLivePost(postId, authorId);
 
-  const [comment] = await prisma.$transaction([
-    prisma.postComment.create({
-      data: { postId, authorId, body },
-      select: {
-        id: true,
-        body: true,
-        createdAt: true,
-        authorId: true,
-        author: { select: AUTHOR_SELECT },
-      },
-    }),
-    prisma.post.update({
+  /**
+   * Javob doim ASOSIY izohga biriktiriladi.
+   *
+   * Odam javobga javob yozsa, uning `parentId` si o'sha javobning
+   * emas, uning otasining ID si bo'ladi. Aks holda suhbat
+   * cheksiz chuqurlashib, telefon ekranida o'qib bo'lmas holga
+   * kelardi (YouTube ham aynan shunday qiladi).
+   */
+  let rootId: string | null = null;
+
+  if (parentId) {
+    const parent = await prisma.postComment.findFirst({
+      where: { id: parentId, postId, deletedAt: null },
+      select: { id: true, parentId: true },
+    });
+
+    if (!parent) {
+      throw new NotFoundError('Izoh');
+    }
+
+    rootId = parent.parentId ?? parent.id;
+  }
+
+  const comment = await prisma.$transaction(async (tx) => {
+    const created = await tx.postComment.create({
+      data: { postId, authorId, body, parentId: rootId },
+      select: commentSelect(authorId),
+    });
+
+    await tx.post.update({
       where: { id: postId },
       data: { commentCount: { increment: 1 } },
       select: { id: true },
-    }),
-  ]);
+    });
 
-  if (post.authorId !== authorId) {
+    if (rootId) {
+      await tx.postComment.update({
+        where: { id: rootId },
+        data: { replyCount: { increment: 1 } },
+        select: { id: true },
+      });
+    }
+
+    return created;
+  });
+
+  if (rootId) {
+    void notifyCommentReplied(rootId, postId, authorId, body);
+  } else if (post.authorId !== authorId) {
     void notifyPostCommented(post.authorId, postId, authorId, body);
   }
 
-  return {
-    id: comment.id,
-    body: comment.body,
-    author: toAuthorView(comment.author),
-    createdAt: comment.createdAt.toISOString(),
-    isMine: true,
-  };
+  void notifyMentioned(authorId, postId, body);
+
+  return toCommentView(comment, authorId);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Izohni yoqtirish
+// ─────────────────────────────────────────────────────────────────────
+
+/** Izoh mavjud va ko'rish mumkinmi. */
+async function requireLiveComment(
+  commentId: string,
+  viewerId: string,
+): Promise<{ id: string; postId: string; authorId: string }> {
+  const comment = await prisma.postComment.findFirst({
+    where: { id: commentId, deletedAt: null },
+    select: { id: true, postId: true, authorId: true },
+  });
+
+  if (!comment) {
+    throw new NotFoundError('Izoh');
+  }
+
+  // Postni ko'ra olmaydigan odam uning izohiga ham tegina olmaydi.
+  await requireLivePost(comment.postId, viewerId);
+
+  return comment;
+}
+
+export async function likeComment(
+  commentId: string,
+  userId: string,
+): Promise<{ isLiked: boolean; likeCount: number }> {
+  const comment = await requireLiveComment(commentId, userId);
+
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.commentLike.create({ data: { commentId, userId } });
+
+      return tx.postComment.update({
+        where: { id: commentId },
+        data: { likeCount: { increment: 1 } },
+        select: { likeCount: true },
+      });
+    });
+
+    if (comment.authorId !== userId) {
+      void notifyCommentLiked(comment.authorId, comment.postId, userId);
+    }
+
+    return { isLiked: true, likeCount: updated.likeCount };
+  } catch (error) {
+    // Allaqachon yoqtirilgan — postdagi bilan bir xil qoida.
+    const isDuplicate = error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+
+    if (!isDuplicate) throw error;
+
+    const current = await prisma.postComment.findUnique({
+      where: { id: commentId },
+      select: { likeCount: true },
+    });
+
+    return { isLiked: true, likeCount: current?.likeCount ?? 0 };
+  }
+}
+
+export async function unlikeComment(
+  commentId: string,
+  userId: string,
+): Promise<{ isLiked: boolean; likeCount: number }> {
+  await requireLiveComment(commentId, userId);
+
+  const removed = await prisma.commentLike.deleteMany({ where: { commentId, userId } });
+
+  if (removed.count === 0) {
+    const current = await prisma.postComment.findUnique({
+      where: { id: commentId },
+      select: { likeCount: true },
+    });
+
+    return { isLiked: false, likeCount: current?.likeCount ?? 0 };
+  }
+
+  const updated = await prisma.postComment.update({
+    where: { id: commentId },
+    data: { likeCount: { decrement: 1 } },
+    select: { likeCount: true },
+  });
+
+  return { isLiked: false, likeCount: updated.likeCount };
 }
 
 /**
@@ -757,7 +1084,14 @@ export async function addComment(postId: string, authorId: string, body: string)
 export async function deleteComment(commentId: string, userId: string): Promise<void> {
   const comment = await prisma.postComment.findUnique({
     where: { id: commentId },
-    select: { id: true, postId: true, authorId: true, deletedAt: true, post: { select: { authorId: true } } },
+    select: {
+      id: true,
+      postId: true,
+      authorId: true,
+      parentId: true,
+      deletedAt: true,
+      post: { select: { authorId: true } },
+    },
   });
 
   if (!comment || comment.deletedAt) {
@@ -787,23 +1121,208 @@ export async function deleteComment(commentId: string, userId: string): Promise<
    * tushunarli bo'ladi.
    */
   await prisma.$transaction(async (tx) => {
+    const now = new Date();
+
     const claimed = await tx.postComment.updateMany({
       where: { id: commentId, deletedAt: null },
-      data: { deletedAt: new Date() },
+      data: { deletedAt: now },
     });
 
     if (claimed.count === 0) {
       throw new NotFoundError('Izoh');
     }
 
+    /**
+     * Asosiy izoh o'chirilsa — JAVOBLARI ham o'chadi.
+     *
+     * Aks holda javoblar otasiz qolardi: ular ro'yxatda umuman
+     * ko'rinmaydi (chunki ro'yxat asosiy izohlar bo'yicha
+     * quriladi), lekin `commentCount` da sanalib turardi va
+     * "12 ta izoh" yozuvi ostida 4 tasi ko'rinardi.
+     */
+    const replies = comment.parentId
+      ? { count: 0 }
+      : await tx.postComment.updateMany({
+          where: { parentId: commentId, deletedAt: null },
+          data: { deletedAt: now },
+        });
+
     await tx.post.update({
       where: { id: comment.postId },
-      data: { commentCount: { decrement: 1 } },
+      data: { commentCount: { decrement: 1 + replies.count } },
       select: { id: true },
     });
+
+    // Javob o'chirilsa — otasidagi javoblar soni kamayadi.
+    if (comment.parentId) {
+      await tx.postComment.update({
+        where: { id: comment.parentId },
+        data: { replyCount: { decrement: 1 } },
+        select: { id: true },
+      });
+    }
   });
 
   logger.info({ userId, commentId, byPostAuthor: isPostAuthor && !isCommentAuthor }, "Izoh o'chirildi");
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Saqlash (keyin ko'raman)
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Postni saqlaydi.
+ *
+ * ── Nima uchun muallifga XABAR bermaydi ──────────────────────────────
+ * Saqlash — shaxsiy belgi: "buni keyin ko'raman" yoki "buni sotib
+ * olaman". Muallif buni bilsa, odam saqlashdan tortinardi.
+ */
+export async function savePost(postId: string, userId: string): Promise<{ isSaved: boolean }> {
+  await requireLivePost(postId, userId);
+
+  try {
+    await prisma.postSave.create({ data: { postId, userId } });
+  } catch (error) {
+    // Ikki marta bosilgan — natija baribir kerakli holat.
+    const isDuplicate = error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+
+    if (!isDuplicate) throw error;
+  }
+
+  return { isSaved: true };
+}
+
+export async function unsavePost(postId: string, userId: string): Promise<{ isSaved: boolean }> {
+  /**
+   * Bu yerda post TEKSHIRILMAYDI.
+   *
+   * Muallif postni o'chirgan bo'lishi mumkin, lekin u hali ham
+   * mening "saqlanganlarim"da turadi. Tekshirsak, uni ro'yxatdan
+   * olib tashlashning iloji qolmasdi.
+   */
+  await prisma.postSave.deleteMany({ where: { postId, userId } });
+
+  return { isSaved: false };
+}
+
+/**
+ * Saqlangan postlar — oxirgi saqlangani birinchi.
+ *
+ * ── Nima uchun POST vaqti emas, SAQLASH vaqti bo'yicha ───────────────
+ * Odam bir yillik postni bugun saqlashi mumkin. Post vaqti bo'yicha
+ * tartiblansa, u ro'yxatning eng tubida paydo bo'lardi va odam uni
+ * umuman topa olmasdi.
+ */
+export async function listSavedPosts(
+  userId: string,
+  cursor?: string,
+  limit = 20,
+): Promise<{ posts: PostView[]; nextCursor: string | null }> {
+  const rows = await prisma.postSave.findMany({
+    where: {
+      userId,
+      ...(cursor
+        ? (() => {
+            const { createdAt, id } = parseCursor(cursor);
+
+            return { OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: id } }] };
+          })()
+        : {}),
+      // O'chirilgan post saqlanganlar ro'yxatida ham ko'rinmaydi.
+      post: LIVE_AUTHOR,
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit + 1,
+    select: { id: true, createdAt: true, post: { select: postSelect(userId) } },
+  });
+
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+
+  return {
+    posts: page.map((row) => toPostView(row.post, userId)),
+    nextCursor: hasMore && page.length > 0 ? buildCursor(page[page.length - 1]) : null,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Ulashish
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Ulashishni sanaydi.
+ *
+ * ── Nima uchun "kim ulashdi" saqlanmaydi ─────────────────────────────
+ * Ulashish brauzerda bajariladi: havola nusxalanadi yoki Telegramga
+ * uzatiladi. Bizga faqat SON kerak — u muallifga "bu post tarqalyapti"
+ * degan belgi beradi.
+ *
+ * O'z postini ulashish ham sanaladi: muallif havolani tarqatishi —
+ * bu ham haqiqiy ulashish.
+ */
+export async function markShared(postId: string, viewerId: string): Promise<{ shareCount: number }> {
+  await requireLivePost(postId, viewerId);
+
+  const updated = await prisma.post.update({
+    where: { id: postId },
+    data: { shareCount: { increment: 1 } },
+    select: { shareCount: true },
+  });
+
+  return { shareCount: updated.shareCount };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Mahsulot tugmasi bosilishi
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Bosishlar soni qaysi qiymatlarda muallifga XABAR beriladi.
+ *
+ * ── Nima uchun har bosishda emas ─────────────────────────────────────
+ * Mashhur videoda kuniga yuzlab bosish bo'lishi mumkin. Har biri
+ * uchun xabar kelsa, odam bildirishnomalarni butunlay o'chirib
+ * qo'yardi va MUHIM xabarlarni ham yo'qotardi.
+ *
+ * Bosqichlar esa haqiqiy yangilik beradi: "10 marta bosildi" —
+ * bu video ishlayotganini bildiradi.
+ */
+const CLICK_MILESTONES: readonly number[] = [1, 10, 50, 100, 500, 1_000];
+
+/**
+ * Videodagi mahsulot tugmasi bosilganini yozadi.
+ *
+ * ── Nima uchun O'Z bosishi sanalmaydi ────────────────────────────────
+ * Ko'rishlar bilan bir xil sabab: muallif o'z tugmasini bosib,
+ * sonni ko'tarib qo'ymasligi kerak.
+ */
+export async function markProductClicked(
+  postId: string,
+  productId: string,
+  viewerId: string,
+): Promise<void> {
+  const post = await prisma.post.findFirst({
+    where: { id: postId, deletedAt: null },
+    select: { id: true, authorId: true },
+  });
+
+  if (!post || post.authorId === viewerId) return;
+
+  const updated = await prisma.postProduct.updateMany({
+    where: { postId, productId },
+    data: { clickCount: { increment: 1 } },
+  });
+
+  if (updated.count === 0) return;
+
+  const link = await prisma.postProduct.findUnique({
+    where: { postId_productId: { postId, productId } },
+    select: { clickCount: true, product: { select: { name: true } } },
+  });
+
+  if (!link || !CLICK_MILESTONES.includes(link.clickCount)) return;
+
+  void notifyProductClicked(post.authorId, postId, link.product.name, link.clickCount);
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -877,5 +1396,99 @@ async function notifyPostCommented(
     });
   } catch (error) {
     logger.warn({ err: error, authorId }, "Izoh haqida xabar yuborib bo'lmadi");
+  }
+}
+
+/**
+ * Izohga javob haqida xabar — izoh MUALLIFIGA.
+ *
+ * Post egasiga alohida xabar YUBORILMAYDI: aks holda o'z postidagi
+ * har bir javob uchun ikkita xabar kelardi.
+ */
+async function notifyCommentReplied(
+  rootCommentId: string,
+  postId: string,
+  replierId: string,
+  body: string,
+): Promise<void> {
+  try {
+    const root = await prisma.postComment.findUnique({
+      where: { id: rootCommentId },
+      select: { authorId: true },
+    });
+
+    if (!root || root.authorId === replierId) return;
+
+    const actor = await actorName(replierId);
+
+    await notifyUser(root.authorId, 'feed.comment_replied', {
+      postId,
+      actorName: actor.name,
+      preview: body.length > 80 ? `${body.slice(0, 80)}…` : body,
+    });
+  } catch (error) {
+    logger.warn({ err: error, rootCommentId }, "Javob haqida xabar yuborib bo'lmadi");
+  }
+}
+
+/** Izoh yoqtirilgani haqida xabar — push yo'q, yoqtirish bilan bir xil sabab. */
+async function notifyCommentLiked(authorId: string, postId: string, likerId: string): Promise<void> {
+  try {
+    const actor = await actorName(likerId);
+
+    await notifyUser(authorId, 'feed.comment_liked', { postId, actorName: actor.name });
+  } catch (error) {
+    logger.warn({ err: error, authorId }, "Izoh yoqtirilgani haqida xabar yuborib bo'lmadi");
+  }
+}
+
+/**
+ * Matnda eslangan odamlarga xabar.
+ *
+ * ── Nima uchun nom bazadan TEKSHIRILADI ──────────────────────────────
+ * Matnda `@hechkim` deb yozish mumkin. Tekshirilmasa, har bir
+ * yo'q nom uchun bo'sh so'rov ketardi.
+ *
+ * ── Nima uchun soni CHEKLANGAN ───────────────────────────────────────
+ * Bitta postda 50 ta odamni eslab, ularning hammasiga xabar
+ * yuborish — spamning eng oson yo'li.
+ */
+const MAX_MENTION_NOTIFICATIONS = 5;
+
+async function notifyMentioned(actorId: string, postId: string, body: string): Promise<void> {
+  try {
+    const usernames = extractMentions(body).slice(0, MAX_MENTION_NOTIFICATIONS);
+
+    if (usernames.length === 0) return;
+
+    const profiles = await prisma.userProfile.findMany({
+      where: { username: { in: usernames }, user: { deletedAt: null, status: { not: 'SUSPENDED' } } },
+      select: { userId: true },
+    });
+
+    const actor = await actorName(actorId);
+
+    for (const profile of profiles) {
+      // O'zini eslash — xabar kerak emas.
+      if (profile.userId === actorId) continue;
+
+      await notifyUser(profile.userId, 'feed.mentioned', { postId, actorName: actor.name });
+    }
+  } catch (error) {
+    logger.warn({ err: error, postId }, "Eslash haqida xabar yuborib bo'lmadi");
+  }
+}
+
+/** Mahsulot tugmasi bosilgani haqida xabar — bosqichlarda. */
+async function notifyProductClicked(
+  authorId: string,
+  postId: string,
+  productName: string,
+  clickCount: number,
+): Promise<void> {
+  try {
+    await notifyUser(authorId, 'feed.product_clicked', { postId, productName, clickCount });
+  } catch (error) {
+    logger.warn({ err: error, authorId }, "Bosish haqida xabar yuborib bo'lmadi");
   }
 }

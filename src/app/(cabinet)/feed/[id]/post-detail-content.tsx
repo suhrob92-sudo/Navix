@@ -1,14 +1,13 @@
 'use client';
 
-import { MessageCircle, Send, Trash2 } from 'lucide-react';
-import Link from 'next/link';
+import { MessageCircle, Send } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { CommentItem } from '@/components/feed/comment-item';
 import { PostCard } from '@/components/feed/post-card';
 import { Alert } from '@/components/ui/alert';
-import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -17,13 +16,7 @@ import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { useCursorList } from '@/hooks/use-cursor-list';
 import { usePostActions } from '@/hooks/use-post-actions';
 import { toUserMessage } from '@/lib/api-client';
-import { formatRelativeUz } from '@/lib/date';
-import {
-  authorDisplayName,
-  COMMENT_MAX_LENGTH,
-  type CommentView,
-  type PostResponse,
-} from '@/modules/feed/feed.types';
+import { COMMENT_MAX_LENGTH, type CommentView, type PostResponse } from '@/modules/feed/feed.types';
 
 export interface PostDetailContentProps {
   postId: string;
@@ -47,7 +40,6 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
   const [body, setBody] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const post = data?.post ?? null;
 
@@ -74,6 +66,15 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
     });
   });
 
+  /** Postdagi izohlar sonini o'zgartiradi (javob va o'chirish uchun). */
+  function bumpCommentCount(delta: number) {
+    setData((current) =>
+      current
+        ? { post: { ...current.post, commentCount: Math.max(0, current.post.commentCount + delta) } }
+        : current!,
+    );
+  }
+
   async function sendComment() {
     const trimmed = body.trim();
 
@@ -90,34 +91,12 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
 
       // Izohlar eskisidan yangisiga — yangisi OXIRGA qo'shiladi.
       comments.setItems((current) => [...current, result.comment]);
-      setData((current) =>
-        current ? { post: { ...current.post, commentCount: current.post.commentCount + 1 } } : current!,
-      );
+      bumpCommentCount(1);
       setBody('');
     } catch (caught) {
       setActionError(toUserMessage(caught));
     } finally {
       setIsSending(false);
-    }
-  }
-
-  async function removeComment(commentId: string) {
-    setRemovingId(commentId);
-    setActionError(null);
-
-    try {
-      await request(`/api/v1/posts/${postId}/comments/${commentId}`, { method: 'DELETE' });
-
-      comments.setItems((current) => current.filter((item) => item.id !== commentId));
-      setData((current) =>
-        current
-          ? { post: { ...current.post, commentCount: Math.max(0, current.post.commentCount - 1) } }
-          : current!,
-      );
-    } catch (caught) {
-      setActionError(toUserMessage(caught));
-    } finally {
-      setRemovingId(null);
     }
   }
 
@@ -144,6 +123,10 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
               isDetail
               isBusy={actions.busyPostId === post.id}
               onToggleLike={() => actions.toggleLike(post)}
+              onDoubleTapLike={() => actions.likeOnly(post)}
+              onToggleSave={() => actions.toggleSave(post)}
+              onShared={() => void actions.sharePost(post)}
+              onProductClick={(productId) => actions.trackProductClick(post.id, productId)}
               onEdit={(body) => actions.editPost(post.id, body)}
               onDelete={() => actions.deletePost(post.id)}
               onReport={(reason, note) => actions.reportPost(post.id, reason, note)}
@@ -207,47 +190,22 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
               )}
 
               {comments.items.map((comment) => (
-                <div
+                <CommentItem
                   key={comment.id}
-                  className="bg-card border-border animate-fade-up flex items-start gap-3 rounded-2xl border p-3"
-                >
-                  <Link href={`/u/${comment.author.username}`} className="shrink-0">
-                    <Avatar src={comment.author.avatarUrl} name={comment.author.fullName} size="sm" />
-                  </Link>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline gap-2">
-                      <Link
-                        href={`/u/${comment.author.username}`}
-                        className="truncate text-xs font-semibold hover:underline"
-                      >
-                        {authorDisplayName(comment.author)}
-                      </Link>
-                      <span className="text-muted-foreground shrink-0 text-xs">
-                        {formatRelativeUz(comment.createdAt)}
-                      </span>
-                    </div>
-
-                    <p className="mt-1 text-sm leading-relaxed break-words whitespace-pre-wrap">{comment.body}</p>
-                  </div>
-
-                  {/*
-                    Izohni muallifi ham, POST EGASI ham o'chira oladi:
-                    o'z postidagi haqoratli izohni olib tashlash uchun
-                    moderatorni kutish kerak bo'lmasligi kerak.
-                  */}
-                  {(comment.isMine || post.isMine) && (
-                    <button
-                      type="button"
-                      aria-label="Izohni o'chirish"
-                      disabled={removingId === comment.id}
-                      onClick={() => void removeComment(comment.id)}
-                      className="text-muted-foreground hover:text-destructive -m-1 shrink-0 rounded-lg p-1 transition-colors disabled:opacity-60"
-                    >
-                      <Trash2 className="size-3.5" aria-hidden="true" />
-                    </button>
-                  )}
-                </div>
+                  postId={postId}
+                  comment={comment}
+                  isPostOwner={post.isMine}
+                  onChanged={(updated) =>
+                    comments.setItems((current) =>
+                      current.map((item) => (item.id === updated.id ? updated : item)),
+                    )
+                  }
+                  onDeleted={(commentId, removed) => {
+                    comments.setItems((current) => current.filter((item) => item.id !== commentId));
+                    bumpCommentCount(-removed);
+                  }}
+                  onReplyAdded={() => bumpCommentCount(1)}
+                />
               ))}
 
               {comments.hasMore && (

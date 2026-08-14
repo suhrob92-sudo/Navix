@@ -1,12 +1,13 @@
 'use client';
 
-import { Clapperboard, Newspaper, Users } from 'lucide-react';
+import { Bookmark, Clapperboard, Newspaper, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
-import { PostCard } from '@/components/feed/post-card';
 import { PostComposer, type ComposerDraft } from '@/components/feed/post-composer';
+import { PostList } from '@/components/feed/post-list';
+import { TrendingHashtags } from '@/components/feed/trending-hashtags';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -105,6 +106,12 @@ export function FeedContent() {
             </Link>
           </Button>
 
+          <Button asChild variant="outline" size="sm" className="shrink-0">
+            <Link href="/feed/saved" aria-label="Saqlanganlar">
+              <Bookmark className="size-4" aria-hidden="true" />
+            </Link>
+          </Button>
+
           {FEED_TABS.map((item) => (
             <button
               key={item.value}
@@ -122,6 +129,8 @@ export function FeedContent() {
             </button>
           ))}
         </div>
+
+        <TrendingHashtags />
 
         {actions.error && <Alert variant="error">{actions.error}</Alert>}
 
@@ -160,24 +169,7 @@ export function FeedContent() {
           />
         )}
 
-        <div className="space-y-3">
-          {list.items.map((post, index) => (
-            <div
-              key={post.id}
-              className="animate-fade-up"
-              style={{ animationDelay: `${Math.min(index, 8) * 25}ms` }}
-            >
-              <PostCard
-                post={post}
-                isBusy={actions.busyPostId === post.id}
-                onToggleLike={() => actions.toggleLike(post)}
-                onEdit={(body) => actions.editPost(post.id, body)}
-                onDelete={() => actions.deletePost(post.id)}
-                onReport={(reason, note) => actions.reportPost(post.id, reason, note)}
-              />
-            </div>
-          ))}
-        </div>
+        <PostList posts={list.items} actions={actions} />
 
         {list.hasMore && (
           <Button

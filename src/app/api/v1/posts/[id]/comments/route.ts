@@ -33,7 +33,7 @@ export const POST = withApiHandler<Params>(async (request: NextRequest, { reques
 
   await enforcePublicRateLimit('postComment', auth.userId, "Juda ko'p izoh yozyapsiz. Biroz kuting.");
 
-  const comment = await addComment(id, auth.userId, input.body);
+  const comment = await addComment(id, auth.userId, input.body, input.parentId);
 
   return apiSuccess({ comment }, { requestId, status: 201 });
 });

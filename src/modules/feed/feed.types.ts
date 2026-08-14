@@ -36,6 +36,13 @@ export interface PostView {
   products: TaggedProductView[];
   /** Videoni necha marta ko'rishgan. */
   viewCount: number;
+  /**
+   * Matndan ajratilgan mavzular (`#` siz, kichik harflarda).
+   *
+   * Matnning o'zida ular ko'k rangda ko'rinadi. Bu ro'yxat esa
+   * qidiruv va "shu mavzudagi postlar" uchun.
+   */
+  hashtags: string[];
   author: PostAuthorView;
   createdAt: string;
   /**
@@ -49,9 +56,17 @@ export interface PostView {
 
   likeCount: number;
   commentCount: number;
+  /** Post necha marta ulashilgan. */
+  shareCount: number;
 
   /** So'rov yuborgan odam bu postni yoqtirganmi. */
   isLiked: boolean;
+  /**
+   * So'rov yuborgan odam bu postni SAQLAGANMI.
+   *
+   * Saqlash shaxsiy: uni faqat saqlagan odam ko'radi, muallif emas.
+   */
+  isSaved: boolean;
   /** Post so'rov yuborgan odamning O'ZINIKIMI (o'chirish tugmasi uchun). */
   isMine: boolean;
   isDeleted: boolean;
@@ -68,6 +83,17 @@ export interface TaggedProductView {
   shopName: string;
   /** Hozir sotuvdami — yo'q bo'lsa tugma o'chirilgan ko'rinadi. */
   isAvailable: boolean;
+  /**
+   * Tugma necha marta bosilgan.
+   *
+   * ── Nima uchun FAQAT muallifga ko'rinadi ────────────────────────────
+   * Bu — sotuvchining ish ko'rsatkichi. Begonaga ko'rsatilsa,
+   * raqobatchi kimning qaysi videosi ishlayotganini bemalol
+   * kuzatib turardi.
+   *
+   * Postning egasi bo'lmaganda bu yerda doim `0` turadi.
+   */
+  clickCount: number;
 }
 
 export interface CommentView {
@@ -76,6 +102,13 @@ export interface CommentView {
   author: PostAuthorView;
   createdAt: string;
   isMine: boolean;
+  /** Qaysi izohga javob. `null` — asosiy izoh. */
+  parentId: string | null;
+  likeCount: number;
+  /** So'rov yuborgan odam bu izohni yoqtirganmi. */
+  isLiked: boolean;
+  /** Javoblar soni — ro'yxatni ochmasdan turib ko'rinadi. */
+  replyCount: number;
 }
 
 /**
@@ -129,6 +162,24 @@ export interface CommentsResponse {
 export interface LikeResponse {
   isLiked: boolean;
   likeCount: number;
+}
+
+export interface SaveResponse {
+  isSaved: boolean;
+}
+
+export interface ShareResponse {
+  shareCount: number;
+}
+
+/** Mashhur mavzu — ro'yxatda bitta qator. */
+export interface HashtagView {
+  tag: string;
+  postCount: number;
+}
+
+export interface HashtagListResponse {
+  hashtags: HashtagView[];
 }
 
 /** Post matnining eng ko'p uzunligi — server va brauzerda bir xil. */
@@ -193,6 +244,39 @@ export const DELETED_POST_TEXT = "Bu post o'chirilgan.";
  * sumka, aksessuar) va ekranni bosib ketmaydi.
  */
 export const MAX_TAGGED_PRODUCTS = 5;
+
+/**
+ * Lentada matn qisqartiriladigan uzunlik.
+ *
+ * ── Nima uchun kerak ─────────────────────────────────────────────────
+ * 1000 belgilik post lentada butun ekranni egallab, undan keyingi
+ * postlarga yetib borish uchun uzoq surish kerak bo'lardi.
+ *
+ * Qisqartirilgan matn ostida "Ko'proq" turadi — bosilsa to'liq
+ * ochiladi va sahifa almashmaydi.
+ */
+export const POST_PREVIEW_LENGTH = 280;
+
+/** Post matni qisqartirishga muhtojmi. */
+export function needsTruncation(body: string): boolean {
+  return body.length > POST_PREVIEW_LENGTH;
+}
+
+/**
+ * Ulashish uchun matn — Telegram va tizim oynasida ko'rinadi.
+ *
+ * Post matni uzun bo'lsa kesiladi: ulashish oynasida butun post
+ * emas, uning boshi va havolasi turishi kerak.
+ */
+export function shareTitle(post: { body: string; author: PostAuthorView }): string {
+  const name = authorDisplayName(post.author);
+  const text = post.body.trim();
+
+  if (text.length === 0) return `${name} — Navix`;
+  if (text.length <= 120) return `${name}: ${text}`;
+
+  return `${name}: ${text.slice(0, 117)}...`;
+}
 
 /** Post video postmi. */
 export function isVideoPost(post: { videoUrl: string | null; isDeleted: boolean }): boolean {

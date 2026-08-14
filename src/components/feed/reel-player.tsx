@@ -2,10 +2,12 @@
 
 import {
   BadgeCheck,
+  Bookmark,
   Eye,
   Heart,
   MessageCircle,
   Pause,
+  Share2,
   ShoppingBag,
   Volume2,
   VolumeX,
@@ -14,6 +16,8 @@ import {
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
+import { RichText } from '@/components/feed/rich-text';
+import { ShareSheet } from '@/components/feed/share-sheet';
 import { Avatar } from '@/components/ui/avatar';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
@@ -27,6 +31,12 @@ export interface ReelPlayerProps {
   isMuted: boolean;
   onToggleMuted: () => void;
   onToggleLike: () => void;
+  /** Saqlash tugmasi bosildi. */
+  onToggleSave: () => void;
+  /** Ulashish bajarildi — son shu yerda oshadi. */
+  onShared: () => void;
+  /** Mahsulot tugmasi bosildi — sotuvchi ko'rsatkichi uchun. */
+  onProductClick: (productId: string) => void;
   /** Video ko'rildi deb belgilash — bir ochilishda BIR MARTA. */
   onViewed?: () => void;
 }
@@ -55,6 +65,9 @@ export function ReelPlayer({
   isMuted,
   onToggleMuted,
   onToggleLike,
+  onToggleSave,
+  onShared,
+  onProductClick,
   onViewed,
 }: ReelPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -68,6 +81,15 @@ export function ReelPlayer({
   /** Mahsulotlar ro'yxati ochilganmi (bittadan ko'p bo'lsa). */
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
+  /** Ulashish oynasi ochilganmi. */
+  const [isShareOpen, setIsShareOpen] = useState(false);
+
+  /** Ikki marta bosilgandagi yurakcha ko'rinyaptimi. */
+  const [isHeartFlying, setIsHeartFlying] = useState(false);
+
+  /** Oxirgi bosish vaqti — ikki marta bosishni aniqlash uchun. */
+  const lastTapRef = useRef(0);
+
   /**
    * Ko'rish BIR MARTA sanaladi.
    *
@@ -79,6 +101,35 @@ export function ReelPlayer({
   const name = authorDisplayName(post.author);
   const likeText = formatReactionCount(post.likeCount);
   const commentText = formatReactionCount(post.commentCount);
+  const shareText = formatReactionCount(post.shareCount);
+
+  /**
+   * Videoga bosish IKKI ish qiladi.
+   *
+   * Bir marta — to'xtatadi/davom ettiradi. Ikki marta — yoqtiradi.
+   * Instagramda ham aynan shunday va odam buni o'rgatmasdan
+   * biladi.
+   */
+  function handleTap() {
+    const now = Date.now();
+
+    if (now - lastTapRef.current < 300) {
+      lastTapRef.current = 0;
+
+      // Bir marta bosishda to'xtagan edi — qaytadan o'ynatiladi.
+      setIsPaused(false);
+
+      if (!post.isLiked) onToggleLike();
+
+      setIsHeartFlying(true);
+      setTimeout(() => setIsHeartFlying(false), 700);
+
+      return;
+    }
+
+    lastTapRef.current = now;
+    setIsPaused((current) => !current);
+  }
 
   useEffect(() => {
     const element = videoRef.current;
@@ -126,8 +177,15 @@ export function ReelPlayer({
         playsInline
         preload={isActive ? 'auto' : 'metadata'}
         className="h-full w-full object-contain"
-        onClick={() => setIsPaused((current) => !current)}
+        onClick={handleTap}
       />
+
+      {/* Ikki marta bosilganda uchib chiqadigan yurakcha. */}
+      {isHeartFlying && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <Heart className="animate-heart-pop size-24 fill-white text-white drop-shadow-lg" aria-hidden="true" />
+        </div>
+      )}
 
       {/* To'xtatilgan holat belgisi — ekranning o'rtasida. */}
       {isPaused && isActive && (
@@ -206,6 +264,29 @@ export function ReelPlayer({
           yerda turadi va uni ochish uchun hech qayerga o'tish
           kerak emas.
         */}
+        <button
+          type="button"
+          onClick={() => setIsShareOpen(true)}
+          aria-label="Ulashish"
+          className="flex flex-col items-center gap-1 text-white transition-transform active:scale-90"
+        >
+          <Share2 className="size-7 drop-shadow" aria-hidden="true" />
+          <span className="text-xs font-medium tabular-nums drop-shadow">{shareText || '0'}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onToggleSave}
+          aria-pressed={post.isSaved}
+          aria-label={post.isSaved ? 'Saqlanganlardan olib tashlash' : 'Saqlash'}
+          className="flex flex-col items-center gap-1 text-white transition-transform active:scale-90"
+        >
+          <Bookmark
+            className={cn('size-7 drop-shadow', post.isSaved && 'fill-white')}
+            aria-hidden="true"
+          />
+        </button>
+
         <span className="flex flex-col items-center gap-1 text-white">
           <Eye className="size-7 drop-shadow" aria-hidden="true" />
           <span className="text-xs font-medium tabular-nums drop-shadow">
@@ -236,10 +317,14 @@ export function ReelPlayer({
         </Link>
 
         {post.body.length > 0 && (
-          <p className="line-clamp-2 text-sm leading-relaxed text-white/90 drop-shadow">{post.body}</p>
+          <p className="line-clamp-2 text-sm leading-relaxed text-white/90 drop-shadow">
+            <RichText body={post.body} tone="ON_MEDIA" />
+          </p>
         )}
 
-        {post.products.length === 1 && <ProductButton product={post.products[0]} />}
+        {post.products.length === 1 && (
+          <ProductButton product={post.products[0]} onClick={() => onProductClick(post.products[0].id)} />
+        )}
 
         {/*
           Bir nechta mahsulot bo'lsa — BITTA tugma va ro'yxat.
@@ -308,12 +393,16 @@ export function ReelPlayer({
             <ul className="space-y-2">
               {post.products.map((item) => (
                 <li key={item.id}>
-                  <ProductButton product={item} />
+                  <ProductButton product={item} onClick={() => onProductClick(item.id)} />
                 </li>
               ))}
             </ul>
           </div>
         </div>
+      )}
+
+      {isShareOpen && (
+        <ShareSheet post={post} onShared={onShared} onClose={() => setIsShareOpen(false)} />
       )}
     </div>
   );
@@ -336,7 +425,13 @@ const SPEEDS: readonly number[] = [1, 1.5, 2, 0.5];
  * Ochiq yozilgan "Hozir sotuvda yo'q" esa halol va sotuvchiga zaxira
  * tugaganini bildiradi.
  */
-function ProductButton({ product }: { product: PostView['products'][number] }) {
+function ProductButton({
+  product,
+  onClick,
+}: {
+  product: PostView['products'][number];
+  onClick: () => void;
+}) {
   const content = (
     <>
       <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/20">
@@ -367,6 +462,7 @@ function ProductButton({ product }: { product: PostView['products'][number] }) {
   return (
     <Link
       href={`/marketplace/p/${product.slug}`}
+      onClick={onClick}
       className="flex items-center gap-3 rounded-2xl bg-black/50 p-2.5 backdrop-blur-md transition-transform active:scale-[0.98]"
     >
       {content}

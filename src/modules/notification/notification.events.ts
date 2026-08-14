@@ -170,6 +170,25 @@ export interface NotificationEventData {
     /** Izohning boshi — ochmasdan turib nima yozilganini bilish uchun. */
     preview: string;
   };
+  'feed.comment_replied': {
+    postId: string;
+    actorName: string;
+    preview: string;
+  };
+  'feed.comment_liked': {
+    postId: string;
+    actorName: string;
+  };
+  'feed.mentioned': {
+    postId: string;
+    actorName: string;
+  };
+  'feed.product_clicked': {
+    postId: string;
+    productName: string;
+    /** Nechinchi bosish — bosqich soni. */
+    clickCount: number;
+  };
   'security.password_changed': { revokedSessions: number };
   'support.replied': {
     ticketId: string;
@@ -534,6 +553,43 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
   'feed.post_commented': ({ postId, actorName, preview }) => ({
     title: 'Yangi izoh',
     body: `${actorName}: ${preview}`,
+    actionUrl: `/feed/${postId}`,
+    sourceModule: 'feed',
+  }),
+
+  'feed.comment_replied': ({ postId, actorName, preview }) => ({
+    title: 'Izohingizga javob',
+    body: `${actorName}: ${preview}`,
+    actionUrl: `/feed/${postId}`,
+    sourceModule: 'feed',
+  }),
+
+  'feed.comment_liked': ({ postId, actorName }) => ({
+    title: 'Izohingiz yoqdi',
+    body: `${actorName} izohingizni yoqtirdi.`,
+    actionUrl: `/feed/${postId}`,
+    sourceModule: 'feed',
+  }),
+
+  'feed.mentioned': ({ postId, actorName }) => ({
+    title: 'Sizni esladilar',
+    body: `${actorName} sizni postda esladi.`,
+    actionUrl: `/feed/${postId}`,
+    sourceModule: 'feed',
+  }),
+
+  /**
+   * Mahsulot tugmasi bosilishi — SOTUVCHI uchun asosiy yangilik.
+   *
+   * Matn ataylab sonni oldinga chiqaradi: sotuvchi bir qarashda
+   * videosi ishlayaptimi yoki yo'qmi — bilib oladi.
+   */
+  'feed.product_clicked': ({ postId, productName, clickCount }) => ({
+    title: 'Videongiz sotuvga ishlayapti',
+    body:
+      clickCount === 1
+        ? `Kimdir videongizdagi "${productName}" mahsulotini ochdi.`
+        : `Videongizdagi "${productName}" ${clickCount} marta ochildi.`,
     actionUrl: `/feed/${postId}`,
     sourceModule: 'feed',
   }),
