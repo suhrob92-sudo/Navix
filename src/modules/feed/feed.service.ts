@@ -7,7 +7,12 @@ import { deleteImageByUrl } from '@/modules/upload/upload.service';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { sendPush } from '@/modules/notification/push.service';
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
-import type { CommentView, PostAuthorView, PostView } from '@/modules/feed/feed.types';
+import type {
+  CommentView,
+  PostAuthorView,
+  PostView,
+  TaggedProductView,
+} from '@/modules/feed/feed.types';
 
 /**
  * Lenta moduli — postlar, yoqtirishlar va izohlar.
@@ -59,6 +64,27 @@ function postSelect(viewerId: string) {
     id: true,
     body: true,
     imageUrl: true,
+    videoUrl: true,
+    videoPosterUrl: true,
+    videoSeconds: true,
+    /**
+     * Biriktirilgan mahsulot — tugma uchun kerakli MINIMUM.
+     *
+     * To'liq mahsulot olinsa, lentadagi har bir video uchun tavsif,
+     * zaxira va boshqa ustunlar ham o'qilardi. Tugmada esa faqat
+     * nom, narx va rasm ko'rinadi.
+     */
+    product: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        price: true,
+        isActive: true,
+        stock: true,
+        shop: { select: { name: true, isActive: true } },
+      },
+    },
     likeCount: true,
     commentCount: true,
     createdAt: true,
@@ -72,6 +98,36 @@ function postSelect(viewerId: string) {
 
 type PostRow = Prisma.PostGetPayload<{ select: ReturnType<typeof postSelect> }>;
 
+/**
+ * Biriktirilgan mahsulotni tugma uchun ko'rinishga o'giradi.
+ *
+ * ── Nima uchun "sotuvda" ALOHIDA hisoblanadi ─────────────────────────
+ * Mahsulot yopilgan bo'lishi, do'kon yopilgan bo'lishi yoki zaxira
+ * tugagan bo'lishi mumkin. Uchala holatda ham tugma bosilsa,
+ * foydalanuvchi bo'sh sahifaga tushardi.
+ *
+ * Video esa o'z joyida qoladi: u mahsulotsiz ham qiziqarli
+ * bo'lishi mumkin.
+ */
+function toTaggedProduct(row: {
+  id: string;
+  name: string;
+  slug: string;
+  price: bigint;
+  isActive: boolean;
+  stock: number;
+  shop: { name: string; isActive: boolean };
+}): TaggedProductView {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    priceTiyin: Number(row.price),
+    shopName: row.shop.name,
+    isAvailable: row.isActive && row.shop.isActive && row.stock > 0,
+  };
+}
+
 function toPostView(row: PostRow, viewerId: string): PostView {
   return {
     id: row.id,
@@ -79,6 +135,10 @@ function toPostView(row: PostRow, viewerId: string): PostView {
     body: row.deletedAt ? '' : row.body,
     // Rasm ham xuddi shunday.
     imageUrl: row.deletedAt ? null : row.imageUrl,
+    videoUrl: row.deletedAt ? null : row.videoUrl,
+    videoPosterUrl: row.deletedAt ? null : row.videoPosterUrl,
+    videoSeconds: row.deletedAt ? null : row.videoSeconds,
+    product: row.deletedAt || !row.product ? null : toTaggedProduct(row.product),
     author: toAuthorView(row.author),
     createdAt: row.createdAt.toISOString(),
     editedAt: row.editedAt?.toISOString() ?? null,
@@ -171,7 +231,20 @@ export async function listFeed(
 
   let scope: Prisma.PostWhereInput;
 
-  if (query.tab === 'FOLLOWING') {
+  if (query.tab === 'VIDEO') {
+    /**
+     * Video lentasi — hamma videolar, obunaga bog'liq emas.
+     *
+     * ── Nima uchun obunalarga cheklanmaydi ──────────────────────────
+     * Yangi odamda obuna yo'q va uning video lentasi bo'sh bo'lardi.
+     * Aynan shu lenta esa odamni ilovada ushlab turadigan joy:
+     * u yerda hamma narsa qiziq bo'lishi kerak.
+     */
+    scope = {
+      videoUrl: { not: null },
+      ...(hidden.length > 0 ? { authorId: { notIn: hidden } } : {}),
+    };
+  } else if (query.tab === 'FOLLOWING') {
     /**
      * O'z postlarim ham "Obunalarim" bo'limida turadi.
      *
@@ -257,17 +330,59 @@ export async function listUserPosts(
 // Post
 // ─────────────────────────────────────────────────────────────────────
 
-export async function createPost(
-  authorId: string,
-  body: string,
-  imageUrl: string | null = null,
-): Promise<PostView> {
+export interface CreatePostData {
+  body: string;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+  videoPosterUrl?: string | null;
+  videoSeconds?: number | null;
+  productId?: string | null;
+}
+
+export async function createPost(authorId: string, data: CreatePostData): Promise<PostView> {
+  /**
+   * Biriktirilgan mahsulot TEKSHIRILADI.
+   *
+   * ID brauzerdan keladi, ya'ni uni istalgan qiymatga o'zgartirish
+   * mumkin. Tekshirilmasa, odam yopilgan do'konning mahsulotini
+   * yoki umuman mavjud bo'lmagan ID ni biriktirib qo'yardi va
+   * tugma bo'sh sahifaga olib borardi.
+   */
+  if (data.productId) {
+    const product = await prisma.product.findFirst({
+      where: { id: data.productId, isActive: true, shop: { isActive: true } },
+      select: { id: true },
+    });
+
+    if (!product) {
+      throw new NotFoundError('Mahsulot');
+    }
+  }
+
+  /**
+   * Mahsulotni faqat VIDEOGA biriktirish mumkin.
+   *
+   * Oddiy postda tugma qo'yadigan joy yo'q va u reklama uchun
+   * eng oson yo'lga aylanardi: matnsiz post + mahsulot tugmasi.
+   */
+  if (data.productId && !data.videoUrl) {
+    throw new ConflictError('Mahsulotni faqat videoga biriktirish mumkin.');
+  }
+
   const row = await prisma.post.create({
-    data: { authorId, body, imageUrl },
+    data: {
+      authorId,
+      body: data.body,
+      imageUrl: data.imageUrl ?? null,
+      videoUrl: data.videoUrl ?? null,
+      videoPosterUrl: data.videoPosterUrl ?? null,
+      videoSeconds: data.videoSeconds ?? null,
+      productId: data.productId ?? null,
+    },
     select: postSelect(authorId),
   });
 
-  logger.info({ authorId, postId: row.id }, 'Yangi post');
+  logger.info({ authorId, postId: row.id, hasVideo: Boolean(data.videoUrl) }, 'Yangi post');
 
   return toPostView(row, authorId);
 }

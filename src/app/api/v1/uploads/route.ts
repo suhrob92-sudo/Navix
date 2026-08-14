@@ -6,7 +6,12 @@ import { apiSuccess } from '@/lib/api/response';
 import { enforcePublicRateLimit } from '@/lib/rate-limit';
 import { requireAuth } from '@/modules/auth/auth.guard';
 import { uploadFile } from '@/modules/upload/upload.service';
-import { MAX_UPLOAD_BYTES, type UploadPurpose, type UploadResponse } from '@/modules/upload/upload.types';
+import {
+  MAX_UPLOAD_BYTES,
+  MAX_VIDEO_BYTES,
+  type UploadPurpose,
+  type UploadResponse,
+} from '@/modules/upload/upload.types';
 
 /**
  * POST /api/v1/uploads — rasm yuklash.
@@ -18,7 +23,7 @@ import { MAX_UPLOAD_BYTES, type UploadPurpose, type UploadResponse } from '@/mod
  */
 export const dynamic = 'force-dynamic';
 
-const PURPOSES: readonly UploadPurpose[] = ['AVATAR', 'POST', 'CHAT', 'VOICE'];
+const PURPOSES: readonly UploadPurpose[] = ['AVATAR', 'POST', 'CHAT', 'VOICE', 'VIDEO'];
 
 export const POST = withApiHandler(async (request: NextRequest, { requestId }) => {
   const auth = await requireAuth(request);
@@ -46,8 +51,10 @@ export const POST = withApiHandler(async (request: NextRequest, { requestId }) =
    * tekshiruv esa oddiy holatda katta faylni bekorga xotiraga
    * yuklashdan saqlaydi.
    */
-  if (file.size > MAX_UPLOAD_BYTES) {
-    throw new ValidationError('Rasm juda katta.');
+  const sizeLimit = purpose === 'VIDEO' ? MAX_VIDEO_BYTES : MAX_UPLOAD_BYTES;
+
+  if (file.size > sizeLimit) {
+    throw new ValidationError(purpose === 'VIDEO' ? 'Video juda katta.' : 'Rasm juda katta.');
   }
 
   const data = Buffer.from(await file.arrayBuffer());

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { COMMENT_MAX_LENGTH, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
+import { MAX_VIDEO_SECONDS } from '@/modules/upload/upload.types';
 import { isOwnImageUrl } from '@/modules/upload/upload.types';
 
 /**
@@ -22,7 +23,7 @@ export const feedCursorSchema = z
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z_[0-9a-f-]{36}$/, "Belgi noto'g'ri");
 
 export const feedQuerySchema = z.object({
-  tab: z.enum(['FOLLOWING', 'LATEST']).default('FOLLOWING'),
+  tab: z.enum(['FOLLOWING', 'LATEST', 'VIDEO']).default('FOLLOWING'),
   cursor: feedCursorSchema.optional(),
   /**
    * Bir so'rovda nechta post.
@@ -82,11 +83,34 @@ export const createPostSchema = z
   .object({
     body: z.string().trim().max(POST_MAX_LENGTH, `Matn ${POST_MAX_LENGTH} belgidan oshmasligi kerak.`).default(''),
     imageUrl: attachedImageField.optional(),
+    /**
+     * Video manzili — rasm bilan bir xil qoida: faqat O'ZIMIZ
+     * yuklagan fayl. Begona manzil qo'yilsa, uni ko'rgan har bir
+     * odamning IP manzili o'sha saytga yetardi.
+     */
+    videoUrl: attachedImageField.optional(),
+    videoPosterUrl: attachedImageField.optional(),
+    videoSeconds: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(MAX_VIDEO_SECONDS, `Video ${MAX_VIDEO_SECONDS} soniyadan uzun bo'lmasligi kerak.`)
+      .optional(),
+    /** Biriktirilgan mahsulot — mavjudligi xizmatda tekshiriladi. */
+    productId: z.uuid("Mahsulot noto'g'ri tanlandi").optional(),
   })
   .refine(
-    (value) => value.body.length > 0 || Boolean(value.imageUrl),
-    "Post bo'sh: matn yozing yoki rasm biriktiring.",
-  );
+    (value) => value.body.length > 0 || Boolean(value.imageUrl) || Boolean(value.videoUrl),
+    "Post bo'sh: matn yozing yoki rasm/video biriktiring.",
+  )
+  .refine((value) => !(value.imageUrl && value.videoUrl), {
+    message: "Bitta postga rasm ham, video ham biriktirib bo'lmaydi.",
+    path: ['videoUrl'],
+  })
+  .refine((value) => !value.productId || Boolean(value.videoUrl), {
+    message: 'Mahsulotni faqat videoga biriktirish mumkin.',
+    path: ['productId'],
+  });
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 

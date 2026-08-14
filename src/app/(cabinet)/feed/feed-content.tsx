@@ -1,12 +1,12 @@
 'use client';
 
-import { Newspaper, Users } from 'lucide-react';
+import { Clapperboard, Newspaper, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { PostCard } from '@/components/feed/post-card';
-import { PostComposer } from '@/components/feed/post-composer';
+import { PostComposer, type ComposerDraft } from '@/components/feed/post-composer';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -36,14 +36,27 @@ export function FeedContent() {
   const list = useCursorList<PostView>(`/api/v1/feed?tab=${tab}`, 'posts');
   const actions = usePostActions(list.setItems);
 
-  async function publish(body: string, imageUrl: string | null): Promise<boolean> {
+  async function publish(draft: ComposerDraft): Promise<boolean> {
     setIsSending(true);
     setSendError(null);
 
     try {
       const result = await request<{ post: PostView }>('/api/v1/posts', {
         method: 'POST',
-        body: { body, ...(imageUrl ? { imageUrl } : {}) },
+        /**
+         * Bo'sh maydonlar YUBORILMAYDI.
+         *
+         * Sxema `undefined` ni ixtiyoriy deb qabul qiladi, `null` ni
+         * esa yo'q — shuning uchun ular umuman qo'shilmaydi.
+         */
+        body: {
+          body: draft.body,
+          ...(draft.imageUrl ? { imageUrl: draft.imageUrl } : {}),
+          ...(draft.videoUrl ? { videoUrl: draft.videoUrl } : {}),
+          ...(draft.videoPosterUrl ? { videoPosterUrl: draft.videoPosterUrl } : {}),
+          ...(draft.videoSeconds ? { videoSeconds: draft.videoSeconds } : {}),
+          ...(draft.productId ? { productId: draft.productId } : {}),
+        },
       });
 
       /**
@@ -79,6 +92,19 @@ export function FeedContent() {
         {sendError && <Alert variant="error">{sendError}</Alert>}
 
         <div className="flex gap-2">
+          {/*
+            "Videolar" — YORLIQ emas, HAVOLA.
+
+            Video tomosha qilish boshqa holat: to'liq ekran, ovoz,
+            vertikal surish. Uni shu ro'yxatning ichida ko'rsatib
+            bo'lmaydi.
+          */}
+          <Button asChild variant="outline" size="sm" className="shrink-0">
+            <Link href="/reels" aria-label="Videolar">
+              <Clapperboard className="size-4" aria-hidden="true" />
+            </Link>
+          </Button>
+
           {FEED_TABS.map((item) => (
             <button
               key={item.value}

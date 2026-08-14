@@ -8,9 +8,11 @@ import {
   formatFileSize,
   keyFromUrl,
   MAX_UPLOAD_BYTES,
+  MAX_VIDEO_BYTES,
   type AllowedAudioType,
   type AllowedImageType,
   type AllowedUploadType,
+  type AllowedVideoType,
   type UploadPurpose,
 } from '@/modules/upload/upload.types';
 
@@ -98,6 +100,7 @@ function folderFor(purpose: UploadPurpose): string {
   if (purpose === 'AVATAR') return 'avatars';
   if (purpose === 'CHAT') return 'chat';
   if (purpose === 'VOICE') return 'voice';
+  if (purpose === 'VIDEO') return 'videos';
 
   return 'posts';
 }
@@ -119,6 +122,33 @@ function buildKey(userId: string, purpose: UploadPurpose, type: AllowedUploadTyp
 }
 
 /**
+ * Fayl boshidagi baytlar bo'yicha VIDEO turini aniqlaydi.
+ *
+ * Rasm va ovozdagi kabi: brauzer aytgan turga ishonilmaydi.
+ */
+export function detectVideoType(data: Buffer): AllowedVideoType | null {
+  if (data.length < 12) return null;
+
+  // WebM (Matroska) — EBML sarlavhasi: 1A 45 DF A3.
+  if (data[0] === 0x1a && data[1] === 0x45 && data[2] === 0xdf && data[3] === 0xa3) {
+    return 'video/webm';
+  }
+
+  /**
+   * MP4 va MOV — 4-baytdan boshlab "ftyp".
+   *
+   * Ikkalasi ham bir xil qobiqda (ISO BMFF), farqi undan keyingi
+   * to'rt baytdagi "brend"da: MOV da "qt  ", MP4 da "isom", "mp42",
+   * "avc1" va boshqalar.
+   */
+  if (data.toString('ascii', 4, 8) === 'ftyp') {
+    return data.toString('ascii', 8, 12).startsWith('qt') ? 'video/quicktime' : 'video/mp4';
+  }
+
+  return null;
+}
+
+/**
  * Faylni yuklaydi.
  *
  * ── Nima uchun MAQSAD turni belgilaydi ───────────────────────────────
@@ -131,20 +161,35 @@ export async function uploadFile(userId: string, purpose: UploadPurpose, data: B
     throw new ValidationError("Fayl bo'sh.");
   }
 
-  if (data.length > MAX_UPLOAD_BYTES) {
+  /**
+   * Video uchun chegara BOSHQACHA.
+   *
+   * Rasm brauzerda kichraytiriladi va 5 MB dan oshmaydi. Videoni esa
+   * brauzer kichraytira olmaydi — bir daqiqalik telefon videosi
+   * odatda 15-25 MB.
+   */
+  const limit = purpose === 'VIDEO' ? MAX_VIDEO_BYTES : MAX_UPLOAD_BYTES;
+
+  if (data.length > limit) {
     throw new ValidationError(
-      `Fayl juda katta (${formatFileSize(data.length)}). Chegara — ${formatFileSize(MAX_UPLOAD_BYTES)}.`,
+      `Fayl juda katta (${formatFileSize(data.length)}). Chegara — ${formatFileSize(limit)}.`,
     );
   }
 
-  const isVoice = purpose === 'VOICE';
-  const type: AllowedUploadType | null = isVoice ? detectAudioType(data) : detectImageType(data);
+  const type: AllowedUploadType | null =
+    purpose === 'VOICE'
+      ? detectAudioType(data)
+      : purpose === 'VIDEO'
+        ? detectVideoType(data)
+        : detectImageType(data);
 
   if (!type) {
     throw new ValidationError(
-      isVoice
+      purpose === 'VOICE'
         ? "Ovoz faylini o'qib bo'lmadi. Qaytadan yozib ko'ring."
-        : 'Faqat rasm yuklash mumkin (JPEG, PNG, WebP yoki GIF).',
+        : purpose === 'VIDEO'
+          ? "Video faylini o'qib bo'lmadi. MP4, MOV yoki WebM tanlang."
+          : 'Faqat rasm yuklash mumkin (JPEG, PNG, WebP yoki GIF).',
     );
   }
 

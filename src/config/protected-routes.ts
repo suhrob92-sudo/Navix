@@ -48,6 +48,8 @@ export const PROTECTED_PREFIXES = [
   '/messages',
   /** Lenta va bitta post: `/feed`, `/feed/<id>`. */
   '/feed',
+  /** Video lentasi. */
+  '/reels',
   '/security',
   '/wallet',
   '/payments',

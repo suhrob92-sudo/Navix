@@ -17,6 +17,20 @@ export interface PostView {
   body: string;
   /** Biriktirilgan rasm. O'chirilgan postda `null`. */
   imageUrl: string | null;
+  /** Biriktirilgan video. O'chirilgan postda `null`. */
+  videoUrl: string | null;
+  /** Video muqovasi — yuklanguncha ko'rsatiladi. */
+  videoPosterUrl: string | null;
+  /** Video davomiyligi (soniya). */
+  videoSeconds: number | null;
+  /**
+   * Videoga biriktirilgan mahsulot.
+   *
+   * Tomoshabin "qayerdan olsa bo'ladi?" deb izohlarda so'ramasligi
+   * uchun: tugma video ustida turadi va to'g'ri mahsulotga olib
+   * boradi.
+   */
+  product: TaggedProductView | null;
   author: PostAuthorView;
   createdAt: string;
   /**
@@ -38,6 +52,19 @@ export interface PostView {
   isDeleted: boolean;
 }
 
+/** Videoga biriktirilgan mahsulot — tugma uchun kerakli minimum. */
+export interface TaggedProductView {
+  id: string;
+  name: string;
+  /** Manzil uchun: `/marketplace/p/<slug>`. */
+  slug: string;
+  /** Narx TIYINDA — formatlash ekranda bajariladi. */
+  priceTiyin: number;
+  shopName: string;
+  /** Hozir sotuvdami — yo'q bo'lsa tugma o'chirilgan ko'rinadi. */
+  isAvailable: boolean;
+}
+
 export interface CommentView {
   id: string;
   body: string;
@@ -54,12 +81,21 @@ export interface CommentView {
  * kimga obuna bo'lishni bilmasdi. Faqat "Yangi" bo'lsa esa, obuna
  * bo'lishning ma'nosi qolmasdi.
  */
-export type FeedTabName = 'FOLLOWING' | 'LATEST';
+export type FeedTabName = 'FOLLOWING' | 'LATEST' | 'VIDEO';
 
 export const FEED_TABS = [
   { value: 'FOLLOWING', label: 'Obunalarim' },
   { value: 'LATEST', label: 'Yangi' },
 ] as const satisfies readonly { value: FeedTabName; label: string }[];
+
+/**
+ * Video lentasidagi bitta ekran BALANDLIGI — to'liq ekran.
+ *
+ * Bir vaqtda faqat bitta video ko'rinishi kerak: yarim ko'ringan
+ * ikkinchi video diqqatni bo'ladi va qaysi birini tinglashni
+ * noaniq qiladi.
+ */
+export const REELS_SNAP_CLASS = 'h-[100dvh] snap-start snap-always';
 
 export interface FeedResponse {
   posts: PostView[];
@@ -141,6 +177,11 @@ export const DELETED_POST_TEXT = "Bu post o'chirilgan.";
  * tekshiruv brauzerda tugmani o'chirish uchun ishlatiladi; server
  * va baza ham xuddi shu qoidani mustaqil tekshiradi.
  */
+/** Post video postmi. */
+export function isVideoPost(post: { videoUrl: string | null; isDeleted: boolean }): boolean {
+  return post.videoUrl !== null && !post.isDeleted;
+}
+
 export function hasPostContent(body: string, imageUrl: string | null): boolean {
   return body.trim().length > 0 || imageUrl !== null;
 }

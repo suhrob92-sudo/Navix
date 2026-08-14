@@ -11,7 +11,7 @@
  * "chatdagi rasmlarni tozalash" kabi ish faqat maqsad ma'lum bo'lganda
  * bajarilishi mumkin.
  */
-export type UploadPurpose = 'AVATAR' | 'POST' | 'CHAT' | 'VOICE';
+export type UploadPurpose = 'AVATAR' | 'POST' | 'CHAT' | 'VOICE' | 'VIDEO';
 
 /** Qabul qilinadigan rasm turlari. */
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
@@ -34,7 +34,63 @@ export const ALLOWED_AUDIO_TYPES = ['audio/webm', 'audio/mp4', 'audio/ogg'] as c
 
 export type AllowedAudioType = (typeof ALLOWED_AUDIO_TYPES)[number];
 
-export type AllowedUploadType = AllowedImageType | AllowedAudioType;
+/**
+ * Qabul qilinadigan VIDEO turlari.
+ *
+ * ── Nima uchun aynan shular ──────────────────────────────────────────
+ * Telefon kamerasi yozadigan formatlar:
+ *  · Android → MP4 (H.264);
+ *  · iPhone  → MOV (QuickTime, ichida ham H.264).
+ *
+ * WebM esa brauzerda yozilgan videolar uchun. Uchalasi ham
+ * brauzerlarda o'ynaydi; MOV faqat Safari'da to'liq, lekin uni rad
+ * etsak iPhone egalari video joylay olmasdi.
+ */
+export const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'] as const;
+
+export type AllowedVideoType = (typeof ALLOWED_VIDEO_TYPES)[number];
+
+export type AllowedUploadType = AllowedImageType | AllowedAudioType | AllowedVideoType;
+
+/**
+ * Videoning eng uzun davomiyligi — 60 soniya.
+ *
+ * ── Nima uchun cheklov ───────────────────────────────────────────────
+ * Qisqa video lentaning butun ma'nosi: odam bir daqiqada o'nlab
+ * videoni ko'rib chiqadi. Uzun video esa boshqa janr va u boshqa
+ * imkoniyatlarni talab qiladi (oldinga o'tish, sifat tanlash,
+ * qismlarga bo'lib yuklash).
+ *
+ * Bundan tashqari uzun video KATTA: bir daqiqalik telefon videosi
+ * odatda 15-25 MB, besh daqiqalik esa 100 MB dan oshadi va uni
+ * mobil internetda ko'rish azob bo'lardi.
+ */
+export const MAX_VIDEO_SECONDS = 60;
+
+/**
+ * Videoning eng katta hajmi — 48 MB.
+ *
+ * Bir daqiqalik telefon videosi odatda 15-25 MB. Chegara undan
+ * kengroq: brauzer videoni kichraytira olmaydi (rasmdan farqli),
+ * shuning uchun bu yerda zaxira qoldirilgan.
+ */
+export const MAX_VIDEO_BYTES = 48 * 1024 * 1024;
+
+/**
+ * Video SERVER ORQALI yuborilmaydi.
+ *
+ * ── HAQIQIY TO'SIQ, e'tibordan chetda qolishi oson ───────────────────
+ * Vercel'da serversiz funksiyaga kelgan so'rov tanasi 4.5 MB bilan
+ * cheklangan. Ya'ni 20 MB lik video `/api/v1/uploads` orqali
+ * yuborilsa, u ishlab chiqishda ishlaydi-yu, production'da
+ * "413 Payload Too Large" bilan yiqiladi — va buni faqat
+ * foydalanuvchilar topadi.
+ *
+ * Shuning uchun video BRAUZERDAN TO'G'RIDAN-TO'G'RI omborga
+ * yuboriladi: server faqat qisqa muddatli ruxsat (token) beradi va
+ * faylning o'zi u orqali o'tmaydi.
+ */
+export const VIDEO_UPLOAD_PATH = '/api/v1/uploads/video-token';
 
 /**
  * Ovozli xabarning eng uzun davomiyligi — 2 daqiqa.
@@ -163,6 +219,9 @@ export function extensionFor(type: AllowedUploadType): string {
   if (type === 'audio/webm') return 'webm';
   if (type === 'audio/mp4') return 'm4a';
   if (type === 'audio/ogg') return 'ogg';
+  if (type === 'video/mp4') return 'mp4';
+  if (type === 'video/webm') return 'webm';
+  if (type === 'video/quicktime') return 'mov';
 
   return 'jpg';
 }

@@ -1077,6 +1077,8 @@ model Product {
   shop       Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
   category   ProductCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   orderItems MarketOrderItem[]
+  /// Shu mahsulot biriktirilgan videolar.
+  posts      Post[]            @relation("PostProduct")
 
   @@index([shopId, isActive])
   @@index([categoryId, sortOrder])
@@ -2381,6 +2383,41 @@ model Post {
   /// qismini qoplaydi va uni keyin kengaytirish mumkin.
   imageUrl String? @db.VarChar(500)
 
+  /// Biriktirilgan VIDEO manzili.
+  ///
+  /// ── Nima uchun rasmdan alohida ustun ────────────────────────────────
+  /// Ikkalasini bitta `mediaUrl` da saqlab, turini kengaytmadan
+  /// aniqlash mumkin edi. Lekin unda har bir o'qish joyida "bu rasmmi
+  /// yoki videomi?" degan tekshiruv paydo bo'lardi va ular vaqt o'tib
+  /// bir-biridan farq qila boshlardi.
+  ///
+  /// Alohida ustun bilan savol umuman tug'ilmaydi: `videoUrl` bor —
+  /// demak bu video post.
+  videoUrl String? @db.VarChar(500)
+
+  /// Videoning muqovasi (birinchi kadr).
+  ///
+  /// Brauzerda videodan olinadi va rasm sifatida yuklanadi. Usiz
+  /// ro'yxatda video yuklanmaguncha qora to'rtburchak turardi —
+  /// sekin internetda bu bir necha soniya.
+  videoPosterUrl String? @db.VarChar(500)
+
+  /// Video davomiyligi (soniya) — ro'yxatda ko'rsatiladi.
+  videoSeconds Int?
+
+  /// Videoga BIRIKTIRILGAN mahsulot.
+  ///
+  /// ── Nima uchun bu bor ───────────────────────────────────────────────
+  /// Odam videoda mahsulotni ko'rsatadi va tomoshabin uni "qayerdan
+  /// olsa bo'ladi?" deb izohlarda so'raydi. Biriktirilgan mahsulot
+  /// bilan savol umuman tug'ilmaydi: video ustida tugma turadi va u
+  /// to'g'ri mahsulot sahifasiga olib boradi.
+  ///
+  /// Mahsulot o'chirilsa post qolaveradi (`SetNull`) — video o'z
+  /// qiymatini yo'qotmaydi.
+  productId String?  @db.Uuid
+  product   Product? @relation("PostProduct", fields: [productId], references: [id], onDelete: SetNull)
+
   likeCount    Int @default(0)
   commentCount Int @default(0)
 
@@ -2409,6 +2446,9 @@ model Post {
 
   /// Lenta aynan shu tartibda o'qiladi: yangi postlar birinchi.
   @@index([createdAt])
+  /// Video lentasi FAQAT videoli postlarni oladi — indekssiz u butun
+  /// jadvalni o'qib, keyin ortiqchasini tashlab yuborardi.
+  @@index([videoUrl, createdAt])
   /// Profildagi "uning postlari" ro'yxati uchun.
   @@index([authorId, createdAt])
   @@map("posts")

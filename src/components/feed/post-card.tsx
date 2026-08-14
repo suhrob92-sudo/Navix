@@ -1,7 +1,17 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { BadgeCheck, Flag, Heart, MessageCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import {
+  BadgeCheck,
+  Clapperboard,
+  Flag,
+  Heart,
+  MessageCircle,
+  MoreHorizontal,
+  Pencil,
+  ShoppingBag,
+  Trash2,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -11,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { formatRelativeUz } from '@/lib/date';
+import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import {
   authorDisplayName,
@@ -247,6 +258,38 @@ export function PostCard({
         )
       )}
 
+      {/*
+        Video — lentada ODDIY pleyer bilan.
+
+        To'liq ekranli tomosha uchun alohida sahifa bor (`/reels`).
+        Bu yerda esa post boshqa postlar orasida turadi va odam
+        o'qiyapti: avtomatik o'ynash uni chalg'itardi va bir vaqtda
+        bir nechta video ovozi eshitilardi.
+      */}
+      {post.videoUrl && !post.isDeleted && (
+        <div className="mt-3 space-y-2">
+          <video
+            src={post.videoUrl}
+            poster={post.videoPosterUrl ?? undefined}
+            controls
+            muted
+            playsInline
+            preload="metadata"
+            className="border-border max-h-96 w-full rounded-xl border bg-black"
+          />
+
+          {post.product && <PostProductButton product={post.product} />}
+
+          <Link
+            href="/reels"
+            className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-xs transition-colors"
+          >
+            <Clapperboard className="size-3.5" aria-hidden="true" />
+            Barcha videolar
+          </Link>
+        </div>
+      )}
+
       {post.imageUrl && !post.isDeleted && (
         /*
           Rasm postning bir qismi — u ham bosilganda post sahifasiga
@@ -326,5 +369,51 @@ export function PostCard({
         />
       )}
     </article>
+  );
+}
+
+/**
+ * Lentadagi mahsulot tugmasi.
+ *
+ * To'liq ekranli pleyerdagidan farqi FONDA: u yerda video ustida
+ * turadi va shaffof bo'lishi kerak, bu yerda esa kartochka ichida.
+ */
+function PostProductButton({ product }: { product: NonNullable<PostView['product']> }) {
+  const inner = (
+    <>
+      <span className="bg-secondary text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+        <ShoppingBag className="size-4" aria-hidden="true" />
+      </span>
+
+      <span className="min-w-0 flex-1 text-left">
+        <span className="block truncate text-sm font-medium">{product.name}</span>
+        <span className="text-muted-foreground block truncate text-xs">
+          {product.isAvailable ? `${formatTiyin(product.priceTiyin)} · ${product.shopName}` : "Hozir sotuvda yo'q"}
+        </span>
+      </span>
+
+      {product.isAvailable && (
+        <span className="bg-primary text-primary-foreground shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold">
+          Ko&apos;rish
+        </span>
+      )}
+    </>
+  );
+
+  if (!product.isAvailable) {
+    return (
+      <div className="border-border bg-secondary/40 flex items-center gap-3 rounded-xl border p-2.5 opacity-70">
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={`/marketplace/p/${product.slug}`}
+      className="border-border bg-secondary/40 hover:bg-secondary flex items-center gap-3 rounded-xl border p-2.5 transition-colors"
+    >
+      {inner}
+    </Link>
   );
 }

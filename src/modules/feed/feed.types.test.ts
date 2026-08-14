@@ -12,10 +12,12 @@ import {
   authorDisplayName,
   formatReactionCount,
   hasPostContent,
+  isVideoPost,
   COMMENT_MAX_LENGTH,
   POST_MAX_LENGTH,
   type PostAuthorView,
 } from '@/modules/feed/feed.types';
+import { MAX_VIDEO_SECONDS } from '@/modules/upload/upload.types';
 
 function author(overrides: Partial<PostAuthorView> = {}): PostAuthorView {
   return {
@@ -194,5 +196,80 @@ describe('postni tahrirlash sxemasi', () => {
 
   it('matnsiz so\'rov rad etiladi', () => {
     expect(updatePostSchema.safeParse({}).success).toBe(false);
+  });
+});
+
+describe('video postlar', () => {
+  const base = { videoUrl: null as string | null, isDeleted: false };
+
+  it('videosiz post video post EMAS', () => {
+    expect(isVideoPost(base)).toBe(false);
+  });
+
+  it('videoli post video post', () => {
+    expect(isVideoPost({ ...base, videoUrl: '/api/v1/files/videos/a/b.mp4' })).toBe(true);
+  });
+
+  it("o'chirilgan post video post EMAS", () => {
+    /**
+     * O'chirilgan postda video manzili baribir berilmaydi. Lekin bu
+     * tekshiruv ikkinchi qulf: kimdir kelajakda manzilni qaytarsa
+     * ham, o'chirilgan post pleyer bilan chizilmaydi.
+     */
+    expect(isVideoPost({ videoUrl: '/api/v1/files/videos/a/b.mp4', isDeleted: true })).toBe(false);
+  });
+});
+
+describe('video post sxemasi', () => {
+  const video = '/api/v1/files/videos/aaa/bbb.mp4';
+
+  it('video bilan post qabul qilinadi', () => {
+    expect(createPostSchema.safeParse({ body: '', videoUrl: video, videoSeconds: 12 }).success).toBe(true);
+  });
+
+  it('BEGONA manzil rad etiladi', () => {
+    /**
+     * Begona manzil qo'yilsa, videoni ko'rgan HAR BIR odamning IP
+     * manzili o'sha saytga yetardi va egasi faylni istalgan payt
+     * boshqasiga almashtira olardi.
+     */
+    expect(createPostSchema.safeParse({ body: '', videoUrl: 'https://example.com/a.mp4' }).success).toBe(false);
+  });
+
+  it("rasm va video BIRGA bo'lmaydi", () => {
+    const result = createPostSchema.safeParse({
+      body: '',
+      videoUrl: video,
+      imageUrl: '/api/v1/files/posts/aaa/bbb.jpg',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('juda uzun video rad etiladi', () => {
+    expect(
+      createPostSchema.safeParse({ body: '', videoUrl: video, videoSeconds: MAX_VIDEO_SECONDS + 1 }).success,
+    ).toBe(false);
+  });
+
+  it("mahsulotni faqat VIDEOGA biriktirish mumkin", () => {
+    const withoutVideo = createPostSchema.safeParse({
+      body: 'salom',
+      productId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93',
+    });
+
+    expect(withoutVideo.success).toBe(false);
+
+    const withVideo = createPostSchema.safeParse({
+      body: 'salom',
+      videoUrl: video,
+      productId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93',
+    });
+
+    expect(withVideo.success).toBe(true);
+  });
+
+  it("noto'g'ri mahsulot ID rad etiladi", () => {
+    expect(createPostSchema.safeParse({ body: '', videoUrl: video, productId: 'salom' }).success).toBe(false);
   });
 });

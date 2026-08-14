@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { detectAudioType, detectImageType } from '@/modules/upload/upload.service';
+import { detectAudioType, detectImageType, detectVideoType } from '@/modules/upload/upload.service';
 import {
   extensionFor,
   formatDuration,
@@ -199,5 +199,47 @@ describe('detectAudioType', () => {
 
   it('juda kichik fayl rad etiladi', () => {
     expect(detectAudioType(Buffer.from([0x1a, 0x45]))).toBeNull();
+  });
+});
+
+describe('video turini baytlardan aniqlash', () => {
+  /** MP4 va MOV bir xil qobiqda: farqi "ftyp" dan keyingi brendda. */
+  function ftyp(brand: string): Buffer {
+    return Buffer.concat([
+      Buffer.from([0x00, 0x00, 0x00, 0x20]),
+      Buffer.from('ftyp', 'ascii'),
+      Buffer.from(brand.padEnd(4, ' '), 'ascii'),
+      Buffer.alloc(16),
+    ]);
+  }
+
+  it('MP4 aniqlanadi', () => {
+    expect(detectVideoType(ftyp('isom'))).toBe('video/mp4');
+    expect(detectVideoType(ftyp('mp42'))).toBe('video/mp4');
+  });
+
+  it('MOV (iPhone) aniqlanadi', () => {
+    expect(detectVideoType(ftyp('qt  '))).toBe('video/quicktime');
+  });
+
+  it('WebM aniqlanadi', () => {
+    const webm = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.alloc(16)]);
+
+    expect(detectVideoType(webm)).toBe('video/webm');
+  });
+
+  it('RASM video sifatida qabul qilinmaydi', () => {
+    /**
+     * Bu eng muhim shart: brauzer aytgan turga ishonilmaydi. Rasmni
+     * "video/mp4" deb yuborish oson, lekin fayl ichidagi baytlarni
+     * yasab bo'lmaydi.
+     */
+    const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(16)]);
+
+    expect(detectVideoType(png)).toBeNull();
+  });
+
+  it("juda qisqa fayl aniqlanmaydi", () => {
+    expect(detectVideoType(Buffer.alloc(4))).toBeNull();
   });
 });

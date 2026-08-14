@@ -18,7 +18,7 @@ export const POST = withApiHandler(async (request: NextRequest, { requestId }) =
 
   await enforcePublicRateLimit('postCreate', auth.userId, "Juda ko'p post yozyapsiz. Biroz kuting.");
 
-  const post = await createPost(auth.userId, input.body, input.imageUrl ?? null);
+  const post = await createPost(auth.userId, input);
 
   return apiSuccess({ post }, { requestId, status: 201 });
 });
