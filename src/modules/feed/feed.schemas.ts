@@ -90,6 +90,20 @@ export const createPostSchema = z
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 
+/**
+ * Postni tahrirlash.
+ *
+ * Faqat MATN o'zgaradi — rasm tegilmaydi. Matn bo'sh bo'lishi
+ * mumkin, lekin faqat rasm biriktirilgan postda; buni xizmat
+ * tekshiradi, chunki bu yerda postning rasmi bor-yo'qligi
+ * ma'lum emas.
+ */
+export const updatePostSchema = z.object({
+  body: z.string().trim().max(POST_MAX_LENGTH, `Matn ${POST_MAX_LENGTH} belgidan oshmasligi kerak.`),
+});
+
+export type UpdatePostInput = z.infer<typeof updatePostSchema>;
+
 export const createCommentSchema = z.object({
   body: bodyField(COMMENT_MAX_LENGTH, "Izoh bo'sh bo'lmasligi kerak."),
 });

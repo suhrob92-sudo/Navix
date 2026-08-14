@@ -10,12 +10,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Permission } from '@/config/rbac';
+import { Permission, hasPermission } from '@/config/rbac';
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzDateTime } from '@/lib/date';
 import { cn } from '@/lib/utils';
 import { RequireAdmin } from '@/modules/admin/require-admin';
+import { useAuth } from '@/modules/auth/auth-context';
 import {
   REPORT_STATUS_LABELS,
   reportReasonLabel,
@@ -54,6 +55,7 @@ export function AdminReportsContent() {
 
 function ReportsBody() {
   const request = useApiClient();
+  const { user } = useAuth();
 
   const [status, setStatus] = useState<string>('OPEN');
   const [page, setPage] = useState(1);
@@ -66,8 +68,55 @@ function ReportsBody() {
     `/api/v1/admin/reports?${query.toString()}`,
   );
 
+  /**
+   * Yashirish tugmasi FAQAT ruxsati borlarga ko'rinadi.
+   *
+   * Moderator shikoyatlarni ko'ra oladi, lekin kontentni yashirish —
+   * alohida ruxsat. Ishlamaydigan tugma ko'rsatish xatoga o'xshab
+   * ko'rinardi.
+   */
+  const canHideContent = hasPermission(user?.roles ?? [], Permission.PLATFORM_CONTENT_MANAGE);
+
   const reports = data?.reports ?? [];
   const hasMore = reports.length === PAGE_SIZE;
+
+  /**
+   * Shikoyat qilingan postni YASHIRADI.
+   *
+   * Kontent moderatsiyasi bo'limidagi bilan bir xil amal — shu
+   * yerdan bajarilishi moderatorni sahifadan sahifaga yugurtirmaydi.
+   * Shikoyat esa AVTOMATIK yopilmaydi: chora ko'rish va shikoyatni
+   * baholash ikki xil qaror.
+   */
+  async function hideContent(report: AdminReportView) {
+    if (!report.content) return;
+
+    setPendingId(report.id);
+    setActionError(null);
+
+    try {
+      await request(`/api/v1/admin/content/${report.content.kind}/${report.content.id}`, {
+        method: 'PATCH',
+        body: { isVisible: false, reason: `Shikoyat: ${reportReasonLabel(report.reason)}` },
+      });
+
+      setData((current) =>
+        current
+          ? {
+              reports: current.reports.map((item) =>
+                item.id === report.id && item.content
+                  ? { ...item, content: { ...item.content, isVisible: false } }
+                  : item,
+              ),
+            }
+          : current!,
+      );
+    } catch (caught) {
+      setActionError(toUserMessage(caught));
+    } finally {
+      setPendingId(null);
+    }
+  }
 
   async function resolve(reportId: string, next: Exclude<ReportStatusName, 'OPEN'>) {
     setPendingId(reportId);
@@ -165,6 +214,7 @@ function ReportsBody() {
                 report={report}
                 isPending={pendingId === report.id}
                 onResolve={(next) => void resolve(report.id, next)}
+                onHide={canHideContent ? () => void hideContent(report) : undefined}
               />
             </li>
           ))}
@@ -207,9 +257,11 @@ interface ReportCardProps {
   report: AdminReportView;
   isPending: boolean;
   onResolve: (next: Exclude<ReportStatusName, 'OPEN'>) => void;
+  /** Postni yashirish. Ruxsati yo'q moderatorga berilmaydi. */
+  onHide?: () => void;
 }
 
-function ReportCard({ report, isPending, onResolve }: ReportCardProps) {
+function ReportCard({ report, isPending, onResolve, onHide }: ReportCardProps) {
   return (
     <>
       <div className="flex items-start justify-between gap-3">
@@ -238,6 +290,46 @@ function ReportCard({ report, isPending, onResolve }: ReportCardProps) {
           <Badge variant="secondary">{REPORT_STATUS_LABELS[report.status]}</Badge>
         )}
       </div>
+
+      {/*
+        Shikoyat qilingan YOZUV shu yerda ko'rinadi.
+        
+        Ilgari faqat "kim ustidan" yozilardi va moderator odamning
+        yuzta postidan qaysi biri haqida ekanini topa olmasdi.
+      */}
+      {report.content && (
+        <div className="border-border/60 bg-secondary/40 mt-3 rounded-lg border p-3">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <span className="text-muted-foreground text-xs font-medium">
+              {report.content.kind === 'POST' ? 'Post' : 'Izoh'}
+            </span>
+
+            {!report.content.isVisible && <Badge variant="secondary">Yashirilgan</Badge>}
+          </div>
+
+          <p className="text-sm leading-relaxed break-words">{report.content.preview}</p>
+
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Link
+              href={report.content.href}
+              className="text-primary text-xs underline-offset-2 hover:underline"
+            >
+              Ochib ko&apos;rish
+            </Link>
+
+            {report.content.kind === 'POST' && report.content.isVisible && onHide && (
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={onHide}
+                className="text-destructive text-xs underline-offset-2 hover:underline disabled:opacity-60"
+              >
+                Postni yashirish
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {report.note && (
         <p className="bg-secondary/60 mt-3 rounded-lg p-3 text-sm leading-relaxed break-words">{report.note}</p>

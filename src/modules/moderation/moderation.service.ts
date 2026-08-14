@@ -13,6 +13,7 @@ import {
   type AdminReportView,
   type BlockedUserView,
   type MessageDenyReason,
+  type ReportedContentView,
   type ReportPartyView,
   type ReportReasonName,
   type ReportStatusName,
@@ -274,6 +275,102 @@ export async function reportUser(reporterId: string, username: string, input: Re
   logger.warn({ reporterId, targetId, reason: input.reason }, 'Foydalanuvchi ustidan shikoyat');
 }
 
+
+/**
+ * Post ustidan shikoyat.
+ *
+ * ── Nima uchun ODAM emas, POST ────────────────────────────────────────
+ * Ilgari faqat odam ustidan shikoyat qilish mumkin edi. Lentada
+ * haqoratli post ko'rgan odam "bu foydalanuvchi yomon" degan umumiy
+ * shikoyat yozardi, moderator esa uning yuzta posti ichidan qaysi
+ * biri haqida ekanini topa olmasdi va ko'pincha hech narsa qilmasdi.
+ *
+ * Endi shikoyat aniq yozuvga bog'lanadi va moderator uni bir bosishda
+ * yashira oladi.
+ *
+ * ── Nima uchun `targetId` ham to'ldiriladi ────────────────────────────
+ * U — post MUALLIFI. Shunda "bu odamga nechta shikoyat kelgan?"
+ * degan savolga javob avvalgidek bitta so'rov bilan topiladi va
+ * takroriy qoidabuzar ko'rinib qoladi.
+ */
+export async function reportPost(reporterId: string, postId: string, input: ReportUserInput): Promise<void> {
+  const post = await prisma.post.findFirst({
+    where: { id: postId, deletedAt: null },
+    select: { id: true, authorId: true },
+  });
+
+  if (!post) {
+    throw new NotFoundError('Post');
+  }
+
+  if (post.authorId === reporterId) {
+    throw new ConflictError("O'z postingiz ustidan shikoyat qilib bo'lmaydi.");
+  }
+
+  await createContentReport({
+    reporterId,
+    targetId: post.authorId,
+    postId,
+    reason: input.reason,
+    note: input.note ?? null,
+  });
+
+  logger.warn({ reporterId, postId, authorId: post.authorId, reason: input.reason }, 'Post ustidan shikoyat');
+}
+
+/** Izoh ustidan shikoyat. */
+export async function reportComment(
+  reporterId: string,
+  commentId: string,
+  input: ReportUserInput,
+): Promise<void> {
+  const comment = await prisma.postComment.findFirst({
+    where: { id: commentId, deletedAt: null },
+    select: { id: true, authorId: true },
+  });
+
+  if (!comment) {
+    throw new NotFoundError('Izoh');
+  }
+
+  if (comment.authorId === reporterId) {
+    throw new ConflictError("O'z izohingiz ustidan shikoyat qilib bo'lmaydi.");
+  }
+
+  await createContentReport({
+    reporterId,
+    targetId: comment.authorId,
+    commentId,
+    reason: input.reason,
+    note: input.note ?? null,
+  });
+
+  logger.warn({ reporterId, commentId, authorId: comment.authorId, reason: input.reason }, 'Izoh ustidan shikoyat');
+}
+
+/**
+ * Yozuvni yaratadi; takrorlanishni jimgina o'tkazadi.
+ *
+ * Odam uchun natija bir xil: shikoyat moderatorda. Ikkinchi yozuv
+ * esa faqat ro'yxatni to'ldirardi.
+ */
+async function createContentReport(data: {
+  reporterId: string;
+  targetId: string;
+  postId?: string;
+  commentId?: string;
+  reason: ReportUserInput['reason'];
+  note: string | null;
+}): Promise<void> {
+  try {
+    await prisma.userReport.create({ data });
+  } catch (error) {
+    const isDuplicate = error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+
+    if (!isDuplicate) throw error;
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Moderator tomoni
 // ─────────────────────────────────────────────────────────────────────
@@ -297,6 +394,42 @@ function toReportParty(row: ReportPartyRow): ReportPartyView {
     username: row.profile?.username ?? '',
     fullName: fullName || null,
   };
+}
+
+/** Matnni ro'yxatga sig'adigan qilib qisqartiradi. */
+function shorten(text: string, maxLength = 160): string {
+  const clean = text.replace(/\s+/g, ' ').trim();
+
+  return clean.length > maxLength ? `${clean.slice(0, maxLength - 1)}…` : clean;
+}
+
+/** Shikoyat qilingan yozuvni umumiy ko'rinishga o'giradi. */
+function toReportedContent(row: {
+  post: { id: string; body: string; imageUrl: string | null; deletedAt: Date | null } | null;
+  comment: { id: string; body: string; postId: string; deletedAt: Date | null } | null;
+}): ReportedContentView | null {
+  if (row.post) {
+    return {
+      kind: 'POST',
+      id: row.post.id,
+      // Matnsiz post ham bo'ladi — unda rasm borligi yoziladi.
+      preview: shorten(row.post.body) || (row.post.imageUrl ? "(faqat rasm)" : "(bo'sh)"),
+      isVisible: row.post.deletedAt === null,
+      href: `/feed/${row.post.id}`,
+    };
+  }
+
+  if (row.comment) {
+    return {
+      kind: 'COMMENT',
+      id: row.comment.id,
+      preview: shorten(row.comment.body),
+      isVisible: row.comment.deletedAt === null,
+      href: `/feed/${row.comment.postId}`,
+    };
+  }
+
+  return null;
 }
 
 /**
@@ -325,6 +458,15 @@ export async function listAdminReports(
         reviewedAt: true,
         reporter: { select: REPORT_PARTY_SELECT },
         target: { select: REPORT_PARTY_SELECT },
+        /**
+         * Shikoyat qilingan yozuv SHU YERDA olinadi.
+         *
+         * Moderator matnni ro'yxatning o'zida o'qiydi. Aks holda u
+         * har bir shikoyat uchun alohida sahifa ochib, keyin
+         * qaytishga majbur bo'lardi.
+         */
+        post: { select: { id: true, body: true, imageUrl: true, deletedAt: true } },
+        comment: { select: { id: true, body: true, postId: true, deletedAt: true } },
       },
       // Yangi shikoyatlar birinchi — indeks ham shu tartibda.
       orderBy: { createdAt: 'desc' },
@@ -363,6 +505,7 @@ export async function listAdminReports(
       reporter: toReportParty(row.reporter),
       target: toReportParty(row.target),
       targetOpenReports: openByTarget.get(row.target.id) ?? 0,
+      content: toReportedContent(row),
     })),
     total,
   };

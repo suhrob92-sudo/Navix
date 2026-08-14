@@ -83,6 +83,26 @@ export interface AdminReportView {
    * Moderator qaror qabul qilishda avval shu songa qaraydi.
    */
   targetOpenReports: number;
+  /**
+   * Shikoyat aynan QAYSI yozuv haqida.
+   *
+   * `null` — odam ustidan umumiy shikoyat (avvalgi tartib). Yozuv
+   * ko'rsatilganda moderator matnni O'SHA YERDA o'qiydi va uni
+   * ochish uchun boshqa sahifaga o'tmaydi.
+   */
+  content: ReportedContentView | null;
+}
+
+/** Shikoyat qilingan post yoki izoh. */
+export interface ReportedContentView {
+  kind: 'POST' | 'COMMENT';
+  id: string;
+  /** Matn boshi — ro'yxatga sig'adigan hajmda. */
+  preview: string;
+  /** Hozir odamlarga ko'rinadimi. */
+  isVisible: boolean;
+  /** Postga havola; izoh uchun — u turgan post. */
+  href: string;
 }
 
 export interface ReportPartyView {

@@ -1,5 +1,5 @@
 import { Prisma } from '@/generated/prisma/client';
-import { ForbiddenError, NotFoundError } from '@/lib/api/errors';
+import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/api/errors';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { blockedUserIds, findBlock, isBlockedBetween } from '@/modules/moderation/moderation.service';
@@ -62,6 +62,7 @@ function postSelect(viewerId: string) {
     likeCount: true,
     commentCount: true,
     createdAt: true,
+    editedAt: true,
     deletedAt: true,
     authorId: true,
     author: { select: AUTHOR_SELECT },
@@ -80,6 +81,7 @@ function toPostView(row: PostRow, viewerId: string): PostView {
     imageUrl: row.deletedAt ? null : row.imageUrl,
     author: toAuthorView(row.author),
     createdAt: row.createdAt.toISOString(),
+    editedAt: row.editedAt?.toISOString() ?? null,
     likeCount: row.likeCount,
     commentCount: row.commentCount,
     isLiked: row.likes.length > 0,
@@ -276,6 +278,55 @@ export async function createPost(
  * O'chirilgan post ATAYLAB qaytariladi: unga yozilgan izohlar
  * qolgan va odam ularni ochib ko'rishi mumkin.
  */
+/**
+ * Post matnini tahrirlaydi.
+ *
+ * ── Nima uchun faqat MATN ─────────────────────────────────────────────
+ * Rasmni almashtirish boshqa ish: odamlar allaqachon eski rasmni
+ * ko'rgan va yoqtirgan bo'lishi mumkin. Rasm o'zgarsa, post ma'nosi
+ * butunlay boshqacha bo'lib qoladi — bu tuzatish emas, almashtirish.
+ * Kerak bo'lsa yangi post yoziladi.
+ *
+ * ── Nima uchun VAQT CHEGARASI yo'q ────────────────────────────────────
+ * Chatda tahrirlash cheklanmagan va bu yerda ham shunday: xatoni bir
+ * yildan keyin ko'rish ham mumkin. Buning o'rniga "tahrirlangan"
+ * belgisi qo'yiladi — o'quvchi matn o'zgarganini bilib turadi.
+ */
+export async function updatePost(postId: string, userId: string, body: string): Promise<PostView> {
+  const existing = await prisma.post.findUnique({
+    where: { id: postId },
+    select: { id: true, authorId: true, deletedAt: true, imageUrl: true },
+  });
+
+  if (!existing || existing.deletedAt) {
+    throw new NotFoundError('Post');
+  }
+
+  if (existing.authorId !== userId) {
+    throw new ForbiddenError("Faqat o'z postingizni tahrirlay olasiz.");
+  }
+
+  /**
+   * Rasmsiz postning matni BO'SH bo'lib qolmasligi kerak.
+   *
+   * Aks holda lentada butunlay bo'sh kartochka paydo bo'lardi —
+   * na matn, na rasm.
+   */
+  if (body.trim().length === 0 && !existing.imageUrl) {
+    throw new ConflictError("Post bo'sh qololmaydi: matn yozing yoki postni o'chiring.");
+  }
+
+  const row = await prisma.post.update({
+    where: { id: postId },
+    data: { body: body.trim(), editedAt: new Date() },
+    select: postSelect(userId),
+  });
+
+  logger.info({ userId, postId }, 'Post tahrirlandi');
+
+  return toPostView(row, userId);
+}
+
 export async function getPost(postId: string, viewerId: string): Promise<PostView> {
   const row = await prisma.post.findFirst({
     where: { id: postId, author: { deletedAt: null } },
@@ -315,11 +366,23 @@ export async function deletePost(postId: string, userId: string): Promise<void> 
     throw new ForbiddenError("Faqat o'z postingizni o'chira olasiz.");
   }
 
-  await prisma.post.update({
-    where: { id: postId },
+  /**
+   * O'chirish SHARTLI — izohdagi bilan bir xil sabab.
+   *
+   * Postda sanaladigan son yo'q, shuning uchun bu yerda 500 xavfi
+   * yo'q edi. Lekin ikkinchi so'rov "muvaffaqiyat" degan javob olib,
+   * `deletedAt` ni QAYTA yozardi va o'chirilgan vaqt haqiqatdan
+   * ajralib qolardi.
+   */
+  const claimed = await prisma.post.updateMany({
+    where: { id: postId, deletedAt: null },
     // Rasm manzili ham tozalanadi — faylning o'zi quyida o'chiriladi.
     data: { deletedAt: new Date(), imageUrl: null },
   });
+
+  if (claimed.count === 0) {
+    throw new NotFoundError('Post');
+  }
 
   /**
    * Rasm FAYLI ham o'chiriladi.
@@ -529,14 +592,37 @@ export async function deleteComment(commentId: string, userId: string): Promise<
     throw new ForbiddenError("Bu izohni o'chirishga ruxsatingiz yo'q.");
   }
 
-  await prisma.$transaction([
-    prisma.postComment.update({ where: { id: commentId }, data: { deletedAt: new Date() } }),
-    prisma.post.update({
+  /**
+   * ── HAQIQIY XATO, sinovda topilgan ──────────────────────────────────
+   * Ilgari bu yerda oddiy `update` turardi. Tugma ikki marta bosilsa
+   * (yoki ikkita qurilmadan bir vaqtda), YUQORIDAGI tekshiruvdan
+   * ikkala so'rov ham o'tib ketardi: ikkalasi ham izohni hali
+   * "o'chirilmagan" ko'rardi.
+   *
+   * Natijada `commentCount` ikki marta kamayardi. Bazadagi CHECK
+   * sharti buni to'xtatib qolardi — lekin foydalanuvchi "Serverda
+   * kutilmagan xatolik" degan 500 javobini olardi.
+   *
+   * Endi o'chirish SHARTLI: `deletedAt IS NULL` bo'lgandagina
+   * bajariladi. Nol qator o'zgarsa — kimdir ulgurgan va javob
+   * tushunarli bo'ladi.
+   */
+  await prisma.$transaction(async (tx) => {
+    const claimed = await tx.postComment.updateMany({
+      where: { id: commentId, deletedAt: null },
+      data: { deletedAt: new Date() },
+    });
+
+    if (claimed.count === 0) {
+      throw new NotFoundError('Izoh');
+    }
+
+    await tx.post.update({
       where: { id: comment.postId },
       data: { commentCount: { decrement: 1 } },
       select: { id: true },
-    }),
-  ]);
+    });
+  });
 
   logger.info({ userId, commentId, byPostAuthor: isPostAuthor && !isCommentAuthor }, "Izoh o'chirildi");
 }

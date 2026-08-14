@@ -193,6 +193,17 @@ export const PUBLIC_RATE_LIMITS = {
    */
   postComment: { limit: 20, windowSeconds: 60 },
   /**
+   * Shikoyat: soatiga 20 ta.
+   *
+   * Shikoyat tugmasi ham QUROL bo'lishi mumkin: bir odam o'nlab
+   * postga shikoyat yozib, moderator navbatini to'ldirib qo'yishi va
+   * haqiqiy shikoyatlarni ko'mib yuborishi mumkin.
+   *
+   * Yigirma — halol foydalanuvchi uchun juda bemalol (odatda kuniga
+   * bir-ikkita), hujum uchun esa yetarli emas.
+   */
+  report: { limit: 20, windowSeconds: 60 * 60 },
+  /**
    * Yoqtirish: daqiqasiga 120 ta.
    *
    * Lentani aylanib chiqib ko'plab post yoqtirish tabiiy holat.

@@ -7,7 +7,7 @@ import { toUserMessage } from '@/lib/api-client';
 import type { LikeResponse, PostView } from '@/modules/feed/feed.types';
 
 /**
- * Post ustidagi amallar: yoqtirish va o'chirish.
+ * Post ustidagi amallar: yoqtirish, tahrirlash, o'chirish va shikoyat.
  *
  * ── Nima uchun alohida hook ───────────────────────────────────────────
  * Bu amallar UCH joyda kerak: lenta, profildagi postlar va postning
@@ -24,7 +24,9 @@ export interface PostActions {
   error: string | null;
   clearError: () => void;
   toggleLike: (post: PostView) => void;
+  editPost: (postId: string, body: string) => Promise<void>;
   deletePost: (postId: string) => void;
+  reportPost: (postId: string, reason: string, note: string) => Promise<void>;
 }
 
 export function usePostActions(update: (updater: (current: PostView[]) => PostView[]) => void): PostActions {
@@ -100,7 +102,60 @@ export function usePostActions(update: (updater: (current: PostView[]) => PostVi
     [request, update],
   );
 
+  /**
+   * Tahrirlash — optimistik EMAS.
+   *
+   * Yoqtirishdan farqi: bu yerda server matnni qisqartirishi yoki
+   * rad etishi mumkin (bo'sh post). Oldindan almashtirilsa, xato
+   * bo'lganda ekranda saqlanmagan matn turib qolardi.
+   */
+  const editPost = useCallback(
+    async (postId: string, body: string) => {
+      setBusyPostId(postId);
+      setError(null);
+
+      try {
+        const result = await request<{ post: PostView }>(`/api/v1/posts/${postId}`, {
+          method: 'PATCH',
+          body: { body },
+        });
+
+        update((current) => current.map((post) => (post.id === postId ? { ...post, ...result.post } : post)));
+      } catch (caught) {
+        setError(toUserMessage(caught));
+      } finally {
+        setBusyPostId(null);
+      }
+    },
+    [request, update],
+  );
+
+  /**
+   * Shikoyat — ro'yxat O'ZGARMAYDI.
+   *
+   * Post joyida qoladi: uni yashirish moderatorning ishi. Odamga
+   * "yubordim" degan tasdiq kartochkaning o'zida ko'rsatiladi.
+   */
+  const reportPost = useCallback(
+    async (postId: string, reason: string, note: string) => {
+      setBusyPostId(postId);
+      setError(null);
+
+      try {
+        await request(`/api/v1/posts/${postId}/report`, {
+          method: 'POST',
+          body: { reason, ...(note.trim() ? { note: note.trim() } : {}) },
+        });
+      } catch (caught) {
+        setError(toUserMessage(caught));
+      } finally {
+        setBusyPostId(null);
+      }
+    },
+    [request],
+  );
+
   const clearError = useCallback(() => setError(null), []);
 
-  return { busyPostId, error, clearError, toggleLike, deletePost };
+  return { busyPostId, error, clearError, toggleLike, editPost, deletePost, reportPost };
 }

@@ -2298,7 +2298,27 @@ model UserReport {
   id String @id @default(uuid()) @db.Uuid
 
   reporterId String @db.Uuid
+  /// Shikoyat KIMGA yozilgan.
+  ///
+  /// Post yoki izoh haqidagi shikoyatda ham to'ldiriladi — u yerda
+  /// bu kontent MUALLIFI bo'ladi. Shunda moderator "bu odamga
+  /// nechta shikoyat kelgan?" degan savolga bitta so'rov bilan
+  /// javob topadi.
   targetId   String @db.Uuid
+
+  /// Shikoyat aynan QAYSI post haqida (bo'lsa).
+  ///
+  /// ── Nima uchun bu kerak edi ─────────────────────────────────────────
+  /// Ilgari faqat ODAM haqida shikoyat qilish mumkin edi. Lentada
+  /// haqoratli post ko'rgan odam esa "bu odam yomon" deb umumiy
+  /// shikoyat yozardi va moderator uning yuzta postidan qaysi biri
+  /// haqida ekanini topa olmasdi.
+  postId String? @db.Uuid
+  post   Post?   @relation("PostReports", fields: [postId], references: [id], onDelete: Cascade)
+
+  /// Shikoyat aynan QAYSI izoh haqida (bo'lsa).
+  commentId String?      @db.Uuid
+  comment   PostComment? @relation("CommentReports", fields: [commentId], references: [id], onDelete: Cascade)
 
   reason ReportReason
   /// Qo'shimcha izoh — ixtiyoriy.
@@ -2314,6 +2334,13 @@ model UserReport {
   /// Moderator ro'yxati uchun: yangi shikoyatlar birinchi.
   @@index([status, createdAt])
   @@index([targetId])
+  /// Bir odam bir postga BIR MARTA shikoyat qiladi.
+  ///
+  /// Usiz norozi odam tugmani o'n marta bosib, moderator ro'yxatini
+  /// bitta post bilan to'ldirib qo'yardi va haqiqiy shikoyatlar
+  /// ular orasida yo'qolardi.
+  @@unique([reporterId, postId])
+  @@unique([reporterId, commentId])
   @@map("user_reports")
 }
 
@@ -2357,6 +2384,16 @@ model Post {
   likeCount    Int @default(0)
   commentCount Int @default(0)
 
+  /// Post tahrirlangan payt.
+  ///
+  /// ── Nima uchun `updatedAt` YETARLI EMAS ─────────────────────────────
+  /// `updatedAt` yoqtirish sonini yangilaganda ham o'zgaradi. Ya'ni
+  /// kimdir postni yoqtirsa, u "tahrirlangan" bo'lib ko'rinardi.
+  ///
+  /// Bu ustun esa FAQAT matn o'zgarganda to'ldiriladi va lentada
+  /// "tahrirlangan" belgisi shundan chiqadi.
+  editedAt DateTime?
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   /// O'chirilgan post — yozuv saqlanadi, matni ko'rsatilmaydi.
@@ -2368,6 +2405,7 @@ model Post {
   author   User          @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   likes    PostLike[]
   comments PostComment[]
+  reports  UserReport[]  @relation("PostReports")
 
   /// Lenta aynan shu tartibda o'qiladi: yangi postlar birinchi.
   @@index([createdAt])
@@ -2410,8 +2448,9 @@ model PostComment {
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
-  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author User @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  post    Post         @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author  User         @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  reports UserReport[] @relation("CommentReports")
 
   /// Izohlar eskisidan yangisiga qarab o'qiladi — suhbat kabi.
   @@index([postId, createdAt])

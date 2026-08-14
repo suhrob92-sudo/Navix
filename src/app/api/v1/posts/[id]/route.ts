@@ -1,13 +1,15 @@
 import type { NextRequest } from 'next/server';
 
-import { withApiHandler } from '@/lib/api/handler';
+import { parseJsonBody, withApiHandler } from '@/lib/api/handler';
 import { parseIdParam } from '@/lib/api/params';
 import { apiSuccess } from '@/lib/api/response';
 import { requireAuth } from '@/modules/auth/auth.guard';
-import { deletePost, getPost } from '@/modules/feed/feed.service';
+import { updatePostSchema } from '@/modules/feed/feed.schemas';
+import { deletePost, getPost, updatePost } from '@/modules/feed/feed.service';
 
 /**
  * GET    /api/v1/posts/[id] — bitta post.
+ * PATCH  /api/v1/posts/[id] — matnni tahrirlash (faqat muallif).
  * DELETE /api/v1/posts/[id] — postni o'chirish (faqat muallif).
  */
 export const dynamic = 'force-dynamic';
@@ -30,4 +32,14 @@ export const DELETE = withApiHandler<Params>(async (request: NextRequest, { requ
   await deletePost(id, auth.userId);
 
   return apiSuccess({ isDeleted: true }, { requestId });
+});
+
+export const PATCH = withApiHandler<Params>(async (request: NextRequest, { requestId, params }) => {
+  const auth = await requireAuth(request);
+  const id = parseIdParam((await params).id);
+  const input = await parseJsonBody(request, updatePostSchema);
+
+  const post = await updatePost(id, auth.userId, input.body);
+
+  return apiSuccess({ post }, { requestId });
 });

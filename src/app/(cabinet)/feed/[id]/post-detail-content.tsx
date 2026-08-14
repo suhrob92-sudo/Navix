@@ -144,7 +144,9 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
               isDetail
               isBusy={actions.busyPostId === post.id}
               onToggleLike={() => actions.toggleLike(post)}
+              onEdit={(body) => actions.editPost(post.id, body)}
               onDelete={() => actions.deletePost(post.id)}
+              onReport={(reason, note) => actions.reportPost(post.id, reason, note)}
             />
 
             {!post.isDeleted && (

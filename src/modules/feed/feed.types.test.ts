@@ -6,6 +6,7 @@ import {
   createPostSchema,
   feedCursorSchema,
   feedQuerySchema,
+  updatePostSchema,
 } from '@/modules/feed/feed.schemas';
 import {
   authorDisplayName,
@@ -165,5 +166,33 @@ describe('createPostSchema — rasm bilan', () => {
      * IP manzili o'sha saytga yetib borardi.
      */
     expect(createPostSchema.safeParse({ imageUrl: 'https://tracker.example.com/p.gif' }).success).toBe(false);
+  });
+});
+
+describe('postni tahrirlash sxemasi', () => {
+  it("to'g'ri matn qabul qilinadi", () => {
+    expect(updatePostSchema.safeParse({ body: 'Tuzatilgan matn' }).success).toBe(true);
+  });
+
+  it("bo'shliqlar olib tashlanadi", () => {
+    expect(updatePostSchema.parse({ body: '   salom   ' }).body).toBe('salom');
+  });
+
+  it("BO'SH matn sxemadan o'tadi", () => {
+    /**
+     * Bu ataylab shunday: rasm biriktirilgan postda matn bo'sh
+     * bo'lishi mumkin. Rasmsiz postni bo'shatib bo'lmasligini
+     * XIZMAT tekshiradi — faqat u postda rasm bor-yo'qligini
+     * biladi.
+     */
+    expect(updatePostSchema.safeParse({ body: '' }).success).toBe(true);
+  });
+
+  it('juda uzun matn rad etiladi', () => {
+    expect(updatePostSchema.safeParse({ body: 'a'.repeat(POST_MAX_LENGTH + 1) }).success).toBe(false);
+  });
+
+  it('matnsiz so\'rov rad etiladi', () => {
+    expect(updatePostSchema.safeParse({}).success).toBe(false);
   });
 });

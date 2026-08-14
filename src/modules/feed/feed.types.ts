@@ -19,6 +19,14 @@ export interface PostView {
   imageUrl: string | null;
   author: PostAuthorView;
   createdAt: string;
+  /**
+   * Tahrirlangan payt — `null` bo'lsa post o'zgartirilmagan.
+   *
+   * Belgi KERAK: o'quvchi izoh yozgandan keyin matn o'zgarsa, uning
+   * izohi ma'nosiz ko'rinib qolardi. "Tahrirlangan" yozuvi buni
+   * ochiq qiladi.
+   */
+  editedAt: string | null;
 
   likeCount: number;
   commentCount: number;
