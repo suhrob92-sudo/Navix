@@ -1,7 +1,7 @@
 'use client';
 
 import { Send, ShoppingBag, Video, X } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { ProductPicker } from '@/components/feed/product-picker';
 import { ImageAttach } from '@/components/upload/image-attach';
@@ -29,6 +29,16 @@ export interface ComposerDraft {
 export interface PostComposerProps {
   isSending: boolean;
   onSubmit: (draft: ComposerDraft) => Promise<boolean>;
+  /** Oynani yopish. */
+  onClose: () => void;
+  /**
+   * Ochilishi bilan fayl tanlagichni O'ZI ochsinmi.
+   *
+   * "+" tugmasidan "Video" tanlangan bo'lsa, odam allaqachon nima
+   * qilmoqchiligini aytgan — undan yana bir marta bosishni talab
+   * qilish ortiqcha.
+   */
+  autoPick?: 'VIDEO' | null;
 }
 
 /**
@@ -47,8 +57,11 @@ export interface PostComposerProps {
  * Ikkalasi ham bo'lsa, lentada qaysi birini ko'rsatish noaniq
  * bo'lardi. Bitta postda bitta media — qoida oddiy va tushunarli.
  */
-export function PostComposer({ isSending, onSubmit }: PostComposerProps) {
+export function PostComposer({ isSending, onSubmit, onClose, autoPick = null }: PostComposerProps) {
   const { accessToken } = useAuth();
+
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const [body, setBody] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -61,6 +74,22 @@ export function PostComposer({ isSending, onSubmit }: PostComposerProps) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const image = useFileUpload('POST');
+
+  useEffect(() => {
+    dialogRef.current?.showModal();
+
+    /**
+     * Fayl tanlagich BIROZ KECHIKIB ochiladi.
+     *
+     * Oyna hali chizilmagan paytda bosilsa, brauzer "bu amal
+     * foydalanuvchi harakatidan kelmadi" deb rad etishi mumkin.
+     */
+    if (autoPick === 'VIDEO') {
+      const timer = setTimeout(() => videoInputRef.current?.click(), 250);
+
+      return () => clearTimeout(timer);
+    }
+  }, [autoPick]);
 
   const trimmed = body.trim();
   /**
@@ -117,13 +146,25 @@ export function PostComposer({ isSending, onSubmit }: PostComposerProps) {
   }
 
   return (
-    <form
-      className="bg-card border-border rounded-2xl border p-4"
-      onSubmit={(event) => {
-        event.preventDefault();
-        void send();
-      }}
+    <dialog
+      ref={dialogRef}
+      onCancel={onClose}
+      className="glass animate-scale-in text-foreground m-auto max-h-[90vh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-2xl p-5 backdrop:bg-black/50 backdrop:backdrop-blur-sm"
     >
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void send();
+        }}
+      >
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold">Post joylash</h2>
+
+        <Button type="button" variant="ghost" size="icon" aria-label="Yopish" onClick={onClose}>
+          <X className="size-5" aria-hidden="true" />
+        </Button>
+      </div>
+
       <label htmlFor="post-body" className="sr-only">
         Post matni
       </label>
@@ -237,6 +278,7 @@ export function PostComposer({ isSending, onSubmit }: PostComposerProps) {
             <span className="text-xs">{isUploadingVideo ? 'Yuklanmoqda…' : 'Video'}</span>
 
             <input
+              ref={videoInputRef}
               type="file"
               accept="video/*"
               className="sr-only"
@@ -299,6 +341,7 @@ export function PostComposer({ isSending, onSubmit }: PostComposerProps) {
           onCancel={() => setIsPickerOpen(false)}
         />
       )}
-    </form>
+      </form>
+    </dialog>
   );
 }

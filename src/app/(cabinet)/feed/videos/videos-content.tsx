@@ -16,6 +16,17 @@ import { useAuth } from '@/modules/auth/auth-context';
 import { RequireAuth } from '@/modules/auth/require-auth';
 import type { PostView } from '@/modules/feed/feed.types';
 
+export interface VideosContentProps {
+  /**
+   * Qaysi videodan boshlanadi.
+   *
+   * Panjaradan bosilganda odam AYNAN o'sha videoni ochmoqchi
+   * bo'ladi. Boshidan boshlansa, u nima uchun boshqa video
+   * ochilganini tushunmasdi.
+   */
+  startId: string | null;
+}
+
 /**
  * Video lentasi — to'liq ekranli, vertikal suriladigan.
  *
@@ -32,15 +43,15 @@ import type { PostView } from '@/modules/feed/feed.types';
  * tinglashni bilib bo'lmaydi. `snap` esa har surishda aynan bitta
  * videoni ekranga qo'yadi — barmoq qayerda uzilishidan qat'i nazar.
  */
-export function ReelsContent() {
+export function VideosContent({ startId }: VideosContentProps) {
   return (
     <RequireAuth>
-      <ReelsBody />
+      <VideosBody startId={startId} />
     </RequireAuth>
   );
 }
 
-function ReelsBody() {
+function VideosBody({ startId }: VideosContentProps) {
   const request = useApiClient();
   const { user } = useAuth();
   const list = useCursorList<PostView>('/api/v1/feed?tab=VIDEO&limit=10', 'posts');
@@ -102,6 +113,27 @@ function ReelsBody() {
   const [isMuted, setIsMuted] = useState(true);
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  /** Boshlang'ich videoga BIR MARTA suriladi. */
+  const jumpedRef = useRef(false);
+
+  /**
+   * Panjaradan tanlangan videoga suriladi.
+   *
+   * ── Nima uchun BIR MARTA ────────────────────────────────────────────
+   * Ro'yxat "yana yuklash"da o'sadi. Har o'zgarishda surilsa, odam
+   * pastga tushgan sari uni yuqoriga tortib turardi.
+   */
+  useEffect(() => {
+    if (!startId || jumpedRef.current || list.items.length === 0) return;
+
+    const target = containerRef.current?.querySelector(`[data-post-id="${startId}"]`);
+
+    if (!target) return;
+
+    jumpedRef.current = true;
+    target.scrollIntoView({ block: 'start' });
+  }, [startId, list.items.length]);
 
   /**
    * Ekranda qaysi video turganini KUZATUVCHI aniqlaydi.
@@ -170,7 +202,7 @@ function ReelsBody() {
       {/* Orqaga tugmasi — to'liq ekranda pastki menyu ko'rinmaydi. */}
       <Link
         href="/feed"
-        aria-label="Lentaga qaytish"
+        aria-label="Feedga qaytish"
         className="absolute top-4 left-4 z-10 rounded-full bg-black/40 p-2.5 text-white backdrop-blur-sm transition-transform active:scale-95"
       >
         <ArrowLeft className="size-5" aria-hidden="true" />

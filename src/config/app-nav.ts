@@ -1,7 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Bell,
-  Clapperboard,
   ClipboardList,
   Home,
   LifeBuoy,
@@ -49,9 +48,9 @@ export interface AppNavItem {
 }
 
 /**
- * ── Nima uchun bu yerda "Buyurtmalar" O'RNIDA "Lenta" turadi ──────────
+ * ── Nima uchun bu yerda "Buyurtmalar" O'RNIDA "Feed" turadi ───────────
  * Panelda beshta joy bor va u o'zgarmaydi (yuqoridagi izohga qarang).
- * Lenta — kunda bir necha marta ochiladigan bo'lim: u bir bosishda
+ * Feed — kunda bir necha marta ochiladigan bo'lim: u bir bosishda
  * bo'lmasa, umuman ochilmaydi.
  *
  * Buyurtmalar esa haftada bir marta kerak bo'ladi va u YO'QOLMADI:
@@ -61,7 +60,7 @@ export const APP_NAV: readonly AppNavItem[] = [
   { href: '/dashboard', label: 'Bosh sahifa', icon: Home, exact: true },
   { href: '/search', label: 'Qidiruv', icon: Search },
   { href: '/assistant', label: 'AI', icon: NavixMark, isCenter: true },
-  { href: '/feed', label: 'Lenta', icon: Newspaper },
+  { href: '/feed', label: 'Feed', icon: Newspaper },
   { href: '/profile', label: 'Profil', icon: User },
 ] as const;
 
@@ -97,19 +96,6 @@ export const PROFILE_MENU: readonly ProfileMenuItem[] = [
     label: 'Mening buyurtmalarim',
     description: 'Barcha modullardagi buyurtmalar',
     icon: ClipboardList,
-  },
-  /**
-   * Video natijasi — buyurtmalardan KEYIN.
-   *
-   * Video joylagan odam uchun bu eng qiziq sahifa, lekin u hammaga
-   * kerak emas. Shuning uchun ro'yxatning boshiga ham chiqarilmadi,
-   * tubiga ham tashlanmadi.
-   */
-  {
-    href: '/feed/stats',
-    label: 'Videolarim natijasi',
-    description: "Ko'rishlar, bosishlar va savdo",
-    icon: Clapperboard,
   },
   { href: '/addresses', label: 'Manzillarim', description: 'Uy, ish va boshqa manzillar', icon: MapPin },
   { href: '/notifications', label: 'Bildirishnomalar', description: 'Kelgan xabarlar', icon: Bell },

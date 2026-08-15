@@ -1,42 +1,75 @@
 'use client';
 
-import { Bookmark, Clapperboard, Newspaper, Users } from 'lucide-react';
-import Link from 'next/link';
+import { LayoutGrid, Plus } from 'lucide-react';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { CreateMenu } from '@/components/feed/create-menu';
+import { FeedMenu } from '@/components/feed/feed-menu';
 import { PostComposer, type ComposerDraft } from '@/components/feed/post-composer';
 import { PostList } from '@/components/feed/post-list';
 import { TrendingHashtags } from '@/components/feed/trending-hashtags';
+import { VideoGrid } from '@/components/feed/video-grid';
+import { StoryComposer } from '@/components/story/story-composer';
 import { StoryTray } from '@/components/story/story-tray';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FEED_TABS, feedQueryTab, type FeedTabValue } from '@/config/feed-nav';
 import { useApiClient } from '@/hooks/use-api';
 import { useCursorList } from '@/hooks/use-cursor-list';
 import { usePostActions } from '@/hooks/use-post-actions';
 import { toUserMessage } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
-import { FEED_TABS, type FeedTabName, type PostView } from '@/modules/feed/feed.types';
+import type { PostView } from '@/modules/feed/feed.types';
 
 /**
- * Lenta.
+ * Feed — bo'limning bosh ekrani.
  *
- * ── Nima uchun IKKI bo'lim ────────────────────────────────────────────
- * "Obunalarim" — odam o'zi tanlagan ovozlar. "Yangi" esa yangi
- * kelganlar uchun: obunasi yo'q odam bo'sh ekran ko'rmasligi va kimga
- * obuna bo'lishni topa olishi kerak.
+ * ── Nima uchun QAYTA QURILDI ──────────────────────────────────────────
+ * ── HAQIQIY MUAMMO, foydalanuvchi aytgan ────────────────────────────
+ * Feed bosqichma-bosqich o'sdi va oxirida ekranning yarmini xizmat
+ * elementlari egallab qoldi: doim ochiq yozish maydoni, ikkita kichik
+ * belgi (video va saqlanganlar), mavzular qatori, hikoyalar halqasi.
+ * Kontentning o'zi esa pastda, ko'rinmas joyda qolardi.
+ *
+ * Endi tuzilish oddiy:
+ *   1. Hikoyalar halqasi — tepada, u 24 soatlik va shoshilinch.
+ *   2. Uchta yorliq: Videolar / Obunalarim / Yangi.
+ *   3. Kontent — ekranning QOLGAN HAMMASI.
+ *   4. Yozish — pastdagi "+" tugmasi ostida.
+ *   5. Qolgan bo'limlar — yuqoridagi menyu ostida, bir joyda.
+ *
+ * ── Nima uchun "Videolar" birinchi ────────────────────────────────────
+ * Navix'da video — sotuvga eng yaqin kontent: undagi tugma to'g'ridan
+ * to'g'ri mahsulotga olib boradi. Shuning uchun u birinchi turadi.
  */
 export function FeedContent() {
   const request = useApiClient();
 
-  const [tab, setTab] = useState<FeedTabName>('FOLLOWING');
+  const [tab, setTab] = useState<FeedTabValue>('VIDEOS');
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
 
-  const list = useCursorList<PostView>(`/api/v1/feed?tab=${tab}`, 'posts');
+  /** Qaysi qo'shimcha oyna ochiq: menyu, yaratish tanlovi, yozish, hikoya. */
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isComposerOpen, setIsComposerOpen] = useState(false);
+  const [isStoryOpen, setIsStoryOpen] = useState(false);
+
+  /**
+   * Video tanlash oynasi darhol ochilsinmi.
+   *
+   * "+" dan "Video" tanlanganda yozish maydoni ochiladi va u
+   * fayl tanlagichni O'ZI ochadi — odam ikkinchi marta bosmaydi.
+   */
+  const [autoPick, setAutoPick] = useState<'VIDEO' | null>(null);
+
+  const list = useCursorList<PostView>(`/api/v1/feed?tab=${feedQueryTab(tab)}`, 'posts');
   const actions = usePostActions(list.setItems);
+
+  const activeTab = FEED_TABS.find((item) => item.value === tab) ?? FEED_TABS[0];
 
   async function publish(draft: ComposerDraft): Promise<boolean> {
     setIsSending(true);
@@ -65,12 +98,18 @@ export function FeedContent() {
        * Yangi post ro'yxat BOSHIGA qo'yiladi.
        *
        * Butun lentani qayta yuklash ham mumkin edi, lekin unda odam
-       * o'qib turgan joyi yo'qolardi va mobil trafik bekorga sarflanardi.
+       * o'qib turgan joyi yo'qolardi va mobil trafik bekorga
+       * sarflanardi.
        *
-       * "Yangi" bo'limida ham to'g'ri ko'rinadi: post haqiqatan eng
-       * yangisi.
+       * Faqat MOS yorliqqa qo'shiladi: videosiz post "Videolar"
+       * yorlig'ida ko'rinib qolmasligi kerak.
        */
-      list.setItems((current) => [result.post, ...current]);
+      if (tab !== 'VIDEOS' || draft.videoUrl) {
+        list.setItems((current) => [result.post, ...current]);
+      }
+
+      setIsComposerOpen(false);
+      setAutoPick(null);
 
       return true;
     } catch (caught) {
@@ -86,62 +125,47 @@ export function FeedContent() {
 
   return (
     <>
-      <AppHeader title="Lenta" />
+      <AppHeader title="Feed" />
 
-      <div className="space-y-4 px-4 pt-4">
-        {/*
-          Hikoyalar halqasi ENG TEPADA.
-
-          Hikoya — "bugun nima bo'lyapti" degan javob va u 24 soatdan
-          keyin yo'qoladi. Pastroqqa qo'yilsa, odam uni umuman
-          ko'rmasdan o'tib ketardi.
-        */}
+      <div className="space-y-4 px-4 pt-4 pb-24">
         <StoryTray />
 
-        <PostComposer isSending={isSending} onSubmit={publish} />
+        {/* Yorliqlar va bo'limlar menyusi — bitta qatorda. */}
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {FEED_TABS.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setTab(item.value)}
+                aria-pressed={tab === item.value}
+                className={cn(
+                  'shrink-0 rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+                  tab === item.value
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border hover:bg-secondary',
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
 
-        {sendError && <Alert variant="error">{sendError}</Alert>}
-
-        <div className="flex gap-2">
-          {/*
-            "Videolar" — YORLIQ emas, HAVOLA.
-
-            Video tomosha qilish boshqa holat: to'liq ekran, ovoz,
-            vertikal surish. Uni shu ro'yxatning ichida ko'rsatib
-            bo'lmaydi.
-          */}
-          <Button asChild variant="outline" size="sm" className="shrink-0">
-            <Link href="/reels" aria-label="Videolar">
-              <Clapperboard className="size-4" aria-hidden="true" />
-            </Link>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Feed bo'limlari"
+            className="shrink-0"
+            onClick={() => setIsMenuOpen(true)}
+          >
+            <LayoutGrid className="size-4" aria-hidden="true" />
           </Button>
-
-          <Button asChild variant="outline" size="sm" className="shrink-0">
-            <Link href="/feed/saved" aria-label="Saqlanganlar">
-              <Bookmark className="size-4" aria-hidden="true" />
-            </Link>
-          </Button>
-
-          {FEED_TABS.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => setTab(item.value)}
-              aria-pressed={tab === item.value}
-              className={cn(
-                'flex-1 rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                tab === item.value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {item.label}
-            </button>
-          ))}
         </div>
 
-        <TrendingHashtags />
+        {/* Mavzular FAQAT matnli yorliqlarda — videolar panjarasi ustida ortiqcha. */}
+        {tab !== 'VIDEOS' && <TrendingHashtags />}
 
+        {sendError && <Alert variant="error">{sendError}</Alert>}
         {actions.error && <Alert variant="error">{actions.error}</Alert>}
 
         {list.error && (
@@ -151,35 +175,34 @@ export function FeedContent() {
         )}
 
         {list.isLoading && (
-          <div className="space-y-3">
-            {Array.from({ length: 3 }, (_, index) => (
-              <Skeleton key={index} className="h-40 rounded-2xl" />
+          <div className={cn(tab === 'VIDEOS' ? 'grid grid-cols-3 gap-1' : 'space-y-3')}>
+            {Array.from({ length: tab === 'VIDEOS' ? 6 : 3 }, (_, index) => (
+              <Skeleton
+                key={index}
+                className={cn(tab === 'VIDEOS' ? 'aspect-[9/16] rounded-lg' : 'h-40 rounded-2xl')}
+              />
             ))}
           </div>
         )}
 
-        {isEmpty && tab === 'FOLLOWING' && (
+        {isEmpty && (
           <EmptyState
-            icon={Users}
-            title="Lentangiz hozircha bo'sh"
-            description="Odamlarga obuna bo'ling — ularning postlari shu yerda paydo bo'ladi."
+            icon={activeTab.icon}
+            title={activeTab.emptyTitle}
+            description={activeTab.emptyDescription}
             action={
-              <Button asChild variant="outline">
-                <Link href="/search">Odam qidirish</Link>
+              <Button variant="outline" onClick={() => setIsCreateOpen(true)}>
+                Joylash
               </Button>
             }
           />
         )}
 
-        {isEmpty && tab === 'LATEST' && (
-          <EmptyState
-            icon={Newspaper}
-            title="Hali post yo'q"
-            description="Birinchi bo'lib yozing — postingizni hamma ko'radi."
-          />
+        {tab === 'VIDEOS' ? (
+          <VideoGrid posts={list.items} />
+        ) : (
+          <PostList posts={list.items} actions={actions} />
         )}
-
-        <PostList posts={list.items} actions={actions} />
 
         {list.hasMore && (
           <Button
@@ -193,6 +216,58 @@ export function FeedContent() {
           </Button>
         )}
       </div>
+
+      {/*
+        Yaratish tugmasi — SUZUVCHI.
+
+        U doim ko'rinib turadi va lentani surganda ham yo'qolmaydi.
+        Pastki menyudan yuqorida joylashgan: barmoq unga osongina
+        yetadi va menyuni to'sib qo'ymaydi.
+      */}
+      <button
+        type="button"
+        aria-label="Joylash"
+        onClick={() => setIsCreateOpen(true)}
+        className="bg-primary text-primary-foreground fixed right-4 bottom-24 z-40 flex size-14 items-center justify-center rounded-full shadow-lg transition-transform active:scale-95"
+      >
+        <Plus className="size-6" aria-hidden="true" />
+      </button>
+
+      {isMenuOpen && <FeedMenu onClose={() => setIsMenuOpen(false)} />}
+
+      {isCreateOpen && (
+        <CreateMenu
+          onClose={() => setIsCreateOpen(false)}
+          onPick={(choice) => {
+            setIsCreateOpen(false);
+
+            if (choice === 'STORY') {
+              setIsStoryOpen(true);
+
+              return;
+            }
+
+            setAutoPick(choice === 'VIDEO' ? 'VIDEO' : null);
+            setIsComposerOpen(true);
+          }}
+        />
+      )}
+
+      {isComposerOpen && (
+        <PostComposer
+          isSending={isSending}
+          autoPick={autoPick}
+          onSubmit={publish}
+          onClose={() => {
+            setIsComposerOpen(false);
+            setAutoPick(null);
+          }}
+        />
+      )}
+
+      {isStoryOpen && (
+        <StoryComposer onClose={() => setIsStoryOpen(false)} onPosted={() => setIsStoryOpen(false)} />
+      )}
     </>
   );
 }

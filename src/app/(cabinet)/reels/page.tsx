@@ -1,10 +1,15 @@
-import { ReelsContent } from '@/app/(cabinet)/reels/reels-content';
+import { redirect } from 'next/navigation';
 
-export const metadata = {
-  title: 'Videolar',
-  description: "Qisqa videolar — ko'ring va mahsulotni bir bosishda toping.",
-};
-
-export default function ReelsPage() {
-  return <ReelsContent />;
+/**
+ * Eski manzil — yangisiga yo'naltiradi.
+ *
+ * ── Nima uchun sahifa O'CHIRILMADI ────────────────────────────────────
+ * `/reels` havolasi allaqachon ulashilgan bo'lishi mumkin: odam uni
+ * Telegramga yuborgan yoki xatcho'pga qo'ygan bo'lsa, u "sahifa
+ * topilmadi" ga tushardi.
+ *
+ * Yo'naltirish esa eski havolani ishlab turgan holda qoldiradi.
+ */
+export default function ReelsRedirectPage() {
+  redirect('/feed/videos');
 }
