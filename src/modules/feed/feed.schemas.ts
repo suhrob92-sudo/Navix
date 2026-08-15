@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { COMMENT_MAX_LENGTH, MAX_TAGGED_PRODUCTS, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
+import { POST_CATEGORY_VALUES } from '@/modules/feed/feed.types';
 import { MAX_VIDEO_SECONDS } from '@/modules/upload/upload.types';
 import { isOwnImageUrl } from '@/modules/upload/upload.types';
 
@@ -24,6 +25,14 @@ export const feedCursorSchema = z
 
 export const feedQuerySchema = z.object({
   tab: z.enum(['FOLLOWING', 'LATEST', 'VIDEO']).default('FOLLOWING'),
+  /**
+   * Kategoriya bo'yicha filtr.
+   *
+   * Yorliqdan ALOHIDA: "Obunalarim + Restoranlar" ham mumkin bo'lishi
+   * kerak. Ikkalasini bitta maydonga tiqishtirsak, ular birga
+   * ishlamasdi.
+   */
+  category: z.enum(POST_CATEGORY_VALUES).optional(),
   cursor: feedCursorSchema.optional(),
   /**
    * Bir so'rovda nechta post.
@@ -111,6 +120,14 @@ export const createPostSchema = z
       .min(1)
       .max(MAX_VIDEO_SECONDS, `Video ${MAX_VIDEO_SECONDS} soniyadan uzun bo'lmasligi kerak.`)
       .optional(),
+    /**
+     * Post qaysi bo'limga tegishli — ixtiyoriy.
+     *
+     * Tanlanmagan post faqat "Siz uchun" da ko'rinadi. Majburiy
+     * qilinsa, odam tasodifiy bo'limni tanlab qo'yardi va filtr
+     * yolg'on natija berardi.
+     */
+    category: z.enum(POST_CATEGORY_VALUES).optional(),
     /** Biriktirilgan mahsulotlar — mavjudligi xizmatda tekshiriladi. */
     productIds: z
       .array(z.uuid("Mahsulot noto'g'ri tanlandi"))
@@ -142,6 +159,8 @@ export type CreatePostInput = z.infer<typeof createPostSchema>;
  */
 export const updatePostSchema = z.object({
   body: z.string().trim().max(POST_MAX_LENGTH, `Matn ${POST_MAX_LENGTH} belgidan oshmasligi kerak.`),
+  /** Bo'limni keyin ham o'zgartirish mumkin. */
+  category: z.enum(POST_CATEGORY_VALUES).nullable().optional(),
 });
 
 export type UpdatePostInput = z.infer<typeof updatePostSchema>;

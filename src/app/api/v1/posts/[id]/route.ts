@@ -39,7 +39,7 @@ export const PATCH = withApiHandler<Params>(async (request: NextRequest, { reque
   const id = parseIdParam((await params).id);
   const input = await parseJsonBody(request, updatePostSchema);
 
-  const post = await updatePost(id, auth.userId, input.body);
+  const post = await updatePost(id, auth.userId, input.body, input.category);
 
   return apiSuccess({ post }, { requestId });
 });

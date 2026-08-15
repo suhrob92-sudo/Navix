@@ -2392,10 +2392,52 @@ model UserReport {
 /// shuning uchun bu yerda son ustunda turgani to'g'ri. Sonlar
 /// tranzaksiya ichida yangilanadi — ya'ni ular hech qachon "adashib"
 /// qolmaydi.
+/// Postning mavzu bo'limi — Feed tepasidagi kategoriya.
+///
+/// ── Nima uchun ENUM, erkin matn emas ──────────────────────────────────
+/// Kategoriya erkin matn bo'lsa, bir odam "Restoran", ikkinchisi
+/// "restoranlar", uchinchisi "ovqat" deb yozardi va filtr ularni
+/// boshqa-boshqa bo'lim deb ko'rardi.
+///
+/// ── Nima uchun "Siz uchun", "Obunalar", "Yaqin atrofda" bu yerda YO'Q ─
+/// Ular kategoriya EMAS, lentani ko'rish USULI: birinchisi hammasini,
+/// ikkinchisi obunalarni, uchinchisi yaqin atrofdagini ko'rsatadi.
+/// Ularni postga yozib bo'lmaydi.
+enum PostCategory {
+  /// Chegirmalar va aksiyalar.
+  DISCOUNTS
+  /// Restoran va ovqat.
+  RESTAURANTS
+  /// Marketplace mahsulotlari.
+  MARKETPLACE
+  /// Ish va vakansiya.
+  JOBS
+  /// Yetkazib berish xizmatlari.
+  DELIVERY
+  /// E'lonlar (ko'chmas mulk, avto va boshqa).
+  LISTINGS
+  /// Sayohat va mehmonxona.
+  TRAVEL
+  /// Ta'lim va kurslar.
+  EDUCATION
+  /// Ijodkorlar kontenti — savdoga bog'liq bo'lmagan.
+  CREATORS
+}
+
 model Post {
   id String @id @default(uuid()) @db.Uuid
 
   authorId String @db.Uuid
+
+  /// Qaysi bo'limga tegishli. `null` — muallif tanlamagan.
+  ///
+  /// ── Nima uchun MAJBURIY emas ────────────────────────────────────────
+  /// Oddiy post ("bugun havo yaxshi") hech qaysi bo'limga tushmaydi.
+  /// Majburiy qilinsa, odam tasodifiy bo'limni tanlab qo'yardi va
+  /// filtr yolg'on natija berardi.
+  ///
+  /// Tanlanmagan post faqat "Siz uchun" bo'limida ko'rinadi.
+  category PostCategory?
 
   /// Post matni.
   ///
@@ -2493,6 +2535,8 @@ model Post {
   @@index([videoUrl, createdAt])
   /// Profildagi "uning postlari" ro'yxati uchun.
   @@index([authorId, createdAt])
+  /// Kategoriya bo'yicha filtr — indekssiz butun jadval o'qilardi.
+  @@index([category, createdAt])
   @@map("posts")
 }
 

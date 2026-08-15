@@ -9,6 +9,7 @@ import { sendPush } from '@/modules/notification/push.service';
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
 import { MAX_TAGGED_PRODUCTS } from '@/modules/feed/feed.types';
 import { extractHashtags, extractMentions, isValidHashtag } from '@/modules/feed/feed.text';
+import type { PostCategoryName } from '@/modules/feed/feed.types';
 import type {
   CommentView,
   HashtagView,
@@ -71,6 +72,7 @@ function postSelect(viewerId: string) {
     videoPosterUrl: true,
     videoSeconds: true,
     viewCount: true,
+    category: true,
     /**
      * Biriktirilgan mahsulotlar — tugma uchun kerakli MINIMUM.
      *
@@ -174,6 +176,7 @@ function toPostView(row: PostRow, viewerId: string): PostView {
          */
         row.products.map((link) => toTaggedProduct(link.product, isMine ? link.clickCount : 0)),
     viewCount: row.viewCount,
+    category: row.deletedAt ? null : row.category,
     hashtags: row.deletedAt ? [] : row.hashtags.map((link) => link.hashtag.tag),
     author: toAuthorView(row.author),
     createdAt: row.createdAt.toISOString(),
@@ -303,8 +306,16 @@ export async function listFeed(
    * holda alohida `count` so'rovi kerak bo'lardi va u butun jadvalni
    * sanardi.
    */
+  /**
+   * Kategoriya filtri YORLIQDAN alohida qo'shiladi.
+   *
+   * Shu sababdan "Obunalarim + Restoranlar" ham ishlaydi: ikkalasi
+   * bir-birini almashtirmaydi, balki qo'shiladi.
+   */
+  const categoryFilter: Prisma.PostWhereInput = query.category ? { category: query.category } : {};
+
   const rows = await prisma.post.findMany({
-    where: { ...LIVE_AUTHOR, ...scope, ...olderThan(query.cursor) },
+    where: { ...LIVE_AUTHOR, ...scope, ...categoryFilter, ...olderThan(query.cursor) },
     select: postSelect(viewerId),
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: query.limit + 1,
@@ -370,6 +381,7 @@ export async function listUserPosts(
 
 export interface CreatePostData {
   body: string;
+  category?: PostCategoryName | null;
   imageUrl?: string | null;
   videoUrl?: string | null;
   videoPosterUrl?: string | null;
@@ -426,6 +438,7 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
         videoUrl: data.videoUrl ?? null,
         videoPosterUrl: data.videoPosterUrl ?? null,
         videoSeconds: data.videoSeconds ?? null,
+        category: data.category ?? null,
         // Tartib odam tanlagan tartibda saqlanadi.
         products: { create: productIds.map((id, index) => ({ productId: id, sortOrder: index })) },
       },
@@ -467,7 +480,12 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
  * yildan keyin ko'rish ham mumkin. Buning o'rniga "tahrirlangan"
  * belgisi qo'yiladi — o'quvchi matn o'zgarganini bilib turadi.
  */
-export async function updatePost(postId: string, userId: string, body: string): Promise<PostView> {
+export async function updatePost(
+  postId: string,
+  userId: string,
+  body: string,
+  category?: PostCategoryName | null,
+): Promise<PostView> {
   const existing = await prisma.post.findUnique({
     where: { id: postId },
     select: { id: true, authorId: true, deletedAt: true, imageUrl: true },
@@ -494,7 +512,18 @@ export async function updatePost(postId: string, userId: string, body: string): 
   const row = await prisma.$transaction(async (tx) => {
     await tx.post.update({
       where: { id: postId },
-      data: { body: body.trim(), editedAt: new Date() },
+      data: {
+        body: body.trim(),
+        editedAt: new Date(),
+        /**
+         * Bo'lim FAQAT yuborilgan bo'lsa o'zgaradi.
+         *
+         * `undefined` — tegilmasin, `null` — olib tashlansin. Ikkalasini
+         * ajratmasak, faqat matnni tahrirlagan odam bo'limini ham
+         * bilmasdan yo'qotardi.
+         */
+        ...(category === undefined ? {} : { category }),
+      },
       select: { id: true },
     });
 

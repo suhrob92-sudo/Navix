@@ -36,6 +36,8 @@ export interface PostView {
   products: TaggedProductView[];
   /** Videoni necha marta ko'rishgan. */
   viewCount: number;
+  /** Qaysi bo'limga tegishli. `null` — muallif tanlamagan. */
+  category: PostCategoryName | null;
   /**
    * Matndan ajratilgan mavzular (`#` siz, kichik harflarda).
    *
@@ -70,6 +72,46 @@ export interface PostView {
   /** Post so'rov yuborgan odamning O'ZINIKIMI (o'chirish tugmasi uchun). */
   isMine: boolean;
   isDeleted: boolean;
+}
+
+/**
+ * Postning bo'limi.
+ *
+ * ── Nima uchun ro'yxat SHU YERDA ────────────────────────────────────
+ * Server ham, brauzer ham shu turdan foydalanadi. Bazadagi enum
+ * bilan mos kelishini sinov tekshiradi — bittasi o'zgarib,
+ * ikkinchisi qolib ketmasligi uchun.
+ */
+export const POST_CATEGORY_VALUES = [
+  'DISCOUNTS',
+  'RESTAURANTS',
+  'MARKETPLACE',
+  'JOBS',
+  'DELIVERY',
+  'LISTINGS',
+  'TRAVEL',
+  'EDUCATION',
+  'CREATORS',
+] as const;
+
+export type PostCategoryName = (typeof POST_CATEGORY_VALUES)[number];
+
+/** Bo'lim nomi — ekranda ko'rinadigan matn. */
+export const POST_CATEGORY_LABELS: Record<PostCategoryName, string> = {
+  DISCOUNTS: 'Chegirmalar',
+  RESTAURANTS: 'Restoranlar',
+  MARKETPLACE: 'Marketplace',
+  JOBS: 'Ishlar',
+  DELIVERY: 'Yetkazib berish',
+  LISTINGS: "E'lonlar",
+  TRAVEL: 'Sayohat',
+  EDUCATION: "Ta'lim",
+  CREATORS: 'Creatorlar',
+};
+
+/** Qiymat haqiqiy bo'lim nomimi (manzildan kelgan qiymat uchun). */
+export function isPostCategory(value: string): value is PostCategoryName {
+  return (POST_CATEGORY_VALUES as readonly string[]).includes(value);
 }
 
 /** Videoga biriktirilgan mahsulot — tugma uchun kerakli minimum. */

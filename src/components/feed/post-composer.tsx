@@ -4,6 +4,7 @@ import { Send, ShoppingBag, Video, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { ProductPicker } from '@/components/feed/product-picker';
+import { POST_CATEGORIES } from '@/config/feed-nav';
 import { ImageAttach } from '@/components/upload/image-attach';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,12 @@ import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { uploadVideo } from '@/lib/video-upload';
 import { useAuth } from '@/modules/auth/auth-context';
-import { MAX_TAGGED_PRODUCTS, POST_MAX_LENGTH, type TaggedProductView } from '@/modules/feed/feed.types';
+import {
+  MAX_TAGGED_PRODUCTS,
+  POST_MAX_LENGTH,
+  type PostCategoryName,
+  type TaggedProductView,
+} from '@/modules/feed/feed.types';
 import { MAX_VIDEO_SECONDS, formatDuration } from '@/modules/upload/upload.types';
 
 /** Yuborilayotgan postning to'liq tarkibi. */
@@ -24,6 +30,8 @@ export interface ComposerDraft {
   videoPosterUrl: string | null;
   videoSeconds: number | null;
   productIds: string[];
+  /** Qaysi bo'limga tegishli. `null` — tanlanmagan. */
+  category: PostCategoryName | null;
 }
 
 export interface PostComposerProps {
@@ -73,6 +81,9 @@ export function PostComposer({ isSending, onSubmit, onClose, autoPick = null }: 
   const [products, setProducts] = useState<TaggedProductView[]>([]);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
+  /** Tanlangan bo'lim — ixtiyoriy. */
+  const [category, setCategory] = useState<PostCategoryName | null>(null);
+
   const image = useFileUpload('POST');
 
   useEffect(() => {
@@ -111,6 +122,7 @@ export function PostComposer({ isSending, onSubmit, onClose, autoPick = null }: 
       videoPosterUrl: video?.posterUrl ?? null,
       videoSeconds: video?.seconds ?? null,
       productIds: products.map((item) => item.id),
+      category,
     });
 
     if (sent) {
@@ -118,6 +130,7 @@ export function PostComposer({ isSending, onSubmit, onClose, autoPick = null }: 
       setImageUrl(null);
       setVideo(null);
       setProducts([]);
+      setCategory(null);
       setVideoError(null);
     }
   }
@@ -178,6 +191,48 @@ export function PostComposer({ isSending, onSubmit, onClose, autoPick = null }: 
         placeholder="Nima yangilik?"
         onChange={(event) => setBody(event.target.value)}
       />
+
+      {/*
+        Bo'lim tanlash — IXTIYORIY.
+
+        ── Nima uchun majburiy emas ──────────────────────────────────
+        Oddiy post ("bugun havo yaxshi") hech qaysi bo'limga
+        tushmaydi. Majburiy qilinsa, odam tasodifiy bo'limni tanlab
+        qo'yardi va filtr yolg'on natija berardi.
+
+        ── Nima uchun DOIRALAR, ro'yxat emas ─────────────────────────
+        Telefonda ochiladigan ro'yxat ekranni yopadi va ikki bosish
+        talab qiladi. Doiralar esa bir bosishda tanlanadi.
+      */}
+      <div className="mt-3">
+        <p className="text-muted-foreground mb-2 text-xs">Bo&apos;lim (ixtiyoriy)</p>
+
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {POST_CATEGORIES.map((item) => {
+            const value = item.value as PostCategoryName;
+            const isActive = category === value;
+
+            return (
+              <button
+                key={item.value}
+                type="button"
+                disabled={isBusy}
+                aria-pressed={isActive}
+                onClick={() => setCategory(isActive ? null : value)}
+                className={cn(
+                  'flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1.5 text-xs whitespace-nowrap transition-colors disabled:opacity-60',
+                  isActive
+                    ? 'border-primary bg-primary text-primary-foreground font-medium'
+                    : 'border-border hover:bg-secondary',
+                )}
+              >
+                <span aria-hidden="true">{item.emoji}</span>
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {image.error && (
         <Alert variant="error" className="mt-3">
