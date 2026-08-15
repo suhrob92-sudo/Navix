@@ -289,6 +289,7 @@ model User {
   postComments      PostComment[]        @relation("CommentAuthor")
   postSaves         PostSave[]           @relation("PostSaves")
   commentLikes      CommentLike[]        @relation("CommentLikes")
+  productClicks     PostProductClick[]   @relation("ProductClicks")
   moduleSwitches    ModuleSwitch[]       @relation("ModuleSwitchEditor")
   supportTickets    SupportTicket[]      @relation("SupportTickets")
   supportAssigned   SupportTicket[]      @relation("SupportAssignee")
@@ -1147,10 +1148,25 @@ model MarketOrderItem {
   quantity  Int
   lineTotal BigInt
 
-  order   MarketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  /// Qaysi VIDEO bu xaridni keltirdi.
+  ///
+  /// ── Nima uchun bu ustun MUHIM ───────────────────────────────────────
+  /// Usiz sotuvchi "videom foydali bo'ldimi?" degan savolga javob
+  /// ololmasdi. Ko'rish va bosish sonlari qiziqishni ko'rsatadi, lekin
+  /// PUL kelganini faqat shu ustun ko'rsatadi.
+  ///
+  /// ── Nima uchun `SetNull` ────────────────────────────────────────────
+  /// Post o'chirilsa buyurtma o'z joyida qolishi SHART: u pul bilan
+  /// bog'liq yozuv. Faqat "qayerdan kelgani" yo'qoladi.
+  sourcePostId String? @db.Uuid
+
+  order      MarketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product    Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  sourcePost Post?       @relation("OrderSource", fields: [sourcePostId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  /// "Shu videodan nechta buyurtma keldi" so'rovi uchun.
+  @@index([sourcePostId])
   @@map("market_order_items")
 }
 
@@ -2448,13 +2464,15 @@ model Post {
   /// shikoyat kelganda tekshiradigan narsa qolmasdi.
   deletedAt DateTime?
 
-  author   User          @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  likes    PostLike[]
-  comments PostComment[]
-  reports  UserReport[]  @relation("PostReports")
-  products PostProduct[]
-  saves    PostSave[]
-  hashtags PostHashtag[]
+  author       User               @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  likes        PostLike[]
+  comments     PostComment[]
+  reports      UserReport[]       @relation("PostReports")
+  products     PostProduct[]
+  saves        PostSave[]
+  hashtags     PostHashtag[]
+  clicks       PostProductClick[]
+  orderedItems MarketOrderItem[]  @relation("OrderSource")
 
   /// Lenta aynan shu tartibda o'qiladi: yangi postlar birinchi.
   @@index([createdAt])
@@ -2500,6 +2518,41 @@ model PostProduct {
   @@id([postId, productId])
   @@index([productId])
   @@map("post_products")
+}
+
+/// Videodagi mahsulot tugmasi bosilgani — KIM va QACHON.
+///
+/// ── Nima uchun `clickCount` YETARLI EMAS ──────────────────────────────
+/// Ustundagi son "nechta bosildi" degan savolga javob beradi. Lekin
+/// "shu odam keyin sotib oldimi?" degan savolga javob berish uchun
+/// KIM bosgani kerak.
+///
+/// ── Nima uchun har bosish ALOHIDA qator EMAS ──────────────────────────
+/// Mashhur videoda bu millionlab qator degani. Bizga esa faqat ENG
+/// OXIRGI bosish kerak: odam ikkita videodan bir mahsulotni ochgan
+/// bo'lsa, xaridni oxirgisi keltirgan deb hisoblanadi (reklamada bu
+/// "oxirgi bosish" qoidasi deb ataladi).
+///
+/// Shuning uchun bitta odam + bitta mahsulot uchun BITTA qator turadi
+/// va u har bosishda yangilanadi.
+model PostProductClick {
+  id String @id @default(uuid()) @db.Uuid
+
+  postId    String @db.Uuid
+  productId String @db.Uuid
+  userId    String @db.Uuid
+
+  /// Oxirgi bosish vaqti — xaridga bog'lash oynasi shundan hisoblanadi.
+  clickedAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation("ProductClicks", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  /// Xarid paytida "shu odam shu mahsulotni bosganmi?" so'rovi uchun.
+  @@index([userId, productId, clickedAt])
+  @@index([postId])
+  @@map("post_product_clicks")
 }
 
 /// Postga qo'yilgan yoqtirish.

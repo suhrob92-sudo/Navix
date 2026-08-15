@@ -8,6 +8,7 @@ import { formatTiyin, somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { toSearchText } from '@/lib/search';
 import type { ServiceColor } from '@/config/modules';
+import { resolveVideoSources } from '@/modules/feed/video-stats.service';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { chargeWallet, getOrCreateWallet, refundWallet } from '@/modules/wallet/wallet.service';
 import type {
@@ -559,6 +560,23 @@ async function performCreateMarketOrder(
     };
   });
 
+  /**
+   * Har bir mahsulot QAYSI VIDEODAN kelgani aniqlanadi.
+   *
+   * Buyurtma paytida yozilishi SHART: keyinroq hisoblansa, bosish
+   * yozuvi yangilanib yoki oyna o'tib ketib, aloqa yo'qolardi.
+   * Bu yerda yozilgan qiymat esa tarixiy fakt bo'lib qoladi.
+   */
+  const videoSources = await resolveVideoSources(
+    userId,
+    lines.map((line) => line.productId),
+  );
+
+  const linesWithSource = lines.map((line) => ({
+    ...line,
+    sourcePostId: videoSources.get(line.productId) ?? null,
+  }));
+
   const subtotal = lines.reduce((sum, line) => sum + line.lineTotal, 0n);
 
   // 5. Eng kam buyurtma.
@@ -626,7 +644,7 @@ async function performCreateMarketOrder(
         total,
         deliveryAddress: formatAddressLine(address),
         deliveryNote: input.deliveryNote ?? null,
-        items: { create: lines },
+        items: { create: linesWithSource },
       },
       select: { id: true },
     });

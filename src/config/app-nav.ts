@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import {
   Bell,
+  Clapperboard,
   ClipboardList,
   Home,
   LifeBuoy,
@@ -96,6 +97,19 @@ export const PROFILE_MENU: readonly ProfileMenuItem[] = [
     label: 'Mening buyurtmalarim',
     description: 'Barcha modullardagi buyurtmalar',
     icon: ClipboardList,
+  },
+  /**
+   * Video natijasi — buyurtmalardan KEYIN.
+   *
+   * Video joylagan odam uchun bu eng qiziq sahifa, lekin u hammaga
+   * kerak emas. Shuning uchun ro'yxatning boshiga ham chiqarilmadi,
+   * tubiga ham tashlanmadi.
+   */
+  {
+    href: '/feed/stats',
+    label: 'Videolarim natijasi',
+    description: "Ko'rishlar, bosishlar va savdo",
+    icon: Clapperboard,
   },
   { href: '/addresses', label: 'Manzillarim', description: 'Uy, ish va boshqa manzillar', icon: MapPin },
   { href: '/notifications', label: 'Bildirishnomalar', description: 'Kelgan xabarlar', icon: Bell },

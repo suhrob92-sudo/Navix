@@ -1,6 +1,14 @@
 'use client';
 
-import { ChevronRight, ClipboardList, PackageX, ShoppingBag, Store, TrendingUp } from 'lucide-react';
+import {
+  ChevronRight,
+  Clapperboard,
+  ClipboardList,
+  PackageX,
+  ShoppingBag,
+  Store,
+  TrendingUp,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -133,6 +141,28 @@ function DashboardBody() {
             {`${stats?.cancelledToday} ta buyurtma bekor qilindi. Sabablarini ko'rib chiqing — takrorlansa xaridorlar yo'qoladi.`}
           </Alert>
         )}
+
+        {/*
+          Videolarga havola — sotuvchi uchun ARZON reklama yo'li.
+
+          Kabinetda turgani muhim: sotuvchi bu imkoniyat borligini
+          bilmasa, uni hech qachon o'zi topmaydi.
+        */}
+        <Link
+          href="/feed/stats"
+          className="bg-card border-border hover:bg-secondary mt-4 flex items-center gap-3 rounded-2xl border p-4 transition-colors"
+        >
+          <span className="bg-secondary text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-xl">
+            <Clapperboard className="size-5" aria-hidden="true" />
+          </span>
+
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium">Videolarim natijasi</span>
+            <span className="text-muted-foreground block text-xs">
+              Qaysi video ko&apos;rildi, mahsulot ochildi va buyurtma keltirdi
+            </span>
+          </span>
+        </Link>
 
         {/* Do'konlar */}
         <section className="mt-6">

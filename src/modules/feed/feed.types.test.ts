@@ -10,7 +10,11 @@ import {
 } from '@/modules/feed/feed.schemas';
 import {
   authorDisplayName,
+  conversionPercent,
   formatReactionCount,
+  needsTruncation,
+  shareTitle,
+  POST_PREVIEW_LENGTH,
   hasPostContent,
   isVideoPost,
   MAX_TAGGED_PRODUCTS,
@@ -287,5 +291,70 @@ describe('video post sxemasi', () => {
     );
 
     expect(createPostSchema.safeParse({ body: '', videoUrl: video, productIds: tooMany }).success).toBe(false);
+  });
+});
+
+describe('conversionPercent', () => {
+  it('nisbatni foizda beradi', () => {
+    expect(conversionPercent(30, 300)).toBe(10);
+  });
+
+  it('nolga bo\'lmaydi', () => {
+    /**
+     * Hali hech kim ko'rmagan videoda maxraj nol bo'ladi. Tekshiruvsiz
+     * ekranda `NaN%` yoki `Infinity%` chiqib qolardi.
+     */
+    expect(conversionPercent(5, 0)).toBe(0);
+  });
+
+  it('manfiy maxrajda ham nol', () => {
+    expect(conversionPercent(5, -10)).toBe(0);
+  });
+
+  it('butun songa yaxlitlaydi', () => {
+    expect(conversionPercent(1, 3)).toBe(33);
+  });
+
+  it('hammasi bosgan bo\'lsa 100', () => {
+    expect(conversionPercent(7, 7)).toBe(100);
+  });
+});
+
+describe('needsTruncation', () => {
+  it('qisqa matn qisqartirilmaydi', () => {
+    expect(needsTruncation('Salom')).toBe(false);
+  });
+
+  it('chegaradagi matn qisqartirilmaydi', () => {
+    expect(needsTruncation('a'.repeat(POST_PREVIEW_LENGTH))).toBe(false);
+  });
+
+  it('uzun matn qisqartiriladi', () => {
+    expect(needsTruncation('a'.repeat(POST_PREVIEW_LENGTH + 1))).toBe(true);
+  });
+});
+
+describe('shareTitle', () => {
+  const author: PostAuthorView = {
+    userId: '1',
+    username: 'aziz',
+    fullName: 'Aziz Karimov',
+    avatarUrl: null,
+    isVerified: false,
+  };
+
+  it('ism va matnni birlashtiradi', () => {
+    expect(shareTitle({ body: 'Yangi mahsulot', author })).toBe('Aziz Karimov: Yangi mahsulot');
+  });
+
+  it('matnsiz postda faqat ism', () => {
+    expect(shareTitle({ body: '   ', author })).toBe('Aziz Karimov — Navix');
+  });
+
+  it('uzun matnni kesadi', () => {
+    const result = shareTitle({ body: 'a'.repeat(300), author });
+
+    expect(result.length).toBeLessThanOrEqual(135);
+    expect(result.endsWith('...')).toBe(true);
   });
 });

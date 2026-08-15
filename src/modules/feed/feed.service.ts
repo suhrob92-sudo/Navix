@@ -1315,6 +1315,22 @@ export async function markProductClicked(
 
   if (updated.count === 0) return;
 
+  /**
+   * Bosish KIM tomonidan qilingani ham yoziladi.
+   *
+   * Bu — xaridni videoga bog'lash uchun yagona yo'l: odam keyin
+   * shu mahsulotni sotib olsa, buyurtma qaysi video keltirganini
+   * aynan shu yozuvdan bilib olamiz.
+   *
+   * Bir odam + bir mahsulot uchun BITTA qator: har bosishda u
+   * yangilanadi ("oxirgi bosish" qoidasi).
+   */
+  await prisma.postProductClick.upsert({
+    where: { userId_productId: { userId: viewerId, productId } },
+    create: { postId, productId, userId: viewerId },
+    update: { postId, clickedAt: new Date() },
+  });
+
   const link = await prisma.postProduct.findUnique({
     where: { postId_productId: { postId, productId } },
     select: { clickCount: true, product: { select: { name: true } } },

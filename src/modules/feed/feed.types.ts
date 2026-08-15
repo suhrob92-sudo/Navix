@@ -172,6 +172,59 @@ export interface ShareResponse {
   shareCount: number;
 }
 
+/** Bitta videoning natijasi — statistika jadvalidagi qator. */
+export interface VideoStatRow {
+  postId: string;
+  /** Ro'yxatda ko'rinadigan nom — matnning boshi yoki sana. */
+  title: string;
+  posterUrl: string | null;
+  videoSeconds: number | null;
+  createdAt: string;
+  productNames: string[];
+
+  /** Necha marta ko'rilgan. */
+  viewCount: number;
+  /** Mahsulot tugmasi necha marta bosilgan. */
+  clickCount: number;
+  /** Shu videodan kelgan buyurtmalar soni. */
+  orderCount: number;
+  /** Shu videodan kelgan savdo summasi (tiyin). */
+  revenueTiyin: number;
+
+  likeCount: number;
+  commentCount: number;
+  shareCount: number;
+  saveCount: number;
+}
+
+export interface VideoStatsResponse {
+  videos: VideoStatRow[];
+  totals: {
+    videoCount: number;
+    viewCount: number;
+    clickCount: number;
+    orderCount: number;
+    revenueTiyin: number;
+  };
+}
+
+/**
+ * Bosishlarning ko'rishlarga nisbati (foizda, butun son).
+ *
+ * ── Nima uchun bu son SONLARDAN muhimroq ─────────────────────────────
+ * "1000 ko'rish" yaxshi eshitiladi, lekin undan atigi 3 kishi
+ * mahsulotni ochgan bo'lsa — video qiziqarli, reklama esa
+ * ishlamayapti.
+ *
+ * Nisbat esa aynan shuni ko'rsatadi va ikki videoni taqqoslashga
+ * imkon beradi.
+ */
+export function conversionPercent(part: number, whole: number): number {
+  if (whole <= 0) return 0;
+
+  return Math.round((part / whole) * 100);
+}
+
 /** Mashhur mavzu — ro'yxatda bitta qator. */
 export interface HashtagView {
   tag: string;
