@@ -34,7 +34,7 @@ export function VideoGrid({ posts }: VideoGridProps) {
       {posts.map((post) => (
         <li key={post.id}>
           <Link
-            href={`/feed/videos?start=${post.id}`}
+            href={`/feed/watch?start=${post.id}`}
             className="bg-secondary relative block aspect-[9/16] overflow-hidden rounded-lg"
           >
             {post.videoPosterUrl ? (

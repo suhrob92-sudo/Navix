@@ -7,7 +7,7 @@ import { deleteImageByUrl } from '@/modules/upload/upload.service';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { sendPush } from '@/modules/notification/push.service';
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
-import { MAX_TAGGED_PRODUCTS } from '@/modules/feed/feed.types';
+import { MAX_TAGGED_PRODUCTS, SHORT_VIDEO_SECONDS } from '@/modules/feed/feed.types';
 import { extractHashtags, extractMentions, isValidHashtag } from '@/modules/feed/feed.text';
 import type { PostCategoryName } from '@/modules/feed/feed.types';
 import type {
@@ -63,7 +63,7 @@ function toAuthorView(row: AuthorRow): PostAuthorView {
  * Hammasini olish mumkin emas: mashhur postda minglab qator bo'lishi
  * mumkin, bizga esa "men yoqtirganmanmi?" degan javob yetarli.
  */
-function postSelect(viewerId: string) {
+export function postSelect(viewerId: string) {
   return {
     id: true,
     body: true,
@@ -117,7 +117,7 @@ function postSelect(viewerId: string) {
   } as const;
 }
 
-type PostRow = Prisma.PostGetPayload<{ select: ReturnType<typeof postSelect> }>;
+export type PostRow = Prisma.PostGetPayload<{ select: ReturnType<typeof postSelect> }>;
 
 /**
  * Biriktirilgan mahsulotni tugma uchun ko'rinishga o'giradi.
@@ -153,7 +153,7 @@ function toTaggedProduct(
   };
 }
 
-function toPostView(row: PostRow, viewerId: string): PostView {
+export function toPostView(row: PostRow, viewerId: string): PostView {
   const isMine = row.authorId === viewerId;
 
   return {
@@ -244,7 +244,7 @@ function newerThan(cursor: string | undefined): Prisma.PostCommentWhereInput {
  * bo'lardi va bittasi albatta qolib ketardi. Bu shart esa bir joyda
  * turadi va hech qachon unutilmaydi.
  */
-const LIVE_AUTHOR: Prisma.PostWhereInput = {
+export const LIVE_AUTHOR: Prisma.PostWhereInput = {
   deletedAt: null,
   author: { deletedAt: null, status: { not: 'SUSPENDED' } },
 };
@@ -314,8 +314,24 @@ export async function listFeed(
    */
   const categoryFilter: Prisma.PostWhereInput = query.category ? { category: query.category } : {};
 
+  /**
+   * Uzunlik filtri FAQAT video yorlig'ida.
+   *
+   * Matnli postda uzunlik yo'q: uni boshqa yorliqda qo'llasak,
+   * lenta sababsiz bo'shab qolardi.
+   *
+   * Uzunligi noma'lum (eski) videolar QISQA deb hisoblanadi —
+   * yuklash chegarasi baribir 60 soniya bo'lgan.
+   */
+  const durationFilter: Prisma.PostWhereInput =
+    query.tab === 'VIDEO' && query.duration
+      ? query.duration === 'SHORT'
+        ? { OR: [{ videoSeconds: { lte: SHORT_VIDEO_SECONDS } }, { videoSeconds: null }] }
+        : { videoSeconds: { gt: SHORT_VIDEO_SECONDS } }
+      : {};
+
   const rows = await prisma.post.findMany({
-    where: { ...LIVE_AUTHOR, ...scope, ...categoryFilter, ...olderThan(query.cursor) },
+    where: { ...LIVE_AUTHOR, ...scope, ...categoryFilter, ...durationFilter, ...olderThan(query.cursor) },
     select: postSelect(viewerId),
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: query.limit + 1,
@@ -1258,6 +1274,51 @@ export async function listSavedPosts(
           })()
         : {}),
       // O'chirilgan post saqlanganlar ro'yxatida ham ko'rinmaydi.
+      post: LIVE_AUTHOR,
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit + 1,
+    select: { id: true, createdAt: true, post: { select: postSelect(userId) } },
+  });
+
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+
+  return {
+    posts: page.map((row) => toPostView(row.post, userId)),
+    nextCursor: hasMore && page.length > 0 ? buildCursor(page[page.length - 1]) : null,
+  };
+}
+
+/**
+ * Men yoqtirgan postlar.
+ *
+ * ── Nima uchun SAQLANGANLARDAN alohida ────────────────────────────────
+ * "Yoqtirdim" — muallifga bildirilgan ochiq baho. "Saqladim" esa
+ * o'zim uchun belgi: keyin ko'rish, sotib olish, eslab qolish.
+ *
+ * Ikkalasi bir ro'yxatga qo'shilsa, odam yoqtirgan yuzlab video
+ * saqlaganlarini bosib ketardi va saqlash ma'nosini yo'qotardi.
+ *
+ * ── Nima uchun tartib YOQTIRISH vaqti bo'yicha ────────────────────────
+ * Odam "kecha yoqtirgan videomni" izlaydi, "kecha joylangan" ni emas.
+ */
+export async function listLikedPosts(
+  userId: string,
+  cursor?: string,
+  limit = 20,
+): Promise<{ posts: PostView[]; nextCursor: string | null }> {
+  const rows = await prisma.postLike.findMany({
+    where: {
+      userId,
+      ...(cursor
+        ? (() => {
+            const { createdAt, id } = parseCursor(cursor);
+
+            return { OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: id } }] };
+          })()
+        : {}),
+      // O'chirilgan post bu ro'yxatda ham ko'rinmaydi.
       post: LIVE_AUTHOR,
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],

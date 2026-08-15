@@ -1,263 +1,119 @@
 'use client';
 
-import { ArrowLeft, Clapperboard } from 'lucide-react';
-import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Clapperboard } from 'lucide-react';
+import { useState } from 'react';
 
-import { ReelPlayer } from '@/components/feed/reel-player';
+import { AppHeader } from '@/components/app/app-header';
+import { useFeedCreate } from '@/components/feed/feed-create-provider';
+import { VideoGrid } from '@/components/feed/video-grid';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useApiClient } from '@/hooks/use-api';
+import { VIDEO_FILTERS, videoQueryFor, type VideoFilterValue } from '@/config/feed-nav';
 import { useCursorList } from '@/hooks/use-cursor-list';
-import { usePostActions } from '@/hooks/use-post-actions';
-import { useAuth } from '@/modules/auth/auth-context';
-import { RequireAuth } from '@/modules/auth/require-auth';
+import { cn } from '@/lib/utils';
 import type { PostView } from '@/modules/feed/feed.types';
 
-export interface VideosContentProps {
-  /**
-   * Qaysi videodan boshlanadi.
-   *
-   * Panjaradan bosilganda odam AYNAN o'sha videoni ochmoqchi
-   * bo'ladi. Boshidan boshlansa, u nima uchun boshqa video
-   * ochilganini tushunmasdi.
-   */
-  startId: string | null;
-}
-
 /**
- * Video lentasi — to'liq ekranli, vertikal suriladigan.
+ * Video sahifasi — Feed modulining 2-bo'limi.
  *
- * ── Nima uchun ALOHIDA sahifa ─────────────────────────────────────────
- * Video oddiy lentaga ham tushadi, lekin u yerda kartochka ichida,
- * boshqa postlar orasida turadi. Video tomosha qilish esa boshqa
- * holat: odam telefonni ushlab, ketma-ket ko'radi va o'qimaydi.
+ * ── Nima uchun PANJARA, to'liq ekran emas ─────────────────────────────
+ * Ilgari bu manzil to'g'ridan-to'g'ri to'liq ekranli pleyerni ochardi.
+ * Ikkita muammosi bor edi:
  *
- * Bu ikki holatni bitta ekranda birlashtirib bo'lmaydi — shuning
- * uchun video uchun o'z sahifasi bor.
+ *   1. Pleyer butun ekranni egallab, Feed panelini ham to'sib
+ *      qo'yardi — odam boshqa bo'limga o'ta olmasdi.
+ *   2. Odam qaysi videoni ko'rayotganini TANLAY olmasdi: sahifa
+ *      ochilishi bilan tasodifiy video o'ynay boshlardi.
  *
- * ── Nima uchun `snap` (yopishqoq surish) ──────────────────────────────
- * Erkin surishda video yarim ko'rinib qoladi va qaysi birini
- * tinglashni bilib bo'lmaydi. `snap` esa har surishda aynan bitta
- * videoni ekranga qo'yadi — barmoq qayerda uzilishidan qat'i nazar.
+ * Endi bu yerda tanlov bor: panjaradan videoni tanlaydi, tomosha esa
+ * `/feed/watch` da to'liq ekranda ochiladi.
  */
-export function VideosContent({ startId }: VideosContentProps) {
-  return (
-    <RequireAuth>
-      <VideosBody startId={startId} />
-    </RequireAuth>
-  );
-}
+export function VideosContent() {
+  const create = useFeedCreate();
 
-function VideosBody({ startId }: VideosContentProps) {
-  const request = useApiClient();
-  const { user } = useAuth();
-  const list = useCursorList<PostView>('/api/v1/feed?tab=VIDEO&limit=10', 'posts');
-  const actions = usePostActions(list.setItems);
+  const [filter, setFilter] = useState<VideoFilterValue>('ALL');
 
-  /**
-   * Ko'rish serverga BIR MARTA yuboriladi.
-   *
-   * Odam videoni orqaga surib qayta ko'rsa, `ReelPlayer` ichidagi
-   * belgi buni to'xtatadi. Lekin ro'yxat qayta chizilganda komponent
-   * yangidan tug'ilishi mumkin — shuning uchun ikkinchi qulf shu
-   * yerda, sahifa darajasida.
-   */
-  const viewedRef = useRef(new Set<string>());
+  const active = VIDEO_FILTERS.find((item) => item.value === filter) ?? VIDEO_FILTERS[0];
 
-  const markViewed = useCallback(
-    (post: PostView) => {
-      const postId = post.id;
-
-      if (viewedRef.current.has(postId)) return;
-
-      /**
-       * O'Z videosi sanalmaydi.
-       *
-       * Server ham uni sanamaydi (sotuvchi o'zi ochib sonni
-       * ko'tarib qo'ymasligi uchun). Shuning uchun ekranda ham
-       * ko'tarilmasligi kerak: aks holda son sahifa yangilanganda
-       * orqaga tushib, yolg'on ko'rsatgan bo'lardi.
-       */
-      if (post.author.userId === user?.id) return;
-
-      viewedRef.current.add(postId);
-
-      /**
-       * Javob KUTILMAYDI va xato YUTILADI.
-       *
-       * Ko'rishlar soni — yordamchi ma'lumot. Uning yiqilishi
-       * tomoshani to'xtatmasligi kerak.
-       */
-      void request(`/api/v1/posts/${postId}/view`, { method: 'POST', body: {} }).catch(() => {});
-
-      // Ekranda ham darhol ko'rinadi — server javobi kutilmaydi.
-      list.setItems((current) =>
-        current.map((post) => (post.id === postId ? { ...post, viewCount: post.viewCount + 1 } : post)),
-      );
-    },
-    [request, list, user?.id],
-  );
-
-  /** Hozir qaysi video ekranda. */
-  const [activeId, setActiveId] = useState<string | null>(null);
-
-  /**
-   * Ovoz sozlamasi BARCHA videolar uchun umumiy.
-   *
-   * Har bir videoda qayta yoqish charchatardi. Boshida o'chiq:
-   * brauzer ovozli avtomatik o'ynashga ruxsat bermaydi.
-   */
-  const [isMuted, setIsMuted] = useState(true);
-
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  /** Boshlang'ich videoga BIR MARTA suriladi. */
-  const jumpedRef = useRef(false);
-
-  /**
-   * Panjaradan tanlangan videoga suriladi.
-   *
-   * ── Nima uchun BIR MARTA ────────────────────────────────────────────
-   * Ro'yxat "yana yuklash"da o'sadi. Har o'zgarishda surilsa, odam
-   * pastga tushgan sari uni yuqoriga tortib turardi.
-   */
-  useEffect(() => {
-    if (!startId || jumpedRef.current || list.items.length === 0) return;
-
-    const target = containerRef.current?.querySelector(`[data-post-id="${startId}"]`);
-
-    if (!target) return;
-
-    jumpedRef.current = true;
-    target.scrollIntoView({ block: 'start' });
-  }, [startId, list.items.length]);
-
-  /**
-   * Ekranda qaysi video turganini KUZATUVCHI aniqlaydi.
-   *
-   * Surish hodisasini tinglab, har safar o'lchamlarni hisoblash ham
-   * mumkin edi — lekin u har piksel harakatida ishga tushardi va
-   * telefonni qizdirardi. Kuzatuvchi esa faqat chegaradan o'tganda
-   * xabar beradi.
-   */
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.getAttribute('data-post-id'));
-          }
-        }
-      },
-      {
-        root: container,
-        // Yarmidan ko'pi ko'ringan video — "faol" video.
-        threshold: 0.6,
-      },
-    );
-
-    for (const child of container.querySelectorAll('[data-post-id]')) {
-      observer.observe(child);
-    }
-
-    return () => observer.disconnect();
-  }, [list.items]);
-
-  /**
-   * Oxiriga yaqinlashganda keyingi sahifa OLDINDAN yuklanadi.
-   *
-   * Odam oxirgi videoga yetganda yuklash boshlansa, u bo'sh ekranni
-   * ko'rib turardi. Uchtadan oldin boshlansa — u umuman sezmaydi.
-   */
-  const handleScroll = useCallback(() => {
-    if (!list.hasMore || list.isLoadingMore) return;
-
-    const container = containerRef.current;
-    if (!container) return;
-
-    const remaining = container.scrollHeight - container.scrollTop - container.clientHeight;
-
-    if (remaining < container.clientHeight * 3) {
-      list.loadMore();
-    }
-  }, [list]);
+  const list = useCursorList<PostView>(videoQueryFor(filter), 'posts');
 
   const isEmpty = !list.isLoading && !list.error && list.items.length === 0;
 
   return (
-    /*
-      Pastki menyudan YUQORIDA turadi (`z-50`).
+    <>
+      <AppHeader title="Videolar" showBack backHref="/dashboard" />
 
-      Menyu `z-40` da: teng bo'lsa u video ustiga chiqib, mahsulot
-      tugmasini to'sib qo'yardi. To'liq ekranli tomosha esa boshqa
-      holat — u paytda menyu kerak emas, orqaga tugmasi bor.
-    */
-    <div className="fixed inset-0 z-50 bg-black">
-      {/* Orqaga tugmasi — to'liq ekranda pastki menyu ko'rinmaydi. */}
-      <Link
-        href="/feed"
-        aria-label="Feedga qaytish"
-        className="absolute top-4 left-4 z-10 rounded-full bg-black/40 p-2.5 text-white backdrop-blur-sm transition-transform active:scale-95"
-      >
-        <ArrowLeft className="size-5" aria-hidden="true" />
-      </Link>
-
-      {list.isLoading && (
-        <div className="flex h-full items-center justify-center p-6">
-          <Skeleton className="h-full w-full rounded-2xl" />
+      <div className="space-y-4 px-4 pt-4 pb-24">
+        {/* Filtrlar — gorizontal, telefonga sig'ishi uchun. */}
+        <div
+          role="tablist"
+          aria-label="Video turlari"
+          className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {VIDEO_FILTERS.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              role="tab"
+              aria-selected={filter === item.value}
+              onClick={() => setFilter(item.value)}
+              className={cn(
+                'shrink-0 rounded-full border px-3.5 py-2 text-sm whitespace-nowrap transition-colors',
+                filter === item.value
+                  ? 'border-primary bg-primary text-primary-foreground font-medium'
+                  : 'border-border hover:bg-secondary',
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
-      )}
 
-      {!list.isLoading && list.error && (
-        <div className="flex h-full items-center justify-center p-6">
+        {list.error && (
           <Alert variant="error" title="Videolarni yuklab bo'lmadi">
             {list.error}
           </Alert>
-        </div>
-      )}
+        )}
 
-      {isEmpty && (
-        <div className="flex h-full items-center justify-center p-6">
+        {list.isLoading && (
+          <div className="grid grid-cols-3 gap-1">
+            {Array.from({ length: 9 }, (_, index) => (
+              <Skeleton key={index} className="aspect-[9/16] rounded-lg" />
+            ))}
+          </div>
+        )}
+
+        {isEmpty && (
           <EmptyState
             icon={Clapperboard}
-            title="Hali video yo'q"
-            description="Birinchi bo'lib video joylang — uni hamma ko'radi."
+            title={active.emptyTitle}
+            description={active.emptyDescription}
             action={
-              <Button asChild variant="outline">
-                <Link href="/feed">Lentaga o&apos;tish</Link>
-              </Button>
+              active.isComingSoon ? undefined : (
+                <Button variant="outline" onClick={create.open}>
+                  Video joylash
+                </Button>
+              )
             }
           />
-        </div>
-      )}
+        )}
 
-      <div
-        ref={containerRef}
-        onScroll={handleScroll}
-        className="h-full snap-y snap-mandatory overflow-y-auto overscroll-contain"
-      >
-        {list.items.map((post) => (
-          <div key={post.id} data-post-id={post.id} className="h-full w-full snap-start snap-always">
-            <ReelPlayer
-              post={post}
-              isActive={activeId === post.id}
-              isMuted={isMuted}
-              onToggleMuted={() => setIsMuted((current) => !current)}
-              onToggleLike={() => actions.toggleLike(post)}
-              onToggleSave={() => actions.toggleSave(post)}
-              onShared={() => void actions.sharePost(post)}
-              onProductClick={(productId) => actions.trackProductClick(post.id, productId)}
-              onViewed={() => markViewed(post)}
-            />
-          </div>
-        ))}
+        <VideoGrid posts={list.items} />
+
+        {list.hasMore && (
+          <Button
+            variant="outline"
+            fullWidth
+            isLoading={list.isLoadingMore}
+            loadingText="Yuklanmoqda..."
+            onClick={list.loadMore}
+          >
+            Yana ko&apos;rsatish
+          </Button>
+        )}
       </div>
-    </div>
+    </>
   );
 }

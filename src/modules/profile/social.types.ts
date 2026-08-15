@@ -26,6 +26,8 @@ export interface PublicProfile {
 
   followerCount: number;
   followingCount: number;
+  /** Nechta post yozgan — o'chirilganlari hisobga olinmaydi. */
+  postCount: number;
 
   /**
    * Bu profil so'rov yuborgan odamning O'ZINIKIMI.

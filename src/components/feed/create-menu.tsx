@@ -54,8 +54,14 @@ export function CreateMenu({ onPick, onClose }: CreateMenuProps) {
             <button
               key={choice.id}
               type="button"
+              /*
+                Tayyor bo'lmagan tanlov O'CHIRILGAN, lekin ro'yxatda
+                qoladi: odam nima kutayotganini bilib tursin. Uni
+                yashirsak, "bunday imkoniyat yo'q ekan" deb o'ylardi.
+              */
+              disabled={choice.isComingSoon}
               onClick={() => onPick(choice.id)}
-              className="border-border hover:bg-secondary flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors"
+              className="border-border hover:bg-secondary flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-transparent"
             >
               <span className="bg-secondary text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-lg">
                 <Icon className="size-5" aria-hidden="true" />
@@ -65,6 +71,12 @@ export function CreateMenu({ onPick, onClose }: CreateMenuProps) {
                 <span className="block text-sm font-medium">{choice.label}</span>
                 <span className="text-muted-foreground block text-xs">{choice.description}</span>
               </span>
+
+              {choice.isComingSoon && (
+                <span className="bg-secondary text-muted-foreground shrink-0 rounded-full px-2 py-1 text-[0.625rem] font-medium">
+                  Tez orada
+                </span>
+              )}
             </button>
           );
         })}

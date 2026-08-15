@@ -1,5 +1,20 @@
 import type { LucideIcon } from 'lucide-react';
-import { BarChart3, Bookmark, Clapperboard, Hash, Image, Newspaper, Users, Video } from 'lucide-react';
+import {
+  BarChart3,
+  Bookmark,
+  Clapperboard,
+  Hash,
+  Home,
+  Image,
+  Newspaper,
+  Plus,
+  Radio,
+  Search,
+  User,
+  Video,
+} from 'lucide-react';
+
+import type { NavIcon } from '@/config/app-nav';
 
 /**
  * Feed bo'limining tuzilishi — YAGONA manba.
@@ -16,6 +31,82 @@ import { BarChart3, Bookmark, Clapperboard, Hash, Image, Newspaper, Users, Video
  * Endi ro'yxat shu yerda turadi va uni menyu ham, sinov ham shu
  * yerdan o'qiydi.
  */
+
+// ─────────────────────────────────────────────────────────────────────
+// Feed modulining O'Z navigatsiyasi
+// ─────────────────────────────────────────────────────────────────────
+
+export interface FeedNavItem {
+  /**
+   * Manzil. `null` bo'lsa — bu tugma sahifa OCHMAYDI.
+   *
+   * "Yaratish" tugmasi shunday: u oyna ochadi. Uni sahifa qilsak,
+   * odam post yozib bo'lgach "orqaga" bosishi kerak bo'lardi va
+   * lentadagi joyi yo'qolardi.
+   */
+  href: string | null;
+  label: string;
+  icon: NavIcon;
+  /** `true` — faqat aynan shu manzilda faol. */
+  exact?: boolean;
+  /** Markazdagi ko'tarilgan tugma. */
+  isCreate?: boolean;
+}
+
+/**
+ * Feed ichidagi pastki panel — YAGONA manba.
+ *
+ * ── Nima uchun Feed'ning O'Z navigatsiyasi bor ────────────────────────
+ * Feed endi bitta sahifa emas: unda lenta, video oqimi, qidiruv,
+ * yaratish va shaxsiy profil bor. Bularning hammasini ilovaning
+ * umumiy pastki paneliga sig'dirib bo'lmaydi — u yerda atigi beshta
+ * joy bor va ular butun ilova uchun.
+ *
+ * Shuning uchun Feed ochilganda pastki panel FEED'nikiga almashadi.
+ * Xuddi telefonda ilova ochilgandek: ichkarida o'z menyusi ishlaydi.
+ *
+ * ── Odam qanday CHIQADI ───────────────────────────────────────────────
+ * Har bir Feed sahifasining tepasida "orqaga" tugmasi bor va u
+ * bosh sahifaga qaytaradi. Busiz odam Feed ichida qamalib qolardi —
+ * bu eng katta xato bo'lardi.
+ */
+export const FEED_NAV: readonly FeedNavItem[] = [
+  { href: '/feed', label: 'Asosiy', icon: Home, exact: true },
+  { href: '/feed/videos', label: 'Video', icon: Video },
+  { href: null, label: 'Yaratish', icon: Plus, isCreate: true },
+  { href: '/feed/search', label: 'Qidirish', icon: Search },
+  { href: '/feed/profile', label: 'Profil', icon: User },
+] as const;
+
+/** Feed panelidagi bo'lim joriy manzilga mos keladimi? */
+export function isFeedNavActive(pathname: string, item: FeedNavItem): boolean {
+  if (item.href === null) return false;
+  if (item.exact) return pathname === item.href;
+
+  return pathname === item.href || pathname.startsWith(`${item.href}/`);
+}
+
+/**
+ * Manzil Feed moduli ichidami?
+ *
+ * Ilovaning umumiy paneli shu javobga qarab yashiriladi: bir ekranda
+ * ikkita pastki panel turishi mumkin emas.
+ */
+export function isInsideFeed(pathname: string): boolean {
+  return pathname === '/feed' || pathname.startsWith('/feed/');
+}
+
+/**
+ * Bu sahifada HECH QANDAY pastki panel ko'rinmasligi kerakmi?
+ *
+ * To'liq ekranli tomosha (`/feed/watch`) — yagona shunday sahifa.
+ * Video butun ekranni egallaydi va panel uning ustiga tushib,
+ * mahsulot tugmasi bilan yoqtirish tugmasini to'sib qo'yardi.
+ * Chiqish uchun tepada alohida "orqaga" tugmasi bor.
+ */
+export function isFullScreenFeedPage(pathname: string): boolean {
+  return pathname === '/feed/watch' || pathname.startsWith('/feed/watch/');
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // Kategoriyalar — Feed tepasidagi qator
@@ -193,47 +284,69 @@ export function feedQueryFor(value: FeedFilterValue): { tab: string; category?: 
   return { tab: 'LATEST', category: value };
 }
 
-/** Feed'ning asosiy bo'limlari — tepadagi yorliqlar. */
-export type FeedTabValue = 'VIDEOS' | 'FOLLOWING' | 'LATEST';
+// ─────────────────────────────────────────────────────────────────────
+// Video sahifasining filtrlari
+// ─────────────────────────────────────────────────────────────────────
 
-export interface FeedTabItem {
-  value: FeedTabValue;
+export type VideoFilterValue = 'ALL' | 'SHORT' | 'LONG' | 'LIVE';
+
+export interface VideoFilterItem {
+  value: VideoFilterValue;
   label: string;
-  icon: LucideIcon;
-  /** Bo'sh bo'lganda ko'rsatiladigan izoh. */
   emptyTitle: string;
   emptyDescription: string;
+  /** Hali tayyor emasmi — chiziladi, lekin ro'yxat so'ralmaydi. */
+  isComingSoon?: boolean;
 }
 
-export const FEED_TABS: readonly FeedTabItem[] = [
+/**
+ * Video sahifasidagi filtrlar.
+ *
+ * ── Nima uchun "Uzun videolar" hozircha tayyor emas ───────────────────
+ * Yuklashda chegara 60 soniya (`MAX_VIDEO_SECONDS`), ya'ni bazadagi
+ * BARCHA video qisqa. Filtrni hozir yoqsak, u doim bo'sh chiqardi va
+ * odam "ishlamayapti" deb o'ylardi.
+ *
+ * Filtr o'zi qoldirildi: uzun video yuklash qo'shilganda bayroqni
+ * olib tashlash kifoya, serverdagi mantiq allaqachon tayyor.
+ */
+export const VIDEO_FILTERS: readonly VideoFilterItem[] = [
   {
-    value: 'VIDEOS',
-    label: 'Videolar',
-    icon: Clapperboard,
+    value: 'ALL',
+    label: 'Barchasi',
     emptyTitle: "Hali video yo'q",
     emptyDescription: "Birinchi bo'lib video joylang — uni hamma ko'radi.",
   },
   {
-    value: 'FOLLOWING',
-    label: 'Obunalarim',
-    icon: Users,
-    emptyTitle: "Lentangiz hozircha bo'sh",
-    emptyDescription: "Odamlarga obuna bo'ling — ularning postlari shu yerda paydo bo'ladi.",
+    value: 'SHORT',
+    label: 'Shorts',
+    emptyTitle: "Qisqa video yo'q",
+    emptyDescription: '60 soniyagacha bo\'lgan videolar shu yerda to\'planadi.',
   },
   {
-    value: 'LATEST',
-    label: 'Yangi',
-    icon: Newspaper,
-    emptyTitle: "Hali post yo'q",
-    emptyDescription: "Birinchi bo'lib yozing — postingizni hamma ko'radi.",
+    value: 'LONG',
+    label: 'Uzun videolar',
+    isComingSoon: true,
+    emptyTitle: 'Tez orada',
+    emptyDescription:
+      "Hozircha video 60 soniyagacha yuklanadi. Uzun video qo'llab-quvvatlangach, ular shu yerda chiqadi.",
+  },
+  {
+    value: 'LIVE',
+    label: 'Jonli efir',
+    isComingSoon: true,
+    emptyTitle: 'Tez orada',
+    emptyDescription: "Jonli efir ustida ishlanmoqda. Tayyor bo'lgach, efirlar shu yerda ko'rinadi.",
   },
 ] as const;
 
-/** Yorliq serverdagi qaysi bo'limni so'raydi. */
-export function feedQueryTab(tab: FeedTabValue): 'VIDEO' | 'FOLLOWING' | 'LATEST' {
-  if (tab === 'VIDEOS') return 'VIDEO';
+/** Filtr serverga qanday so'rov bo'lib ketadi. */
+export function videoQueryFor(value: VideoFilterValue): string | null {
+  if (value === 'ALL') return '/api/v1/feed?tab=VIDEO';
+  if (value === 'SHORT') return '/api/v1/feed?tab=VIDEO&duration=SHORT';
 
-  return tab;
+  // Tayyor bo'lmagan filtrlar serverga UMUMAN bormaydi.
+  return null;
 }
 
 /** Feed menyusidagi bitta qator. */
@@ -253,7 +366,7 @@ export interface FeedFeatureItem {
  */
 export const FEED_FEATURES: readonly FeedFeatureItem[] = [
   {
-    href: '/feed/videos',
+    href: '/feed/watch',
     label: 'Video oqimi',
     description: "To'liq ekranda ketma-ket tomosha",
     icon: Video,
@@ -280,29 +393,50 @@ export const FEED_FEATURES: readonly FeedFeatureItem[] = [
 
 /** Yangi narsa yaratish tanlovlari — "+" tugmasi ostida. */
 export interface CreateChoice {
-  id: 'POST' | 'VIDEO' | 'STORY';
+  id: 'VIDEO' | 'POST' | 'STORY' | 'LIVE';
   label: string;
   description: string;
   icon: LucideIcon;
+  /**
+   * Hali tayyor emasmi.
+   *
+   * Jonli efir server tomonda alohida oqim uzatish xizmatini talab
+   * qiladi. Uni ro'yxatdan olib tashlash o'rniga ochiq qoldiramiz —
+   * odam nima kutayotganini bilib tursin.
+   */
+  isComingSoon?: boolean;
 }
 
+/**
+ * Yaratish tanlovlari — "+" tugmasi ostida.
+ *
+ * Tartib ataylab video bilan boshlanadi: Feed'ning asosiy kontenti
+ * video va odam eng ko'p shuni joylaydi.
+ */
 export const CREATE_CHOICES: readonly CreateChoice[] = [
   {
-    id: 'POST',
-    label: 'Post',
-    description: 'Matn va rasm — lentada qoladi',
-    icon: Image,
-  },
-  {
     id: 'VIDEO',
-    label: 'Video',
+    label: 'Video yaratish',
     description: '60 soniyagacha, mahsulot tugmasi bilan',
     icon: Clapperboard,
   },
   {
+    id: 'POST',
+    label: 'Post yaratish',
+    description: 'Rasm yoki matnli post',
+    icon: Image,
+  },
+  {
     id: 'STORY',
-    label: 'Hikoya',
-    description: '24 soatdan keyin yo\'qoladi',
+    label: 'Hikoya yaratish',
+    description: '24 soatlik hikoya',
     icon: Newspaper,
+  },
+  {
+    id: 'LIVE',
+    label: 'Jonli efir boshlash',
+    description: 'Real vaqtda efir',
+    icon: Radio,
+    isComingSoon: true,
   },
 ] as const;

@@ -343,7 +343,7 @@ export function PostCard({
       {/*
         Video — lentada ODDIY pleyer bilan.
 
-        To'liq ekranli tomosha uchun alohida sahifa bor (`/feed/videos`).
+        To'liq ekranli tomosha uchun alohida sahifa bor (`/feed/watch`).
         Bu yerda esa post boshqa postlar orasida turadi va odam
         o'qiyapti: avtomatik o'ynash uni chalg'itardi va bir vaqtda
         bir nechta video ovozi eshitilardi.
@@ -371,7 +371,7 @@ export function PostCard({
           ))}
 
           <Link
-            href="/feed/videos"
+            href="/feed/watch"
             className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-xs transition-colors"
           >
             <Clapperboard className="size-3.5" aria-hidden="true" />

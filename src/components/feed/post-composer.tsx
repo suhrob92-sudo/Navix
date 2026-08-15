@@ -47,6 +47,15 @@ export interface PostComposerProps {
    * qilish ortiqcha.
    */
   autoPick?: 'VIDEO' | null;
+  /**
+   * Yuborishdagi xato.
+   *
+   * ── Nima uchun oynaning ICHIDA ──────────────────────────────────────
+   * Oyna modal: u ortidagi hamma narsani to'sadi. Xato tashqarida
+   * chizilsa, odam uni umuman ko'rmasdi — "Joylash" bosilib, hech
+   * narsa bo'lmagandek tuyulardi.
+   */
+  error?: string | null;
 }
 
 /**
@@ -65,7 +74,13 @@ export interface PostComposerProps {
  * Ikkalasi ham bo'lsa, lentada qaysi birini ko'rsatish noaniq
  * bo'lardi. Bitta postda bitta media — qoida oddiy va tushunarli.
  */
-export function PostComposer({ isSending, onSubmit, onClose, autoPick = null }: PostComposerProps) {
+export function PostComposer({
+  isSending,
+  onSubmit,
+  onClose,
+  autoPick = null,
+  error = null,
+}: PostComposerProps) {
   const { accessToken } = useAuth();
 
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -233,6 +248,12 @@ export function PostComposer({ isSending, onSubmit, onClose, autoPick = null }: 
           })}
         </div>
       </div>
+
+      {error && (
+        <Alert variant="error" className="mt-3">
+          {error}
+        </Alert>
+      )}
 
       {image.error && (
         <Alert variant="error" className="mt-3">

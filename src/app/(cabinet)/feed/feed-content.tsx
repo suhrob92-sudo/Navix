@@ -1,47 +1,35 @@
 'use client';
 
-import { LayoutGrid, List, Menu, Newspaper, Plus } from 'lucide-react';
-import { useState } from 'react';
+import { LayoutGrid, List, Menu, Newspaper } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { CategoryRow } from '@/components/feed/category-row';
-import { CreateMenu } from '@/components/feed/create-menu';
+import { useFeedCreate } from '@/components/feed/feed-create-provider';
 import { FeedMenu } from '@/components/feed/feed-menu';
-import { PostComposer, type ComposerDraft } from '@/components/feed/post-composer';
 import { PostList } from '@/components/feed/post-list';
 import { TrendingHashtags } from '@/components/feed/trending-hashtags';
 import { VideoGrid } from '@/components/feed/video-grid';
-import { StoryComposer } from '@/components/story/story-composer';
 import { StoryTray } from '@/components/story/story-tray';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FEED_CATEGORIES, feedQueryFor, type FeedFilterValue } from '@/config/feed-nav';
-import { useApiClient } from '@/hooks/use-api';
 import { useCursorList } from '@/hooks/use-cursor-list';
 import { usePostActions } from '@/hooks/use-post-actions';
-import { toUserMessage } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import type { PostView } from '@/modules/feed/feed.types';
 
 /**
- * Feed — bo'limning bosh ekrani.
+ * Feed — modulning bosh sahifasi.
  *
- * ── Nima uchun QAYTA QURILDI ──────────────────────────────────────────
- * ── HAQIQIY MUAMMO, foydalanuvchi aytgan ────────────────────────────
- * Feed bosqichma-bosqich o'sdi va oxirida ekranning yarmini xizmat
- * elementlari egallab qoldi: doim ochiq yozish maydoni, ikkita kichik
- * belgi (video va saqlanganlar), mavzular qatori, hikoyalar halqasi.
- * Kontentning o'zi esa pastda, ko'rinmas joyda qolardi.
- *
- * Endi tuzilish oddiy:
+ * ── Tuzilish ──────────────────────────────────────────────────────────
  *   1. Hikoyalar halqasi — tepada, u 24 soatlik va shoshilinch.
  *   2. Kategoriyalar qatori: usullar (Siz uchun / Obunalar / Yaqin
  *      atrofda) va bo'limlar (Restoranlar, Ishlar, ...).
  *   3. Kontent — ekranning QOLGAN HAMMASI.
- *   4. Yozish — pastdagi "+" tugmasi ostida.
- *   5. Qolgan bo'limlar — yuqoridagi menyu ostida, bir joyda.
+ *   4. Yaratish va boshqa sahifalar — pastdagi Feed panelida.
  *
  * ── Nima uchun "Siz uchun" birinchi ───────────────────────────────────
  * Yangi kelgan odamda obuna yo'q va kategoriya ham tanlanmagan.
@@ -49,7 +37,7 @@ import type { PostView } from '@/modules/feed/feed.types';
  * ko'rinishi kerak.
  */
 export function FeedContent() {
-  const request = useApiClient();
+  const create = useFeedCreate();
 
   const [filter, setFilter] = useState<FeedFilterValue>('FOR_YOU');
 
@@ -62,22 +50,7 @@ export function FeedContent() {
    * sig'maydi. Shuning uchun ikkalasi ham qoldirildi.
    */
   const [isGrid, setIsGrid] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [sendError, setSendError] = useState<string | null>(null);
-
-  /** Qaysi qo'shimcha oyna ochiq: menyu, yaratish tanlovi, yozish, hikoya. */
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isComposerOpen, setIsComposerOpen] = useState(false);
-  const [isStoryOpen, setIsStoryOpen] = useState(false);
-
-  /**
-   * Video tanlash oynasi darhol ochilsinmi.
-   *
-   * "+" dan "Video" tanlanganda yozish maydoni ochiladi va u
-   * fayl tanlagichni O'ZI ochadi — odam ikkinchi marta bosmaydi.
-   */
-  const [autoPick, setAutoPick] = useState<'VIDEO' | null>(null);
 
   const active = FEED_CATEGORIES.find((item) => item.value === filter) ?? FEED_CATEGORIES[0];
   const query = feedQueryFor(filter);
@@ -96,75 +69,42 @@ export function FeedContent() {
   const list = useCursorList<PostView>(path, 'posts');
   const actions = usePostActions(list.setItems);
 
-  async function publish(draft: ComposerDraft): Promise<boolean> {
-    setIsSending(true);
-    setSendError(null);
+  const { setItems } = list;
 
-    try {
-      const result = await request<{ post: PostView }>('/api/v1/posts', {
-        method: 'POST',
-        /**
-         * Bo'sh maydonlar YUBORILMAYDI.
-         *
-         * Sxema `undefined` ni ixtiyoriy deb qabul qiladi, `null` ni
-         * esa yo'q — shuning uchun ular umuman qo'shilmaydi.
-         */
-        body: {
-          body: draft.body,
-          ...(draft.imageUrl ? { imageUrl: draft.imageUrl } : {}),
-          ...(draft.videoUrl ? { videoUrl: draft.videoUrl } : {}),
-          ...(draft.videoPosterUrl ? { videoPosterUrl: draft.videoPosterUrl } : {}),
-          ...(draft.videoSeconds ? { videoSeconds: draft.videoSeconds } : {}),
-          ...(draft.category ? { category: draft.category } : {}),
-          ...(draft.productIds.length > 0 ? { productIds: draft.productIds } : {}),
-        },
-      });
+  /**
+   * Yangi post ro'yxat BOSHIGA qo'yiladi.
+   *
+   * Yaratish oynasi endi Feed qolipida turadi — u BARCHA sahifalarda
+   * ishlaydi. Lenta esa unga obuna bo'lib, natijani darhol ko'rsatadi:
+   * butun ro'yxatni qayta yuklash shart emas, odamning o'qib turgan
+   * joyi ham yo'qolmaydi.
+   */
+  useEffect(() => {
+    return create.subscribe((post) => {
+      // Faqat MOS bo'limga qo'shiladi: "Restoranlar" da turgan odam
+      // ish e'lonini joylasa, u shu yerda paydo bo'lmasligi kerak —
+      // aks holda filtr yolg'on ko'rinardi.
+      if (isGrid && !post.videoUrl) return;
+      if (query.category && post.category !== query.category) return;
 
-      /**
-       * Yangi post ro'yxat BOSHIGA qo'yiladi.
-       *
-       * Butun lentani qayta yuklash ham mumkin edi, lekin unda odam
-       * o'qib turgan joyi yo'qolardi va mobil trafik bekorga
-       * sarflanardi.
-       *
-       * Faqat MOS yorliqqa qo'shiladi: videosiz post "Videolar"
-       * yorlig'ida ko'rinib qolmasligi kerak.
-       */
-      if (belongsToActiveFilter(result.post)) {
-        list.setItems((current) => [result.post, ...current]);
-      }
-
-      setIsComposerOpen(false);
-      setAutoPick(null);
-
-      return true;
-    } catch (caught) {
-      setSendError(toUserMessage(caught));
-
-      return false;
-    } finally {
-      setIsSending(false);
-    }
-  }
+      setItems((current) => [post, ...current]);
+    });
+    // `list` obyekti har chizishda yangi bo'ladi — bog'liqlikka faqat
+    // barqaror `setItems` qo'yiladi, aks holda obuna cheksiz qayta
+    // yaratilib turardi.
+  }, [create, isGrid, query.category, setItems]);
 
   const isEmpty = !list.isLoading && !list.error && list.items.length === 0;
 
-  /**
-   * Yangi post MOS bo'limda ko'rinsa qo'shiladi.
-   *
-   * Aks holda "Restoranlar" bo'limida turgan odam ish e'lonini
-   * joylasa, u shu yerda paydo bo'lib, filtr yolg'on ko'rinardi.
-   */
-  function belongsToActiveFilter(post: PostView): boolean {
-    if (isGrid && !post.videoUrl) return false;
-    if (query.category) return post.category === query.category;
-
-    return true;
-  }
-
   return (
     <>
-      <AppHeader title="Feed" />
+      {/*
+        "Orqaga" — Feed'dan CHIQISH yo'li.
+
+        Feed ichida ilovaning umumiy paneli yashiringan. Busiz odam
+        modul ichida qamalib qolardi.
+      */}
+      <AppHeader title="Feed" showBack backHref="/dashboard" />
 
       <div className="space-y-4 px-4 pt-4 pb-24">
         <StoryTray />
@@ -202,7 +142,6 @@ export function FeedContent() {
         {/* Mavzular FAQAT ro'yxat ko'rinishida — panjara ustida ortiqcha. */}
         {!isGrid && <TrendingHashtags />}
 
-        {sendError && <Alert variant="error">{sendError}</Alert>}
         {actions.error && <Alert variant="error">{actions.error}</Alert>}
 
         {list.error && (
@@ -229,7 +168,7 @@ export function FeedContent() {
             description={active.emptyDescription}
             action={
               active.isComingSoon ? undefined : (
-                <Button variant="outline" onClick={() => setIsCreateOpen(true)}>
+                <Button variant="outline" onClick={create.open}>
                   Joylash
                 </Button>
               )
@@ -252,57 +191,7 @@ export function FeedContent() {
         )}
       </div>
 
-      {/*
-        Yaratish tugmasi — SUZUVCHI.
-
-        U doim ko'rinib turadi va lentani surganda ham yo'qolmaydi.
-        Pastki menyudan yuqorida joylashgan: barmoq unga osongina
-        yetadi va menyuni to'sib qo'ymaydi.
-      */}
-      <button
-        type="button"
-        aria-label="Joylash"
-        onClick={() => setIsCreateOpen(true)}
-        className="bg-primary text-primary-foreground fixed right-4 bottom-24 z-40 flex size-14 items-center justify-center rounded-full shadow-lg transition-transform active:scale-95"
-      >
-        <Plus className="size-6" aria-hidden="true" />
-      </button>
-
       {isMenuOpen && <FeedMenu onClose={() => setIsMenuOpen(false)} />}
-
-      {isCreateOpen && (
-        <CreateMenu
-          onClose={() => setIsCreateOpen(false)}
-          onPick={(choice) => {
-            setIsCreateOpen(false);
-
-            if (choice === 'STORY') {
-              setIsStoryOpen(true);
-
-              return;
-            }
-
-            setAutoPick(choice === 'VIDEO' ? 'VIDEO' : null);
-            setIsComposerOpen(true);
-          }}
-        />
-      )}
-
-      {isComposerOpen && (
-        <PostComposer
-          isSending={isSending}
-          autoPick={autoPick}
-          onSubmit={publish}
-          onClose={() => {
-            setIsComposerOpen(false);
-            setAutoPick(null);
-          }}
-        />
-      )}
-
-      {isStoryOpen && (
-        <StoryComposer onClose={() => setIsStoryOpen(false)} onPosted={() => setIsStoryOpen(false)} />
-      )}
     </>
   );
 }

@@ -5,12 +5,6 @@ export const metadata = {
   description: "Qisqa videolar — ko'ring va mahsulotni bir bosishda toping.",
 };
 
-interface PageProps {
-  searchParams: Promise<{ start?: string }>;
-}
-
-export default async function FeedVideosPage({ searchParams }: PageProps) {
-  const { start } = await searchParams;
-
-  return <VideosContent startId={start ?? null} />;
+export default function FeedVideosPage() {
+  return <VideosContent />;
 }

@@ -7,9 +7,12 @@ import {
   CREATE_CHOICES,
   FEED_CATEGORIES,
   FEED_FEATURES,
+  FEED_NAV,
   POST_CATEGORIES,
   feedQueryFor,
   isFeedMode,
+  isFeedNavActive,
+  isInsideFeed,
   type FeedFilterValue,
 } from '@/config/feed-nav';
 import { POST_CATEGORY_LABELS, POST_CATEGORY_VALUES } from '@/modules/feed/feed.types';
@@ -161,9 +164,88 @@ describe('Feed menyusi', () => {
     }
   });
 
-  it('yaratish tanlovlari uchta va noyob', () => {
+  it('yaratish tanlovlari to\'rtta va noyob', () => {
     const ids = CREATE_CHOICES.map((item) => item.id);
 
-    expect(ids).toEqual(['POST', 'VIDEO', 'STORY']);
+    expect(ids).toEqual(['VIDEO', 'POST', 'STORY', 'LIVE']);
+  });
+
+  it('faqat jonli efir tayyor emas', () => {
+    const pending = CREATE_CHOICES.filter((item) => item.isComingSoon).map((item) => item.id);
+
+    expect(pending).toEqual(['LIVE']);
+  });
+});
+
+describe('Feed moduli navigatsiyasi', () => {
+  it('beshta bo\'lim bor va markazda yaratish turadi', () => {
+    expect(FEED_NAV).toHaveLength(5);
+    expect(FEED_NAV[2].isCreate).toBe(true);
+  });
+
+  it('faqat bitta yaratish tugmasi bor', () => {
+    expect(FEED_NAV.filter((item) => item.isCreate)).toHaveLength(1);
+  });
+
+  it('yaratish tugmasi sahifa ochmaydi', () => {
+    // U oyna ochadi. Havola bo'lsa, brauzer tarixiga yozilib qolardi.
+    const create = FEED_NAV.find((item) => item.isCreate);
+
+    expect(create?.href).toBeNull();
+  });
+
+  it('barcha manzillar "/feed" ichida va noyob', () => {
+    const hrefs = FEED_NAV.map((item) => item.href).filter((href): href is string => href !== null);
+
+    expect(new Set(hrefs).size).toBe(hrefs.length);
+
+    for (const href of hrefs) {
+      expect(href === '/feed' || href.startsWith('/feed/'), `${href} noto'g'ri`).toBe(true);
+    }
+  });
+
+  describe('isFeedNavActive', () => {
+    it('"Asosiy" faqat aynan /feed da faol', () => {
+      const home = FEED_NAV[0];
+
+      expect(isFeedNavActive('/feed', home)).toBe(true);
+      // Ichki sahifa bosh sahifani yoqmaydi — aks holda ikkita
+      // bo'lim birdan yonib turardi.
+      expect(isFeedNavActive('/feed/videos', home)).toBe(false);
+    });
+
+    it('ichki sahifa o\'z bo\'limini yoqadi', () => {
+      const videos = FEED_NAV[1];
+
+      expect(isFeedNavActive('/feed/videos', videos)).toBe(true);
+      expect(isFeedNavActive('/feed/videos/123', videos)).toBe(true);
+    });
+
+    it('o\'xshash boshlanishli manzilni chalkashtirmaydi', () => {
+      const search = FEED_NAV.find((item) => item.href === '/feed/search');
+
+      expect(search && isFeedNavActive('/feed/searchXYZ', search)).toBe(false);
+    });
+
+    it('yaratish tugmasi hech qachon faol bo\'lmaydi', () => {
+      const create = FEED_NAV[2];
+
+      expect(isFeedNavActive('/feed', create)).toBe(false);
+    });
+  });
+
+  describe('isInsideFeed', () => {
+    it('Feed sahifalarini taniydi', () => {
+      expect(isInsideFeed('/feed')).toBe(true);
+      expect(isInsideFeed('/feed/videos')).toBe(true);
+      expect(isInsideFeed('/feed/tag/burger')).toBe(true);
+    });
+
+    it("Feed'dan tashqaridagi sahifalarni tanimaydi", () => {
+      expect(isInsideFeed('/dashboard')).toBe(false);
+      expect(isInsideFeed('/profile')).toBe(false);
+      // `/feedback` — Feed emas.
+      expect(isInsideFeed('/feedback')).toBe(false);
+    });
   });
 });

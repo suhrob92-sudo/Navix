@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
+import { SEARCH_SCOPES } from '@/modules/feed/discover.types';
 import { COMMENT_MAX_LENGTH, MAX_TAGGED_PRODUCTS, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
+import { VIDEO_DURATIONS } from '@/modules/feed/feed.types';
 import { POST_CATEGORY_VALUES } from '@/modules/feed/feed.types';
 import { MAX_VIDEO_SECONDS } from '@/modules/upload/upload.types';
 import { isOwnImageUrl } from '@/modules/upload/upload.types';
@@ -33,6 +35,14 @@ export const feedQuerySchema = z.object({
    * ishlamasdi.
    */
   category: z.enum(POST_CATEGORY_VALUES).optional(),
+  /**
+   * Video uzunligi bo'yicha filtr.
+   *
+   * Faqat `tab=VIDEO` bilan ma'noga ega. Matnli postda uzunlik
+   * tushunchasi yo'q, shuning uchun boshqa yorliqlarda e'tiborsiz
+   * qoldiriladi.
+   */
+  duration: z.enum(VIDEO_DURATIONS).optional(),
   cursor: feedCursorSchema.optional(),
   /**
    * Bir so'rovda nechta post.
@@ -44,6 +54,20 @@ export const feedQuerySchema = z.object({
 });
 
 export type FeedQuery = z.infer<typeof feedQuerySchema>;
+
+/**
+ * Feed qidiruvi.
+ *
+ * `q` IXTIYORIY: bo'sh bo'lsa, sahifa "kashf qilish" holatida ochiladi
+ * va mashhur mavzular bilan videolarni ko'rsatadi. Majburiy qilsak,
+ * qidiruv sahifasi birinchi ochilganda bo'm-bo'sh turardi.
+ */
+export const feedSearchQuerySchema = z.object({
+  q: z.string().trim().max(80, "So'rov juda uzun").optional(),
+  scope: z.enum(SEARCH_SCOPES).default('ALL'),
+});
+
+export type FeedSearchQuery = z.infer<typeof feedSearchQuerySchema>;
 
 export const commentsQuerySchema = z.object({
   cursor: feedCursorSchema.optional(),

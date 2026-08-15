@@ -82,9 +82,16 @@ export async function getPublicProfile(username: string, viewerId: string): Prom
    * Ketma-ket yuborilsa, sahifa to'rt marta kutardi. Ular bir-biriga
    * bog'liq emas, shuning uchun birga ketaveradi.
    */
-  const [followerCount, followingCount, follow, block] = await Promise.all([
+  const [followerCount, followingCount, postCount, follow, block] = await Promise.all([
     prisma.follow.count({ where: { followingId: row.id } }),
     prisma.follow.count({ where: { followerId: row.id } }),
+    /**
+     * O'chirilgan postlar SANALMAYDI.
+     *
+     * Ular bazada tarix uchun qoladi, lekin profilda "128 post"
+     * deb turib, ro'yxatda 120 tasi ko'rinsa — son yolg'on bo'lardi.
+     */
+    prisma.post.count({ where: { authorId: row.id, deletedAt: null } }),
     isOwn
       ? Promise.resolve(null)
       : prisma.follow.findUnique({
@@ -121,10 +128,36 @@ export async function getPublicProfile(username: string, viewerId: string): Prom
     joinedAt: row.createdAt.toISOString(),
     followerCount,
     followingCount,
+    postCount,
     isOwn,
     isFollowing: follow !== null,
     isBlocked: block?.blockedByMe ?? false,
   };
+}
+
+/**
+ * O'z profilim — ID bo'yicha.
+ *
+ * ── Nima uchun bu kerak ───────────────────────────────────────────────
+ * Tizimga kirgan odamning ma'lumotida `username` yo'q: u profil
+ * jadvalida turadi va har so'rovda tokenga qo'shib yurish ortiqcha
+ * bo'lardi (nom o'zgarsa, token eskirib qolardi).
+ *
+ * Brauzer tomonda avval nomni, keyin profilni so'rash ham mumkin edi,
+ * lekin u ikkita ketma-ket so'rov — mobil internetda sahifa ikki
+ * marta sakrab ochilardi.
+ */
+export async function getOwnProfile(userId: string): Promise<PublicProfile> {
+  const row = await prisma.userProfile.findUnique({
+    where: { userId },
+    select: { username: true },
+  });
+
+  if (!row) {
+    throw new NotFoundError('Profil');
+  }
+
+  return getPublicProfile(row.username, userId);
 }
 
 const SEARCH_SELECT = {

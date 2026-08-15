@@ -96,6 +96,22 @@ export const POST_CATEGORY_VALUES = [
 
 export type PostCategoryName = (typeof POST_CATEGORY_VALUES)[number];
 
+/**
+ * Video uzunligi turlari.
+ *
+ * ── Nima uchun chegara 60 soniya ──────────────────────────────────────
+ * Yuklashda ham aynan shu chegara qo'yilgan (`MAX_VIDEO_SECONDS`).
+ * Ya'ni hozircha BARCHA videolar qisqa. "Uzun" turi kelajak uchun
+ * qoldirilgan: uzun video yuklash qo'shilganda filtr allaqachon
+ * tayyor bo'ladi va ma'lumot bazasi qayta ko'rilmaydi.
+ */
+export const VIDEO_DURATIONS = ['SHORT', 'LONG'] as const;
+
+export type VideoDuration = (typeof VIDEO_DURATIONS)[number];
+
+/** Qisqa video chegarasi — shu qiymatgacha (shu son ham kiradi). */
+export const SHORT_VIDEO_SECONDS = 60;
+
 /** Bo'lim nomi — ekranda ko'rinadigan matn. */
 export const POST_CATEGORY_LABELS: Record<PostCategoryName, string> = {
   DISCOUNTS: 'Chegirmalar',
@@ -304,6 +320,20 @@ export function authorDisplayName(author: PostAuthorView): string {
  */
 export function formatReactionCount(count: number): string {
   if (count <= 0) return '';
+
+  return formatCompactCount(count);
+}
+
+/**
+ * Qisqartirilgan son — NOL ham ko'rsatiladi.
+ *
+ * ── Nima uchun `formatReactionCount` dan alohida ──────────────────────
+ * Tugmada nol yozuv ortiqcha: "0" turgan yurakcha faqat chalg'itadi.
+ * Profil sonlarida esa aksincha — "Obunachilar" yozuvi ostida bo'sh
+ * joy turса, odam son yuklanmagan deb o'ylardi.
+ */
+export function formatCompactCount(count: number): string {
+  if (count <= 0) return '0';
   if (count < 1_000) return String(count);
 
   const thousands = Math.floor((count / 1_000) * 10) / 10;

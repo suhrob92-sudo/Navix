@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { APP_NAV, isNavItemActive } from '@/config/app-nav';
+import { isInsideFeed } from '@/config/feed-nav';
 import { cn } from '@/lib/utils';
 
 /**
@@ -17,6 +18,20 @@ import { cn } from '@/lib/utils';
  */
 export function AppTabBar() {
   const pathname = usePathname();
+
+  /**
+   * Feed ichida bu panel YASHIRILADI.
+   *
+   * ── Nima uchun ────────────────────────────────────────────────────
+   * Feed — ko'p sahifali mustaqil modul va uning o'z pastki paneli
+   * bor. Ikkalasi birga chizilsa, ekranning pastki uchdan biri
+   * panellar bilan to'lardi va barmoq qaysi biriga tegishini bilmay
+   * qolardi.
+   *
+   * Odam Feed'dan sahifa tepasidagi "orqaga" tugmasi bilan chiqadi —
+   * shunda bu panel joyiga qaytadi.
+   */
+  if (isInsideFeed(pathname)) return null;
 
   return (
     <nav
