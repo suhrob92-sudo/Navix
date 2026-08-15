@@ -349,6 +349,46 @@ export async function reportComment(
 }
 
 /**
+ * Hikoya ustidan shikoyat.
+ *
+ * ── Nima uchun muddati o'tgan hikoyaga ham shikoyat qilish mumkin ────
+ * Odam hikoyani ko'rib, keyin shikoyat yozishga ulguradi — bu vaqtda
+ * 24 soat tugagan bo'lishi mumkin. Shikoyatni rad etsak, u haqoratni
+ * moderatorga umuman yetkaza olmasdi.
+ */
+export async function reportStory(
+  reporterId: string,
+  storyId: string,
+  input: ReportUserInput,
+): Promise<void> {
+  const story = await prisma.story.findFirst({
+    where: { id: storyId, deletedAt: null },
+    select: { id: true, authorId: true },
+  });
+
+  if (!story) {
+    throw new NotFoundError('Hikoya');
+  }
+
+  if (story.authorId === reporterId) {
+    throw new ConflictError("O'z hikoyangiz ustidan shikoyat qilib bo'lmaydi.");
+  }
+
+  await createContentReport({
+    reporterId,
+    targetId: story.authorId,
+    storyId,
+    reason: input.reason,
+    note: input.note ?? null,
+  });
+
+  logger.warn(
+    { reporterId, storyId, authorId: story.authorId, reason: input.reason },
+    'Hikoya ustidan shikoyat',
+  );
+}
+
+/**
  * Yozuvni yaratadi; takrorlanishni jimgina o'tkazadi.
  *
  * Odam uchun natija bir xil: shikoyat moderatorda. Ikkinchi yozuv
@@ -359,6 +399,7 @@ async function createContentReport(data: {
   targetId: string;
   postId?: string;
   commentId?: string;
+  storyId?: string;
   reason: ReportUserInput['reason'];
   note: string | null;
 }): Promise<void> {
@@ -407,6 +448,14 @@ function shorten(text: string, maxLength = 160): string {
 function toReportedContent(row: {
   post: { id: string; body: string; imageUrl: string | null; deletedAt: Date | null } | null;
   comment: { id: string; body: string; postId: string; deletedAt: Date | null } | null;
+  story: {
+    id: string;
+    caption: string | null;
+    videoUrl: string | null;
+    deletedAt: Date | null;
+    expiresAt: Date;
+    author: { profile: { username: string } | null } | null;
+  } | null;
 }): ReportedContentView | null {
   if (row.post) {
     return {
@@ -426,6 +475,29 @@ function toReportedContent(row: {
       preview: shorten(row.comment.body),
       isVisible: row.comment.deletedAt === null,
       href: `/feed/${row.comment.postId}`,
+    };
+  }
+
+  if (row.story) {
+    /**
+     * Hikoya MUDDATI ham hisobga olinadi.
+     *
+     * "Ko'rinadi" degani — hozir odamlarga ko'rinyaptimi. Muddati
+     * o'tgan hikoya o'chirilmagan bo'lsa ham hech kimga ko'rinmaydi
+     * va moderator buni bilishi kerak: chora ko'rish shoshilinch
+     * emasligini anglatadi.
+     */
+    const isLive = row.story.deletedAt === null && row.story.expiresAt.getTime() > Date.now();
+    const username = row.story.author?.profile?.username ?? '';
+
+    return {
+      kind: 'STORY',
+      id: row.story.id,
+      preview:
+        shorten(row.story.caption ?? '') || (row.story.videoUrl ? '(video hikoya)' : '(rasmli hikoya)'),
+      isVisible: isLive,
+      // Muddati o'tgan hikoyani ochib bo'lmaydi — muallif profiliga olib boradi.
+      href: isLive && username ? `/stories/${username}` : `/u/${username}`,
     };
   }
 
@@ -467,6 +539,16 @@ export async function listAdminReports(
          */
         post: { select: { id: true, body: true, imageUrl: true, deletedAt: true } },
         comment: { select: { id: true, body: true, postId: true, deletedAt: true } },
+        story: {
+          select: {
+            id: true,
+            caption: true,
+            videoUrl: true,
+            deletedAt: true,
+            expiresAt: true,
+            author: { select: { profile: { select: { username: true } } } },
+          },
+        },
       },
       // Yangi shikoyatlar birinchi — indeks ham shu tartibda.
       orderBy: { createdAt: 'desc' },

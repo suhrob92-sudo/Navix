@@ -95,7 +95,7 @@ export interface AdminReportView {
 
 /** Shikoyat qilingan post yoki izoh. */
 export interface ReportedContentView {
-  kind: 'POST' | 'COMMENT';
+  kind: 'POST' | 'COMMENT' | 'STORY';
   id: string;
   /** Matn boshi — ro'yxatga sig'adigan hajmda. */
   preview: string;

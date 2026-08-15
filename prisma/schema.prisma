@@ -290,6 +290,8 @@ model User {
   postSaves         PostSave[]           @relation("PostSaves")
   commentLikes      CommentLike[]        @relation("CommentLikes")
   productClicks     PostProductClick[]   @relation("ProductClicks")
+  stories           Story[]              @relation("StoryAuthor")
+  storyViews        StoryView[]          @relation("StoryViews")
   moduleSwitches    ModuleSwitch[]       @relation("ModuleSwitchEditor")
   supportTickets    SupportTicket[]      @relation("SupportTickets")
   supportAssigned   SupportTicket[]      @relation("SupportAssignee")
@@ -1082,6 +1084,7 @@ model Product {
   orderItems MarketOrderItem[]
   /// Shu mahsulot biriktirilgan videolar.
   postLinks  PostProduct[]
+  stories    Story[]           @relation("StoryProduct")
 
   @@index([shopId, isActive])
   @@index([categoryId, sortOrder])
@@ -2340,6 +2343,14 @@ model UserReport {
   commentId String?      @db.Uuid
   comment   PostComment? @relation("CommentReports", fields: [commentId], references: [id], onDelete: Cascade)
 
+  /// Shikoyat aynan QAYSI hikoya haqida (bo'lsa).
+  ///
+  /// Hikoya 24 soatdan keyin ko'rinmay qoladi, lekin YOZUVI qoladi —
+  /// aks holda moderator shikoyat kelgan paytda tekshiradigan narsa
+  /// topa olmasdi.
+  storyId String? @db.Uuid
+  story   Story?  @relation("StoryReports", fields: [storyId], references: [id], onDelete: Cascade)
+
   reason ReportReason
   /// Qo'shimcha izoh — ixtiyoriy.
   note   String?      @db.VarChar(500)
@@ -2358,6 +2369,7 @@ model UserReport {
   /// ular orasida yo'qolardi.
   @@unique([reporterId, postId])
   @@unique([reporterId, commentId])
+  @@unique([reporterId, storyId])
   /// Moderator ro'yxati uchun: yangi shikoyatlar birinchi.
   @@index([status, createdAt])
   @@index([targetId])
@@ -2518,6 +2530,88 @@ model PostProduct {
   @@id([postId, productId])
   @@index([productId])
   @@map("post_products")
+}
+
+/// Hikoya — 24 soatdan keyin yo'qoladigan post.
+///
+/// ── Nima uchun POSTDAN alohida jadval ─────────────────────────────────
+/// Postga `expiresAt` ustuni qo'shib, uni "hikoya" deb belgilash ham
+/// mumkin edi. Lekin unda LENTANING har bir so'rovi "bu post hikoya
+/// emasmi?" degan shartni ko'tarib yurardi va bittasi albatta
+/// unutilib, hikoya oddiy lentada paydo bo'lardi.
+///
+/// Bundan tashqari hikoyada post'da bo'lmagan narsalar bor: kim
+/// ko'rgani ro'yxati, muddat, ketma-ket tomosha. Postda esa hikoyada
+/// bo'lmagan narsalar: yoqtirish, izoh, ulashish, saqlash.
+///
+/// ── Nima uchun `expiresAt` HISOBLANMAYDI ──────────────────────────────
+/// "createdAt + 24 soat" deb hisoblash mumkin edi. Lekin ertaga muddat
+/// o'zgarsa (masalan 48 soat), ESKI hikoyalar ham uzayib ketardi —
+/// ya'ni odam joylagan paytdagi shartdan boshqa shart qo'llanardi.
+model Story {
+  id String @id @default(uuid()) @db.Uuid
+
+  authorId String @db.Uuid
+
+  /// Qisqa izoh — ixtiyoriy. Hikoya asosan RASM yoki VIDEO.
+  caption String? @db.VarChar(200)
+
+  /// Rasm yoki video — bittasi ALBATTA to'ldiriladi.
+  imageUrl       String? @db.VarChar(500)
+  videoUrl       String? @db.VarChar(500)
+  videoPosterUrl String? @db.VarChar(500)
+  videoSeconds   Int?
+
+  /// Biriktirilgan mahsulot — hikoyada BITTA.
+  ///
+  /// Hikoya bir necha soniya ko'rinadi: ro'yxat qo'yish uchun vaqt
+  /// ham, joy ham yo'q. Bitta tugma esa aynan shu qisqa vaqtga mos.
+  productId String? @db.Uuid
+
+  /// Necha marta ochilgan (bir odam bir marta sanaladi).
+  viewCount Int @default(0)
+
+  createdAt DateTime  @default(now())
+  /// Qachon ko'rinmay qoladi.
+  expiresAt DateTime
+  /// Muallif o'zi o'chirgan payt.
+  deletedAt DateTime?
+
+  author  User         @relation("StoryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  product Product?     @relation("StoryProduct", fields: [productId], references: [id], onDelete: SetNull)
+  views   StoryView[]
+  reports UserReport[] @relation("StoryReports")
+
+  /// Lentaning tepasidagi halqa uchun: "muddati o'tmagan hikoyalar".
+  @@index([expiresAt])
+  /// Bitta odamning hikoyalari — joylash tartibida.
+  @@index([authorId, createdAt])
+  @@map("stories")
+}
+
+/// Hikoyani KIM ko'rgani.
+///
+/// ── Nima uchun ismlar saqlanadi ───────────────────────────────────────
+/// Hikoyaning eng kuchli tomoni shu: muallif kim ko'rganini biladi.
+/// Sotuvchi uchun bu — "mahsulotimni kim kuzatyapti" degan javob.
+///
+/// Ko'ruvchi ham buni BILADI: hikoya ochilganda "ko'rganingiz muallifga
+/// ko'rinadi" degan yozuv turadi. Yashirin kuzatuv bo'lmasligi kerak.
+model StoryView {
+  id String @id @default(uuid()) @db.Uuid
+
+  storyId  String @db.Uuid
+  viewerId String @db.Uuid
+
+  viewedAt DateTime @default(now())
+
+  story  Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  viewer User  @relation("StoryViews", fields: [viewerId], references: [id], onDelete: Cascade)
+
+  /// Bir odam bir hikoyani BIR MARTA ko'rgan hisoblanadi.
+  @@unique([storyId, viewerId])
+  @@index([viewerId])
+  @@map("story_views")
 }
 
 /// Videodagi mahsulot tugmasi bosilgani — KIM va QACHON.

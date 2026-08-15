@@ -8,6 +8,7 @@ import { AppHeader } from '@/components/app/app-header';
 import { PostComposer, type ComposerDraft } from '@/components/feed/post-composer';
 import { PostList } from '@/components/feed/post-list';
 import { TrendingHashtags } from '@/components/feed/trending-hashtags';
+import { StoryTray } from '@/components/story/story-tray';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -88,6 +89,15 @@ export function FeedContent() {
       <AppHeader title="Lenta" />
 
       <div className="space-y-4 px-4 pt-4">
+        {/*
+          Hikoyalar halqasi ENG TEPADA.
+
+          Hikoya — "bugun nima bo'lyapti" degan javob va u 24 soatdan
+          keyin yo'qoladi. Pastroqqa qo'yilsa, odam uni umuman
+          ko'rmasdan o'tib ketardi.
+        */}
+        <StoryTray />
+
         <PostComposer isSending={isSending} onSubmit={publish} />
 
         {sendError && <Alert variant="error">{sendError}</Alert>}

@@ -227,6 +227,14 @@ export const PUBLIC_RATE_LIMITS = {
    */
   postShare: { limit: 30, windowSeconds: 60 },
   /**
+   * Hikoya joylash: soatiga 30 ta.
+   *
+   * Kunlik chegara (20 ta) xizmatning o'zida tekshiriladi. Bu yerdagi
+   * cheklov esa boshqa ish qiladi: skript bir soniyada yuzta so'rov
+   * yuborib, fayl omborini to'ldirib qo'ymasligi uchun.
+   */
+  createStory: { limit: 30, windowSeconds: 60 * 60 },
+  /**
    * Rasm yuklash: soatiga 60 ta.
    *
    * ── Nima uchun chegara KERAK ────────────────────────────────────────

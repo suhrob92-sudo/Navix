@@ -50,6 +50,8 @@ export const PROTECTED_PREFIXES = [
   '/feed',
   /** Video lentasi. */
   '/reels',
+  /** Hikoyalar: `/stories/<username>`. */
+  '/stories',
   '/security',
   '/wallet',
   '/payments',
