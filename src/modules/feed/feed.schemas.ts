@@ -25,8 +25,31 @@ export const feedCursorSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z_[0-9a-f-]{36}$/, "Belgi noto'g'ri");
 
+/**
+ * Lenta belgisi — IKKI xil bo'lishi mumkin.
+ *
+ * ── Nima uchun ikkita ─────────────────────────────────────────────────
+ * Oddiy lenta vaqt bo'yicha tartiblangan: belgi ham vaqt
+ * (`2026-08-11T02:10:00.000Z_9f0e…`).
+ *
+ * "Siz uchun" esa BAHO bo'yicha tartiblangan va u yerda vaqtning
+ * ma'nosi yo'q — belgi tartiblangan ro'yxatdagi o'rin (`r120`).
+ *
+ * Ikkalasini bitta naqshga tiqishtirsak, noto'g'ri belgi jim ishlab,
+ * chalkash natija berardi. Alohida naqsh esa xatoni darhol
+ * ko'rsatadi.
+ */
+const feedAnyCursorSchema = z.union([
+  feedCursorSchema,
+  z.string().regex(/^r\d{1,6}$/, "Belgi noto'g'ri"),
+]);
+
 export const feedQuerySchema = z.object({
-  tab: z.enum(['FOLLOWING', 'LATEST', 'VIDEO']).default('FOLLOWING'),
+  /**
+   * `FOR_YOU` — tavsiya etilgan lenta (baho bo'yicha tartiblangan).
+   * Qolganlari vaqt bo'yicha tartiblanadi.
+   */
+  tab: z.enum(['FOR_YOU', 'FOLLOWING', 'LATEST', 'VIDEO']).default('FOLLOWING'),
   /**
    * Kategoriya bo'yicha filtr.
    *
@@ -58,7 +81,7 @@ export const feedQuerySchema = z.object({
    */
   lat: z.coerce.number().min(-90).max(90).optional(),
   lng: z.coerce.number().min(-180).max(180).optional(),
-  cursor: feedCursorSchema.optional(),
+  cursor: feedAnyCursorSchema.optional(),
   /**
    * Bir so'rovda nechta post.
    *

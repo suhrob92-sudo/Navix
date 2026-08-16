@@ -289,6 +289,7 @@ model User {
   postLikes         PostLike[]           @relation("PostLikes")
   postComments      PostComment[]        @relation("CommentAuthor")
   postSaves         PostSave[]           @relation("PostSaves")
+  postsSeen         PostSeen[]           @relation("PostsSeen")
   commentLikes      CommentLike[]        @relation("CommentLikes")
   productClicks     PostProductClick[]   @relation("ProductClicks")
   stories           Story[]              @relation("StoryAuthor")
@@ -2646,6 +2647,7 @@ model Post {
   likes        PostLike[]
   comments     PostComment[]
   reports      UserReport[]       @relation("PostReports")
+  seenBy       PostSeen[]
   products     PostProduct[]
   saves        PostSave[]
   hashtags     PostHashtag[]
@@ -2820,6 +2822,39 @@ model PostProductClick {
 }
 
 /// Postga qo'yilgan yoqtirish.
+/// Kim qaysi postni KO'RGAN.
+///
+/// ── Nima uchun kerak ──────────────────────────────────────────────────
+/// Tavsiya tizimidagi eng kuchli qoida — "ko'rganimni qayta ko'rsatma".
+/// Usiz lenta har ochilganda bir xil beshta videoni qaytarardi va odam
+/// "bu yerda yangi narsa yo'q" degan xulosaga kelardi.
+///
+/// ── Nima uchun `viewCount` yetarli emas ───────────────────────────────
+/// U faqat UMUMIY sonni biladi: "ming marta ko'rilgan". Kim ko'rgani
+/// esa noma'lum, ya'ni aynan shu odamga yangi post tanlab bo'lmasdi.
+///
+/// ── Qo'shimcha foyda: son endi HALOL ──────────────────────────────────
+/// Ilgari bitta odam videoni qayta-qayta ochib, ko'rishlar sonini
+/// ko'tarib qo'yishi mumkin edi. Endi son bir odamdan BIR MARTA
+/// oshadi — ya'ni u "necha kishi ko'rdi" degan ma'noga ega bo'ldi.
+model PostSeen {
+  id String @id @default(uuid()) @db.Uuid
+
+  postId String @db.Uuid
+  userId String @db.Uuid
+
+  seenAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation("PostsSeen", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Bitta odam bitta postni bir marta "ko'rgan" hisoblanadi.
+  @@unique([userId, postId])
+  /// "Oxirgi ko'rganlarim" — tavsiya uchun signal yig'ishda.
+  @@index([userId, seenAt])
+  @@map("post_seen")
+}
+
 model PostLike {
   id String @id @default(uuid()) @db.Uuid
 

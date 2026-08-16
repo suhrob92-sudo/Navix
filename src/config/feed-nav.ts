@@ -285,7 +285,21 @@ export function feedQueryFor(value: FeedFilterValue): { tab: string; category?: 
    * Farqi so'rovga QO'SHILADIGAN koordinatada: uni ekran qo'shadi,
    * chunki koordinata brauzerdan keladi va bu funksiya uni bilmaydi.
    */
-  if (value === 'FOR_YOU' || value === 'NEARBY') return { tab: 'LATEST' };
+  /**
+   * "Siz uchun" — TAVSIYA lentasi.
+   *
+   * U vaqt bo'yicha emas, odamning xatti-harakatidan o'rganilgan
+   * baho bo'yicha tartiblanadi.
+   */
+  if (value === 'FOR_YOU') return { tab: 'FOR_YOU' };
+  /**
+   * "Yaqin atrofda" esa VAQT bo'yicha qoladi.
+   *
+   * Bu yerda savol boshqacha: "menga yaqin nima bor?" Tavsiya
+   * tartibini qo'shsak, uzoqroqdagi mos post yaqindagidan yuqori
+   * turib qolardi — ya'ni bo'limning ma'nosi buzilardi.
+   */
+  if (value === 'NEARBY') return { tab: 'LATEST' };
 
   return { tab: 'LATEST', category: value };
 }

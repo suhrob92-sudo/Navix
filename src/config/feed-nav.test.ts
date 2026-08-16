@@ -115,13 +115,16 @@ describe('feedQueryFor', () => {
     expect(feedQueryFor('FOLLOWING')).toEqual({ tab: 'FOLLOWING' });
   });
 
-  it('"Siz uchun" hamma kontentni so\'raydi', () => {
-    // Kategoriya YO'Q — filtrsiz, hammasi ko'rinadi.
-    expect(feedQueryFor('FOR_YOU')).toEqual({ tab: 'LATEST' });
+  it('"Siz uchun" TAVSIYA lentasini so\'raydi', () => {
+    // Kategoriya YO'Q: tavsiya butun lentadan tanlaydi va uni
+    // odamning xatti-harakatiga qarab tartiblaydi.
+    expect(feedQueryFor('FOR_YOU')).toEqual({ tab: 'FOR_YOU' });
   });
 
-  it('"Yaqin atrofda" hozircha oddiy lentaga tushadi', () => {
-    // Joylashuv yo'q ekan, noto'g'ri filtr yuborilmaydi.
+  it('"Yaqin atrofda" VAQT bo\'yicha qoladi', () => {
+    // Tavsiya tartibi qo'shilsa, uzoqroqdagi mos post yaqindagidan
+    // yuqori turib qolardi — bo'limning ma'nosi buzilardi.
+    // Koordinatani ekran qo'shadi.
     expect(feedQueryFor('NEARBY')).toEqual({ tab: 'LATEST' });
   });
 

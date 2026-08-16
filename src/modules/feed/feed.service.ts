@@ -6,19 +6,22 @@ import { blockedUserIds, findBlock, isBlockedBetween } from '@/modules/moderatio
 import { deleteImageByUrl } from '@/modules/upload/upload.service';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { sendPush } from '@/modules/notification/push.service';
+import {
+  AUTHOR_SELECT,
+  LIVE_AUTHOR,
+  postSelect,
+  toAuthorView,
+  toPostView,
+} from '@/modules/feed/feed.select';
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
 import { MAX_PLACE_NAME_LENGTH, MAX_TAGGED_PRODUCTS, SHORT_VIDEO_SECONDS } from '@/modules/feed/feed.types';
 import { NEARBY_RADIUS_KM, blurCoordinate, boundingBox, isValidCoordinate } from '@/config/geo';
 import { extractHashtags, extractMentions, isValidHashtag } from '@/modules/feed/feed.text';
+import { invalidateRecommendations } from '@/modules/feed/recommend.cache';
+import { listRecommendedFeed } from '@/modules/feed/recommend.service';
 import { getFeedSettings, isAllowedBy, isNotifyEnabled } from '@/modules/feed/settings.service';
 import type { PostCategoryName } from '@/modules/feed/feed.types';
-import type {
-  CommentView,
-  HashtagView,
-  PostAuthorView,
-  PostView,
-  TaggedProductView,
-} from '@/modules/feed/feed.types';
+import type { CommentView, HashtagView, PostView } from '@/modules/feed/feed.types';
 
 /**
  * Lenta moduli — postlar, yoqtirishlar va izohlar.
@@ -35,176 +38,6 @@ import type {
  * Qo'shimcha himoya bazada: son manfiy bo'lib qolsa, CHECK sharti
  * amalni to'xtatadi.
  */
-
-const AUTHOR_SELECT = {
-  id: true,
-  firstName: true,
-  lastName: true,
-  avatarUrl: true,
-  profile: { select: { username: true, isVerified: true } },
-} as const;
-
-type AuthorRow = Prisma.UserGetPayload<{ select: typeof AUTHOR_SELECT }>;
-
-function toAuthorView(row: AuthorRow): PostAuthorView {
-  const fullName = [row.firstName, row.lastName].filter(Boolean).join(' ');
-
-  return {
-    userId: row.id,
-    username: row.profile?.username ?? '',
-    fullName: fullName || null,
-    avatarUrl: row.avatarUrl,
-    isVerified: row.profile?.isVerified ?? false,
-  };
-}
-
-/**
- * Postni o'qishda ishlatiladigan maydonlar.
- *
- * `likes` ichida FAQAT so'rov yuborgan odamning yoqtirishi olinadi.
- * Hammasini olish mumkin emas: mashhur postda minglab qator bo'lishi
- * mumkin, bizga esa "men yoqtirganmanmi?" degan javob yetarli.
- */
-export function postSelect(viewerId: string) {
-  return {
-    id: true,
-    body: true,
-    imageUrl: true,
-    videoUrl: true,
-    videoPosterUrl: true,
-    videoSeconds: true,
-    viewCount: true,
-    category: true,
-    placeName: true,
-    latitude: true,
-    longitude: true,
-    /**
-     * Biriktirilgan mahsulotlar — tugma uchun kerakli MINIMUM.
-     *
-     * To'liq mahsulot olinsa, lentadagi har bir video uchun tavsif,
-     * zaxira va boshqa ustunlar ham o'qilardi. Tugmada esa faqat
-     * nom va narx ko'rinadi.
-     */
-    products: {
-      select: {
-        sortOrder: true,
-        clickCount: true,
-        product: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            price: true,
-            isActive: true,
-            stock: true,
-            shop: { select: { name: true, isActive: true } },
-          },
-        },
-      },
-      orderBy: { sortOrder: 'asc' },
-    },
-    /** Mavzular — matnda ko'k rangda, ro'yxatda qidiruv uchun. */
-    hashtags: {
-      select: { hashtag: { select: { tag: true } } },
-      orderBy: { hashtag: { tag: 'asc' } },
-    },
-    likeCount: true,
-    commentCount: true,
-    shareCount: true,
-    createdAt: true,
-    editedAt: true,
-    deletedAt: true,
-    authorId: true,
-    author: { select: AUTHOR_SELECT },
-    likes: { where: { userId: viewerId }, select: { id: true }, take: 1 },
-    /** Yoqtirish kabi: faqat SO'RAGAN odamning saqlashi tekshiriladi. */
-    saves: { where: { userId: viewerId }, select: { id: true }, take: 1 },
-  } as const;
-}
-
-export type PostRow = Prisma.PostGetPayload<{ select: ReturnType<typeof postSelect> }>;
-
-/**
- * Biriktirilgan mahsulotni tugma uchun ko'rinishga o'giradi.
- *
- * ── Nima uchun "sotuvda" ALOHIDA hisoblanadi ─────────────────────────
- * Mahsulot yopilgan bo'lishi, do'kon yopilgan bo'lishi yoki zaxira
- * tugagan bo'lishi mumkin. Uchala holatda ham tugma bosilsa,
- * foydalanuvchi bo'sh sahifaga tushardi.
- *
- * Video esa o'z joyida qoladi: u mahsulotsiz ham qiziqarli
- * bo'lishi mumkin.
- */
-function toTaggedProduct(
-  row: {
-    id: string;
-    name: string;
-    slug: string;
-    price: bigint;
-    isActive: boolean;
-    stock: number;
-    shop: { name: string; isActive: boolean };
-  },
-  clickCount: number,
-): TaggedProductView {
-  return {
-    id: row.id,
-    name: row.name,
-    slug: row.slug,
-    priceTiyin: Number(row.price),
-    shopName: row.shop.name,
-    isAvailable: row.isActive && row.shop.isActive && row.stock > 0,
-    clickCount,
-  };
-}
-
-export function toPostView(row: PostRow, viewerId: string): PostView {
-  const isMine = row.authorId === viewerId;
-
-  return {
-    id: row.id,
-    // O'chirilgan postning MATNI yuborilmaydi — u brauzerda ko'rinib qolmasligi kerak.
-    body: row.deletedAt ? '' : row.body,
-    // Rasm ham xuddi shunday.
-    imageUrl: row.deletedAt ? null : row.imageUrl,
-    videoUrl: row.deletedAt ? null : row.videoUrl,
-    videoPosterUrl: row.deletedAt ? null : row.videoPosterUrl,
-    videoSeconds: row.deletedAt ? null : row.videoSeconds,
-    products: row.deletedAt
-      ? []
-      : /**
-         * Bosishlar soni FAQAT postning egasiga yuboriladi.
-         *
-         * Begonaga `0` ketadi — ya'ni raqam brauzerga umuman
-         * yetib bormaydi. Uni faqat ekranda yashirish yetarli
-         * emasdi: so'rov javobini ko'rish oson.
-         */
-        row.products.map((link) => toTaggedProduct(link.product, isMine ? link.clickCount : 0)),
-    viewCount: row.viewCount,
-    category: row.deletedAt ? null : row.category,
-    /**
-     * Joylashuv o'chirilgan postda YUBORILMAYDI.
-     *
-     * Post o'chirilgach uning matni ham, rasmi ham yuborilmaydi —
-     * joylashuv ham xuddi shunday shaxsiy ma'lumot.
-     */
-    place:
-      row.deletedAt === null && row.placeName !== null && row.latitude !== null && row.longitude !== null
-        ? { name: row.placeName, latitude: row.latitude, longitude: row.longitude }
-        : null,
-    hashtags: row.deletedAt ? [] : row.hashtags.map((link) => link.hashtag.tag),
-    author: toAuthorView(row.author),
-    createdAt: row.createdAt.toISOString(),
-    editedAt: row.editedAt?.toISOString() ?? null,
-    likeCount: row.likeCount,
-    commentCount: row.commentCount,
-    shareCount: row.shareCount,
-    isLiked: row.likes.length > 0,
-    isSaved: row.saves.length > 0,
-    isMine,
-    isDeleted: row.deletedAt !== null,
-  };
-}
 
 // ─────────────────────────────────────────────────────────────────────
 // Belgi (cursor)
@@ -252,17 +85,6 @@ function newerThan(cursor: string | undefined): Prisma.PostCommentWhereInput {
 // Lenta
 // ─────────────────────────────────────────────────────────────────────
 
-/**
- * O'chirilgan va to'xtatilgan hisoblarning postlari ko'rinmaydi.
- *
- * Hisob to'xtatilganda uning postlarini alohida o'chirish kerak
- * bo'lardi va bittasi albatta qolib ketardi. Bu shart esa bir joyda
- * turadi va hech qachon unutilmaydi.
- */
-export const LIVE_AUTHOR: Prisma.PostWhereInput = {
-  deletedAt: null,
-  author: { deletedAt: null, status: { not: 'SUSPENDED' } },
-};
 
 /** Men kuzatadigan odamlarning ID'lari. */
 async function followingIds(userId: string): Promise<string[]> {
@@ -311,6 +133,30 @@ export async function listFeed(
   viewerId: string,
   query: FeedQuery,
 ): Promise<{ posts: PostView[]; nextCursor: string | null }> {
+  /**
+   * "Siz uchun" — BUTUNLAY boshqa yo'l.
+   *
+   * U vaqt bo'yicha emas, BAHO bo'yicha tartiblanadi va sahifalash
+   * ham boshqacha ishlaydi. Ikkalasini bitta funksiyaga
+   * tiqishtirsak, har bir shart ikki marta tekshirilishi kerak
+   * bo'lardi va biri albatta unutilardi.
+   */
+  if (query.tab === 'FOR_YOU') {
+    const settings = await getFeedSettings(viewerId);
+
+    return listRecommendedFeed(viewerId, {
+      cursor: query.cursor,
+      limit: query.limit,
+      // Har bir bo'lim o'z tartiblangan ro'yxatiga ega.
+      scope: query.category ?? 'all',
+      extraWhere: {
+        ...(query.category ? { category: query.category } : {}),
+        ...(settings.sensitiveFilter ? { reports: { none: { status: 'OPEN' } } } : {}),
+        ...(query.category ? {} : buildPreferenceFilter(settings.interests, settings.notInterested)),
+      },
+    });
+  }
+
   const [hidden, following, settings] = await Promise.all([
     blockedUserIds(viewerId),
     query.tab === 'FOLLOWING' ? followingIds(viewerId) : Promise.resolve<string[]>([]),
@@ -634,6 +480,20 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
 
   void notifyMentioned(authorId, row.id, data.body);
 
+  /**
+   * Muallifning tavsiya keshi BEKOR qilinadi.
+   *
+   * ── HAQIQIY MUAMMO, sinov topgan ────────────────────────────────────
+   * Tavsiya ro'yxati o'n daqiqa saqlanadi. Odam post joylab, "Siz
+   * uchun" ga o'tsa, o'z postini KO'RMASDI va "joylanmadimi?" deb
+   * ikkinchi marta yozardi.
+   *
+   * Boshqalarning yangi postlari esa o'n daqiqagacha kutadi — bu
+   * normal: lenta har soniyada qayta hisoblanishi shart emas.
+   * Lekin O'Z posting darhol ko'rinishi kerak.
+   */
+  void invalidateRecommendations(authorId);
+
   return toPostView(row, authorId);
 }
 
@@ -823,21 +683,72 @@ export async function markVideoViewed(postId: string, viewerId: string): Promise
    * Aks holda muallif o'z videosini qayta-qayta ochib, sonni
    * ko'tarib qo'yardi — va bu son sotuvchi uchun ma'nosiz bo'lardi.
    */
-  const updated = await prisma.post.updateMany({
+  const post = await prisma.post.findFirst({
     where: { id: postId, deletedAt: null, videoUrl: { not: null }, authorId: { not: viewerId } },
-    data: { viewCount: { increment: 1 } },
+    select: { id: true },
   });
 
-  if (updated.count === 0) {
-    /**
-     * Xato TASHLANMAYDI.
-     *
-     * Ko'rish — yordamchi ma'lumot. O'z videosi bo'lsa yoki post
-     * o'chirilgan bo'lsa, brauzerga xato qaytarishning ma'nosi
-     * yo'q: u baribir hech narsa qila olmaydi.
-     */
-    return;
-  }
+  /**
+   * Xato TASHLANMAYDI.
+   *
+   * Ko'rish — yordamchi ma'lumot. O'z videosi bo'lsa yoki post
+   * o'chirilgan bo'lsa, brauzerga xato qaytarishning ma'nosi
+   * yo'q: u baribir hech narsa qila olmaydi.
+   */
+  if (!post) return;
+
+  /**
+   * Ko'rish YOZIB BORILADI va son BIR MARTA oshadi.
+   *
+   * ── Nima uchun o'zgartirildi ────────────────────────────────────────
+   * Ilgari son har ochilganda oshardi: bitta odam videoni o'n marta
+   * qayta ochib, sonni sun'iy ko'tarib qo'yishi mumkin edi. Sotuvchi
+   * uchun bunday son ma'nosiz.
+   *
+   * Endi son "NECHA KISHI ko'rdi" degan aniq ma'noga ega.
+   *
+   * ── Nima uchun yozuv ham kerak ──────────────────────────────────────
+   * Tavsiya tizimidagi eng kuchli qoida — "ko'rganimni qayta
+   * ko'rsatma". Usiz lenta har ochilganda bir xil videolarni
+   * qaytarardi.
+   *
+   * ── Nima uchun `createMany` + `skipDuplicates` ──────────────────────
+   * Bir vaqtda ikkita so'rov kelsa (ikki qurilma yoki tez ikki
+   * bosish), oddiy "tekshir-keyin-yoz" ikkita qator yaratardi.
+   * Bazadagi noyoblik sharti buni to'xtatadi va `skipDuplicates`
+   * xatoni yutadi.
+   */
+  const inserted = await prisma.postSeen.createMany({
+    data: [{ postId, userId: viewerId }],
+    skipDuplicates: true,
+  });
+
+  if (inserted.count === 0) return;
+
+  await prisma.post.update({
+    where: { id: postId },
+    data: { viewCount: { increment: 1 } },
+    select: { id: true },
+  });
+}
+
+/**
+ * Postni "ko'rilgan" deb belgilaydi — VIDEOSIZ postlar uchun ham.
+ *
+ * ── Nima uchun alohida ──────────────────────────────────────────────
+ * `markVideoViewed` ko'rishlar SONINI ham oshiradi va u faqat
+ * videoga tegishli: matnli postda "ko'rishlar" degan tushuncha yo'q.
+ *
+ * Tavsiya tizimiga esa matnli post ko'rilgani ham kerak — aks holda
+ * u lentada abadiy qaytaverardi.
+ */
+export async function markPostSeen(postIds: string[], viewerId: string): Promise<void> {
+  if (postIds.length === 0) return;
+
+  await prisma.postSeen.createMany({
+    data: [...new Set(postIds)].map((postId) => ({ postId, userId: viewerId })),
+    skipDuplicates: true,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import { Prisma } from '@/generated/prisma/client';
 import { prisma } from '@/lib/prisma';
-import { LIVE_AUTHOR, postSelect, toPostView } from '@/modules/feed/feed.service';
+import { LIVE_AUTHOR, postSelect, toPostView } from '@/modules/feed/feed.select';
 import { MIN_SEARCH_LENGTH } from '@/modules/feed/discover.types';
 import type { DiscoverResult, FeedSearchResult, SearchScope } from '@/modules/feed/discover.types';
 import type { HashtagView, PostView } from '@/modules/feed/feed.types';

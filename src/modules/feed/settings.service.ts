@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { invalidateRecommendations } from '@/modules/feed/recommend.cache';
 import type { PostCategoryName } from '@/modules/feed/feed.types';
 import type { FeedSettingsInput } from '@/modules/feed/settings.schemas';
 import {
@@ -141,6 +142,15 @@ export async function updateFeedSettings(
     select: SELECT,
   });
 
+  /**
+   * Tavsiya keshi BEKOR qilinadi.
+   *
+   * Aks holda odam "Restoranlar qizig'i emas" deb belgilab, lentaga
+   * qaytganda o'sha postlarni yana ko'rardi va sozlama ishlamayapti
+   * deb o'ylardi.
+   */
+  await invalidateRecommendations(userId);
+
   return toView(row);
 }
 
@@ -168,6 +178,15 @@ export async function resetRecommendations(userId: string): Promise<FeedSettings
     update: data,
     select: SELECT,
   });
+
+  /**
+   * Tavsiya keshi BEKOR qilinadi.
+   *
+   * Aks holda odam "Restoranlar qizig'i emas" deb belgilab, lentaga
+   * qaytganda o'sha postlarni yana ko'rardi va sozlama ishlamayapti
+   * deb o'ylardi.
+   */
+  await invalidateRecommendations(userId);
 
   return toView(row);
 }
@@ -200,6 +219,15 @@ export async function completeFeedOnboarding(
     update: data,
     select: SELECT,
   });
+
+  /**
+   * Tavsiya keshi BEKOR qilinadi.
+   *
+   * Aks holda odam "Restoranlar qizig'i emas" deb belgilab, lentaga
+   * qaytganda o'sha postlarni yana ko'rardi va sozlama ishlamayapti
+   * deb o'ylardi.
+   */
+  await invalidateRecommendations(userId);
 
   return toView(row);
 }
