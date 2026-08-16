@@ -8,7 +8,7 @@ import {
   currentRankingVersion,
   rankingCacheKey,
 } from '@/modules/feed/recommend.cache';
-import { LIVE_AUTHOR, postSelect, toPostView } from '@/modules/feed/feed.select';
+import { LIVE_AUTHOR, notHiddenBy, postSelect, toPostView } from '@/modules/feed/feed.select';
 import type { PostCategoryName, PostView } from '@/modules/feed/feed.types';
 import {
   explainCandidate,
@@ -58,6 +58,14 @@ const SIGNAL_WEIGHTS = {
   comment: 3,
   /** Mahsulot tugmasi — sotib olishga eng yaqin qadam. */
   productClick: 4,
+  /**
+   * "Qiziq emas" — ATAYLAB bosilgan manfiy javob.
+   *
+   * Eng og'ir signal: qolganlari xatti-harakatdan TAXMIN qilinadi
+   * ("yoqtirdi, demak qiziqadi"), bu esa odamning to'g'ridan-to'g'ri
+   * aytgan gapi. Taxmin aniq javobdan og'ir bo'lishi mumkin emas.
+   */
+  hide: 5,
 } as const;
 
 function windowStart(): Date {
@@ -80,7 +88,7 @@ function add<Key>(map: Map<Key, number>, key: Key | null, weight: number): void 
 export async function buildTasteProfile(userId: string): Promise<TasteProfile> {
   const since = windowStart();
 
-  const [likes, saves, comments, clicks, follows, seen, settings] = await Promise.all([
+  const [likes, saves, comments, clicks, hides, follows, seen, settings] = await Promise.all([
     prisma.postLike.findMany({
       where: { userId, createdAt: { gte: since } },
       select: { post: { select: { category: true, authorId: true } } },
@@ -98,6 +106,19 @@ export async function buildTasteProfile(userId: string): Promise<TasteProfile> {
     }),
     prisma.postProductClick.findMany({
       where: { userId, clickedAt: { gte: since } },
+      select: { post: { select: { category: true, authorId: true } } },
+      take: 300,
+    }),
+    /**
+     * "Qiziq emas" — YAGONA manfiy signal.
+     *
+     * Qolgan hammasi ijobiy: yoqtirish, saqlash, izoh, bosish. Ular
+     * bilan odam faqat "ko'proq shunday" deya oladi. Manfiy signalsiz
+     * tavsiya bir tomonlama bo'lardi: noto'g'ri o'rganilgan qiziqishni
+     * qaytarishning yo'li qolmasdi.
+     */
+    prisma.postHidden.findMany({
+      where: { userId, createdAt: { gte: since } },
       select: { post: { select: { category: true, authorId: true } } },
       take: 300,
     }),
@@ -120,14 +141,18 @@ export async function buildTasteProfile(userId: string): Promise<TasteProfile> {
 
   const categoryCounts = new Map<PostCategoryName, number>();
   const authorCounts = new Map<string, number>();
+  const categoryDislikeCounts = new Map<PostCategoryName, number>();
+  const authorDislikeCounts = new Map<string, number>();
 
   const collect = (
     rows: { post: { category: PostCategoryName | null; authorId: string } }[],
     weight: number,
+    categories: Map<PostCategoryName, number> = categoryCounts,
+    authors: Map<string, number> = authorCounts,
   ) => {
     for (const row of rows) {
-      add(categoryCounts, row.post.category, weight);
-      add(authorCounts, row.post.authorId, weight);
+      add(categories, row.post.category, weight);
+      add(authors, row.post.authorId, weight);
     }
   };
 
@@ -135,10 +160,23 @@ export async function buildTasteProfile(userId: string): Promise<TasteProfile> {
   collect(saves, SIGNAL_WEIGHTS.save);
   collect(comments, SIGNAL_WEIGHTS.comment);
   collect(clicks, SIGNAL_WEIGHTS.productClick);
+  collect(hides, SIGNAL_WEIGHTS.hide, categoryDislikeCounts, authorDislikeCounts);
 
   return {
     categoryAffinity: normalizeCounts(categoryCounts),
     authorAffinity: normalizeCounts(authorCounts),
+    /*
+      Manfiy signal ALOHIDA normallashtiriladi.
+
+      Ijobiylar bilan qo'shib yuborilsa, ko'p yoqtirgan odamning
+      "qiziq emas" i nolga yaqin bo'lib qolardi: uning yuzta
+      yoqtirishi bitta yashirishni bosib ketardi.
+
+      Alohida hisobda esa javob nisbiy bo'ladi: "shu odam eng ko'p
+      qaysi bo'limni yashirgan?"
+    */
+    categoryDislike: normalizeCounts(categoryDislikeCounts),
+    authorDislike: normalizeCounts(authorDislikeCounts),
     chosenInterests: new Set(settings.interests),
     followingIds: new Set(follows.map((row) => row.followingId)),
     seenPostIds: new Set(seen.map((row) => row.postId)),
@@ -192,6 +230,7 @@ async function loadRanking(
       ...LIVE_AUTHOR,
       ...extraWhere,
       ...(hidden.length > 0 ? { authorId: { notIn: hidden } } : {}),
+      ...notHiddenBy(userId),
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: CANDIDATE_LIMIT,
@@ -264,8 +303,19 @@ export async function listRecommendedFeed(
     return { posts: [], nextCursor: null };
   }
 
+  /*
+    Yashirilganlar SHU YERDA ham chiqarib tashlanadi.
+
+    Tartiblangan ro'yxat Redis'da 10 daqiqa turadi. Odam post
+    yashirganda ro'yxat bekor qilinadi, lekin kesh yozilishi
+    tarmoq xatosiga uchrashi mumkin — ya'ni eski ro'yxat qolib
+    ketishi ehtimoli bor.
+
+    Bu tekshiruv arzon (kalit bo'yicha) va "yashirdim, lekin
+    baribir chiqdi" degan eng yomon holatni butunlay yopadi.
+  */
   const rows = await prisma.post.findMany({
-    where: { id: { in: pageIds }, ...LIVE_AUTHOR },
+    where: { id: { in: pageIds }, ...LIVE_AUTHOR, ...notHiddenBy(viewerId) },
     select: postSelect(viewerId),
   });
 

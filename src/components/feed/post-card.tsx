@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { BadgeCheck, Bookmark, Clapperboard, Flag, Heart, HelpCircle, MapPin, MessageCircle, MoreHorizontal, MousePointerClick, Pencil, Share2, ShoppingBag, Trash2 } from 'lucide-react';
+import { BadgeCheck, Bookmark, Clapperboard, EyeOff, Flag, Heart, HelpCircle, MapPin, MessageCircle, MoreHorizontal, MousePointerClick, Pencil, Share2, ShoppingBag, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 
@@ -53,6 +53,14 @@ export interface PostCardProps {
   /** Shikoyat yuborildi. Berilmasa shikoyat tugmasi ko'rinmaydi. */
   onReport?: (reason: ReportReasonName, note: string) => Promise<void> | void;
   /**
+   * "Bu qiziq emas" bosildi. Berilmasa band menyuda ko'rinmaydi.
+   *
+   * Saqlanganlar va profil kabi ANIQ so'rov sahifalarida berilmaydi:
+   * u yerda post lentaga tushgani uchun emas, odam o'zi so'ragani
+   * uchun turibdi.
+   */
+  onHide?: () => void;
+  /**
    * Post sahifasining O'ZIDA ko'rsatilyaptimi.
    *
    * Shunda izohga havola kerak emas (odam allaqachon o'sha yerda) va
@@ -81,6 +89,7 @@ export function PostCard({
   onDelete,
   onEdit,
   onReport,
+  onHide,
   isDetail = false,
   isBusy = false,
 }: PostCardProps) {
@@ -153,7 +162,15 @@ export function PostCard({
   const canEdit = post.isMine && !post.isDeleted && Boolean(onEdit);
   const canDelete = post.isMine && !post.isDeleted && Boolean(onDelete);
   const canReport = !post.isMine && !post.isDeleted && Boolean(onReport);
-  const hasMenu = canEdit || canDelete || canReport;
+  /*
+    O'z postini yashirib bo'lmaydi.
+
+    Bu chalkashlik bo'lardi: odam "yashirdim" deb o'ylab, post
+    boshqalarga ko'rinishda davom etardi. Server ham aynan shu
+    qoidani tekshiradi.
+  */
+  const canHide = !post.isMine && !post.isDeleted && Boolean(onHide);
+  const hasMenu = canEdit || canDelete || canReport || canHide;
 
   async function saveEdit() {
     if (draft === null || !onEdit) return;
@@ -270,6 +287,29 @@ export function PostCard({
                     Nima uchun ko&apos;ryapman?
                   </button>
 
+                  {/*
+                    "Bu qiziq emas" — savolning DARHOL ortida.
+
+                    Ikkalasi bitta harakatning ikki qismi: odam avval
+                    "nega bu menga ko'rinyapti?" deb so'raydi, keyin
+                    "boshqa ko'rsatma" deydi. Ular orasiga shikoyat
+                    yoki tahrirlash tushsa, ikkinchi qadam yo'qolardi.
+                  */}
+                  {canHide && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="hover:bg-secondary flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onHide?.();
+                      }}
+                    >
+                      <EyeOff className="size-4 shrink-0" aria-hidden="true" />
+                      Bu qiziq emas
+                    </button>
+                  )}
+
                   {canEdit && (
                     <button
                       type="button"
@@ -321,7 +361,20 @@ export function PostCard({
         )}
       </div>
 
-      {isWhyOpen && <WhySheet postId={post.id} onClose={() => setIsWhyOpen(false)} />}
+      {isWhyOpen && (
+        <WhySheet
+          postId={post.id}
+          onClose={() => setIsWhyOpen(false)}
+          {...(canHide
+            ? {
+                onHide: () => {
+                  setIsWhyOpen(false);
+                  onHide?.();
+                },
+              }
+            : {})}
+        />
+      )}
 
       {isReported && (
         <p className="text-success mt-3 text-xs">Shikoyat yuborildi. Moderator uni ko&apos;rib chiqadi.</p>

@@ -199,3 +199,21 @@ export const LIVE_AUTHOR: Prisma.PostWhereInput = {
   author: { deletedAt: null, status: { not: 'SUSPENDED' } },
 };
 
+/**
+ * "Qiziq emas" bosilgan postlar chiqarib tashlanadi.
+ *
+ * ── Nima uchun QAT'IY filtr, oddiy pasaytirish emas ───────────────────
+ * Tavsiya bahosini pasaytirish yetarli emasdi: pastga tushgan post
+ * ertaga yana yuqoriga chiqishi mumkin (boshqa postlar eskiradi).
+ * Odam esa "yashirdim" degan tugmani bosgan — va'da aniq berilgan.
+ *
+ * ── Nima uchun bu shart PROFILDA qo'llanmaydi ─────────────────────────
+ * Profilga kirgan odam AYNAN o'sha muallifning postlarini so'ragan.
+ * U yerda ham yashirsak, "postim yo'qolib qoldimi?" degan chalkashlik
+ * paydo bo'lardi. Shart faqat LENTAGA tegishli: lenta — taklif,
+ * profil — aniq so'rov.
+ */
+export function notHiddenBy(viewerId: string): Prisma.PostWhereInput {
+  return { hiddenBy: { none: { userId: viewerId } } };
+}
+

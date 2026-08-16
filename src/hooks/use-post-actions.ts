@@ -38,6 +38,26 @@ export interface PostActions {
   editPost: (postId: string, body: string) => Promise<void>;
   deletePost: (postId: string) => void;
   reportPost: (postId: string, reason: string, note: string) => Promise<void>;
+  /**
+   * "Bu qiziq emas" — post yashiriladi.
+   *
+   * Ro'yxatdan DARHOL olib tashlanmaydi: uning o'rnida "qaytarish"
+   * yozuvi turadi. Sababi pastda, `hiddenIds` izohida.
+   */
+  hidePost: (postId: string) => void;
+  undoHide: (postId: string) => void;
+  /**
+   * Shu sahifada yashirilgan postlar.
+   *
+   * ── Nima uchun post ro'yxatdan OLIB TASHLANMAYDI ────────────────────
+   * Yashirish tugmasi menyuda turadi va tasodifan bosilishi oson.
+   * Post shu zahoti yo'q bo'lsa, uni qaytarishning yo'li qolmasdi:
+   * odam nomini ham, muallifini ham eslay olmaydi.
+   *
+   * Shuning uchun uning o'rnida "Qaytarish" tugmasi qoladi va u
+   * faqat sahifa yangilanganda yo'qoladi.
+   */
+  hiddenIds: Set<string>;
 }
 
 export function usePostActions(update: (updater: (current: PostView[]) => PostView[]) => void): PostActions {
@@ -45,6 +65,7 @@ export function usePostActions(update: (updater: (current: PostView[]) => PostVi
 
   const [busyPostId, setBusyPostId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
 
   const applyLike = useCallback(
     (postId: string, isLiked: boolean, likeCount: number) => {
@@ -251,6 +272,68 @@ export function usePostActions(update: (updater: (current: PostView[]) => PostVi
     [request],
   );
 
+  /**
+   * Yashirilganlar ro'yxatini o'zgartiradi.
+   *
+   * ── Nima uchun HAR SAFAR yangi `Set` ────────────────────────────────
+   * React o'zgarishni havola bo'yicha taqqoslaydi. Mavjud to'plamga
+   * qo'shsak, havola o'zgarmasdi va ekran yangilanmasdi — tugma
+   * bosilar, lekin hech narsa bo'lmasdi.
+   */
+  const applyHidden = useCallback((postId: string, isHidden: boolean) => {
+    setHiddenIds((current) => {
+      const next = new Set(current);
+
+      if (isHidden) {
+        next.add(postId);
+      } else {
+        next.delete(postId);
+      }
+
+      return next;
+    });
+  }, []);
+
+  /**
+   * "Bu qiziq emas" — OPTIMISTIK.
+   *
+   * Yoqtirish bilan bir xil sabab: javob kutilsa, bosgandan keyin
+   * post joyida turib qolardi va odam ikkinchi marta bosardi.
+   */
+  const hidePost = useCallback(
+    (postId: string) => {
+      setError(null);
+      applyHidden(postId, true);
+
+      void (async () => {
+        try {
+          await request(`/api/v1/posts/${postId}/hide`, { method: 'POST', body: {} });
+        } catch (caught) {
+          applyHidden(postId, false);
+          setError(toUserMessage(caught));
+        }
+      })();
+    },
+    [applyHidden, request],
+  );
+
+  const undoHide = useCallback(
+    (postId: string) => {
+      setError(null);
+      applyHidden(postId, false);
+
+      void (async () => {
+        try {
+          await request(`/api/v1/posts/${postId}/hide`, { method: 'DELETE' });
+        } catch (caught) {
+          applyHidden(postId, true);
+          setError(toUserMessage(caught));
+        }
+      })();
+    },
+    [applyHidden, request],
+  );
+
   const clearError = useCallback(() => setError(null), []);
 
   return {
@@ -265,5 +348,8 @@ export function usePostActions(update: (updater: (current: PostView[]) => PostVi
     editPost,
     deletePost,
     reportPost,
+    hidePost,
+    undoHide,
+    hiddenIds,
   };
 }

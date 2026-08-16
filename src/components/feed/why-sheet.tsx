@@ -1,6 +1,6 @@
 'use client';
 
-import { Settings2, X } from 'lucide-react';
+import { EyeOff, Settings2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef } from 'react';
 
@@ -16,6 +16,12 @@ import type { PostReasonResponse } from '@/modules/feed/reason.types';
 export interface WhySheetProps {
   postId: string;
   onClose: () => void;
+  /**
+   * "Bu qiziq emas" bosildi. Berilmasa tugma ko'rinmaydi.
+   *
+   * O'z postida berilmaydi: uni yashirishning ma'nosi yo'q.
+   */
+  onHide?: () => void;
 }
 
 /**
@@ -36,7 +42,7 @@ export interface WhySheetProps {
  * o'zgartiraman?" Javob faqat birinchisiga berilsa, odam baribir
  * noqulaylikda qoladi.
  */
-export function WhySheet({ postId, onClose }: WhySheetProps) {
+export function WhySheet({ postId, onClose, onHide }: WhySheetProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const { data, isLoading, error } = useApiQuery<PostReasonResponse>(`/api/v1/posts/${postId}/why`);
@@ -128,7 +134,24 @@ export function WhySheet({ postId, onClose }: WhySheetProps) {
             olishi kerak, aks holda javob "shunday, chidang" degan
             ma'noni beradi.
           */}
-          <Button variant="outline" fullWidth className="mt-4" asChild>
+          {/*
+            "Bu qiziq emas" — javobga BERILGAN javob.
+
+            Sabab o'qilgach, tabiiy keyingi qadam "unda boshqa
+            ko'rsatma" bo'ladi. Uni menyuga qaytarib yuborsak, odam
+            oynani yopib, uch nuqtani qayta topishi kerak bo'lardi.
+
+            Tugma sozlamalar havolasidan YUQORIDA: u aniq shu postga
+            tegishli, sozlamalar esa umumiy.
+          */}
+          {onHide && (
+            <Button variant="outline" fullWidth className="mt-4" onClick={onHide}>
+              <EyeOff className="size-4" aria-hidden="true" />
+              Bu qiziq emas
+            </Button>
+          )}
+
+          <Button variant="ghost" fullWidth className="mt-2" asChild>
             <Link href="/feed/settings/content" onClick={onClose}>
               <Settings2 className="size-4" aria-hidden="true" />
               Lenta sozlamalari

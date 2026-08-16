@@ -74,6 +74,29 @@ export const RANKING_PENALTIES = {
    * kerak.
    */
   own: 0.5,
+  /**
+   * Shu BO'LIMDAGI postlarni "qiziq emas" deb yashirganman.
+   *
+   * ── Nima uchun o'rganilgan qiziqishdan KATTA (0.5) ──────────────────
+   * "Qiziq emas" — odamning ATAYLAB bergan javobi. O'rganilgan
+   * qiziqish esa taxmin. Jarima taxmindan kichik bo'lsa, ikkita
+   * yoqtirish bitta aniq "yo'q" ni bekor qilardi va odam
+   * "aytdim-ku, eshitmadi" degan xulosaga kelardi.
+   *
+   * ── Nima uchun yangilikdan (1) KICHIK ───────────────────────────────
+   * Bitta postni yashirish butun bo'limdan voz kechish emas. Jarima
+   * yangilikdan katta bo'lsa, bir marta bosilgan tugma bo'limni
+   * lentadan butunlay o'chirib yuborardi — buning uchun sozlamalarda
+   * alohida joy bor.
+   */
+  categoryDislike: 0.75,
+  /**
+   * Shu MUALLIFNING postlarini yashirganman.
+   *
+   * Bo'limdan sal past: odam ko'pincha mavzudan charchaydi, muallifga
+   * qarshi emas. Muallifni butunlay ko'rmaslik uchun bloklash bor.
+   */
+  authorDislike: 0.7,
 } as const;
 
 /**
@@ -106,6 +129,16 @@ export interface TasteProfile {
   categoryAffinity: Map<PostCategoryName, number>;
   /** Muallif ID → 0..1 oralig'idagi yaqinlik. */
   authorAffinity: Map<string, number>;
+  /**
+   * Bo'lim → 0..1 oralig'idagi UZOQLIK ("qiziq emas" bosilganlaridan).
+   *
+   * Yoqtirish bilan bitta xaritada saqlash mumkin emas edi: manfiy
+   * son normallashtirishni buzardi (eng kattasiga bo'linganda ishora
+   * o'zgarib ketardi).
+   */
+  categoryDislike: Map<PostCategoryName, number>;
+  /** Muallif ID → 0..1 oralig'idagi uzoqlik. */
+  authorDislike: Map<string, number>;
   /** Sozlamalarda o'zi tanlagan bo'limlar. */
   chosenInterests: Set<PostCategoryName>;
   /** Obuna bo'lgan mualliflar. */
@@ -179,9 +212,11 @@ export function scoreCandidate(
     }
 
     score += (taste.categoryAffinity.get(candidate.category) ?? 0) * RANKING_WEIGHTS.categoryAffinity;
+    score -= (taste.categoryDislike.get(candidate.category) ?? 0) * RANKING_PENALTIES.categoryDislike;
   }
 
   score += (taste.authorAffinity.get(candidate.authorId) ?? 0) * RANKING_WEIGHTS.authorAffinity;
+  score -= (taste.authorDislike.get(candidate.authorId) ?? 0) * RANKING_PENALTIES.authorDislike;
   score += engagementScore(candidate) * RANKING_WEIGHTS.engagement;
 
   if (taste.seenPostIds.has(candidate.id)) {
@@ -326,23 +361,34 @@ export function explainCandidate(
       });
     }
 
-    const learned = taste.categoryAffinity.get(candidate.category) ?? 0;
+    /*
+      Hissa SOF holda olinadi: yoqtirishlar minus "qiziq emas" lar.
+
+      Xom yoqtirishni ko'rsatsak, bo'limni yashirgan odamga "siz bu
+      bo'limni ko'p yoqtirasiz" deb aytilardi — ya'ni ilova uning
+      aynan qarama-qarshi javobini o'qib, yolg'on gapirardi.
+    */
+    const learned =
+      (taste.categoryAffinity.get(candidate.category) ?? 0) * RANKING_WEIGHTS.categoryAffinity -
+      (taste.categoryDislike.get(candidate.category) ?? 0) * RANKING_PENALTIES.categoryDislike;
 
     if (learned > 0) {
       reasons.push({
         code: 'LEARNED_INTEREST',
-        contribution: learned * RANKING_WEIGHTS.categoryAffinity,
+        contribution: learned,
         category: candidate.category,
       });
     }
   }
 
-  const authorAffinity = taste.authorAffinity.get(candidate.authorId) ?? 0;
+  const authorAffinity =
+    (taste.authorAffinity.get(candidate.authorId) ?? 0) * RANKING_WEIGHTS.authorAffinity -
+    (taste.authorDislike.get(candidate.authorId) ?? 0) * RANKING_PENALTIES.authorDislike;
 
   if (authorAffinity > 0) {
     reasons.push({
       code: 'AUTHOR_AFFINITY',
-      contribution: authorAffinity * RANKING_WEIGHTS.authorAffinity,
+      contribution: authorAffinity,
     });
   }
 

@@ -38,6 +38,8 @@ function taste(overrides: Partial<TasteProfile> = {}): TasteProfile {
   return {
     categoryAffinity: new Map(),
     authorAffinity: new Map(),
+    categoryDislike: new Map(),
+    authorDislike: new Map(),
     chosenInterests: new Set(),
     followingIds: new Set(),
     seenPostIds: new Set(),
@@ -186,6 +188,66 @@ describe('scoreCandidate', () => {
     expect(other - own).toBeCloseTo(RANKING_PENALTIES.own, 5);
     // Lekin jarima kichik: o'z posti butunlay yo'qolib ketmasligi kerak.
     expect(RANKING_PENALTIES.own).toBeLessThan(RANKING_WEIGHTS.recency);
+  });
+});
+
+/**
+ * "Qiziq emas" — yagona MANFIY signal.
+ *
+ * Qolgan hamma signal ijobiy: odam faqat "ko'proq shunday" deya
+ * oladi. Shuning uchun bu qismning har bir qoidasi alohida
+ * tekshiriladi — u buzilsa, noto'g'ri o'rganilgan qiziqishni
+ * qaytarishning yo'li qolmaydi.
+ */
+describe('scoreCandidate — "qiziq emas" signali', () => {
+  it('yashirilgan bo\'limdagi post pastga tushadi', () => {
+    const base = candidate({ category: 'JOBS' });
+
+    const plain = scoreCandidate(base, taste(), NOW);
+    const disliked = scoreCandidate(base, taste({ categoryDislike: new Map([['JOBS', 1]]) }), NOW);
+
+    expect(plain - disliked).toBeCloseTo(RANKING_PENALTIES.categoryDislike, 5);
+  });
+
+  it('yashirilgan muallifning posti pastga tushadi', () => {
+    const base = candidate({ authorId: 'a1' });
+
+    const plain = scoreCandidate(base, taste(), NOW);
+    const disliked = scoreCandidate(base, taste({ authorDislike: new Map([['a1', 1]]) }), NOW);
+
+    expect(plain - disliked).toBeCloseTo(RANKING_PENALTIES.authorDislike, 5);
+  });
+
+  it('ANIQ "yo\'q" o\'rganilgan "ha" dan kuchliroq', () => {
+    /*
+      Eng muhim qoida. Jarima o'rganilgan qiziqishdan kichik bo'lsa,
+      ikkita yoqtirish bitta aniq "qiziq emas" ni bekor qilardi va
+      odam "aytdim-ku, eshitmadi" degan xulosaga kelardi.
+    */
+    expect(RANKING_PENALTIES.categoryDislike).toBeGreaterThan(RANKING_WEIGHTS.categoryAffinity);
+    expect(RANKING_PENALTIES.authorDislike).toBeGreaterThan(RANKING_WEIGHTS.authorAffinity);
+  });
+
+  it('bitta bosish butun bo\'limni O\'CHIRIB yubormaydi', () => {
+    /*
+      Jarima yangilikdan kichik: ya'ni yashirilgan bo'limdagi YANGI
+      post eski postdan baribir yuqorida turadi.
+
+      Aks holda tasodifan bosilgan tugma butun bo'limni lentadan
+      olib tashlardi — buning uchun sozlamalarda alohida joy bor.
+    */
+    expect(RANKING_PENALTIES.categoryDislike).toBeLessThan(RANKING_WEIGHTS.recency);
+    expect(RANKING_PENALTIES.authorDislike).toBeLessThan(RANKING_WEIGHTS.recency);
+  });
+
+  it('bo\'limsiz postga bo\'lim jarimasi tegmaydi', () => {
+    const withDislike = scoreCandidate(
+      candidate({ category: null }),
+      taste({ categoryDislike: new Map([['JOBS', 1]]) }),
+      NOW,
+    );
+
+    expect(withDislike).toBeCloseTo(scoreCandidate(candidate({ category: null }), taste(), NOW), 5);
   });
 });
 
@@ -412,5 +474,65 @@ describe('explainCandidate', () => {
     const sum = reasons.reduce((acc, item) => acc + item.contribution, 0);
 
     expect(sum).toBeCloseTo(total, 5);
+  });
+
+  it('bo\'lim yashirilgan bo\'lsa "siz buni yoqtirasiz" DEYILMAYDI', () => {
+    /*
+      Eng yomon holat: odam "qiziq emas" deb bosgan bo'limda ilova
+      unga "siz bu bo'limni ko'p yoqtirasiz" deb aytishi. Bu uning
+      aynan qarama-qarshi javobini o'qib, yolg'on gapirish bo'lardi.
+
+      Shuning uchun hissa SOF holda olinadi: yoqtirishlar minus
+      yashirishlar.
+    */
+    const post = candidate({ category: 'JOBS' });
+
+    const reasons = explainCandidate(
+      post,
+      taste({
+        categoryAffinity: new Map([['JOBS', 1]]),
+        categoryDislike: new Map([['JOBS', 1]]),
+      }),
+      NOW,
+    );
+
+    expect(reasons.map((item) => item.code)).not.toContain('LEARNED_INTEREST');
+  });
+
+  it('muallif yashirilgan bo\'lsa "uni yoqtirgansiz" DEYILMAYDI', () => {
+    const reasons = explainCandidate(
+      candidate({ authorId: 'a1' }),
+      taste({
+        authorAffinity: new Map([['a1', 1]]),
+        authorDislike: new Map([['a1', 1]]),
+      }),
+      NOW,
+    );
+
+    expect(reasons.map((item) => item.code)).not.toContain('AUTHOR_AFFINITY');
+  });
+
+  it('kam yashirilgan bo\'limda sabab QOLADI, lekin zaiflashadi', () => {
+    /*
+      Bitta yashirish butun sababni o'chirib yubormasligi kerak:
+      odam bo'limni yoqtirishi, lekin bitta postdan charchagan
+      bo'lishi mumkin.
+    */
+    const post = candidate({ category: 'JOBS' });
+
+    const strong = explainCandidate(post, taste({ categoryAffinity: new Map([['JOBS', 1]]) }), NOW);
+    const weakened = explainCandidate(
+      post,
+      taste({
+        categoryAffinity: new Map([['JOBS', 1]]),
+        categoryDislike: new Map([['JOBS', 0.2]]),
+      }),
+      NOW,
+    );
+
+    const find = (list: typeof strong) => list.find((item) => item.code === 'LEARNED_INTEREST');
+
+    expect(find(weakened)).toBeDefined();
+    expect(find(weakened)!.contribution).toBeLessThan(find(strong)!.contribution);
   });
 });

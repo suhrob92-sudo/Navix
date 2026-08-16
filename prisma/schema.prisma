@@ -290,6 +290,7 @@ model User {
   postComments      PostComment[]        @relation("CommentAuthor")
   postSaves         PostSave[]           @relation("PostSaves")
   postsSeen         PostSeen[]           @relation("PostsSeen")
+  postsHidden       PostHidden[]         @relation("PostsHidden")
   commentLikes      CommentLike[]        @relation("CommentLikes")
   productClicks     PostProductClick[]   @relation("ProductClicks")
   stories           Story[]              @relation("StoryAuthor")
@@ -2648,6 +2649,7 @@ model Post {
   comments     PostComment[]
   reports      UserReport[]       @relation("PostReports")
   seenBy       PostSeen[]
+  hiddenBy     PostHidden[]
   products     PostProduct[]
   saves        PostSave[]
   hashtags     PostHashtag[]
@@ -2853,6 +2855,37 @@ model PostSeen {
   /// "Oxirgi ko'rganlarim" — tavsiya uchun signal yig'ishda.
   @@index([userId, seenAt])
   @@map("post_seen")
+}
+
+/// "Bu qiziq emas" — odam postni O'ZI yashirgan.
+///
+/// ── Nima uchun ALOHIDA jadval, sozlamadagi ro'yxat emas ───────────────
+/// `FeedSettings.notInterested` butun BO'LIMNI o'chiradi ("menga
+/// ish e'lonlari kerak emas"). Bu esa boshqa narsa: bo'lim qiziq,
+/// lekin AYNAN shu post qiziq emas.
+///
+/// Ikkalasini bitta joyga tiqishtirsak, bitta postni yashirgan odam
+/// butun bo'limni yo'qotib qo'yardi.
+///
+/// ── Nima uchun yozuv SAQLANADI, post o'chirilmaydi ────────────────────
+/// Post boshqalarniki va u boshqalarga ko'rinishda davom etadi. Bu
+/// jadval faqat "kim nimani ko'rmoqchi emas" degan shaxsiy ro'yxat.
+model PostHidden {
+  id String @id @default(uuid()) @db.Uuid
+
+  postId String @db.Uuid
+  userId String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation("PostsHidden", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Bitta odam bitta postni ikki marta yashira olmaydi.
+  @@unique([userId, postId])
+  /// Tavsiyaga manfiy signal yig'ishda — so'nggi yashirishlar bo'yicha.
+  @@index([userId, createdAt])
+  @@map("post_hidden")
 }
 
 model PostLike {

@@ -180,6 +180,19 @@ export async function resetRecommendations(userId: string): Promise<FeedSettings
   });
 
   /**
+   * "Qiziq emas" yozuvlari ham O'CHIRILADI.
+   *
+   * ── Nima uchun ──────────────────────────────────────────────────────
+   * Ekranda "Lenta endi noldan o'rganadi" deb yozilgan. Yashirilgan
+   * postlar qolib ketsa, bu va'da yolg'on bo'lardi: odam tiklab,
+   * baribir o'sha postlarni ko'rmasdi va sababini hech qayerdan
+   * topa olmasdi — yashirilganlar ro'yxati ekranda ko'rsatilmaydi.
+   *
+   * Tiklash — hamma narsani unutish demak, tanlab unutish emas.
+   */
+  await prisma.postHidden.deleteMany({ where: { userId } });
+
+  /**
    * Tavsiya keshi BEKOR qilinadi.
    *
    * Aks holda odam "Restoranlar qizig'i emas" deb belgilab, lentaga

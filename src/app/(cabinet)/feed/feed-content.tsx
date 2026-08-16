@@ -262,7 +262,20 @@ export function FeedContent() {
         {isGrid ? (
           <VideoGrid posts={list.items} />
         ) : (
-          <PostList posts={list.items} actions={actions} viewerPoint={isNearby ? location.point : null} />
+          /*
+            "Bu qiziq emas" FAQAT shu yerda yoqilgan.
+
+            Lenta postni O'ZI tanlaydi — demak tanlovni tuzatish
+            imkoni ham shu yerda bo'lishi kerak. Saqlanganlar,
+            mavzu va profil sahifalarida post odamning aniq
+            so'rovi bo'yicha turibdi.
+          */
+          <PostList
+            posts={list.items}
+            actions={actions}
+            viewerPoint={isNearby ? location.point : null}
+            canHide
+          />
         )}
 
         {list.hasMore && (

@@ -271,6 +271,11 @@ export interface SaveResponse {
   isSaved: boolean;
 }
 
+/** "Qiziq emas" javobi. */
+export interface HideResponse {
+  isHidden: boolean;
+}
+
 export interface ShareResponse {
   shareCount: number;
 }

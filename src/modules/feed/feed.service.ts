@@ -9,6 +9,7 @@ import { sendPush } from '@/modules/notification/push.service';
 import {
   AUTHOR_SELECT,
   LIVE_AUTHOR,
+  notHiddenBy,
   postSelect,
   toAuthorView,
   toPostView,
@@ -287,6 +288,14 @@ export async function listFeed(
       ...settingsFilter,
       ...sensitiveFilterWhere,
       ...nearbyFilter,
+      /*
+        "Qiziq emas" bosilgan postlar — BARCHA yorliqlarda.
+
+        Obunalarim va Video bo'limlarida ham qo'llanadi: odam
+        do'stining bitta postini yashirsa, u obunani bekor qilgani
+        emas — faqat o'sha postni ko'rmoqchi emas.
+      */
+      ...notHiddenBy(viewerId),
       ...olderThan(query.cursor),
     },
     select: postSelect(viewerId),
@@ -1332,6 +1341,77 @@ export async function unsavePost(postId: string, userId: string): Promise<{ isSa
   await prisma.postSave.deleteMany({ where: { postId, userId } });
 
   return { isSaved: false };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// "Qiziq emas"
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Postni yashiradi va tavsiyaga MANFIY signal beradi.
+ *
+ * ── Nima uchun bu shikoyatdan boshqa narsa ───────────────────────────
+ * Shikoyat — "bu post QOIDANI buzgan, uni hammadan olib tashlang".
+ * Uni moderator ko'radi va u boshqalarga ham ta'sir qiladi.
+ *
+ * "Qiziq emas" esa — "bu post yomon emas, shunchaki MENGA kerak
+ * emas". U hech kimga ko'rinmaydi va faqat bitta odamning lentasiga
+ * ta'sir qiladi.
+ *
+ * Ikkalasini bitta tugmaga birlashtirsak, odam qiziqmagan postni
+ * yashirish uchun begunoh muallifni shikoyat qilishga majbur
+ * bo'lardi.
+ *
+ * ── Nima uchun O'Z postini yashirib bo'lmaydi ────────────────────────
+ * Bu chalkashlik bo'lardi: odam o'z postini "yashirdim" deb o'ylab,
+ * uni boshqalar ko'rishda davom etardi. O'z postini olib tashlash
+ * uchun o'chirish bor.
+ */
+export async function hidePost(postId: string, userId: string): Promise<{ isHidden: boolean }> {
+  const post = await requireLivePost(postId, userId);
+
+  if (post.authorId === userId) {
+    throw new ConflictError("O'z postingizni yashira olmaysiz. Uni o'chirishingiz mumkin.");
+  }
+
+  try {
+    await prisma.postHidden.create({ data: { postId, userId } });
+  } catch (error) {
+    // Ikki marta bosilgan — natija baribir kerakli holat.
+    const isDuplicate = error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+
+    if (!isDuplicate) throw error;
+  }
+
+  /**
+   * Tartiblangan ro'yxat DARHOL bekor qilinadi.
+   *
+   * Aks holda odam postni yashirar, lentani yangilar va o'sha post
+   * yana chiqib turardi — 10 daqiqa davomida. Bu tugmani butunlay
+   * ishonchsiz qilardi.
+   */
+  void invalidateRecommendations(userId);
+
+  return { isHidden: true };
+}
+
+/**
+ * Yashirishni QAYTARADI.
+ *
+ * ── Nima uchun bu shart ──────────────────────────────────────────────
+ * Tugma post menyusida turadi va tasodifan bosilishi juda oson.
+ * Qaytarish yo'li bo'lmasa, bitta noto'g'ri bosish post bilan birga
+ * uning izohlari va havolasini butunlay yo'qotardi.
+ *
+ * Post tekshirilmaydi: muallif uni o'chirgan bo'lsa ham, yozuvni
+ * o'chirish mumkin bo'lishi kerak.
+ */
+export async function unhidePost(postId: string, userId: string): Promise<{ isHidden: boolean }> {
+  await prisma.postHidden.deleteMany({ where: { postId, userId } });
+
+  void invalidateRecommendations(userId);
+
+  return { isHidden: false };
 }
 
 /**
