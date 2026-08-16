@@ -1,4 +1,4 @@
-import type { NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
 
 import { withApiHandler } from '@/lib/api/handler';
@@ -42,7 +42,7 @@ export const GET = withApiHandler(async (request: NextRequest, { requestId }) =>
   );
 });
 
-export const POST = withApiHandler(async (request: NextRequest, { requestId }) => {
+export const POST = withApiHandler(async (request: NextRequest) => {
   const auth = await requireAuth(request);
 
   await enforcePublicRateLimit('upload', auth.userId, "Juda ko'p fayl yuklayapsiz. Biroz kuting.");
@@ -78,5 +78,24 @@ export const POST = withApiHandler(async (request: NextRequest, { requestId }) =
     },
   });
 
-  return apiSuccess(result as unknown as Record<string, unknown>, { requestId });
+  /**
+   * Javob O'RALMAYDI — ayni holicha qaytadi.
+   *
+   * ── HAQIQIY XATO: video production'da umuman yuklanmasdi ────────────
+   * Loyihadagi barcha manzillar javobni `{ success, data, meta }`
+   * ko'rinishida qaytaradi va brauzer tomonda `data` ochib olinadi.
+   *
+   * Lekin bu manzilga so'rovni BIZNING kodimiz emas, `@vercel/blob`
+   * kutubxonasi yuboradi. U javobdan to'g'ridan-to'g'ri `clientToken`
+   * ni o'qiydi (`const { clientToken } = await res.json()`).
+   *
+   * O'ralgan javobda esa yuqori darajada `clientToken` YO'Q — u
+   * `data` ichida qolib ketardi. Natijada kutubxona `undefined`
+   * token bilan omborga murojaat qilib, tushunarsiz xato bilan
+   * yiqilardi.
+   *
+   * Ishlab chiqishda bu sezilmasdi: u yerda ombor kaliti yo'q va
+   * video butunlay boshqa yo'ldan (server orqali) ketadi.
+   */
+  return NextResponse.json(result);
 });

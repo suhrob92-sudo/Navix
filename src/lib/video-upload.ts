@@ -4,6 +4,7 @@ import { upload } from '@vercel/blob/client';
 
 import {
   ALLOWED_VIDEO_TYPES,
+  MAX_SERVER_BODY_BYTES,
   MAX_VIDEO_BYTES,
   MAX_VIDEO_SECONDS,
   VIDEO_UPLOAD_PATH,
@@ -52,15 +53,6 @@ export interface VideoMeta {
  * tanlashi mumkin.
  */
 const PROBE_TIMEOUT_MS = 15_000;
-
-/**
- * Server orqali yuborilganda so'rov tanasining chegarasi.
- *
- * Bu — Vercel platformasining cheklovi. Ombor sozlangan bo'lsa fayl
- * bu yo'ldan umuman o'tmaydi; sozlanmagan bo'lsa esa odam aniq
- * xabar olishi kerak.
- */
-const SERVER_UPLOAD_LIMIT_BYTES = 4 * 1024 * 1024;
 
 /**
  * Fayl nomidan tur aniqlaydi.
@@ -347,9 +339,9 @@ export async function uploadVideo(file: File, accessToken: string | null): Promi
      * "413" xatosi bilan qaytarilardi. Odam esa nima bo'lganini
      * bilmasdi va qayta-qayta urinardi.
      */
-    if (file.size > SERVER_UPLOAD_LIMIT_BYTES) {
+    if (file.size > MAX_SERVER_BODY_BYTES) {
       throw new Error(
-        `Fayl ombori sozlanmagan, shuning uchun video ${formatFileSize(SERVER_UPLOAD_LIMIT_BYTES)} dan ` +
+        `Fayl ombori sozlanmagan, shuning uchun video ${formatFileSize(MAX_SERVER_BODY_BYTES)} dan ` +
           'katta bo\'la olmaydi. Administratorga xabar bering.',
       );
     }

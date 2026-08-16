@@ -10,6 +10,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useFileUpload } from '@/hooks/use-file-upload';
+import { dialogCancelHandler } from '@/lib/dialog';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { uploadVideo } from '@/lib/video-upload';
@@ -40,11 +41,24 @@ export interface PostComposerProps {
   /** Oynani yopish. */
   onClose: () => void;
   /**
-   * Ochilishi bilan fayl tanlagichni O'ZI ochsinmi.
+   * "+" dan qaysi tur tanlangan.
    *
-   * "+" tugmasidan "Video" tanlangan bo'lsa, odam allaqachon nima
-   * qilmoqchiligini aytgan — undan yana bir marta bosishni talab
-   * qilish ortiqcha.
+   * ── HAQIQIY XATO: video umuman tanlanmasdi ──────────────────────────
+   * Ilgari bu bayroq fayl tanlagichni O'ZI ochardi: oyna ochilgach
+   * `setTimeout` bilan `input.click()` chaqirilardi.
+   *
+   * Telefon brauzerlari buni RAD ETADI. Galereyani faqat odamning
+   * o'z harakati (bosish) ocha oladi; kechiktirilgan chaqiruv esa
+   * "foydalanuvchi harakati" hisoblanmaydi va jimgina e'tiborsiz
+   * qoldiriladi.
+   *
+   * Natijada odam "+" → "Video yaratish" bosardi, oyna ochilardi va
+   * HECH NARSA bo'lmasdi: na galereya, na xato. Tabiiyki, "video
+   * yuklab bo'lmayapti" degan xulosa chiqardi.
+   *
+   * Endi bayroq boshqa ish qiladi: video tanlash tugmasini KATTA va
+   * ko'rinadigan qilib chizadi. Uni odamning o'zi bosadi — bu esa
+   * har qanday brauzerda ishlaydi.
    */
   autoPick?: 'VIDEO' | null;
   /**
@@ -84,7 +98,6 @@ export function PostComposer({
   const { accessToken } = useAuth();
 
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const [body, setBody] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -103,19 +116,7 @@ export function PostComposer({
 
   useEffect(() => {
     dialogRef.current?.showModal();
-
-    /**
-     * Fayl tanlagich BIROZ KECHIKIB ochiladi.
-     *
-     * Oyna hali chizilmagan paytda bosilsa, brauzer "bu amal
-     * foydalanuvchi harakatidan kelmadi" deb rad etishi mumkin.
-     */
-    if (autoPick === 'VIDEO') {
-      const timer = setTimeout(() => videoInputRef.current?.click(), 250);
-
-      return () => clearTimeout(timer);
-    }
-  }, [autoPick]);
+  }, []);
 
   const trimmed = body.trim();
   /**
@@ -176,7 +177,7 @@ export function PostComposer({
   return (
     <dialog
       ref={dialogRef}
-      onCancel={onClose}
+      onCancel={dialogCancelHandler(onClose)}
       className="glass animate-scale-in text-foreground m-auto max-h-[90vh] w-[calc(100%-2rem)] max-w-md overflow-y-auto rounded-2xl p-5 backdrop:bg-black/50 backdrop:backdrop-blur-sm"
     >
       <form
@@ -206,6 +207,51 @@ export function PostComposer({
         placeholder="Nima yangilik?"
         onChange={(event) => setBody(event.target.value)}
       />
+
+      {/*
+        "Video yaratish" tanlangan bo'lsa — KATTA tugma.
+
+        ── Nima uchun tugma, avtomatik ochilish emas ─────────────────
+        Ilgari galereya o'zi ochilishga urinardi va telefon brauzeri
+        uni rad etardi (sabab `autoPick` izohida). Odam bo'sh oyna
+        oldida qolardi.
+
+        Endi u aynan nima qilish kerakligini ko'radi va bir marta
+        bosadi. Bosish — odamning o'z harakati, uni hech bir brauzer
+        rad etmaydi.
+      */}
+      {autoPick === 'VIDEO' && !video && !imageUrl && (
+        <label
+          className={cn(
+            'border-border hover:bg-secondary/50 mt-3 flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed p-6 text-center transition-colors',
+            isBusy && 'pointer-events-none opacity-60',
+          )}
+        >
+          <Video className="text-muted-foreground size-8" aria-hidden="true" />
+
+          <span className="text-sm font-medium">
+            {isUploadingVideo ? 'Video yuklanmoqda…' : 'Video tanlash'}
+          </span>
+
+          <span className="text-muted-foreground text-xs">
+            {`Galereyadan tanlang — ${MAX_VIDEO_SECONDS} soniyagacha`}
+          </span>
+
+          <input
+            type="file"
+            accept="video/*"
+            className="sr-only"
+            disabled={isBusy}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+
+              event.target.value = '';
+
+              if (file) void attachVideo(file);
+            }}
+          />
+        </label>
+      )}
 
       {/*
         Bo'lim tanlash — IXTIYORIY.
@@ -354,7 +400,6 @@ export function PostComposer({
             <span className="text-xs">{isUploadingVideo ? 'Yuklanmoqda…' : 'Video'}</span>
 
             <input
-              ref={videoInputRef}
               type="file"
               accept="video/*"
               className="sr-only"

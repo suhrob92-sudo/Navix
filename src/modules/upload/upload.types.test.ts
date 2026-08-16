@@ -22,7 +22,7 @@ describe('formatFileSize', () => {
 
   it('megabaytda kasr qoladi', () => {
     expect(formatFileSize(1_572_864)).toBe('1.5 MB');
-    expect(formatFileSize(MAX_UPLOAD_BYTES)).toBe('5 MB');
+    expect(formatFileSize(MAX_UPLOAD_BYTES)).toBe('4 MB');
   });
 });
 

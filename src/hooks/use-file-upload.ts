@@ -6,6 +6,7 @@ import { useApiClient } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { resizeImage } from '@/lib/image-resize';
 import {
+  ALLOWED_IMAGE_TYPES,
   AVATAR_MAX_DIMENSION,
   IMAGE_MAX_DIMENSION,
   MAX_UPLOAD_BYTES,
@@ -72,8 +73,34 @@ export function useFileUpload(purpose: UploadPurpose): FileUploadState {
         const maxDimension = purpose === 'AVATAR' ? AVATAR_MAX_DIMENSION : IMAGE_MAX_DIMENSION;
         const prepared = isVoice ? file : await resizeImage(file, maxDimension);
 
+        /**
+         * Kichraytirish ISHLAMAGAN holat.
+         *
+         * ── HAQIQIY XATO: iPhone rasmi yuklanmasdi ──────────────────
+         * `resizeImage` xato bo'lsa ASL faylni qaytaradi. iPhone esa
+         * rasmlarni HEIC formatida saqlaydi va uni Android brauzeri
+         * ocha olmaydi — ya'ni kichraytirish jimgina yiqilardi.
+         *
+         * Keyin asl HEIC fayl serverga ketardi va u yerdan "Faqat
+         * rasm yuklash mumkin" degan javob kelardi. Odam esa aniq
+         * rasm tanlagan edi va bu javob unga mutlaqo tushunarsiz
+         * bo'lardi.
+         *
+         * Endi sabab AYNAN aytiladi va yechim ko'rsatiladi.
+         */
+        if (!isVoice && !(ALLOWED_IMAGE_TYPES as readonly string[]).includes(prepared.type)) {
+          setError(
+            "Bu rasm formatini brauzer o'qiy olmadi. Telefon sozlamalarida kamerani " +
+              '"Eng mos" (JPEG) rejimiga o\'tkazing yoki rasmni skrinshot qilib yuboring.',
+          );
+
+          return null;
+        }
+
         if (prepared.size > MAX_UPLOAD_BYTES) {
-          setError(`Fayl juda katta (${formatFileSize(prepared.size)}).`);
+          setError(
+            `Rasm juda katta (${formatFileSize(prepared.size)}). Chegara — ${formatFileSize(MAX_UPLOAD_BYTES)}.`,
+          );
 
           return null;
         }

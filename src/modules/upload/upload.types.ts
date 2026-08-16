@@ -108,18 +108,34 @@ export const MAX_VOICE_SECONDS = 120;
 export const VOICE_BITRATE = 24_000;
 
 /**
- * Eng katta hajm — 5 MB.
+ * Server orqali o'tadigan so'rov tanasining haqiqiy chegarasi.
  *
- * ── Nima uchun aynan shuncha ─────────────────────────────────────────
- * Telefon kamerasidan olingan rasm odatda 2-4 MB. Brauzer uni
- * yuborishdan oldin kichraytiradi (`src/lib/image-resize.ts`), ya'ni
- * amalda 300 KB atrofida keladi.
+ * ── HAQIQIY TO'SIQ: 4.5 MB ───────────────────────────────────────────
+ * Vercel'da serversiz funksiyaga kelgan so'rov tanasi 4.5 MB bilan
+ * cheklangan va bu cheklovni kod o'zgartira olmaydi. Undan katta
+ * fayl serverga UMUMAN yetib bormaydi: platforma uni "413" bilan
+ * qaytaradi va bizning aniq xato matnimiz ham ishlamaydi.
  *
- * Bu chegara esa HIMOYA: kichraytirish ishlamagan yoki chetlab
- * o'tilgan holatda ham server bir necha o'nlab megabaytli faylni
- * qabul qilmasligi kerak.
+ * Shuning uchun o'z chegaramiz undan PAST turadi — shunda odam
+ * tushunarli xabar oladi.
  */
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MAX_SERVER_BODY_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Rasmning eng katta hajmi — 4 MB.
+ *
+ * ── Nima uchun 5 MB emas ─────────────────────────────────────────────
+ * ── HAQIQIY XATO: rasm production'da yuklanmasdi ────────────────────
+ * Chegara ilgari 5 MB edi — ya'ni Vercel'ning 4.5 MB lik tana
+ * chegarasidan YUQORI. Kichraytirish ishlamagan holatda (masalan
+ * iPhone'ning HEIC formati brauzerda ochilmaydi) asl 4.8 MB lik
+ * rasm yuborilardi: brauzer tekshiruvidan o'tardi, lekin platforma
+ * uni tushunarsiz xato bilan rad etardi.
+ *
+ * Kichraytirilgan rasm ~300 KB, ya'ni bu chegara amaldagi ishga
+ * umuman ta'sir qilmaydi — u faqat yolg'on va'dani olib tashlaydi.
+ */
+export const MAX_UPLOAD_BYTES = MAX_SERVER_BODY_BYTES;
 
 /** Yuklashdan oldin brauzerda rasm shu o'lchamgacha kichraytiriladi. */
 export const IMAGE_MAX_DIMENSION = 1_600;

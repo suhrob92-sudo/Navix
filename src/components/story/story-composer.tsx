@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useApiClient } from '@/hooks/use-api';
 import { useFileUpload } from '@/hooks/use-file-upload';
+import { dialogCancelHandler } from '@/lib/dialog';
 import { toUserMessage } from '@/lib/api-client';
 import { formatTiyin } from '@/lib/money';
 import { uploadVideo } from '@/lib/video-upload';
@@ -122,7 +123,7 @@ export function StoryComposer({ onClose, onPosted }: StoryComposerProps) {
   return (
     <dialog
       ref={dialogRef}
-      onCancel={onClose}
+      onCancel={dialogCancelHandler(onClose)}
       className="glass animate-scale-in text-foreground m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl p-5 backdrop:bg-black/50 backdrop:backdrop-blur-sm"
     >
       <div className="mb-4 flex items-center justify-between gap-3">
