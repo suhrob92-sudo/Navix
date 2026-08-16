@@ -1,20 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import {
-  BadgeCheck,
-  Bookmark,
-  Clapperboard,
-  Flag,
-  Heart,
-  MessageCircle,
-  MoreHorizontal,
-  MousePointerClick,
-  Pencil,
-  Share2,
-  ShoppingBag,
-  Trash2,
-} from 'lucide-react';
+import { BadgeCheck, Bookmark, Clapperboard, Flag, Heart, MapPin, MessageCircle, MoreHorizontal, MousePointerClick, Pencil, Share2, ShoppingBag, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 
@@ -185,6 +172,20 @@ export function PostCard({
             */}
             {post.editedAt && !post.isDeleted && ' · tahrirlangan'}
           </p>
+
+          {/*
+            Joylashuv sana OSTIDA, alohida qatorda.
+
+            Sana yoniga qo'shsak, uzun nom ("Toshkent shahri ·
+            Chilonzor") telefonda kesilib ketardi va o'qib
+            bo'lmasdi.
+          */}
+          {post.place && (
+            <p className="text-muted-foreground flex items-center gap-1 text-xs">
+              <MapPin className="size-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">{post.place.name}</span>
+            </p>
+          )}
         </div>
 
         {hasMenu && (

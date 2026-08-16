@@ -1,18 +1,6 @@
 'use client';
 
-import {
-  BadgeCheck,
-  Bookmark,
-  Eye,
-  Heart,
-  MessageCircle,
-  Pause,
-  Share2,
-  ShoppingBag,
-  Volume2,
-  VolumeX,
-  X,
-} from 'lucide-react';
+import { BadgeCheck, Bookmark, Eye, Heart, MapPin, MessageCircle, Pause, Share2, ShoppingBag, Volume2, VolumeX, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
@@ -315,6 +303,19 @@ export function ReelPlayer({
             )}
           </span>
         </Link>
+
+        {/*
+          Joylashuv — muallif nomi ostida.
+
+          To'liq ekranda joy nomi kontentning bir qismi: "bu qayerda?"
+          degan savol video ko'rilayotganda darhol tug'iladi.
+        */}
+        {post.place && (
+          <p className="flex items-center gap-1 text-xs text-white/80 drop-shadow">
+            <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{post.place.name}</span>
+          </p>
+        )}
 
         {post.body.length > 0 && (
           <p className="line-clamp-2 text-sm leading-relaxed text-white/90 drop-shadow">

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { SEARCH_SCOPES } from '@/modules/feed/discover.types';
-import { COMMENT_MAX_LENGTH, MAX_TAGGED_PRODUCTS, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
+import { COMMENT_MAX_LENGTH, MAX_PLACE_NAME_LENGTH, MAX_TAGGED_PRODUCTS, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
 import { VIDEO_DURATIONS } from '@/modules/feed/feed.types';
 import { POST_CATEGORY_VALUES } from '@/modules/feed/feed.types';
 import { MAX_VIDEO_SECONDS } from '@/modules/upload/upload.types';
@@ -152,6 +152,21 @@ export const createPostSchema = z
      * yolg'on natija berardi.
      */
     category: z.enum(POST_CATEGORY_VALUES).optional(),
+    /**
+     * Joylashuv — ixtiyoriy.
+     *
+     * ── Nima uchun uchalasi BIRGA talab qilinadi ────────────────────
+     * Nomsiz koordinata ekranda ko'rsatib bo'lmaydigan raqam bo'lardi,
+     * koordinatasiz nom esa "yaqin atrofda" da ishlamasdi. Yarim
+     * ma'lumot ikkala bo'limni ham buzadi.
+     */
+    place: z
+      .object({
+        name: z.string().trim().min(1, "Joylashuv nomi bo'sh").max(MAX_PLACE_NAME_LENGTH),
+        latitude: z.coerce.number().min(-90).max(90),
+        longitude: z.coerce.number().min(-180).max(180),
+      })
+      .optional(),
     /** Biriktirilgan mahsulotlar — mavjudligi xizmatda tekshiriladi. */
     productIds: z
       .array(z.uuid("Mahsulot noto'g'ri tanlandi"))

@@ -2539,6 +2539,30 @@ model Post {
   /// Tanlanmagan post faqat "Siz uchun" bo'limida ko'rinadi.
   category PostCategory?
 
+  /// Joylashuv nomi — odam ko'radigan yozuv ("Toshkent shahri").
+  ///
+  /// ── Nima uchun NOM ham, koordinata ham saqlanadi ────────────────────
+  /// Koordinata "yaqin atrofda" uchun kerak, nom esa ekranda
+  /// ko'rsatish uchun. Nomni koordinatadan har safar hisoblash ham
+  /// mumkin edi, lekin unda lentadagi har bir post uchun hisob-kitob
+  /// takrorlanardi.
+  placeName String? @db.VarChar(120)
+
+  /// Joylashuv koordinatalari — ATAYLAB aniqligi pasaytirilgan.
+  ///
+  /// ── XAVFSIZLIK: eng muhim qaror ─────────────────────────────────────
+  /// Telefon koordinatani bir necha metr aniqlikda beradi. Uni o'z
+  /// holicha saqlab, ochiq postga biriktirsak — odam uydan video
+  /// joylaganda UY MANZILI hammaga ko'rinardi.
+  ///
+  /// Shuning uchun yozishdan oldin uch xonali kasrgacha
+  /// yaxlitlanadi (~110 metr): "qaysi mahalla" degan savolga javob
+  /// beradi, "qaysi uy" degan savolga esa yo'q.
+  ///
+  /// Yaxlitlash SERVERDA bajariladi — brauzerga ishonib bo'lmaydi.
+  latitude  Float?
+  longitude Float?
+
   /// Post matni.
   ///
   /// Uzunlik ataylab cheklangan: uzun maqola uchun bu joy emas va
@@ -2637,6 +2661,8 @@ model Post {
   @@index([authorId, createdAt])
   /// Kategoriya bo'yicha filtr — indekssiz butun jadval o'qilardi.
   @@index([category, createdAt])
+  /// "Yaqin atrofda": koordinata oralig'i bo'yicha qidiruv.
+  @@index([latitude, longitude])
   @@map("posts")
 }
 

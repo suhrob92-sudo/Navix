@@ -7,7 +7,8 @@ import { deleteImageByUrl } from '@/modules/upload/upload.service';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { sendPush } from '@/modules/notification/push.service';
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
-import { MAX_TAGGED_PRODUCTS, SHORT_VIDEO_SECONDS } from '@/modules/feed/feed.types';
+import { MAX_PLACE_NAME_LENGTH, MAX_TAGGED_PRODUCTS, SHORT_VIDEO_SECONDS } from '@/modules/feed/feed.types';
+import { blurCoordinate, isValidCoordinate } from '@/config/geo';
 import { extractHashtags, extractMentions, isValidHashtag } from '@/modules/feed/feed.text';
 import { getFeedSettings, isAllowedBy, isNotifyEnabled } from '@/modules/feed/settings.service';
 import type { PostCategoryName } from '@/modules/feed/feed.types';
@@ -74,6 +75,9 @@ export function postSelect(viewerId: string) {
     videoSeconds: true,
     viewCount: true,
     category: true,
+    placeName: true,
+    latitude: true,
+    longitude: true,
     /**
      * Biriktirilgan mahsulotlar — tugma uchun kerakli MINIMUM.
      *
@@ -178,6 +182,16 @@ export function toPostView(row: PostRow, viewerId: string): PostView {
         row.products.map((link) => toTaggedProduct(link.product, isMine ? link.clickCount : 0)),
     viewCount: row.viewCount,
     category: row.deletedAt ? null : row.category,
+    /**
+     * Joylashuv o'chirilgan postda YUBORILMAYDI.
+     *
+     * Post o'chirilgach uning matni ham, rasmi ham yuborilmaydi —
+     * joylashuv ham xuddi shunday shaxsiy ma'lumot.
+     */
+    place:
+      row.deletedAt === null && row.placeName !== null && row.latitude !== null && row.longitude !== null
+        ? { name: row.placeName, latitude: row.latitude, longitude: row.longitude }
+        : null,
     hashtags: row.deletedAt ? [] : row.hashtags.map((link) => link.hashtag.tag),
     author: toAuthorView(row.author),
     createdAt: row.createdAt.toISOString(),
@@ -475,6 +489,41 @@ export interface CreatePostData {
   videoPosterUrl?: string | null;
   videoSeconds?: number | null;
   productIds?: string[];
+  /**
+   * Joylashuv — ixtiyoriy.
+   *
+   * Uchalasi BIRGA keladi yoki umuman kelmaydi: nomsiz koordinata
+   * ekranda ko'rsatib bo'lmaydigan raqam bo'lardi, koordinatasiz
+   * nom esa "yaqin atrofda" da ishlamasdi.
+   */
+  place?: { name: string; latitude: number; longitude: number } | null;
+}
+
+/**
+ * Joylashuvni saqlashga tayyorlaydi.
+ *
+ * Ikki ish qiladi: koordinata aniqligini pasaytiradi va nomni
+ * chegaralaydi. Ikkalasi ham BRAUZERDAN kelgan ma'lumot ustida
+ * bajariladi, ya'ni ularga ishonib bo'lmaydi.
+ */
+function normalizePlace(
+  place: CreatePostData['place'],
+): { name: string; latitude: number; longitude: number } | null {
+  if (!place) return null;
+
+  if (!isValidCoordinate(place.latitude, place.longitude)) {
+    throw new ConflictError("Joylashuv noto'g'ri.");
+  }
+
+  const name = place.name.trim().slice(0, MAX_PLACE_NAME_LENGTH);
+
+  if (name.length === 0) return null;
+
+  return {
+    name,
+    latitude: blurCoordinate(place.latitude),
+    longitude: blurCoordinate(place.longitude),
+  };
 }
 
 export async function createPost(authorId: string, data: CreatePostData): Promise<PostView> {
@@ -517,6 +566,18 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
     }
   }
 
+  /**
+   * Koordinata aniqligi SERVERDA pasaytiriladi.
+   *
+   * ── Nima uchun brauzerga ishonilmaydi ───────────────────────────────
+   * Brauzerdagi yaxlitlashni chetlab o'tish oson: so'rovni qo'lda
+   * yuborish yetarli. Aniq koordinata esa odamning uy manzilini
+   * oshkor qiladi — bu qaytarib bo'lmaydigan zarar.
+   *
+   * Shuning uchun himoya aynan shu yerda, yozishdan oldin turadi.
+   */
+  const place = normalizePlace(data.place);
+
   const row = await prisma.$transaction(async (tx) => {
     const created = await tx.post.create({
       data: {
@@ -527,6 +588,9 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
         videoPosterUrl: data.videoPosterUrl ?? null,
         videoSeconds: data.videoSeconds ?? null,
         category: data.category ?? null,
+        placeName: place?.name ?? null,
+        latitude: place?.latitude ?? null,
+        longitude: place?.longitude ?? null,
         // Tartib odam tanlagan tartibda saqlanadi.
         products: { create: productIds.map((id, index) => ({ productId: id, sortOrder: index })) },
       },

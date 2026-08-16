@@ -1,8 +1,9 @@
 'use client';
 
-import { Send, ShoppingBag, Video, X } from 'lucide-react';
+import { MapPin, Send, ShoppingBag, Video, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { LocationPicker } from '@/components/feed/location-picker';
 import { ProductPicker } from '@/components/feed/product-picker';
 import { POST_CATEGORIES } from '@/config/feed-nav';
 import { ImageAttach } from '@/components/upload/image-attach';
@@ -19,6 +20,7 @@ import {
   MAX_TAGGED_PRODUCTS,
   POST_MAX_LENGTH,
   type PostCategoryName,
+  type PostPlaceView,
   type TaggedProductView,
 } from '@/modules/feed/feed.types';
 import { MAX_VIDEO_SECONDS, formatDuration } from '@/modules/upload/upload.types';
@@ -33,6 +35,8 @@ export interface ComposerDraft {
   productIds: string[];
   /** Qaysi bo'limga tegishli. `null` — tanlanmagan. */
   category: PostCategoryName | null;
+  /** Biriktirilgan joylashuv. `null` — qo'shilmagan. */
+  place: PostPlaceView | null;
 }
 
 export interface PostComposerProps {
@@ -112,6 +116,10 @@ export function PostComposer({
   /** Tanlangan bo'lim — ixtiyoriy. */
   const [category, setCategory] = useState<PostCategoryName | null>(null);
 
+  /** Biriktirilgan joylashuv — ixtiyoriy. */
+  const [place, setPlace] = useState<PostPlaceView | null>(null);
+  const [isPlaceOpen, setIsPlaceOpen] = useState(false);
+
   const image = useFileUpload('POST');
 
   useEffect(() => {
@@ -139,6 +147,7 @@ export function PostComposer({
       videoSeconds: video?.seconds ?? null,
       productIds: products.map((item) => item.id),
       category,
+      place,
     });
 
     if (sent) {
@@ -147,6 +156,7 @@ export function PostComposer({
       setVideo(null);
       setProducts([]);
       setCategory(null);
+      setPlace(null);
       setVideoError(null);
     }
   }
@@ -431,6 +441,35 @@ export function PostComposer({
         )}
 
         {/*
+          Joylashuv tugmasi — HAR QANDAY postga.
+
+          ── Nima uchun faqat videoga emas ──────────────────────────
+          "Chilonzorda ijaraga uy" degan matnli e'lon uchun joylashuv
+          videodagidan ham muhimroq: odam aynan o'z rayonidagini
+          qidiradi.
+        */}
+        {place ? (
+          <span className="bg-secondary text-muted-foreground inline-flex max-w-[60%] items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs">
+            <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+            <span className="truncate">{place.name}</span>
+
+            <button
+              type="button"
+              aria-label="Joylashuvni olib tashlash"
+              onClick={() => setPlace(null)}
+              className="hover:text-destructive -mr-1 shrink-0 rounded p-0.5 transition-colors"
+            >
+              <X className="size-3.5" aria-hidden="true" />
+            </button>
+          </span>
+        ) : (
+          <Button type="button" variant="ghost" size="sm" disabled={isBusy} onClick={() => setIsPlaceOpen(true)}>
+            <MapPin className="size-4" aria-hidden="true" />
+            Joylashuv
+          </Button>
+        )}
+
+        {/*
           Qolgan belgilar soni FAQAT oxiriga yaqinlashganda ko'rinadi.
           Doim ko'rinsa, u qisqa yozishga undab turadigan ortiqcha
           bosim bo'lardi.
@@ -453,6 +492,16 @@ export function PostComposer({
       <p className="text-muted-foreground mt-2 text-xs">
         {`Video ${MAX_VIDEO_SECONDS} soniyagacha. Videoga ${MAX_TAGGED_PRODUCTS} tagacha mahsulot biriktirish mumkin — tomoshabin ularni bir bosishda topadi.`}
       </p>
+
+      {isPlaceOpen && (
+        <LocationPicker
+          onPick={(picked) => {
+            setPlace(picked);
+            setIsPlaceOpen(false);
+          }}
+          onCancel={() => setIsPlaceOpen(false)}
+        />
+      )}
 
       {isPickerOpen && (
         <ProductPicker

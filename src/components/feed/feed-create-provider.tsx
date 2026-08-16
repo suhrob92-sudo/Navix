@@ -103,6 +103,7 @@ export function FeedCreateProvider({ children }: { children: React.ReactNode }) 
           ...(draft.videoPosterUrl ? { videoPosterUrl: draft.videoPosterUrl } : {}),
           ...(draft.videoSeconds ? { videoSeconds: draft.videoSeconds } : {}),
           ...(draft.category ? { category: draft.category } : {}),
+          ...(draft.place ? { place: draft.place } : {}),
           ...(draft.productIds.length > 0 ? { productIds: draft.productIds } : {}),
         },
       });

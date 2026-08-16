@@ -38,6 +38,8 @@ export interface PostView {
   viewCount: number;
   /** Qaysi bo'limga tegishli. `null` — muallif tanlamagan. */
   category: PostCategoryName | null;
+  /** Biriktirilgan joylashuv. `null` — muallif qo'shmagan. */
+  place: PostPlaceView | null;
   /**
    * Matndan ajratilgan mavzular (`#` siz, kichik harflarda).
    *
@@ -128,6 +130,49 @@ export const POST_CATEGORY_LABELS: Record<PostCategoryName, string> = {
 /** Qiymat haqiqiy bo'lim nomimi (manzildan kelgan qiymat uchun). */
 export function isPostCategory(value: string): value is PostCategoryName {
   return (POST_CATEGORY_VALUES as readonly string[]).includes(value);
+}
+
+/**
+ * Postga biriktirilgan joylashuv.
+ *
+ * ── Nima uchun koordinata ham BRAUZERGA yuboriladi ────────────────────
+ * "Yaqin atrofda" bo'limida masofa ekranda ko'rsatiladi ("3 km").
+ * Uni serverda hisoblab, har bir post uchun alohida maydon qo'shish
+ * ham mumkin edi — lekin u faqat bitta bo'limda kerak va qolgan
+ * joylarda bekorga yuborilardi.
+ *
+ * Koordinata aniqligi serverda pasaytirilgan (~110 metr), shuning
+ * uchun uni yuborish xavfsiz.
+ */
+export interface PostPlaceView {
+  /** Ekranda ko'rinadigan nom: "Toshkent shahri". */
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Joylashuvga qo'shiladigan aniqlashtiruvchi matn ("Chilonzor").
+ *
+ * Qisqa: u nom yonida bitta qatorda turadi va uzun matn kartani
+ * buzardi.
+ */
+export const MAX_PLACE_DETAIL_LENGTH = 40;
+
+/**
+ * Saqlanadigan to'liq nomning chegarasi ("Toshkent shahri · Chilonzor").
+ *
+ * Bazadagi ustun ham aynan shuncha (`VarChar(120)`) — ikkalasi bir
+ * xil bo'lishi kerak, aks holda baza xatosi foydalanuvchiga
+ * tushunarsiz javob bo'lib qaytardi.
+ */
+export const MAX_PLACE_NAME_LENGTH = 120;
+
+/** Nom va aniqlashtiruvchi matndan ko'rinadigan yozuv yasaydi. */
+export function buildPlaceName(region: string, detail: string | null): string {
+  const clean = detail?.trim() ?? '';
+
+  return clean.length > 0 ? `${region} · ${clean}` : region;
 }
 
 /** Videoga biriktirilgan mahsulot — tugma uchun kerakli minimum. */

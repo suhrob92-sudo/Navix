@@ -1,3 +1,5 @@
+import { UZ_REGIONS, isUzRegion, type UzRegion } from '@/config/geo';
+
 /**
  * Posilka yetkazish tarifi va hududlar.
  *
@@ -23,30 +25,19 @@
  * bosqichlar o'zgarmaydi.
  */
 
-/** O'zbekiston hududlari — jo'natish nuqtalari. */
-export const DELIVERY_REGIONS = [
-  'Toshkent shahri',
-  'Toshkent viloyati',
-  'Andijon',
-  'Buxoro',
-  "Farg'ona",
-  'Jizzax',
-  'Xorazm',
-  'Namangan',
-  'Navoiy',
-  'Qashqadaryo',
-  "Qoraqalpog'iston",
-  'Samarqand',
-  'Sirdaryo',
-  'Surxondaryo',
-] as const;
+/**
+ * O'zbekiston hududlari — jo'natish nuqtalari.
+ *
+ * Ro'yxatning o'zi `config/geo.ts` da: u endi yetkazib berishdan
+ * tashqarida ham kerak (videoga joylashuv biriktirish). Ikki joyda
+ * takrorlansa, yangi viloyat qo'shilganda bittasi unutilardi.
+ */
+export const DELIVERY_REGIONS = UZ_REGIONS;
 
-export type DeliveryRegion = (typeof DELIVERY_REGIONS)[number];
+export type DeliveryRegion = UzRegion;
 
 /** Hudud ro'yxatda bormi. */
-export function isDeliveryRegion(value: string): value is DeliveryRegion {
-  return (DELIVERY_REGIONS as readonly string[]).includes(value);
-}
+export const isDeliveryRegion = isUzRegion;
 
 /**
  * Tarif — barcha summalar SO'MDA yozilgan.
