@@ -15,7 +15,9 @@ import {
   toPostView,
 } from '@/modules/feed/feed.select';
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
-import { MAX_PLACE_NAME_LENGTH, MAX_TAGGED_PRODUCTS, SHORT_VIDEO_SECONDS } from '@/modules/feed/feed.types';
+import { MAX_PLACE_NAME_LENGTH, SHORT_VIDEO_SECONDS } from '@/modules/feed/feed.types';
+import { MAX_ATTACHMENTS } from '@/config/attachments';
+import { prepareAttachments, type AttachmentInput } from '@/modules/feed/attachment.service';
 import { NEARBY_RADIUS_KM, blurCoordinate, boundingBox, isValidCoordinate } from '@/config/geo';
 import { extractHashtags, extractMentions, isValidHashtag } from '@/modules/feed/feed.text';
 import { invalidateRecommendations } from '@/modules/feed/recommend.cache';
@@ -377,7 +379,12 @@ export interface CreatePostData {
    */
   videoStartSeconds?: number | null;
   videoEndSeconds?: number | null;
-  productIds?: string[];
+  /**
+   * Biriktirilgan narsalar — mahsulot, taom, restoran, ish, mehmonxona.
+   *
+   * Faqat videoga qo'yiladi va nishonlar serverda tekshiriladi.
+   */
+  attachments?: AttachmentInput[];
   /**
    * Joylashuv — ixtiyoriy.
    *
@@ -461,44 +468,28 @@ function normalizeVideo(data: CreatePostData): {
 }
 
 export async function createPost(authorId: string, data: CreatePostData): Promise<PostView> {
-  /** Takrorlangan ID lar olib tashlanadi — odam bir narsani ikki marta tanlashi mumkin. */
-  const productIds = [...new Set(data.productIds ?? [])];
+  const attachments = data.attachments ?? [];
 
   /**
-   * Mahsulotni faqat VIDEOGA biriktirish mumkin.
+   * Biriktirmani faqat VIDEOGA qo'yish mumkin.
    *
-   * Oddiy postda tugma qo'yadigan joy yo'q va u reklama uchun
-   * eng oson yo'lga aylanardi: matnsiz post + mahsulot tugmasi.
+   * Oddiy postda tugma qo'yadigan joy yo'q va u reklama uchun eng
+   * oson yo'lga aylanardi: matnsiz post + beshta tugma.
    */
-  if (productIds.length > 0 && !data.videoUrl) {
-    throw new ConflictError('Mahsulotni faqat videoga biriktirish mumkin.');
+  if (attachments.length > 0 && !data.videoUrl) {
+    throw new ConflictError('Biriktirmani faqat videoga qo\'yish mumkin.');
   }
 
-  if (productIds.length > MAX_TAGGED_PRODUCTS) {
-    throw new ConflictError(`Bitta videoga ko'pi bilan ${MAX_TAGGED_PRODUCTS} ta mahsulot biriktiriladi.`);
+  if (attachments.length > MAX_ATTACHMENTS) {
+    throw new ConflictError(`Bitta videoga ko'pi bilan ${MAX_ATTACHMENTS} ta narsa biriktiriladi.`);
   }
 
-  /**
-   * Mahsulotlar TEKSHIRILADI.
-   *
-   * ID brauzerdan keladi, ya'ni uni istalgan qiymatga o'zgartirish
-   * mumkin. Tekshirilmasa, odam yopilgan do'konning mahsulotini
-   * yoki umuman mavjud bo'lmagan ID ni biriktirib qo'yardi va
-   * tugma bo'sh sahifaga olib borardi.
-   *
-   * Hammasi BITTA so'rovda tekshiriladi: beshta mahsulot uchun
-   * beshta so'rov yuborish keraksiz.
-   */
-  if (productIds.length > 0) {
-    const found = await prisma.product.findMany({
-      where: { id: { in: productIds }, isActive: true, shop: { isActive: true } },
-      select: { id: true },
-    });
+  /*
+    Nishonlar TEKSHIRILADI — mavjudmi va hozir ochiqmi.
 
-    if (found.length !== productIds.length) {
-      throw new NotFoundError('Mahsulot');
-    }
-  }
+    Batafsil sabab `attachment.service.ts` da.
+  */
+  const attachmentRows = await prepareAttachments(attachments);
 
   /**
    * Koordinata aniqligi SERVERDA pasaytiriladi.
@@ -526,8 +517,7 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
         placeName: place?.name ?? null,
         latitude: place?.latitude ?? null,
         longitude: place?.longitude ?? null,
-        // Tartib odam tanlagan tartibda saqlanadi.
-        products: { create: productIds.map((id, index) => ({ productId: id, sortOrder: index })) },
+        attachments: { create: attachmentRows },
       },
       select: { id: true },
     });
@@ -538,7 +528,7 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
   });
 
   logger.info(
-    { authorId, postId: row.id, hasVideo: Boolean(data.videoUrl), products: productIds.length },
+    { authorId, postId: row.id, hasVideo: Boolean(data.videoUrl), attachments: attachmentRows.length },
     'Yangi post',
   );
 
@@ -1652,15 +1642,27 @@ export async function markShared(postId: string, viewerId: string): Promise<{ sh
 const CLICK_MILESTONES: readonly number[] = [1, 10, 50, 100, 500, 1_000];
 
 /**
- * Videodagi mahsulot tugmasi bosilganini yozadi.
+ * Videodagi biriktirma tugmasi bosilganini yozadi.
  *
  * ── Nima uchun O'Z bosishi sanalmaydi ────────────────────────────────
  * Ko'rishlar bilan bir xil sabab: muallif o'z tugmasini bosib,
  * sonni ko'tarib qo'ymasligi kerak.
+ *
+ * ── Nima uchun MAHSULOT uchun qo'shimcha yozuv ───────────────────────
+ * Umumiy `clickCount` "necha marta bosilgan?" degan savolga javob
+ * beradi. Mahsulotda esa ikkinchi savol ham bor: "bu bosish
+ * XARIDGA aylandimi?".
+ *
+ * Unga javob berish uchun KIM bosgani kerak — keyin o'sha odam
+ * mahsulotni sotib olsa, buyurtma qaysi video keltirganini aynan
+ * shu yozuvdan bilib olamiz.
+ *
+ * Qolgan turlarda bunday zanjir yo'q: ish e'loniga ariza yoki
+ * mehmonxonaga bron o'z modulida kuzatiladi.
  */
-export async function markProductClicked(
+export async function markAttachmentClicked(
   postId: string,
-  productId: string,
+  attachmentId: string,
   viewerId: string,
 ): Promise<void> {
   const post = await prisma.post.findFirst({
@@ -1670,37 +1672,58 @@ export async function markProductClicked(
 
   if (!post || post.authorId === viewerId) return;
 
-  const updated = await prisma.postProduct.updateMany({
-    where: { postId, productId },
+  /*
+    Son `updateMany` ichida oshiriladi.
+
+    Avval o'qib, keyin yozsak, ikki odam bir vaqtda bosganda
+    bittasining bosishi yo'qolardi.
+
+    `postId` sharti ham qo'yiladi: biriktirma ID si to'g'ri, lekin
+    boshqa postniki bo'lishi mumkin — u holda begona postning
+    ko'rsatkichi oshib ketardi.
+  */
+  const updated = await prisma.postAttachment.updateMany({
+    where: { id: attachmentId, postId },
     data: { clickCount: { increment: 1 } },
   });
 
   if (updated.count === 0) return;
 
-  /**
-   * Bosish KIM tomonidan qilingani ham yoziladi.
-   *
-   * Bu — xaridni videoga bog'lash uchun yagona yo'l: odam keyin
-   * shu mahsulotni sotib olsa, buyurtma qaysi video keltirganini
-   * aynan shu yozuvdan bilib olamiz.
-   *
-   * Bir odam + bir mahsulot uchun BITTA qator: har bosishda u
-   * yangilanadi ("oxirgi bosish" qoidasi).
-   */
-  await prisma.postProductClick.upsert({
-    where: { userId_productId: { userId: viewerId, productId } },
-    create: { postId, productId, userId: viewerId },
-    update: { postId, clickedAt: new Date() },
+  const link = await prisma.postAttachment.findUnique({
+    where: { id: attachmentId },
+    select: {
+      clickCount: true,
+      kind: true,
+      productId: true,
+      product: { select: { name: true } },
+      menuItem: { select: { name: true } },
+      restaurant: { select: { name: true } },
+      vacancy: { select: { title: true } },
+      hotel: { select: { name: true } },
+    },
   });
 
-  const link = await prisma.postProduct.findUnique({
-    where: { postId_productId: { postId, productId } },
-    select: { clickCount: true, product: { select: { name: true } } },
-  });
+  if (!link) return;
 
-  if (!link || !CLICK_MILESTONES.includes(link.clickCount)) return;
+  if (link.productId !== null) {
+    await prisma.postProductClick.upsert({
+      where: { userId_productId: { userId: viewerId, productId: link.productId } },
+      create: { postId, productId: link.productId, userId: viewerId },
+      update: { postId, clickedAt: new Date() },
+    });
+  }
 
-  void notifyProductClicked(post.authorId, postId, link.product.name, link.clickCount);
+  if (!CLICK_MILESTONES.includes(link.clickCount)) return;
+
+  const name =
+    link.product?.name ??
+    link.menuItem?.name ??
+    link.restaurant?.name ??
+    link.vacancy?.title ??
+    link.hotel?.name ??
+    'Biriktirma';
+
+  void notifyProductClicked(post.authorId, postId, name, link.clickCount);
 }
 
 // ─────────────────────────────────────────────────────────────────────

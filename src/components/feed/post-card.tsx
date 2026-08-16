@@ -1,10 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { BadgeCheck, Bookmark, Clapperboard, EyeOff, Flag, Heart, HelpCircle, MapPin, MessageCircle, MoreHorizontal, MousePointerClick, Pencil, Share2, ShoppingBag, Trash2 } from 'lucide-react';
+import { BadgeCheck, Bookmark, Clapperboard, EyeOff, Flag, Heart, HelpCircle, MapPin, MessageCircle, MoreHorizontal, Pencil, Share2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 
+import { AttachmentButton } from '@/components/feed/attachment-button';
 import { RichText } from '@/components/feed/rich-text';
 import { ShareSheet } from '@/components/feed/share-sheet';
 import { ReportDialog } from '@/components/moderation/report-dialog';
@@ -14,7 +15,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useTrimmedVideo } from '@/hooks/use-trimmed-video';
 import { formatRelativeUz } from '@/lib/date';
-import { formatTiyin } from '@/lib/money';
 import { WhySheet } from '@/components/feed/why-sheet';
 import { distanceKm, formatDistanceUz } from '@/config/geo';
 import { cn } from '@/lib/utils';
@@ -45,8 +45,8 @@ export interface PostCardProps {
   onToggleSave?: () => void;
   /** Ulashish bajarildi — son shu yerda oshadi. */
   onShared?: () => void;
-  /** Videodagi mahsulot tugmasi bosildi. */
-  onProductClick?: (productId: string) => void;
+  /** Videodagi biriktirma tugmasi bosildi. */
+  onAttachmentClick?: (attachmentId: string) => void;
   /** O'chirish tasdiqlandi. Berilmasa o'chirish tugmasi ko'rinmaydi. */
   onDelete?: () => void;
   /** Matn tahrirlandi. Berilmasa tahrirlash tugmasi ko'rinmaydi. */
@@ -86,7 +86,7 @@ export function PostCard({
   onDoubleTapLike,
   onToggleSave,
   onShared,
-  onProductClick,
+  onAttachmentClick,
   onDelete,
   onEdit,
   onReport,
@@ -478,13 +478,13 @@ export function PostCard({
             className="border-border max-h-96 w-full rounded-xl border bg-black"
           />
 
-          {/* Bir nechta mahsulot — hammasi ro'yxat bo'lib turadi. */}
-          {post.products.map((item) => (
-            <PostProductButton
+          {/* Bir nechta biriktirma — hammasi ro'yxat bo'lib turadi. */}
+          {post.attachments.map((item) => (
+            <AttachmentButton
               key={item.id}
-              product={item}
+              attachment={item}
               showClicks={post.isMine}
-              onClick={() => onProductClick?.(item.id)}
+              onClick={() => onAttachmentClick?.(item.id)}
             />
           ))}
 
@@ -645,77 +645,5 @@ export function PostCard({
         />
       )}
     </article>
-  );
-}
-
-/**
- * Lentadagi mahsulot tugmasi.
- *
- * To'liq ekranli pleyerdagidan farqi FONDA: u yerda video ustida
- * turadi va shaffof bo'lishi kerak, bu yerda esa kartochka ichida.
- */
-function PostProductButton({
-  product,
-  showClicks,
-  onClick,
-}: {
-  product: PostView['products'][number];
-  /** Bosishlar sonini ko'rsatish — FAQAT post egasiga. */
-  showClicks: boolean;
-  onClick: () => void;
-}) {
-  const inner = (
-    <>
-      <span className="bg-secondary text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
-        <ShoppingBag className="size-4" aria-hidden="true" />
-      </span>
-
-      <span className="min-w-0 flex-1 text-left">
-        <span className="block truncate text-sm font-medium">{product.name}</span>
-        <span className="text-muted-foreground block truncate text-xs">
-          {product.isAvailable ? `${formatTiyin(product.priceTiyin)} · ${product.shopName}` : "Hozir sotuvda yo'q"}
-        </span>
-      </span>
-
-      {/*
-        Bosishlar soni — sotuvchining ko'rsatkichi.
-
-        Faqat post EGASIGA ko'rinadi: raqobatchi kimning qaysi
-        videosi ishlayotganini kuzatib turmasligi kerak.
-      */}
-      {showClicks && product.clickCount > 0 && (
-        <span
-          className="text-muted-foreground flex shrink-0 items-center gap-1 text-xs tabular-nums"
-          title="Nechta odam ochdi"
-        >
-          <MousePointerClick className="size-3.5" aria-hidden="true" />
-          {product.clickCount}
-        </span>
-      )}
-
-      {product.isAvailable && (
-        <span className="bg-primary text-primary-foreground shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold">
-          Ko&apos;rish
-        </span>
-      )}
-    </>
-  );
-
-  if (!product.isAvailable) {
-    return (
-      <div className="border-border bg-secondary/40 flex items-center gap-3 rounded-xl border p-2.5 opacity-70">
-        {inner}
-      </div>
-    );
-  }
-
-  return (
-    <Link
-      href={`/marketplace/p/${product.slug}`}
-      onClick={onClick}
-      className="border-border bg-secondary/40 hover:bg-secondary flex items-center gap-3 rounded-xl border p-2.5 transition-colors"
-    >
-      {inner}
-    </Link>
   );
 }

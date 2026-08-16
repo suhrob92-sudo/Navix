@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 import { SEARCH_SCOPES } from '@/modules/feed/discover.types';
-import { COMMENT_MAX_LENGTH, MAX_PLACE_NAME_LENGTH, MAX_TAGGED_PRODUCTS, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
+import { COMMENT_MAX_LENGTH, MAX_PLACE_NAME_LENGTH, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
+import { ATTACHMENT_KINDS, MAX_ATTACHMENTS } from '@/config/attachments';
 import { VIDEO_DURATIONS } from '@/modules/feed/feed.types';
 import { POST_CATEGORY_VALUES } from '@/modules/feed/feed.types';
 import { MIN_TRIM_SECONDS, isValidTrim } from '@/modules/feed/video-trim';
@@ -214,10 +215,22 @@ export const createPostSchema = z
         longitude: z.coerce.number().min(-180).max(180),
       })
       .optional(),
-    /** Biriktirilgan mahsulotlar — mavjudligi xizmatda tekshiriladi. */
-    productIds: z
-      .array(z.uuid("Mahsulot noto'g'ri tanlandi"))
-      .max(MAX_TAGGED_PRODUCTS, `Ko'pi bilan ${MAX_TAGGED_PRODUCTS} ta mahsulot biriktiriladi.`)
+    /**
+     * Biriktirilgan narsalar — mahsulot, taom, restoran, ish, mehmonxona.
+     *
+     * Mavjudligi va ochiqligi xizmat qatlamida tekshiriladi: bu yerda
+     * faqat SHAKL tekshiriladi. Bazaga so'rov yuboradigan tekshiruv
+     * sxemaga tegishli emas — u sxemani sekin va sinovlab bo'lmaydigan
+     * qilib qo'yardi.
+     */
+    attachments: z
+      .array(
+        z.object({
+          kind: z.enum(ATTACHMENT_KINDS),
+          targetId: z.uuid("Biriktirma noto'g'ri tanlandi"),
+        }),
+      )
+      .max(MAX_ATTACHMENTS, `Ko'pi bilan ${MAX_ATTACHMENTS} ta narsa biriktiriladi.`)
       .optional(),
   })
   .refine(
@@ -228,9 +241,9 @@ export const createPostSchema = z
     message: "Bitta postga rasm ham, video ham biriktirib bo'lmaydi.",
     path: ['videoUrl'],
   })
-  .refine((value) => (value.productIds?.length ?? 0) === 0 || Boolean(value.videoUrl), {
-    message: 'Mahsulotni faqat videoga biriktirish mumkin.',
-    path: ['productIds'],
+  .refine((value) => (value.attachments?.length ?? 0) === 0 || Boolean(value.videoUrl), {
+    message: "Biriktirmani faqat videoga qo'yish mumkin.",
+    path: ['attachments'],
   })
   /**
    * Kesim nuqtalari BIRGA keladi yoki umuman kelmaydi.

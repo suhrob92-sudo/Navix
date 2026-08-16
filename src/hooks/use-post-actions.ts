@@ -33,8 +33,8 @@ export interface PostActions {
   likeOnly: (post: PostView) => void;
   toggleSave: (post: PostView) => void;
   sharePost: (post: PostView) => Promise<void>;
-  /** Videodagi mahsulot tugmasi bosildi — sotuvchi ko'rsatkichi uchun. */
-  trackProductClick: (postId: string, productId: string) => void;
+  /** Videodagi biriktirma tugmasi bosildi — muallif ko'rsatkichi uchun. */
+  trackAttachmentClick: (postId: string, attachmentId: string) => void;
   editPost: (postId: string, body: string) => Promise<void>;
   deletePost: (postId: string) => void;
   reportPost: (postId: string, reason: string, note: string) => Promise<void>;
@@ -182,9 +182,9 @@ export function usePostActions(update: (updater: (current: PostView[]) => PostVi
    * kutish o'tishni sekinlashtirardi, foyda esa yo'q: son
    * sotuvchiga keyin kerak bo'ladi, hozir emas.
    */
-  const trackProductClick = useCallback(
-    (postId: string, productId: string) => {
-      void request(`/api/v1/posts/${postId}/products/${productId}/click`, {
+  const trackAttachmentClick = useCallback(
+    (postId: string, attachmentId: string) => {
+      void request(`/api/v1/posts/${postId}/attachments/${attachmentId}/click`, {
         method: 'POST',
         body: {},
       }).catch(() => {});
@@ -344,7 +344,7 @@ export function usePostActions(update: (updater: (current: PostView[]) => PostVi
     likeOnly,
     toggleSave,
     sharePost,
-    trackProductClick,
+    trackAttachmentClick,
     editPost,
     deletePost,
     reportPost,

@@ -102,8 +102,15 @@ export async function listVideoStats(userId: string): Promise<VideoStatsResponse
       likeCount: true,
       commentCount: true,
       shareCount: true,
-      products: {
-        select: { clickCount: true, product: { select: { name: true } } },
+      attachments: {
+        select: {
+          clickCount: true,
+          product: { select: { name: true } },
+          menuItem: { select: { name: true } },
+          restaurant: { select: { name: true } },
+          vacancy: { select: { title: true } },
+          hotel: { select: { name: true } },
+        },
         orderBy: { sortOrder: 'asc' },
       },
       _count: { select: { saves: true } },
@@ -145,7 +152,7 @@ export async function listVideoStats(userId: string): Promise<VideoStatsResponse
 
   const videos: VideoStatRow[] = posts.map((post) => {
     const sold = orders.get(post.id) ?? { count: 0, revenueTiyin: 0 };
-    const clickCount = post.products.reduce((sum, link) => sum + link.clickCount, 0);
+    const clickCount = post.attachments.reduce((sum, link) => sum + link.clickCount, 0);
 
     return {
       postId: post.id,
@@ -154,7 +161,24 @@ export async function listVideoStats(userId: string): Promise<VideoStatsResponse
       posterUrl: post.videoPosterUrl,
       videoSeconds: post.videoSeconds,
       createdAt: post.createdAt.toISOString(),
-      productNames: post.products.map((link) => link.product.name),
+      /*
+        Nom TURGA qarab boshqa maydondan olinadi.
+
+        Ish e'lonida u `title`, qolganlarida `name`. Nomsiz qator
+        ro'yxatda bo'sh joy bo'lib turardi, shuning uchun hech biri
+        topilmasa bu biriktirma tashlab yuboriladi.
+      */
+      attachmentNames: post.attachments
+        .map(
+          (link) =>
+            link.product?.name ??
+            link.menuItem?.name ??
+            link.restaurant?.name ??
+            link.vacancy?.title ??
+            link.hotel?.name ??
+            null,
+        )
+        .filter((name): name is string => name !== null),
       viewCount: post.viewCount,
       clickCount,
       orderCount: sold.count,

@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { Eye, Play, ShoppingBag } from 'lucide-react';
+import { Eye, Play, Link2 } from 'lucide-react';
 import Link from 'next/link';
 
 import { formatReactionCount, type PostView } from '@/modules/feed/feed.types';
@@ -61,13 +61,13 @@ export function VideoGrid({ posts }: VideoGridProps) {
               </span>
             </span>
 
-            {/* Mahsulot belgisi — bu video SOTUVGA ishlashini bildiradi. */}
-            {post.products.length > 0 && (
+            {/* Havola belgisi — bu video HARAKATGA olib borishini bildiradi. */}
+            {post.attachments.length > 0 && (
               <span
                 className="absolute top-1.5 right-1.5 rounded-full bg-black/60 p-1 text-white"
-                aria-label="Mahsulot biriktirilgan"
+                aria-label="Havola biriktirilgan"
               >
-                <ShoppingBag className="size-3" aria-hidden="true" />
+                <Link2 className="size-3" aria-hidden="true" />
               </span>
             )}
 

@@ -120,7 +120,7 @@ export function FeedCreateProvider({ children }: { children: React.ReactNode }) 
             : {}),
           ...(draft.category ? { category: draft.category } : {}),
           ...(draft.place ? { place: draft.place } : {}),
-          ...(draft.productIds.length > 0 ? { productIds: draft.productIds } : {}),
+          ...(draft.attachments.length > 0 ? { attachments: draft.attachments } : {}),
         },
       });
 

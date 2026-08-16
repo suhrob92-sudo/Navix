@@ -1,3 +1,5 @@
+import type { AttachmentKindName } from '@/config/attachments';
+
 /**
  * Lenta — brauzer va server uchun umumiy turlar.
  */
@@ -41,7 +43,7 @@ export interface PostView {
    * Ro'yxat: bitta videoda ko'pincha bir nechta narsa ko'rsatiladi
    * (kiyim + poyabzal + sumka).
    */
-  products: TaggedProductView[];
+  attachments: PostAttachmentView[];
   /** Videoni necha marta ko'rishgan. */
   viewCount: number;
   /** Qaysi bo'limga tegishli. `null` — muallif tanlamagan. */
@@ -183,6 +185,55 @@ export function buildPlaceName(region: string, detail: string | null): string {
   return clean.length > 0 ? `${region} · ${clean}` : region;
 }
 
+/**
+ * Videoga biriktirilgan narsa — tugma uchun kerakli minimum.
+ *
+ * ── Nima uchun HAMMA tur uchun bitta ko'rinish ────────────────────────
+ * Mahsulot, taom, ish e'loni va mehmonxona ekranda bir xil ko'rinadi:
+ * belgi, nom, ostida bir qator izoh va o'ngda harakat tugmasi.
+ *
+ * Har turga alohida ko'rinish yasasak, lentaning tugma chizadigan
+ * joyi beshta shoxga bo'linardi va yangi tur qo'shilganda oltinchisi
+ * qo'shilardi. Farq esa faqat MATNDA — u `src/config/attachments.ts`
+ * dan olinadi.
+ */
+export interface PostAttachmentView {
+  /**
+   * Biriktirmaning O'Z belgisi — nishonniki emas.
+   *
+   * Bosish soni aynan shu biriktirmaga yoziladi: bitta mahsulot
+   * ikkita videoga biriktirilgan bo'lsa, qaysi video ishlaganini
+   * ajratish kerak.
+   */
+  id: string;
+  kind: AttachmentKindName;
+  name: string;
+  /** Manzil qurish uchun — turga qarab boshqa bo'limga olib boradi. */
+  slug: string;
+  /**
+   * Nom ostidagi bitta qator.
+   *
+   * Turga qarab boshqacha: mahsulotda narx va do'kon, ishda maosh va
+   * shahar, mehmonxonada shahar. Uni SERVER yasaydi — narx tiyinda
+   * saqlanadi va uni har ekranda qayta formatlash xatoga olib
+   * kelardi.
+   */
+  subtitle: string | null;
+  /** Hozir ochiqmi — yo'q bo'lsa tugma o'chirilgan ko'rinadi. */
+  isAvailable: boolean;
+  /**
+   * Tugma necha marta bosilgan.
+   *
+   * ── Nima uchun FAQAT muallifga ko'rinadi ────────────────────────────
+   * Bu — muallifning ish ko'rsatkichi. Begonaga ko'rsatilsa,
+   * raqobatchi kimning qaysi videosi ishlayotganini bemalol
+   * kuzatib turardi.
+   *
+   * Postning egasi bo'lmaganda bu yerda doim `0` turadi.
+   */
+  clickCount: number;
+}
+
 /** Videoga biriktirilgan mahsulot — tugma uchun kerakli minimum. */
 export interface TaggedProductView {
   id: string;
@@ -296,7 +347,8 @@ export interface VideoStatRow {
   posterUrl: string | null;
   videoSeconds: number | null;
   createdAt: string;
-  productNames: string[];
+  /** Biriktirilgan narsalar nomi — tur qanday bo'lishidan qat'i nazar. */
+  attachmentNames: string[];
 
   /** Necha marta ko'rilgan. */
   viewCount: number;

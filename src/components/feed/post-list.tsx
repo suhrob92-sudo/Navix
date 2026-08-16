@@ -71,7 +71,7 @@ export function PostList({
               onDoubleTapLike={() => actions.likeOnly(post)}
               onToggleSave={() => actions.toggleSave(post)}
               onShared={() => void actions.sharePost(post)}
-              onProductClick={(productId) => actions.trackProductClick(post.id, productId)}
+              onAttachmentClick={(attachmentId) => actions.trackAttachmentClick(post.id, attachmentId)}
               onReport={(reason, note) => actions.reportPost(post.id, reason, note)}
               {...(canHide ? { onHide: () => actions.hidePost(post.id) } : {})}
               {...(canManage

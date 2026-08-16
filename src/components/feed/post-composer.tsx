@@ -1,10 +1,10 @@
 'use client';
 
-import { MapPin, Scissors, Send, ShoppingBag, Video, X } from 'lucide-react';
+import { Link2, MapPin, Scissors, Send, Video, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { LocationPicker } from '@/components/feed/location-picker';
-import { ProductPicker } from '@/components/feed/product-picker';
+import { AttachmentPicker, type PickedAttachment } from '@/components/feed/attachment-picker';
 import { VideoEditor, type VideoEdit } from '@/components/feed/video-editor';
 import { POST_CATEGORIES } from '@/config/feed-nav';
 import { ImageAttach } from '@/components/upload/image-attach';
@@ -13,17 +13,15 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useFileUpload } from '@/hooks/use-file-upload';
 import { dialogCancelHandler } from '@/lib/dialog';
-import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { prepareVideo, uploadVideo } from '@/lib/video-upload';
 import { useAuth } from '@/modules/auth/auth-context';
 import {
-  MAX_TAGGED_PRODUCTS,
   POST_MAX_LENGTH,
   type PostCategoryName,
   type PostPlaceView,
-  type TaggedProductView,
 } from '@/modules/feed/feed.types';
+import { ATTACHMENT_KIND_CONFIG, MAX_ATTACHMENTS } from '@/config/attachments';
 import { MAX_VIDEO_SECONDS, formatDuration } from '@/modules/upload/upload.types';
 
 /** Yuborilayotgan postning to'liq tarkibi. */
@@ -36,7 +34,7 @@ export interface ComposerDraft {
   /** Kesish nuqtalari — muharrirdan. Kesilmagan videoda `null`. */
   videoStartSeconds: number | null;
   videoEndSeconds: number | null;
-  productIds: string[];
+  attachments: { kind: PickedAttachment['kind']; targetId: string }[];
   /** Qaysi bo'limga tegishli. `null` — tanlanmagan. */
   category: PostCategoryName | null;
   /** Biriktirilgan joylashuv. `null` — qo'shilmagan. */
@@ -134,7 +132,7 @@ export function PostComposer({
    */
   const [pending, setPending] = useState<{ file: File; duration: number } | null>(null);
 
-  const [products, setProducts] = useState<TaggedProductView[]>([]);
+  const [attachments, setAttachments] = useState<PickedAttachment[]>([]);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   /** Tanlangan bo'lim — ixtiyoriy. */
@@ -171,7 +169,7 @@ export function PostComposer({
       videoSeconds: video?.seconds ?? null,
       videoStartSeconds: video?.trim?.start ?? null,
       videoEndSeconds: video?.trim?.end ?? null,
-      productIds: products.map((item) => item.id),
+      attachments: attachments.map((item) => ({ kind: item.kind, targetId: item.targetId })),
       category,
       place,
     });
@@ -180,7 +178,7 @@ export function PostComposer({
       setBody('');
       setImageUrl(null);
       setVideo(null);
-      setProducts([]);
+      setAttachments([]);
       setCategory(null);
       setPlace(null);
       setVideoError(null);
@@ -419,7 +417,7 @@ export function PostComposer({
             disabled={isBusy}
             onClick={() => {
               setVideo(null);
-              setProducts([]);
+              setAttachments([]);
             }}
             className="absolute top-2 right-2 rounded-full bg-black/60 p-1.5 text-white transition-transform active:scale-95 disabled:opacity-60"
           >
@@ -428,35 +426,53 @@ export function PostComposer({
         </div>
       )}
 
-      {/* Biriktirilgan mahsulotlar — faqat video bo'lganda. */}
-      {products.length > 0 && (
+      {/* Biriktirilganlar — faqat video bo'lganda. */}
+      {attachments.length > 0 && (
         <ul className="mt-3 space-y-2">
-          {products.map((item) => (
-            <li
-              key={item.id}
-              className="border-border bg-secondary/40 flex items-center gap-3 rounded-xl border p-2.5"
-            >
-              <span className="bg-secondary text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
-                <ShoppingBag className="size-4" aria-hidden="true" />
-              </span>
+          {attachments.map((item) => {
+            const config = ATTACHMENT_KIND_CONFIG[item.kind];
+            const Icon = config.icon;
 
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{item.name}</span>
-                <span className="text-muted-foreground block truncate text-xs">
-                  {`${formatTiyin(item.priceTiyin)} · ${item.shopName}`}
-                </span>
-              </span>
-
-              <button
-                type="button"
-                aria-label={`${item.name} — olib tashlash`}
-                onClick={() => setProducts((current) => current.filter((row) => row.id !== item.id))}
-                className="text-muted-foreground hover:text-destructive -m-1 shrink-0 rounded-lg p-1 transition-colors"
+            return (
+              <li
+                key={`${item.kind}:${item.targetId}`}
+                className="border-border bg-secondary/40 flex items-center gap-3 rounded-xl border p-2.5"
               >
-                <X className="size-4" aria-hidden="true" />
-              </button>
-            </li>
-          ))}
+                <span className="bg-secondary text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-lg">
+                  <Icon className="size-4" aria-hidden="true" />
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{item.name}</span>
+                  <span className="text-muted-foreground block truncate text-xs">
+                    {/*
+                      Tur nomi HAM ko'rsatiladi.
+
+                      Ro'yxatda beshta har xil turdagi narsa turishi
+                      mumkin va faqat nom bilan ular aralashib
+                      ketardi: "Plov" — taommi yoki restoranmi?
+                    */}
+                    {[config.label, item.subtitle].filter(Boolean).join(' · ')}
+                  </span>
+                </span>
+
+                <button
+                  type="button"
+                  aria-label={`${item.name} — olib tashlash`}
+                  onClick={() =>
+                    setAttachments((current) =>
+                      current.filter(
+                        (row) => !(row.kind === item.kind && row.targetId === item.targetId),
+                      ),
+                    )
+                  }
+                  className="text-muted-foreground hover:text-destructive -m-1 shrink-0 rounded-lg p-1 transition-colors"
+                >
+                  <X className="size-4" aria-hidden="true" />
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -502,15 +518,15 @@ export function PostComposer({
         )}
 
         {/*
-          Mahsulot tugmasi FAQAT video biriktirilganda ko'rinadi.
+          Biriktirish tugmasi FAQAT video biriktirilganda ko'rinadi.
 
           Oddiy postda tugma qo'yadigan joy yo'q va u reklama uchun
           eng oson yo'lga aylanardi.
         */}
-        {video && products.length < MAX_TAGGED_PRODUCTS && (
+        {video && attachments.length < MAX_ATTACHMENTS && (
           <Button type="button" variant="ghost" size="sm" disabled={isBusy} onClick={() => setIsPickerOpen(true)}>
-            <ShoppingBag className="size-4" aria-hidden="true" />
-            {products.length === 0 ? 'Mahsulot' : "Yana qo'shish"}
+            <Link2 className="size-4" aria-hidden="true" />
+            {attachments.length === 0 ? 'Biriktirish' : "Yana qo'shish"}
           </Button>
         )}
 
@@ -564,7 +580,7 @@ export function PostComposer({
       </div>
 
       <p className="text-muted-foreground mt-2 text-xs">
-        {`Video ${MAX_VIDEO_SECONDS} soniyagacha. Videoga ${MAX_TAGGED_PRODUCTS} tagacha mahsulot biriktirish mumkin — tomoshabin ularni bir bosishda topadi.`}
+        {`Video ${MAX_VIDEO_SECONDS} soniyagacha. Videoga ${MAX_ATTACHMENTS} tagacha mahsulot, taom, restoran, ish yoki mehmonxona biriktirish mumkin — tomoshabin ularni bir bosishda topadi.`}
       </p>
 
       {/*
@@ -599,10 +615,14 @@ export function PostComposer({
       )}
 
       {isPickerOpen && (
-        <ProductPicker
-          selected={products}
-          onPick={(picked) => setProducts((current) => [...current, picked])}
-          onRemove={(productId) => setProducts((current) => current.filter((row) => row.id !== productId))}
+        <AttachmentPicker
+          selected={attachments}
+          onPick={(picked) => setAttachments((current) => [...current, picked])}
+          onRemove={(kind, targetId) =>
+            setAttachments((current) =>
+              current.filter((row) => !(row.kind === kind && row.targetId === targetId)),
+            )
+          }
           onCancel={() => setIsPickerOpen(false)}
         />
       )}

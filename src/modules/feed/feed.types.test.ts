@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { MAX_ATTACHMENTS } from '@/config/attachments';
 import {
   commentsQuerySchema,
   createCommentSchema,
@@ -17,7 +18,6 @@ import {
   POST_PREVIEW_LENGTH,
   hasPostContent,
   isVideoPost,
-  MAX_TAGGED_PRODUCTS,
   COMMENT_MAX_LENGTH,
   POST_MAX_LENGTH,
   type PostAuthorView,
@@ -328,40 +328,82 @@ describe('video post sxemasi', () => {
     ).toBe(false);
   });
 
-  const productId = '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93';
+  const targetId = '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93';
 
-  it("mahsulotni faqat VIDEOGA biriktirish mumkin", () => {
-    const withoutVideo = createPostSchema.safeParse({ body: 'salom', productIds: [productId] });
+  it('biriktirmani faqat VIDEOGA qo\'yish mumkin', () => {
+    const attachments = [{ kind: 'PRODUCT' as const, targetId }];
 
-    expect(withoutVideo.success).toBe(false);
-
-    const withVideo = createPostSchema.safeParse({ body: 'salom', videoUrl: video, productIds: [productId] });
-
-    expect(withVideo.success).toBe(true);
+    expect(createPostSchema.safeParse({ body: 'salom', attachments }).success).toBe(false);
+    expect(
+      createPostSchema.safeParse({ body: 'salom', videoUrl: video, attachments }).success,
+    ).toBe(true);
   });
 
-  it("noto'g'ri mahsulot ID rad etiladi", () => {
-    expect(createPostSchema.safeParse({ body: '', videoUrl: video, productIds: ['salom'] }).success).toBe(false);
+  it("noto'g'ri biriktirma ID rad etiladi", () => {
+    expect(
+      createPostSchema.safeParse({
+        body: '',
+        videoUrl: video,
+        attachments: [{ kind: 'PRODUCT', targetId: 'salom' }],
+      }).success,
+    ).toBe(false);
   });
 
-  it('bir nechta mahsulot qabul qilinadi', () => {
-    const many = Array.from({ length: MAX_TAGGED_PRODUCTS }, (_, index) =>
-      `4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c9${index}`,
-    );
-
-    expect(createPostSchema.safeParse({ body: '', videoUrl: video, productIds: many }).success).toBe(true);
+  it("noma'lum tur rad etiladi", () => {
+    expect(
+      createPostSchema.safeParse({
+        body: '',
+        videoUrl: video,
+        attachments: [{ kind: 'SPACESHIP', targetId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c90' }],
+      }).success,
+    ).toBe(false);
   });
 
-  it('chegaradan ortiq mahsulot rad etiladi', () => {
+  it('TURLI turdagi biriktirmalar birga qabul qilinadi', () => {
+    /*
+      Navix — super-app: bitta videoda restoran taomi ham, uning
+      restorani ham ko'rsatilishi mumkin.
+    */
+    const mixed = [
+      { kind: 'PRODUCT' as const, targetId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c90' },
+      { kind: 'MENU_ITEM' as const, targetId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c91' },
+      { kind: 'RESTAURANT' as const, targetId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c92' },
+      { kind: 'VACANCY' as const, targetId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93' },
+      { kind: 'HOTEL' as const, targetId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c94' },
+    ];
+
+    expect(
+      createPostSchema.safeParse({ body: '', videoUrl: video, attachments: mixed }).success,
+    ).toBe(true);
+    expect(mixed).toHaveLength(MAX_ATTACHMENTS);
+  });
+
+  it('chegaradan ortiq biriktirma rad etiladi', () => {
     /**
      * Chegarasiz video ostiga o'nlab tugma qo'yish mumkin bo'lardi
      * va u videoni emas, reklama ro'yxatini ko'rsatardi.
      */
-    const tooMany = Array.from({ length: MAX_TAGGED_PRODUCTS + 1 }, (_, index) =>
-      `4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c${String(index).padStart(2, '0')}`,
-    );
+    const tooMany = Array.from({ length: MAX_ATTACHMENTS + 1 }, (_, index) => ({
+      kind: 'PRODUCT' as const,
+      targetId: `4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c${String(index).padStart(2, '0')}`,
+    }));
 
-    expect(createPostSchema.safeParse({ body: '', videoUrl: video, productIds: tooMany }).success).toBe(false);
+    expect(
+      createPostSchema.safeParse({ body: '', videoUrl: video, attachments: tooMany }).success,
+    ).toBe(false);
+  });
+
+  it('VIDEOSIZ postga biriktirma qo\'yib bo\'lmaydi', () => {
+    /*
+      Oddiy postda tugma qo'yadigan joy yo'q va u reklama uchun eng
+      oson yo'lga aylanardi: matnsiz post + beshta tugma.
+    */
+    expect(
+      createPostSchema.safeParse({
+        body: 'Matn',
+        attachments: [{ kind: 'PRODUCT', targetId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c90' }],
+      }).success,
+    ).toBe(false);
   });
 });
 

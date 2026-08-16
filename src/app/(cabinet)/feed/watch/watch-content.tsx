@@ -252,7 +252,7 @@ function WatchBody({ startId }: WatchContentProps) {
               onToggleLike={() => actions.toggleLike(post)}
               onToggleSave={() => actions.toggleSave(post)}
               onShared={() => void actions.sharePost(post)}
-              onProductClick={(productId) => actions.trackProductClick(post.id, productId)}
+              onAttachmentClick={(attachmentId) => actions.trackAttachmentClick(post.id, attachmentId)}
               onViewed={() => markViewed(post)}
             />
           </div>

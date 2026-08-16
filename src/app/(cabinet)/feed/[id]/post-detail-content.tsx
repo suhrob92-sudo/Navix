@@ -126,7 +126,7 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
               onDoubleTapLike={() => actions.likeOnly(post)}
               onToggleSave={() => actions.toggleSave(post)}
               onShared={() => void actions.sharePost(post)}
-              onProductClick={(productId) => actions.trackProductClick(post.id, productId)}
+              onAttachmentClick={(attachmentId) => actions.trackAttachmentClick(post.id, attachmentId)}
               onEdit={(body) => actions.editPost(post.id, body)}
               onDelete={() => actions.deletePost(post.id)}
               onReport={(reason, note) => actions.reportPost(post.id, reason, note)}

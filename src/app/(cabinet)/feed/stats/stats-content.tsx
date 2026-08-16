@@ -187,9 +187,9 @@ function VideoRow({ video }: { video: VideoStatRow }) {
             {video.videoSeconds !== null && ` · ${formatDuration(video.videoSeconds)}`}
           </p>
 
-          {video.productNames.length > 0 && (
+          {video.attachmentNames.length > 0 && (
             <p className="text-muted-foreground mt-1 truncate text-xs">
-              {video.productNames.join(', ')}
+              {video.attachmentNames.join(', ')}
             </p>
           )}
         </div>

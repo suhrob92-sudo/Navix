@@ -1,14 +1,14 @@
 'use client';
 
-import { BadgeCheck, Bookmark, Eye, Heart, MapPin, MessageCircle, Pause, Share2, ShoppingBag, Volume2, VolumeX, X } from 'lucide-react';
+import { BadgeCheck, Bookmark, Eye, Heart, Link2, MapPin, MessageCircle, Pause, Share2, Volume2, VolumeX, X } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
+import { AttachmentButton } from '@/components/feed/attachment-button';
 import { RichText } from '@/components/feed/rich-text';
 import { ShareSheet } from '@/components/feed/share-sheet';
 import { Avatar } from '@/components/ui/avatar';
 import { useTrimmedVideo } from '@/hooks/use-trimmed-video';
-import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { authorDisplayName, formatReactionCount, type PostView } from '@/modules/feed/feed.types';
 
@@ -24,8 +24,8 @@ export interface ReelPlayerProps {
   onToggleSave: () => void;
   /** Ulashish bajarildi — son shu yerda oshadi. */
   onShared: () => void;
-  /** Mahsulot tugmasi bosildi — sotuvchi ko'rsatkichi uchun. */
-  onProductClick: (productId: string) => void;
+  /** Biriktirma tugmasi bosildi — muallif ko'rsatkichi uchun. */
+  onAttachmentClick: (attachmentId: string) => void;
   /** Video ko'rildi deb belgilash — bir ochilishda BIR MARTA. */
   onViewed?: () => void;
 }
@@ -56,7 +56,7 @@ export function ReelPlayer({
   onToggleLike,
   onToggleSave,
   onShared,
-  onProductClick,
+  onAttachmentClick,
   onViewed,
 }: ReelPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -67,7 +67,7 @@ export function ReelPlayer({
   /** Tomosha tezligi — 1x odatiy. */
   const [speed, setSpeed] = useState(1);
 
-  /** Mahsulotlar ro'yxati ochilganmi (bittadan ko'p bo'lsa). */
+  /** Biriktirmalar ro'yxati ochilganmi (bittadan ko'p bo'lsa). */
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
   /** Ulashish oynasi ochilganmi. */
@@ -336,32 +336,36 @@ export function ReelPlayer({
           </p>
         )}
 
-        {post.products.length === 1 && (
-          <ProductButton product={post.products[0]} onClick={() => onProductClick(post.products[0].id)} />
+        {post.attachments.length === 1 && (
+          <AttachmentButton
+            attachment={post.attachments[0]}
+            onVideo
+            onClick={() => onAttachmentClick(post.attachments[0].id)}
+          />
         )}
 
         {/*
-          Bir nechta mahsulot bo'lsa — BITTA tugma va ro'yxat.
+          Bir nechta biriktirma bo'lsa — BITTA tugma va ro'yxat.
 
           Hammasini birdan ko'rsatish videoning yarmini bosib
           qo'yardi: odam esa avval videoni ko'rgani kelgan.
         */}
-        {post.products.length > 1 && (
+        {post.attachments.length > 1 && (
           <button
             type="button"
             onClick={() => setIsSheetOpen(true)}
             className="flex w-full items-center gap-3 rounded-2xl bg-black/50 p-2.5 backdrop-blur-md transition-transform active:scale-[0.98]"
           >
             <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/20">
-              <ShoppingBag className="size-5 text-white" aria-hidden="true" />
+              <Link2 className="size-5 text-white" aria-hidden="true" />
             </span>
 
             <span className="min-w-0 flex-1 text-left">
               <span className="block text-sm font-medium text-white">
-                {`${post.products.length} ta mahsulot`}
+                {`${post.attachments.length} ta havola`}
               </span>
               <span className="block truncate text-xs text-white/70">
-                {post.products.map((item) => item.name).join(', ')}
+                {post.attachments.map((item) => item.name).join(', ')}
               </span>
             </span>
 
@@ -373,7 +377,7 @@ export function ReelPlayer({
       </div>
 
       {/*
-        Mahsulotlar ro'yxati — pastdan chiqadigan varaq.
+        Biriktirmalar ro'yxati — pastdan chiqadigan varaq.
 
         Ro'yxatni video ustiga to'liq yoyish o'rniga pastki qism
         ishlatiladi: video ko'rinib turadi va odam qaysi kadr
@@ -391,7 +395,7 @@ export function ReelPlayer({
           <div className="animate-fade-up relative max-h-[70%] overflow-y-auto rounded-t-2xl bg-black/80 p-4 pb-8 backdrop-blur-md">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-white">
-                {`Videodagi mahsulotlar (${post.products.length})`}
+                {`Videodagi havolalar (${post.attachments.length})`}
               </p>
 
               <button
@@ -405,9 +409,13 @@ export function ReelPlayer({
             </div>
 
             <ul className="space-y-2">
-              {post.products.map((item) => (
+              {post.attachments.map((item) => (
                 <li key={item.id}>
-                  <ProductButton product={item} onClick={() => onProductClick(item.id)} />
+                  <AttachmentButton
+                    attachment={item}
+                    onVideo
+                    onClick={() => onAttachmentClick(item.id)}
+                  />
                 </li>
               ))}
             </ul>
@@ -424,62 +432,3 @@ export function ReelPlayer({
 
 /** Tomosha tezliklari — barmoq bilan aylantirishga qulay qisqa ro'yxat. */
 const SPEEDS: readonly number[] = [1, 1.5, 2, 0.5];
-
-/**
- * Mahsulot tugmasi — videodan to'g'ri savdo sahifasiga.
- *
- * ── Nima uchun bu tugma butun g'oyaning MARKAZI ──────────────────────
- * Odam videoda mahsulotni ko'radi va "qayerdan olsa bo'ladi?" deb
- * izohlarda so'raydi. Sotuvchi javob berguncha qiziqish so'nadi.
- *
- * Tugma bilan yo'l ikki bosishga qisqaradi: ko'rdi — bosdi — sahifada.
- *
- * ── Nima uchun sotuvda bo'lmasa ham KO'RSATILADI ─────────────────────
- * Yashirib qo'yilsa, odam nima ko'rsatilayotganini umuman bilmasdi.
- * Ochiq yozilgan "Hozir sotuvda yo'q" esa halol va sotuvchiga zaxira
- * tugaganini bildiradi.
- */
-function ProductButton({
-  product,
-  onClick,
-}: {
-  product: PostView['products'][number];
-  onClick: () => void;
-}) {
-  const content = (
-    <>
-      <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/20">
-        <ShoppingBag className="size-5 text-white" aria-hidden="true" />
-      </span>
-
-      <span className="min-w-0 flex-1 text-left">
-        <span className="block truncate text-sm font-medium text-white">{product.name}</span>
-        <span className="text-xs text-white/70">
-          {product.isAvailable ? `${formatTiyin(product.priceTiyin)} · ${product.shopName}` : "Hozir sotuvda yo'q"}
-        </span>
-      </span>
-
-      {product.isAvailable && (
-        <span className="shrink-0 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-black">
-          Ko&apos;rish
-        </span>
-      )}
-    </>
-  );
-
-  if (!product.isAvailable) {
-    return (
-      <div className="flex items-center gap-3 rounded-2xl bg-black/50 p-2.5 backdrop-blur-md">{content}</div>
-    );
-  }
-
-  return (
-    <Link
-      href={`/marketplace/p/${product.slug}`}
-      onClick={onClick}
-      className="flex items-center gap-3 rounded-2xl bg-black/50 p-2.5 backdrop-blur-md transition-transform active:scale-[0.98]"
-    >
-      {content}
-    </Link>
-  );
-}

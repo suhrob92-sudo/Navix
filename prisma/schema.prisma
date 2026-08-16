@@ -642,6 +642,8 @@ model Restaurant {
   orders     FoodOrder[]
   business   BusinessProfile?
 
+  postLinks PostAttachment[]
+
   @@index([isActive, sortOrder])
   @@index([ownerId])
   @@index([searchName])
@@ -691,6 +693,8 @@ model MenuItem {
   restaurant Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   category   MenuCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   orderItems FoodOrderItem[]
+
+  postLinks PostAttachment[]
 
   @@index([restaurantId, isAvailable])
   @@index([categoryId, sortOrder])
@@ -1086,7 +1090,7 @@ model Product {
   category   ProductCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   orderItems MarketOrderItem[]
   /// Shu mahsulot biriktirilgan videolar.
-  postLinks  PostProduct[]
+  postLinks  PostAttachment[]
   stories    Story[]           @relation("StoryProduct")
 
   @@index([shopId, isActive])
@@ -1251,6 +1255,8 @@ model Hotel {
   updatedAt DateTime @updatedAt
 
   rooms HotelRoom[]
+
+  postLinks PostAttachment[]
 
   @@index([city, isActive])
   @@index([searchName])
@@ -1610,6 +1616,8 @@ model Vacancy {
   company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   category     JobCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   applications JobApplication[]
+
+  postLinks PostAttachment[]
 
   @@index([companyId, isActive])
   @@index([categoryId, sortOrder])
@@ -2332,9 +2340,9 @@ model FeedSettings {
   /// Profilimni kim ko'ra oladi.
   profileVisibility AudienceScope @default(EVERYONE)
   /// Postlarimga kim izoh yoza oladi.
-  commentScope AudienceScope @default(EVERYONE)
+  commentScope      AudienceScope @default(EVERYONE)
   /// Menga kim obuna bo'la oladi.
-  followScope AudienceScope @default(EVERYONE)
+  followScope       AudienceScope @default(EVERYONE)
 
   /// Bildirishnomalar — har biri alohida o'chiriladi.
   notifyLike    Boolean @default(true)
@@ -2481,6 +2489,27 @@ model UserReport {
 // ─────────────────────────────────────────────────────────────────────
 // Lenta (Feed)
 // ─────────────────────────────────────────────────────────────────────
+/// Videoga biriktiriladigan narsa turlari.
+///
+/// ── Nima uchun ro'yxat CHEKLANGAN ─────────────────────────────────────
+/// Har bir tur uchun ekranda ko'rinish, havola va tugma matni kerak.
+/// Ularsiz tugma "topilmadi" degan sahifaga olib borardi.
+///
+/// Yangi tur qo'shish uchun uch joy tahrirlanadi: shu ro'yxat, baza
+/// ustuni va `src/config/attachments.ts` dagi ta'rif. Boshqa hech
+/// qayerda tur nomi yozilmagan.
+enum AttachmentKind {
+  /// Marketplace mahsuloti — sotib olinadi.
+  PRODUCT
+  /// Restoran taomi — buyurtma qilinadi.
+  MENU_ITEM
+  /// Restoranning o'zi — menyusi ochiladi.
+  RESTAURANT
+  /// Ish e'loni — ariza yuboriladi.
+  VACANCY
+  /// Mehmonxona — xona band qilinadi.
+  HOTEL
+}
 
 /// Foydalanuvchi posti.
 ///
@@ -2681,7 +2710,7 @@ model Post {
   reports      UserReport[]       @relation("PostReports")
   seenBy       PostSeen[]
   hiddenBy     PostHidden[]
-  products     PostProduct[]
+  attachments  PostAttachment[]
   saves        PostSave[]
   hashtags     PostHashtag[]
   clicks       PostProductClick[]
@@ -2701,17 +2730,41 @@ model Post {
   @@map("posts")
 }
 
-/// Videoga biriktirilgan mahsulot.
+/// Videoga biriktirilgan narsa — MAHSULOT, TAOM, ISH, JOY.
 ///
-/// ── Nima uchun ALOHIDA jadval ─────────────────────────────────────────
-/// Avval post jadvalida bitta `productId` ustuni bor edi. Lekin bitta
-/// videoda ko'pincha bir NECHTA narsa ko'rsatiladi: kiyim + poyabzal +
-/// sumka. Bitta ustun bilan odam ulardan faqat bittasini biriktira
-/// olardi va qolganini izohda yozardi — ya'ni muammo yechilmagan
-/// bo'lardi.
-model PostProduct {
-  postId    String @db.Uuid
-  productId String @db.Uuid
+/// ── Nima uchun UMUMIY jadval, har turga alohida emas ──────────────────
+/// Avval faqat marketplace mahsulotini biriktirish mumkin edi. Lekin
+/// Navix — super-app: videoda restoran taomi ham, ish e'loni ham,
+/// mehmonxona ham ko'rsatilishi mumkin.
+///
+/// Har tur uchun alohida jadval yasasak (post_menu_items,
+/// post_vacancies, ...), lentaning HAR bir so'rovi beshta jadvalni
+/// o'qishi kerak bo'lardi va yangi bo'lim qo'shilganda lenta,
+/// pleyer, statistika — hammasi tahrirlanardi.
+///
+/// ── Nima uchun har tur uchun ALOHIDA ustun, bitta `targetId` emas ─────
+/// Eng oson yo'l `kind` + `targetId` bo'lardi. Lekin unda bazada
+/// bog'lanish YO'Q: mahsulot o'chirilsa, biriktirma osilib qolardi va
+/// lentada "topilmadi" degan tugma turardi.
+///
+/// Har turga o'z ustuni bo'lsa, baza bog'lanishni o'zi kuzatadi:
+/// mahsulot o'chirilganda biriktirma ham ketadi. Ustunlar ko'p
+/// ko'rinadi, lekin ularning bittasi HAR DOIM to'ldirilgan bo'lishi
+/// bazadagi shart bilan majburlanadi (`post_attachments_one_target`).
+model PostAttachment {
+  id String @id @default(uuid()) @db.Uuid
+
+  postId String @db.Uuid
+
+  /// Qaysi turdagi narsa. Ustun bilan mos kelishi shart bilan tekshiriladi.
+  kind AttachmentKind
+
+  /// Nishonlar — AYNAN BITTASI to'ldiriladi.
+  productId    String? @db.Uuid
+  menuItemId   String? @db.Uuid
+  restaurantId String? @db.Uuid
+  vacancyId    String? @db.Uuid
+  hotelId      String? @db.Uuid
 
   /// Ro'yxatdagi tartib — odam o'zi qo'ygan tartib saqlanadi.
   sortOrder Int @default(0)
@@ -2719,22 +2772,33 @@ model PostProduct {
   /// Tugma necha marta bosilgan.
   ///
   /// ── Nima uchun bu son KO'RISHDAN muhimroq ───────────────────────────
-  /// Ko'rish — video ekranda o'ynadi. Bosish — odam mahsulotni ochdi,
-  /// ya'ni sotib olishga bir qadam qoldi.
+  /// Ko'rish — video ekranda o'ynadi. Bosish — odam narsani ochdi,
+  /// ya'ni harakatga bir qadam qoldi.
   ///
-  /// Sotuvchi shu ikki sonni taqqoslab, videosi sotuvga ishlayaptimi
-  /// yoki shunchaki tomosha bo'lyaptimi — bilib oladi.
+  /// Muallif shu ikki sonni taqqoslab, videosi ishlayaptimi yoki
+  /// shunchaki tomosha bo'lyaptimi — bilib oladi.
   clickCount Int @default(0)
 
   createdAt DateTime @default(now())
 
-  post    Post    @relation(fields: [postId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  post       Post        @relation(fields: [postId], references: [id], onDelete: Cascade)
+  product    Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem?   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  vacancy    Vacancy?    @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+  hotel      Hotel?      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
 
-  /// Bitta mahsulot bitta videoga bir marta biriktiriladi.
-  @@id([postId, productId])
+  /// Bitta narsa bitta postga BIR MARTA biriktiriladi.
+  ///
+  /// Shartlar qisman indeks sifatida qo'yiladi (migratsiyada): `NULL`
+  /// larni oddiy noyob indeks tekshira olmaydi.
+  @@index([postId, sortOrder])
   @@index([productId])
-  @@map("post_products")
+  @@index([menuItemId])
+  @@index([restaurantId])
+  @@index([vacancyId])
+  @@index([hotelId])
+  @@map("post_attachments")
 }
 
 /// Hikoya — 24 soatdan keyin yo'qoladigan post.

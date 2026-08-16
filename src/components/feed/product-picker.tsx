@@ -10,7 +10,8 @@ import { useApiQuery } from '@/hooks/use-api';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
-import { MAX_TAGGED_PRODUCTS, type TaggedProductView } from '@/modules/feed/feed.types';
+import { MAX_ATTACHMENTS } from '@/config/attachments';
+import type { TaggedProductView } from '@/modules/feed/feed.types';
 import type { ProductListItem } from '@/modules/market/market.types';
 
 interface SearchResponse {
@@ -69,7 +70,7 @@ export function ProductPicker({ selected, onPick, onRemove, onCancel }: ProductP
         <h2 className="text-base font-semibold">
           Mahsulot biriktirish
           <span className="text-muted-foreground ml-1.5 text-xs font-normal tabular-nums">
-            {`${selected.length}/${MAX_TAGGED_PRODUCTS}`}
+            {`${selected.length}/${MAX_ATTACHMENTS}`}
           </span>
         </h2>
 
@@ -121,7 +122,7 @@ export function ProductPicker({ selected, onPick, onRemove, onCancel }: ProductP
         {products.map((product) => {
           const isPicked = selected.some((item) => item.id === product.id);
           /** Chegara to'lgan bo'lsa yangi mahsulot tanlab bo'lmaydi. */
-          const isFull = selected.length >= MAX_TAGGED_PRODUCTS;
+          const isFull = selected.length >= MAX_ATTACHMENTS;
 
           return (
           <button
