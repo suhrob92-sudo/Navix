@@ -54,6 +54,8 @@ export function postSelect(viewerId: string) {
     videoUrl: true,
     videoPosterUrl: true,
     videoSeconds: true,
+    videoStartSeconds: true,
+    videoEndSeconds: true,
     viewCount: true,
     category: true,
     placeName: true,
@@ -151,6 +153,8 @@ export function toPostView(row: PostRow, viewerId: string): PostView {
     videoUrl: row.deletedAt ? null : row.videoUrl,
     videoPosterUrl: row.deletedAt ? null : row.videoPosterUrl,
     videoSeconds: row.deletedAt ? null : row.videoSeconds,
+    videoStartSeconds: row.deletedAt ? null : row.videoStartSeconds,
+    videoEndSeconds: row.deletedAt ? null : row.videoEndSeconds,
     products: row.deletedAt
       ? []
       : /**

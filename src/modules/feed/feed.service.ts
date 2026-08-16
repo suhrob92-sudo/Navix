@@ -19,6 +19,7 @@ import { MAX_PLACE_NAME_LENGTH, MAX_TAGGED_PRODUCTS, SHORT_VIDEO_SECONDS } from 
 import { NEARBY_RADIUS_KM, blurCoordinate, boundingBox, isValidCoordinate } from '@/config/geo';
 import { extractHashtags, extractMentions, isValidHashtag } from '@/modules/feed/feed.text';
 import { invalidateRecommendations } from '@/modules/feed/recommend.cache';
+import { isValidTrim, trimmedSeconds } from '@/modules/feed/video-trim';
 import { listRecommendedFeed } from '@/modules/feed/recommend.service';
 import { getFeedSettings, isAllowedBy, isNotifyEnabled } from '@/modules/feed/settings.service';
 import type { PostCategoryName } from '@/modules/feed/feed.types';
@@ -368,6 +369,14 @@ export interface CreatePostData {
   videoUrl?: string | null;
   videoPosterUrl?: string | null;
   videoSeconds?: number | null;
+  /**
+   * Kesish nuqtalari — video muharriridan.
+   *
+   * Ikkalasi BIRGA keladi yoki umuman kelmaydi: yarim ma'lumot
+   * bilan pleyer qayerda to'xtashini bilmasdi.
+   */
+  videoStartSeconds?: number | null;
+  videoEndSeconds?: number | null;
   productIds?: string[];
   /**
    * Joylashuv — ixtiyoriy.
@@ -403,6 +412,51 @@ function normalizePlace(
     name,
     latitude: blurCoordinate(place.latitude),
     longitude: blurCoordinate(place.longitude),
+  };
+}
+
+/**
+ * Kesim va davomiylikni KELISHTIRADI.
+ *
+ * ── Nima uchun davomiylik QAYTA hisoblanadi ──────────────────────────
+ * Brauzer ikkala qiymatni ham yuboradi: kesim nuqtalarini va
+ * davomiylikni. Ular bir-biriga mos kelishi SHART, chunki lentadagi
+ * "0:12" yozuvi va "qisqa/uzun" filtri aynan davomiylikdan oladi.
+ *
+ * Ikkalasiga ham ishonsak, ular ajralib ketishi mumkin edi: ekranda
+ * "0:12" ko'rinib, video 40 soniya o'ynardi. Buni chizmalarda
+ * payqash deyarli imkonsiz.
+ *
+ * Shuning uchun kesim bo'lsa, davomiylik UNDAN hisoblanadi va
+ * brauzerdan kelgan son e'tiborga olinmaydi.
+ */
+function normalizeVideo(data: CreatePostData): {
+  videoStartSeconds: number | null;
+  videoEndSeconds: number | null;
+  videoSeconds: number | null;
+} {
+  const start = data.videoStartSeconds ?? null;
+  const end = data.videoEndSeconds ?? null;
+
+  // Videosiz postda video maydonlari umuman saqlanmaydi.
+  if (!data.videoUrl || start === null || end === null) {
+    return {
+      videoStartSeconds: null,
+      videoEndSeconds: null,
+      videoSeconds: data.videoUrl ? (data.videoSeconds ?? null) : null,
+    };
+  }
+
+  if (!isValidTrim(start, end)) {
+    throw new ConflictError("Kesish nuqtalari noto'g'ri.");
+  }
+
+  const range = { start, end };
+
+  return {
+    videoStartSeconds: range.start,
+    videoEndSeconds: range.end,
+    videoSeconds: trimmedSeconds(range),
   };
 }
 
@@ -457,6 +511,7 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
    * Shuning uchun himoya aynan shu yerda, yozishdan oldin turadi.
    */
   const place = normalizePlace(data.place);
+  const video = normalizeVideo(data);
 
   const row = await prisma.$transaction(async (tx) => {
     const created = await tx.post.create({
@@ -466,7 +521,7 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
         imageUrl: data.imageUrl ?? null,
         videoUrl: data.videoUrl ?? null,
         videoPosterUrl: data.videoPosterUrl ?? null,
-        videoSeconds: data.videoSeconds ?? null,
+        ...video,
         category: data.category ?? null,
         placeName: place?.name ?? null,
         latitude: place?.latitude ?? null,

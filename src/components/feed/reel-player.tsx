@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { RichText } from '@/components/feed/rich-text';
 import { ShareSheet } from '@/components/feed/share-sheet';
 import { Avatar } from '@/components/ui/avatar';
+import { useTrimmedVideo } from '@/hooks/use-trimmed-video';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { authorDisplayName, formatReactionCount, type PostView } from '@/modules/feed/feed.types';
@@ -86,6 +87,15 @@ export function ReelPlayer({
    */
   const viewedRef = useRef(false);
 
+  /**
+   * Muallif kesgan qism KO'RSATILMAYDI.
+   *
+   * `loop` — ha: to'liq ekranli pleyerda video takrorlanadi va
+   * takrorlanish ham kesim ichida bo'lishi kerak. Brauzerning o'z
+   * `loop` xossasi esa har doim nolga qaytarardi.
+   */
+  const { rewind } = useTrimmedVideo(videoRef, post, { loop: true });
+
   const name = authorDisplayName(post.author);
   const likeText = formatReactionCount(post.likeCount);
   const commentText = formatReactionCount(post.commentCount);
@@ -150,9 +160,12 @@ export function ReelPlayer({
 
       // Ekrandan chiqqan video BOSHIGA qaytadi: odam qaytib
       // kelganda o'rtasidan emas, boshidan ko'radi.
-      if (!isActive) element.currentTime = 0;
+      //
+      // "Boshi" — kesim boshi. `currentTime = 0` yozilsa, muallif
+      // kesib tashlagan qism bir lahzaga ko'rinib ketardi.
+      if (!isActive) rewind();
     }
-  }, [isActive, isPaused, speed, onViewed]);
+  }, [isActive, isPaused, speed, onViewed, rewind]);
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black">

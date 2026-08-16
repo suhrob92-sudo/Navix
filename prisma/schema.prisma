@@ -2593,15 +2593,46 @@ model Post {
   /// demak bu video post.
   videoUrl String? @db.VarChar(500)
 
-  /// Videoning muqovasi (birinchi kadr).
+  /// Videoning muqovasi.
   ///
   /// Brauzerda videodan olinadi va rasm sifatida yuklanadi. Usiz
   /// ro'yxatda video yuklanmaguncha qora to'rtburchak turardi —
   /// sekin internetda bu bir necha soniya.
+  ///
+  /// Muallif muqovani O'ZI tanlaydi (video muharriri): birinchi kadr
+  /// ko'pincha qora yoki qiyshiq bo'ladi va u videoning eng yomon
+  /// reklamasiga aylanardi.
   videoPosterUrl String? @db.VarChar(500)
 
-  /// Video davomiyligi (soniya) — ro'yxatda ko'rsatiladi.
+  /// Video davomiyligi (soniya) — KESILGANIDAN keyingi uzunlik.
+  ///
+  /// Ya'ni tomoshabin ko'radigan vaqt, faylning to'liq uzunligi emas.
+  /// Ro'yxatdagi yozuv ham, "qisqa/uzun" filtri ham shu sondan
+  /// foydalanadi — ikkalasi ham tomoshabinning tajribasi haqida.
   videoSeconds Int?
+
+  /// Kesish nuqtalari — video shu oraliqda o'ynatiladi.
+  ///
+  /// ── Nima uchun fayl QAYTA KODLANMAYDI ─────────────────────────────
+  /// Haqiqiy kesish uchun videoni qayta kodlash kerak. Buni brauzerda
+  /// qilishning ikki yo'li bor va ikkalasi ham telefon uchun yaroqsiz:
+  /// `ffmpeg.wasm` 30 MB yuklab olishni talab qiladi, `MediaRecorder`
+  /// esa real vaqtda ishlaydi (60 soniyalik video — 60 soniya kutish)
+  /// va sifatni pasaytiradi.
+  ///
+  /// Shuning uchun kesish AVVAL belgi sifatida saqlanadi: pleyer
+  /// `videoStartSeconds` dan boshlaydi va `videoEndSeconds` da
+  /// to'xtaydi. Tomoshabin uchun natija bir xil.
+  ///
+  /// Cheklovi halol aytiladi: fayl to'liq yuklanadi va to'g'ridan-
+  /// to'g'ri havola bilan ochilsa, butun video ko'rinadi. Media
+  /// ishlovchisi (server tomonda ffmpeg) qo'shilganda AYNAN shu
+  /// maydonlar unga kesish buyrug'i bo'lib xizmat qiladi — ekran
+  /// kodiga tegilmaydi.
+  ///
+  /// `null` — kesilmagan, video butunlay o'ynaydi.
+  videoStartSeconds Float?
+  videoEndSeconds   Float?
 
   /// Videoni necha marta ko'rishgan.
   ///

@@ -128,6 +128,77 @@ describe('createPostSchema', () => {
   });
 });
 
+/**
+ * Video kesish — muharrirdan kelgan qiymatlar.
+ *
+ * Server brauzerga ishonmaydi: kesim nuqtalarini istalgan odam
+ * qo'lda yuborishi mumkin.
+ */
+describe('createPostSchema — video kesish', () => {
+  const video = '/api/v1/files/posts/a/b.mp4';
+
+  it('kesilgan video qabul qilinadi', () => {
+    const result = createPostSchema.safeParse({
+      videoUrl: video,
+      videoStartSeconds: 2.5,
+      videoEndSeconds: 12,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('kesilmagan video ham qabul qilinadi', () => {
+    // Kesish MAJBURIY emas: odam "Davom etish" ni bir bosishda o'tadi.
+    expect(createPostSchema.safeParse({ videoUrl: video }).success).toBe(true);
+  });
+
+  it('YARIM kesim rad etiladi', () => {
+    /*
+      Yarmi bilan pleyer qayerda to'xtashini bilmasdi: video
+      boshidan oxirigacha ketardi va kesish e'tiborsiz qolardi.
+    */
+    expect(
+      createPostSchema.safeParse({ videoUrl: video, videoStartSeconds: 2 }).success,
+    ).toBe(false);
+    expect(createPostSchema.safeParse({ videoUrl: video, videoEndSeconds: 9 }).success).toBe(false);
+  });
+
+  it('teskari oraliq rad etiladi', () => {
+    expect(
+      createPostSchema.safeParse({ videoUrl: video, videoStartSeconds: 10, videoEndSeconds: 3 })
+        .success,
+    ).toBe(false);
+  });
+
+  it("juda qisqa kesim rad etiladi", () => {
+    expect(
+      createPostSchema.safeParse({ videoUrl: video, videoStartSeconds: 5, videoEndSeconds: 5.4 })
+        .success,
+    ).toBe(false);
+  });
+
+  it('manfiy boshlanish rad etiladi', () => {
+    expect(
+      createPostSchema.safeParse({ videoUrl: video, videoStartSeconds: -1, videoEndSeconds: 9 })
+        .success,
+    ).toBe(false);
+  });
+
+  it('VIDEOSIZ postda kesim rad etiladi', () => {
+    /*
+      Rasmli postga kesim kelsa, u bazada o'lik ma'lumot bo'lib
+      qolardi va ertaga kimdir uni o'qib, chalkashardi.
+    */
+    const result = createPostSchema.safeParse({
+      body: 'Matn',
+      videoStartSeconds: 1,
+      videoEndSeconds: 9,
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
 describe('createCommentSchema', () => {
   it("bo'sh izoh rad etiladi", () => {
     expect(createCommentSchema.safeParse({ body: '\n\n' }).success).toBe(false);

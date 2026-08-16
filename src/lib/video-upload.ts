@@ -154,7 +154,132 @@ export function readVideoMeta(file: File): Promise<VideoMeta> {
 }
 
 /**
- * Videoning birinchi kadridan muqova rasmi yasaydi.
+ * Kadrni tasvirga tushiradi.
+ *
+ * ── Nima uchun o'lcham CHEGARALANADI ─────────────────────────────────
+ * Muqova ekranda kichik ko'rinadi. 4K kadrni to'liq saqlash sekin
+ * internetda video o'zidan ham uzoq yuklanardi.
+ */
+function drawFrame(element: HTMLVideoElement, maxSide: number, quality: number): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    try {
+      const canvas = document.createElement('canvas');
+      const scale = Math.min(1, maxSide / Math.max(element.videoWidth, element.videoHeight, 1));
+
+      canvas.width = Math.round(element.videoWidth * scale);
+      canvas.height = Math.round(element.videoHeight * scale);
+
+      const context = canvas.getContext('2d');
+
+      if (!context || canvas.width === 0) {
+        resolve(null);
+
+        return;
+      }
+
+      context.drawImage(element, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Videodan bir nechta kadrni KETMA-KET oladi.
+ *
+ * ── Nima uchun bitta element, har kadrga yangisi emas ────────────────
+ * Har kadr uchun alohida `<video>` yaratish faylni qayta-qayta
+ * dekodlashni anglatadi. Telefonda oltita dekodlash bir necha
+ * soniya vaqt va sezilarli batareya degani.
+ *
+ * Bitta element bilan esa fayl bir marta ochiladi va faqat vaqt
+ * suriladi.
+ *
+ * ── Nima uchun har kadr ALOHIDA kutiladi ─────────────────────────────
+ * `currentTime` ni ketma-ket o'zgartirib yuborsak, brauzer oxirgi
+ * so'rovdan boshqasini tashlab yuboradi va bizda bir xil oltita
+ * kadr qolardi.
+ *
+ * Xato bo'lsa shu kadr `null` bo'ladi va qolganlari ishlayveradi:
+ * muqova tanlash — qulaylik, u tufayli video joylashni to'xtatib
+ * bo'lmaydi.
+ */
+export async function captureVideoFrames(
+  file: File,
+  times: number[],
+  options: { maxSide?: number; quality?: number } = {},
+): Promise<(Blob | null)[]> {
+  const { maxSide = 720, quality = 0.8 } = options;
+
+  const element = document.createElement('video');
+  const objectUrl = URL.createObjectURL(file);
+
+  element.preload = 'auto';
+  element.muted = true;
+  element.playsInline = true;
+  element.src = objectUrl;
+
+  /** Kadr chizishga tayyor bo'lguncha kutadi. */
+  const seekTo = (seconds: number) =>
+    new Promise<boolean>((resolve) => {
+      let isDone = false;
+
+      const finish = (ok: boolean) => {
+        if (isDone) return;
+
+        isDone = true;
+        clearTimeout(timer);
+        element.onseeked = null;
+        element.onerror = null;
+        resolve(ok);
+      };
+
+      const timer = setTimeout(() => finish(false), PROBE_TIMEOUT_MS);
+
+      element.onseeked = () => finish(true);
+      element.onerror = () => finish(false);
+
+      element.currentTime = seconds;
+    });
+
+  try {
+    const ready = await new Promise<boolean>((resolve) => {
+      let isDone = false;
+
+      const finish = (ok: boolean) => {
+        if (isDone) return;
+
+        isDone = true;
+        clearTimeout(timer);
+        resolve(ok);
+      };
+
+      const timer = setTimeout(() => finish(false), PROBE_TIMEOUT_MS);
+
+      element.onloadeddata = () => finish(true);
+      element.onerror = () => finish(false);
+    });
+
+    if (!ready) return times.map(() => null);
+
+    const frames: (Blob | null)[] = [];
+
+    for (const time of times) {
+      const ok = await seekTo(time);
+
+      frames.push(ok ? await drawFrame(element, maxSide, quality) : null);
+    }
+
+    return frames;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+    element.remove();
+  }
+}
+
+/**
+ * Videoning bitta kadridan muqova rasmi yasaydi.
  *
  * ── Nima uchun kerak ─────────────────────────────────────────────────
  * Muqovasiz ro'yxatda video yuklanmaguncha qora to'rtburchak turadi.
@@ -162,72 +287,14 @@ export function readVideoMeta(file: File): Promise<VideoMeta> {
  *
  * Xato bo'lsa `null` qaytadi: muqova — qulaylik, uning yo'qligi
  * video joylashni to'xtatmasligi kerak.
+ *
+ * @param atSeconds Qaysi kadr. Berilmasa — 0.1 soniya: birinchi kadr
+ *                  ko'pincha qora bo'ladi (video ochilishi).
  */
-export function captureVideoPoster(file: File): Promise<Blob | null> {
-  return new Promise((resolve) => {
-    const element = document.createElement('video');
-    const objectUrl = URL.createObjectURL(file);
+export async function captureVideoPoster(file: File, atSeconds = 0.1): Promise<Blob | null> {
+  const [frame] = await captureVideoFrames(file, [atSeconds]);
 
-    let isDone = false;
-
-    const finish = (result: Blob | null) => {
-      if (isDone) return;
-
-      isDone = true;
-      clearTimeout(timer);
-      URL.revokeObjectURL(objectUrl);
-      element.remove();
-      resolve(result);
-    };
-
-    /**
-     * Muqova olish ham JIM qolishi mumkin.
-     *
-     * Bu yerda xato tashlanmaydi — muqovasiz ham video joylanadi.
-     * Muhimi: kutish to'xtatiladi va yuklash davom etadi.
-     */
-    const timer = setTimeout(() => finish(null), PROBE_TIMEOUT_MS);
-
-    element.preload = 'metadata';
-    element.muted = true;
-    element.playsInline = true;
-
-    element.onloadeddata = () => {
-      try {
-        const canvas = document.createElement('canvas');
-
-        // Muqova ekranda kichik ko'rinadi — to'liq o'lcham keraksiz
-        // trafik bo'lardi.
-        const scale = Math.min(1, 720 / Math.max(element.videoWidth, element.videoHeight, 1));
-
-        canvas.width = Math.round(element.videoWidth * scale);
-        canvas.height = Math.round(element.videoHeight * scale);
-
-        const context = canvas.getContext('2d');
-
-        if (!context || canvas.width === 0) {
-          finish(null);
-
-          return;
-        }
-
-        context.drawImage(element, 0, 0, canvas.width, canvas.height);
-        canvas.toBlob((blob) => finish(blob), 'image/jpeg', 0.8);
-      } catch {
-        finish(null);
-      }
-    };
-
-    element.onerror = () => finish(null);
-
-    element.src = objectUrl;
-    /**
-     * Birinchi kadr ko'pincha qora bo'ladi (fade-in). Shuning uchun
-     * 0.1 soniyaga suriladi — bu deyarli har doim mazmunli kadr
-     * beradi.
-     */
-    element.currentTime = 0.1;
-  });
+  return frame;
 }
 
 /** Faylni oddiy yuklash manzili orqali yuboradi (ishlab chiqish yo'li). */
@@ -263,12 +330,17 @@ export interface UploadedVideo {
 }
 
 /**
- * Videoni (va muqovasini) yuklaydi.
+ * Faylni yuklashdan OLDIN tekshiradi.
  *
- * @param accessToken Kirish tokeni — to'g'ridan-to'g'ri yuklashda
- *                    ruxsat so'rash uchun ham kerak.
+ * ── Nima uchun yuklashdan ajratilgan ─────────────────────────────────
+ * Video muharriri yuklashdan oldin ochiladi: odam avval kesadi va
+ * muqova tanlaydi, keyin fayl jo'natiladi.
+ *
+ * Ya'ni tekshiruv muharrirdan ham OLDIN bo'lishi kerak. Aks holda
+ * odam ikki daqiqalik videoni bemalol tahrirlab, oxirida "juda
+ * uzun" degan xatoni olardi — butun mehnati behuda ketardi.
  */
-export async function uploadVideo(file: File, accessToken: string | null): Promise<UploadedVideo> {
+export async function prepareVideo(file: File): Promise<{ contentType: AllowedVideoType; meta: VideoMeta }> {
   /**
    * Tur ENG BOSHIDA tekshiriladi.
    *
@@ -299,6 +371,34 @@ export async function uploadVideo(file: File, accessToken: string | null): Promi
         'Telefon galereyasida qirqib, qaytadan tanlang.',
     );
   }
+
+  return { contentType, meta };
+}
+
+export interface UploadVideoOptions {
+  /**
+   * Muharrirda tanlangan muqova.
+   *
+   * Berilmasa, birinchi kadrdan avtomatik olinadi — eski xatti-harakat
+   * saqlanadi, ya'ni muharrirsiz yo'l ham ishlaydi.
+   */
+  poster?: Blob | null;
+  /** Kesilgandan keyingi davomiylik. Berilmasa faylning to'liq uzunligi. */
+  seconds?: number;
+}
+
+/**
+ * Videoni (va muqovasini) yuklaydi.
+ *
+ * @param accessToken Kirish tokeni — to'g'ridan-to'g'ri yuklashda
+ *                    ruxsat so'rash uchun ham kerak.
+ */
+export async function uploadVideo(
+  file: File,
+  accessToken: string | null,
+  options: UploadVideoOptions = {},
+): Promise<UploadedVideo> {
+  const { contentType, meta } = await prepareVideo(file);
 
   const modeResponse = await fetch(VIDEO_UPLOAD_PATH, {
     headers: accessToken ? { authorization: `Bearer ${accessToken}` } : {},
@@ -358,7 +458,14 @@ export async function uploadVideo(file: File, accessToken: string | null): Promi
   let posterUrl: string | null = null;
 
   try {
-    const poster = await captureVideoPoster(file);
+    /*
+      Muharrirda tanlangan muqova ustun.
+
+      U yo'q bo'lsagina birinchi kadrdan olinadi: muallif aynan
+      qaysi kadrni ko'rsatmoqchi bo'lganini biladi, tizim esa
+      faqat taxmin qila oladi.
+    */
+    const poster = options.poster ?? (await captureVideoPoster(file));
 
     if (poster) {
       posterUrl = await uploadThroughServer(poster, 'POST', accessToken, 'poster.jpg');
@@ -367,5 +474,5 @@ export async function uploadVideo(file: File, accessToken: string | null): Promi
     // Muqova — qulaylik. Usiz ham video joylanadi.
   }
 
-  return { videoUrl, posterUrl, seconds: meta.seconds };
+  return { videoUrl, posterUrl, seconds: options.seconds ?? meta.seconds };
 }

@@ -21,8 +21,16 @@ export interface PostView {
   videoUrl: string | null;
   /** Video muqovasi — yuklanguncha ko'rsatiladi. */
   videoPosterUrl: string | null;
-  /** Video davomiyligi (soniya). */
+  /** Video davomiyligi (soniya) — kesilganidan keyingi uzunlik. */
   videoSeconds: number | null;
+  /**
+   * Kesish nuqtalari — pleyer shu oraliqda o'ynatadi.
+   *
+   * Ikkalasi `null` bo'lsa, video butunlay o'ynaydi. Kesish
+   * qo'shilishidan oldingi postlarda aynan shunday.
+   */
+  videoStartSeconds: number | null;
+  videoEndSeconds: number | null;
   /**
    * Videoga biriktirilgan mahsulotlar.
    *

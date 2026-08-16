@@ -12,6 +12,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { useTrimmedVideo } from '@/hooks/use-trimmed-video';
 import { formatRelativeUz } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
 import { WhySheet } from '@/components/feed/why-sheet';
@@ -119,6 +120,16 @@ export function PostCard({
 
   /** Oxirgi bosish vaqti — ikki marta bosishni aniqlash uchun. */
   const lastTapRef = useRef(0);
+
+  /**
+   * Lentadagi video ham KESIM ichida o'ynaydi.
+   *
+   * `loop` — yo'q: bu yerda odam o'qiyapti va o'zidan takrorlanadigan
+   * video chalg'itardi. Kesim oxiriga yetganda video to'xtaydi.
+   */
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useTrimmedVideo(videoRef, post);
 
   /** Tahrirlash rejimi: `null` — o'chiq, satr — tahrirlanayotgan matn. */
   const [draft, setDraft] = useState<string | null>(null);
@@ -457,6 +468,7 @@ export function PostCard({
       {post.videoUrl && !post.isDeleted && (
         <div className="mt-3 space-y-2">
           <video
+            ref={videoRef}
             src={post.videoUrl}
             poster={post.videoPosterUrl ?? undefined}
             controls

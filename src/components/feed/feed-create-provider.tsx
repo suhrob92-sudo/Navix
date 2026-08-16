@@ -102,6 +102,22 @@ export function FeedCreateProvider({ children }: { children: React.ReactNode }) 
           ...(draft.videoUrl ? { videoUrl: draft.videoUrl } : {}),
           ...(draft.videoPosterUrl ? { videoPosterUrl: draft.videoPosterUrl } : {}),
           ...(draft.videoSeconds ? { videoSeconds: draft.videoSeconds } : {}),
+          /*
+            Kesim IKKALASI birga yuboriladi.
+
+            Server yarim kesimni rad etadi va bu to'g'ri: yarmi bilan
+            pleyer qayerda to'xtashini bilmasdi.
+
+            Shart `!== null` bo'yicha, oddiy rostlik bo'yicha emas:
+            `videoStartSeconds` nolga teng bo'lishi mumkin va u
+            butunlay qonuniy qiymat ("boshidan boshla, oxirini kes").
+          */
+          ...(draft.videoStartSeconds !== null && draft.videoEndSeconds !== null
+            ? {
+                videoStartSeconds: draft.videoStartSeconds,
+                videoEndSeconds: draft.videoEndSeconds,
+              }
+            : {}),
           ...(draft.category ? { category: draft.category } : {}),
           ...(draft.place ? { place: draft.place } : {}),
           ...(draft.productIds.length > 0 ? { productIds: draft.productIds } : {}),

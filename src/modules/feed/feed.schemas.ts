@@ -4,6 +4,7 @@ import { SEARCH_SCOPES } from '@/modules/feed/discover.types';
 import { COMMENT_MAX_LENGTH, MAX_PLACE_NAME_LENGTH, MAX_TAGGED_PRODUCTS, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
 import { VIDEO_DURATIONS } from '@/modules/feed/feed.types';
 import { POST_CATEGORY_VALUES } from '@/modules/feed/feed.types';
+import { MIN_TRIM_SECONDS, isValidTrim } from '@/modules/feed/video-trim';
 import { MAX_VIDEO_SECONDS } from '@/modules/upload/upload.types';
 import { isOwnImageUrl } from '@/modules/upload/upload.types';
 
@@ -183,6 +184,14 @@ export const createPostSchema = z
       .max(MAX_VIDEO_SECONDS, `Video ${MAX_VIDEO_SECONDS} soniyadan uzun bo'lmasligi kerak.`)
       .optional(),
     /**
+     * Kesish nuqtalari — video muharriridan.
+     *
+     * Butun son EMAS: odam surgichni kadr aniqligida qo'yadi va
+     * yaxlitlash "bir kadr ortiqcha" muammosini keltirib chiqarardi.
+     */
+    videoStartSeconds: z.coerce.number().min(0).optional(),
+    videoEndSeconds: z.coerce.number().min(0).optional(),
+    /**
      * Post qaysi bo'limga tegishli — ixtiyoriy.
      *
      * Tanlanmagan post faqat "Siz uchun" da ko'rinadi. Majburiy
@@ -222,6 +231,39 @@ export const createPostSchema = z
   .refine((value) => (value.productIds?.length ?? 0) === 0 || Boolean(value.videoUrl), {
     message: 'Mahsulotni faqat videoga biriktirish mumkin.',
     path: ['productIds'],
+  })
+  /**
+   * Kesim nuqtalari BIRGA keladi yoki umuman kelmaydi.
+   *
+   * Yarmi bilan pleyer qayerda to'xtashini bilmasdi: video boshidan
+   * o'ynab, oxirigacha ketardi — ya'ni kesish e'tiborsiz qolardi.
+   */
+  .refine(
+    (value) => (value.videoStartSeconds === undefined) === (value.videoEndSeconds === undefined),
+    {
+      message: "Kesish nuqtalari to'liq emas.",
+      path: ['videoEndSeconds'],
+    },
+  )
+  .refine(
+    (value) =>
+      value.videoStartSeconds === undefined ||
+      value.videoEndSeconds === undefined ||
+      isValidTrim(value.videoStartSeconds, value.videoEndSeconds),
+    {
+      message: `Kesilgan qism kamida ${MIN_TRIM_SECONDS} soniya bo'lishi kerak.`,
+      path: ['videoEndSeconds'],
+    },
+  )
+  /**
+   * Kesim FAQAT video bilan.
+   *
+   * Rasmli postga kesim kelsa, u bazada o'lik ma'lumot bo'lib
+   * qolardi va ertaga kimdir uni o'qib, chalkashardi.
+   */
+  .refine((value) => value.videoStartSeconds === undefined || Boolean(value.videoUrl), {
+    message: 'Kesish faqat videoga tegishli.',
+    path: ['videoStartSeconds'],
   });
 
 export type CreatePostInput = z.infer<typeof createPostSchema>;

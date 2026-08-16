@@ -1,10 +1,11 @@
 'use client';
 
-import { MapPin, Send, ShoppingBag, Video, X } from 'lucide-react';
+import { MapPin, Scissors, Send, ShoppingBag, Video, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { LocationPicker } from '@/components/feed/location-picker';
 import { ProductPicker } from '@/components/feed/product-picker';
+import { VideoEditor, type VideoEdit } from '@/components/feed/video-editor';
 import { POST_CATEGORIES } from '@/config/feed-nav';
 import { ImageAttach } from '@/components/upload/image-attach';
 import { Alert } from '@/components/ui/alert';
@@ -14,7 +15,7 @@ import { useFileUpload } from '@/hooks/use-file-upload';
 import { dialogCancelHandler } from '@/lib/dialog';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
-import { uploadVideo } from '@/lib/video-upload';
+import { prepareVideo, uploadVideo } from '@/lib/video-upload';
 import { useAuth } from '@/modules/auth/auth-context';
 import {
   MAX_TAGGED_PRODUCTS,
@@ -32,6 +33,9 @@ export interface ComposerDraft {
   videoUrl: string | null;
   videoPosterUrl: string | null;
   videoSeconds: number | null;
+  /** Kesish nuqtalari — muharrirdan. Kesilmagan videoda `null`. */
+  videoStartSeconds: number | null;
+  videoEndSeconds: number | null;
   productIds: string[];
   /** Qaysi bo'limga tegishli. `null` — tanlanmagan. */
   category: PostCategoryName | null;
@@ -106,9 +110,29 @@ export function PostComposer({
   const [body, setBody] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-  const [video, setVideo] = useState<{ url: string; posterUrl: string | null; seconds: number } | null>(null);
+  const [video, setVideo] = useState<{
+    url: string;
+    posterUrl: string | null;
+    seconds: number;
+    /** Kesim — kesilmagan videoda `null`. */
+    trim: { start: number; end: number } | null;
+  } | null>(null);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
+
+  /**
+   * Tahrirlanayotgan fayl — hali YUKLANMAGAN.
+   *
+   * ── Nima uchun muharrir yuklashdan OLDIN ────────────────────────────
+   * Tahrir brauzerda bajariladi: kadrlar mahalliy fayldan olinadi va
+   * kesim faqat ikkita son. Yuklashdan keyin tahrirlansa, odam
+   * ortiqcha qismni ham yuklab bo'lgan bo'lardi va uni bekor qilgan
+   * taqdirda ham trafik allaqachon sarflanardi.
+   *
+   * Muhimrog'i: bekor qilish TOZA bo'ladi — omborda ortib qolgan
+   * fayl qolmaydi.
+   */
+  const [pending, setPending] = useState<{ file: File; duration: number } | null>(null);
 
   const [products, setProducts] = useState<TaggedProductView[]>([]);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -145,6 +169,8 @@ export function PostComposer({
       videoUrl: video?.url ?? null,
       videoPosterUrl: video?.posterUrl ?? null,
       videoSeconds: video?.seconds ?? null,
+      videoStartSeconds: video?.trim?.start ?? null,
+      videoEndSeconds: video?.trim?.end ?? null,
       productIds: products.map((item) => item.id),
       category,
       place,
@@ -167,14 +193,48 @@ export function PostComposer({
     if (url) setImageUrl(url);
   }
 
-  async function attachVideo(file: File) {
+  /**
+   * Fayl tanlandi — avval TEKSHIRILADI, keyin muharrir ochiladi.
+   *
+   * ── Nima uchun tekshiruv muharrirdan oldin ──────────────────────────
+   * Aks holda odam ikki daqiqalik videoni bemalol kesib, muqova
+   * tanlab, oxirida "juda uzun" degan xatoni olardi — butun mehnati
+   * behuda ketardi.
+   */
+  async function pickVideo(file: File) {
     setIsUploadingVideo(true);
     setVideoError(null);
 
     try {
-      const result = await uploadVideo(file, accessToken);
+      const { meta } = await prepareVideo(file);
 
-      setVideo({ url: result.videoUrl, posterUrl: result.posterUrl, seconds: result.seconds });
+      setPending({ file, duration: meta.seconds });
+    } catch (error) {
+      setVideoError(error instanceof Error ? error.message : "Videoni o'qib bo'lmadi.");
+    } finally {
+      setIsUploadingVideo(false);
+    }
+  }
+
+  /** Muharrir yakunlandi — endi fayl yuklanadi. */
+  async function attachVideo(file: File, edit: VideoEdit) {
+    setPending(null);
+    setIsUploadingVideo(true);
+    setVideoError(null);
+
+    try {
+      const result = await uploadVideo(file, accessToken, {
+        poster: edit.poster,
+        seconds: edit.seconds,
+      });
+
+      setVideo({
+        url: result.videoUrl,
+        posterUrl: result.posterUrl,
+        seconds: result.seconds,
+        trim: edit.range,
+      });
+
       // Video biriktirilganda rasm o'rnini bo'shatadi.
       setImageUrl(null);
     } catch (error) {
@@ -257,7 +317,7 @@ export function PostComposer({
 
               event.target.value = '';
 
-              if (file) void attachVideo(file);
+              if (file) void pickVideo(file);
             }}
           />
         </label>
@@ -335,8 +395,22 @@ export function PostComposer({
             </div>
           )}
 
-          <span className="absolute bottom-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">
-            {formatDuration(video.seconds)}
+          {/*
+            Davomiylik va kesim belgisi.
+
+            Kesilgan video uchun buni ko'rsatish SHART: aks holda odam
+            tahrir saqlanganiga ishonch hosil qila olmasdi va "kesdim
+            shekilli" degan noaniqlik bilan joylardi.
+          */}
+          <span className="absolute bottom-2 left-2 flex items-center gap-1.5 rounded-full bg-black/60 px-2 py-0.5 text-xs text-white">
+            <span className="tabular-nums">{formatDuration(video.seconds)}</span>
+
+            {video.trim && (
+              <span className="flex items-center gap-1">
+                <Scissors className="size-3" aria-hidden="true" />
+                kesilgan
+              </span>
+            )}
           </span>
 
           <button
@@ -421,7 +495,7 @@ export function PostComposer({
                 // hodisa hosil qilishi kerak.
                 event.target.value = '';
 
-                if (file) void attachVideo(file);
+                if (file) void pickVideo(file);
               }}
             />
           </label>
@@ -492,6 +566,27 @@ export function PostComposer({
       <p className="text-muted-foreground mt-2 text-xs">
         {`Video ${MAX_VIDEO_SECONDS} soniyagacha. Videoga ${MAX_TAGGED_PRODUCTS} tagacha mahsulot biriktirish mumkin — tomoshabin ularni bir bosishda topadi.`}
       </p>
+
+      {/*
+        Video muharriri — fayl tanlangach DARHOL ochiladi.
+
+        ── Nima uchun majburiy qadam, ixtiyoriy tugma emas ────────────
+        "Tahrirlash" tugmasini alohida qo'ysak, uni deyarli hech kim
+        bosmasdi va lenta xom videolarga to'lib ketardi: qora birinchi
+        kadr, ortiqcha boshlanish.
+
+        Muharrir esa hech narsani majburlamaydi — "Davom etish" bir
+        bosishda o'tkazib yuboradi. Lekin odam kamida BIR MARTA
+        muqovani ko'radi va ko'pincha uni yaxshilaydi.
+      */}
+      {pending && (
+        <VideoEditor
+          file={pending.file}
+          duration={pending.duration}
+          onDone={(edit) => void attachVideo(pending.file, edit)}
+          onCancel={() => setPending(null)}
+        />
+      )}
 
       {isPlaceOpen && (
         <LocationPicker
