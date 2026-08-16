@@ -181,6 +181,16 @@ describe('Feed menyusi', () => {
 });
 
 describe('Feed moduli navigatsiyasi', () => {
+  it("qidiruv pastki panelda EMAS — u yuqori panelda", () => {
+    /*
+      Pastki paneldagi beshta joy BO'LIMLAR uchun. Qidiruv esa
+      amal: uning joyi tepada. Agar u qaytib qolsa, "Oxirgi
+      ko'rganlar" ni siqib chiqarardi.
+    */
+    expect(FEED_NAV.some((item) => item.href === '/feed/search')).toBe(false);
+    expect(FEED_NAV.some((item) => item.href === '/feed/history')).toBe(true);
+  });
+
   it('beshta bo\'lim bor va markazda yaratish turadi', () => {
     expect(FEED_NAV).toHaveLength(5);
     expect(FEED_NAV[2].isCreate).toBe(true);
@@ -225,9 +235,9 @@ describe('Feed moduli navigatsiyasi', () => {
     });
 
     it('o\'xshash boshlanishli manzilni chalkashtirmaydi', () => {
-      const search = FEED_NAV.find((item) => item.href === '/feed/search');
+      const history = FEED_NAV.find((item) => item.href === '/feed/history');
 
-      expect(search && isFeedNavActive('/feed/searchXYZ', search)).toBe(false);
+      expect(history && isFeedNavActive('/feed/historyXYZ', history)).toBe(false);
     });
 
     it('yaratish tugmasi hech qachon faol bo\'lmaydi', () => {

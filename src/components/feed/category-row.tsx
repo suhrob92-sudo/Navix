@@ -31,8 +31,13 @@ export function CategoryRow({ value, onChange }: CategoryRowProps) {
   return (
     <div
       role="tablist"
-      aria-label="Feed bo'limlari"
-      className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      /*
+        Nom ANIQ: "Feed bo'limlari" nomi menyu tugmasida ham bor edi.
+        Ekran o'quvchi ikkalasini bir xil o'qib, odam qaysi biri
+        ekanini ajrata olmasdi.
+      */
+      aria-label="Kategoriyalar"
+      className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {FEED_CATEGORIES.map((item) => {
         const isActive = item.value === value;
@@ -45,13 +50,26 @@ export function CategoryRow({ value, onChange }: CategoryRowProps) {
             aria-selected={isActive}
             onClick={() => onChange(item.value)}
             className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm whitespace-nowrap transition-colors',
+              /*
+                Doiralar KATTAROQ va yumshoqroq — maketdagi kabi.
+
+                Telefonda barmoq bilan aniq bosish uchun balandlik
+                44 pikseldan kam bo'lmasligi kerak (Apple va Google
+                tavsiyasi). Ilgari u 36 edi va tez surayotgan odam
+                yonidagi doirani bosib qo'yardi.
+              */
+              'flex h-11 shrink-0 items-center gap-2 rounded-full border px-5 text-sm whitespace-nowrap transition-all active:scale-95',
               isActive
-                ? 'border-primary bg-primary text-primary-foreground font-medium'
-                : 'border-border hover:bg-secondary',
+                ? /*
+                    Tanlangani GRADIENT — oddiy to'ldirishdan ko'ra
+                    ko'zga tashlanadi va ilovaning brend rangi bilan
+                    bir xil tilda gapiradi.
+                  */
+                  'from-brand-from to-brand-to text-brand-foreground shadow-brand-from/25 border-transparent bg-gradient-to-r font-semibold shadow-md'
+                : 'border-border hover:bg-secondary text-foreground',
             )}
           >
-            <span aria-hidden="true">{item.emoji}</span>
+            <span className="text-base" aria-hidden="true">{item.emoji}</span>
             {item.label}
           </button>
         );

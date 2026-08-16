@@ -3,7 +3,7 @@
 import { Clapperboard } from 'lucide-react';
 import { useState } from 'react';
 
-import { AppHeader } from '@/components/app/app-header';
+import { FeedHeader } from '@/components/feed/feed-header';
 import { useFeedCreate } from '@/components/feed/feed-create-provider';
 import { VideoGrid } from '@/components/feed/video-grid';
 import { Alert } from '@/components/ui/alert';
@@ -43,7 +43,7 @@ export function VideosContent() {
 
   return (
     <>
-      <AppHeader title="Videolar" showBack backHref="/dashboard" />
+      <FeedHeader title="Videolar" />
 
       <div className="space-y-4 px-4 pt-4 pb-24">
         {/* Filtrlar — gorizontal, telefonga sig'ishi uchun. */}

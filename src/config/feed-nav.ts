@@ -4,12 +4,12 @@ import {
   Bookmark,
   Clapperboard,
   Hash,
+  History,
   Home,
   Image,
   Newspaper,
   Plus,
   Radio,
-  Search,
   Settings,
   User,
   Video,
@@ -48,6 +48,18 @@ export interface FeedNavItem {
    */
   href: string | null;
   label: string;
+  /**
+   * Panelda ko'rinadigan QISQA nom.
+   *
+   * ── Nima uchun kerak ────────────────────────────────────────────────
+   * Pastki panelda beshta bo'lim yonma-yon turadi va har biriga ~70
+   * piksel to'g'ri keladi. "Oxirgi ko'rganlar" u yerga sig'may, ikki
+   * qatorga bo'linib ketardi va qator tekisligini buzardi.
+   *
+   * To'liq nom esa yo'qolmaydi: u ekran o'quvchiga (`aria-label`)
+   * va menyuga o'sha holicha boradi.
+   */
+  shortLabel?: string;
   icon: NavIcon;
   /** `true` — faqat aynan shu manzilda faol. */
   exact?: boolean;
@@ -76,7 +88,19 @@ export const FEED_NAV: readonly FeedNavItem[] = [
   { href: '/feed', label: 'Asosiy', icon: Home, exact: true },
   { href: '/feed/videos', label: 'Video', icon: Video },
   { href: null, label: 'Yaratish', icon: Plus, isCreate: true },
-  { href: '/feed/search', label: 'Qidirish', icon: Search },
+  /**
+   * ── Nima uchun QIDIRUV o'rniga "Oxirgi ko'rganlar" ──────────────────
+   * Pastki panelda beshta joy bor va ular BO'LIMLAR uchun: odam u
+   * yerdan "qayerga boraman?" degan savolga javob qidiradi.
+   *
+   * Qidiruv esa bo'lim emas, AMAL — uning joyi yuqori panelda,
+   * boshqa ilovalardagi kabi.
+   *
+   * Bo'shagan joyga esa haqiqiy ehtiyoj qo'yildi: lentada surib
+   * ketayotgan odam qiziqarli videoni ko'radi-yu, saqlashni unutadi.
+   * Keyin uni topa olmaydi — nomi ham, muallifi ham esida qolmagan.
+   */
+  { href: '/feed/history', label: "Oxirgi ko'rganlar", shortLabel: "Ko'rganlar", icon: History },
   { href: '/feed/profile', label: 'Profil', icon: User },
 ] as const;
 
@@ -390,6 +414,12 @@ export const FEED_FEATURES: readonly FeedFeatureItem[] = [
     label: 'Video oqimi',
     description: "To'liq ekranda ketma-ket tomosha",
     icon: Video,
+  },
+  {
+    href: '/feed/history',
+    label: "Oxirgi ko'rganlar",
+    description: "So'nggi ko'rgan postlaringiz",
+    icon: History,
   },
   {
     href: '/feed/saved',

@@ -4,7 +4,7 @@ import { BadgeCheck, Newspaper, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { AppHeader } from '@/components/app/app-header';
+import { FeedHeader } from '@/components/feed/feed-header';
 import { useFeedCreate } from '@/components/feed/feed-create-provider';
 import { PostList } from '@/components/feed/post-list';
 import { VideoGrid } from '@/components/feed/video-grid';
@@ -105,7 +105,7 @@ export function FeedProfileContent() {
 
   return (
     <>
-      <AppHeader title="Mening profilim" showBack backHref="/dashboard" />
+      <FeedHeader title="Profil" />
 
       <div className="space-y-5 px-4 pt-4 pb-24">
         {profile.error && (

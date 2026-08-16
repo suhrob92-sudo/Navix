@@ -1419,6 +1419,59 @@ export async function listLikedPosts(
   };
 }
 
+/**
+ * Oxirgi ko'rganlarim.
+ *
+ * ── Nima uchun bu bo'lim KERAK ────────────────────────────────────────
+ * Lentada surib ketayotgan odam qiziqarli videoni ko'radi-yu, uni
+ * saqlashni unutadi. Keyin qidiruvdan topa olmaydi: video nomi ham,
+ * muallifi ham esida qolmagan.
+ *
+ * "Oxirgi ko'rganlar" bu muammoni butunlay yechadi va u hech qanday
+ * qo'shimcha harakat talab qilmaydi — ro'yxat o'zi to'ladi.
+ *
+ * ── Nima uchun tartib KO'RISH vaqti bo'yicha ──────────────────────────
+ * Odam "bugun ko'rgan videomni" izlaydi, "bugun joylangan" ni emas.
+ *
+ * ── Nima uchun bu SAQLANGANLARDAN farq qiladi ─────────────────────────
+ * Saqlash — ataylab qilingan tanlov va u abadiy qoladi. Ko'rish esa
+ * o'z-o'zidan yoziladi va ro'yxat tez almashadi.
+ */
+export async function listSeenPosts(
+  userId: string,
+  cursor?: string,
+  limit = 20,
+): Promise<{ posts: PostView[]; nextCursor: string | null }> {
+  const rows = await prisma.postSeen.findMany({
+    where: {
+      userId,
+      ...(cursor
+        ? (() => {
+            const { createdAt, id } = parseCursor(cursor);
+
+            return { OR: [{ seenAt: { lt: createdAt } }, { seenAt: createdAt, id: { lt: id } }] };
+          })()
+        : {}),
+      // O'chirilgan post bu ro'yxatda ham ko'rinmaydi.
+      post: LIVE_AUTHOR,
+    },
+    orderBy: [{ seenAt: 'desc' }, { id: 'desc' }],
+    take: limit + 1,
+    select: { id: true, seenAt: true, post: { select: postSelect(userId) } },
+  });
+
+  const hasMore = rows.length > limit;
+  const page = hasMore ? rows.slice(0, limit) : rows;
+
+  return {
+    posts: page.map((row) => toPostView(row.post, userId)),
+    nextCursor:
+      hasMore && page.length > 0
+        ? buildCursor({ createdAt: page[page.length - 1].seenAt, id: page[page.length - 1].id })
+        : null,
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────
 // Ulashish
 // ─────────────────────────────────────────────────────────────────────

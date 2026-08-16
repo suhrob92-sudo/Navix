@@ -3,7 +3,7 @@
 import { LayoutGrid, List, MapPin, Menu, Newspaper } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { AppHeader } from '@/components/app/app-header';
+import { FeedHeader } from '@/components/feed/feed-header';
 import { CategoryRow } from '@/components/feed/category-row';
 import { useFeedCreate } from '@/components/feed/feed-create-provider';
 import { FeedMenu } from '@/components/feed/feed-menu';
@@ -125,13 +125,7 @@ export function FeedContent() {
 
   return (
     <>
-      {/*
-        "Orqaga" — Feed'dan CHIQISH yo'li.
-
-        Feed ichida ilovaning umumiy paneli yashiringan. Busiz odam
-        modul ichida qamalib qolardi.
-      */}
-      <AppHeader title="Feed" showBack backHref="/dashboard" />
+      <FeedHeader title="Feed" />
 
       <div className="space-y-4 px-4 pt-4 pb-24">
         <StoryTray />
@@ -146,25 +140,35 @@ export function FeedContent() {
             {isNearby && location.point && ` · ${NEARBY_RADIUS_KM} km`}
           </p>
 
+          {/*
+            Ko'rinish va menyu tugmalari — O'NG tomonda.
+
+            Maketdagi kabi kvadratga yaqin, yumshoq burchakli: ular
+            amal tugmalari va doiralardan (kategoriyalar) ko'rinishi
+            bilan farq qilishi kerak.
+          */}
           <div className="flex shrink-0 gap-2">
-            <Button
-              variant="outline"
-              size="icon"
+            <button
+              type="button"
               aria-label={isGrid ? "Ro'yxat ko'rinishi" : "Panjara ko'rinishi"}
               aria-pressed={isGrid}
               onClick={() => setIsGrid((current) => !current)}
+              className={cn(
+                'border-border inline-flex size-11 items-center justify-center rounded-2xl border transition-colors active:scale-95',
+                isGrid ? 'bg-secondary text-foreground' : 'hover:bg-secondary text-muted-foreground',
+              )}
             >
-              {isGrid ? <List className="size-4" aria-hidden="true" /> : <LayoutGrid className="size-4" aria-hidden="true" />}
-            </Button>
+              {isGrid ? <List className="size-5" aria-hidden="true" /> : <LayoutGrid className="size-5" aria-hidden="true" />}
+            </button>
 
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Feed bo'limlari"
+            <button
+              type="button"
+              aria-label="Feed menyusi"
               onClick={() => setIsMenuOpen(true)}
+              className="border-border text-muted-foreground hover:bg-secondary inline-flex size-11 items-center justify-center rounded-2xl border transition-colors active:scale-95"
             >
-              <Menu className="size-4" aria-hidden="true" />
-            </Button>
+              <Menu className="size-5" aria-hidden="true" />
+            </button>
           </div>
         </div>
 
@@ -236,9 +240,20 @@ export function FeedContent() {
             description={active.emptyDescription}
             action={
               active.isComingSoon ? undefined : (
-                <Button variant="outline" onClick={create.open}>
+                /*
+                  CTA tugmasi GRADIENT — maketdagi kabi.
+
+                  Bo'sh ekranda bu yagona amal va u ko'zga tashlanishi
+                  kerak. Oddiy chegarali tugma bo'sh joyda yo'qolib
+                  ketardi.
+                */
+                <button
+                  type="button"
+                  onClick={create.open}
+                  className="from-brand-from to-brand-to text-brand-foreground shadow-brand-from/25 inline-flex h-12 items-center justify-center rounded-2xl bg-gradient-to-r px-8 text-sm font-semibold shadow-lg transition-transform active:scale-95"
+                >
                   Joylash
-                </Button>
+                </button>
               )
             }
           />

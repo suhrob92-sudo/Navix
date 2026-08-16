@@ -80,13 +80,17 @@ export function FeedTabBar() {
               <Link
                 href={item.href ?? '/feed'}
                 aria-current={active ? 'page' : undefined}
+                /* To'liq nom ekran o'quvchiga boradi, qisqasi ko'zga. */
+                aria-label={item.label}
                 className={cn(
                   'flex flex-col items-center gap-1 px-1 pt-2.5 pb-2 transition-colors',
                   active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
                 )}
               >
                 <Icon className="size-5.5" aria-hidden="true" />
-                <span className="text-[0.625rem] leading-none font-medium">{item.label}</span>
+                <span className="text-[0.625rem] leading-none font-medium">
+                  {item.shortLabel ?? item.label}
+                </span>
               </Link>
             </li>
           );

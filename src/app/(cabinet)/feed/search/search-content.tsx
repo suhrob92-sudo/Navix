@@ -4,7 +4,7 @@ import { Hash, Search, SearchX } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { AppHeader } from '@/components/app/app-header';
+import { FeedHeader } from '@/components/feed/feed-header';
 import { CreatorRow } from '@/components/feed/creator-row';
 import { VideoGrid } from '@/components/feed/video-grid';
 import { Alert } from '@/components/ui/alert';
@@ -63,7 +63,7 @@ export function FeedSearchContent() {
 
   return (
     <>
-      <AppHeader title="Qidirish" showBack backHref="/dashboard" />
+      <FeedHeader title="Qidirish" showSearch={false} />
 
       <div className="space-y-5 px-4 pt-4 pb-24">
         <div className="relative">
