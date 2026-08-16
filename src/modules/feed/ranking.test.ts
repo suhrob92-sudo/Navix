@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  REASON_CODES,
   RANKING_PENALTIES,
   RANKING_WEIGHTS,
   RECENCY_HALF_LIFE_HOURS,
   engagementScore,
+  explainCandidate,
   normalizeCounts,
   rankCandidates,
   recencyScore,
@@ -269,5 +271,146 @@ describe('normalizeCounts', () => {
     for (const value of result.values()) {
       expect(value).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+/**
+ * Tushuntirish HISOB bilan bir xil formuladan olinadi.
+ *
+ * Bu eng muhim shart: agar ular ajralib ketsa, ilova odamga
+ * YOLG'ON sabab aytardi. Noto'g'ri tushuntirishdan ko'ra uni
+ * umuman ko'rsatmagan ma'qul.
+ */
+describe('explainCandidate', () => {
+  it("o'z posti uchun boshqa sabab qidirilmaydi", () => {
+    const reasons = explainCandidate(
+      candidate({ authorId: 'me', category: 'JOBS' }),
+      taste({ chosenInterests: new Set(['JOBS']), followingIds: new Set(['me']) }),
+      NOW,
+    );
+
+    // "Siz o'zingizga obunasiz" degan javob kulgili bo'lardi.
+    expect(reasons).toHaveLength(1);
+    expect(reasons[0].code).toBe('OWN');
+  });
+
+  it('obuna eng kuchli sabab bo\'ladi', () => {
+    const reasons = explainCandidate(
+      candidate({ createdAt: hoursAgo(100) }),
+      taste({ followingIds: new Set(['a1']) }),
+      NOW,
+    );
+
+    expect(reasons[0].code).toBe('FOLLOWING');
+  });
+
+  it("yangi postda va signalsiz — sabab YANGILIK", () => {
+    const reasons = explainCandidate(candidate({ createdAt: NOW }), taste(), NOW);
+
+    expect(reasons[0].code).toBe('RECENT');
+  });
+
+  it("O'ZI tanlagan qiziqish o'rganilganidan yuqori turadi", () => {
+    const reasons = explainCandidate(
+      candidate({ category: 'TRAVEL', createdAt: hoursAgo(200) }),
+      taste({
+        chosenInterests: new Set(['TRAVEL']),
+        categoryAffinity: new Map([['TRAVEL', 1]]),
+      }),
+      NOW,
+    );
+
+    const codes = reasons.map((item) => item.code);
+
+    expect(codes.indexOf('CHOSEN_INTEREST')).toBeLessThan(codes.indexOf('LEARNED_INTEREST'));
+  });
+
+  it('sabablar HISSA bo\'yicha tartiblangan', () => {
+    const reasons = explainCandidate(
+      candidate({ category: 'JOBS', likeCount: 50, createdAt: hoursAgo(10) }),
+      taste({
+        followingIds: new Set(['a1']),
+        chosenInterests: new Set(['JOBS']),
+        categoryAffinity: new Map([['JOBS', 0.5]]),
+      }),
+      NOW,
+    );
+
+    for (let index = 1; index < reasons.length; index += 1) {
+      expect(reasons[index - 1].contribution).toBeGreaterThanOrEqual(reasons[index].contribution);
+    }
+  });
+
+  it("signal YO'Q bo'lsa, o'sha sabab ro'yxatga tushmaydi", () => {
+    const codes = explainCandidate(candidate({ category: 'JOBS' }), taste(), NOW).map((r) => r.code);
+
+    // Hech narsa yoqtirilmagan — "yoqtirasiz" deb aytish yolg'on bo'lardi.
+    expect(codes).not.toContain('LEARNED_INTEREST');
+    expect(codes).not.toContain('AUTHOR_AFFINITY');
+    expect(codes).not.toContain('FOLLOWING');
+  });
+
+  it("bo'limsiz postda bo'lim sabablari yo'q", () => {
+    const codes = explainCandidate(
+      candidate({ category: null }),
+      taste({ chosenInterests: new Set(['JOBS']), categoryAffinity: new Map([['JOBS', 1]]) }),
+      NOW,
+    ).map((r) => r.code);
+
+    expect(codes).not.toContain('CHOSEN_INTEREST');
+    expect(codes).not.toContain('LEARNED_INTEREST');
+  });
+
+  it('har doim kamida BITTA sabab qaytadi', () => {
+    // Bo'sh javob ekranda "sabab topilmadi" bo'lib chiqardi.
+    expect(explainCandidate(candidate(), taste(), NOW).length).toBeGreaterThan(0);
+  });
+
+  it('barcha qaytgan kodlar ro\'yxatda bor', () => {
+    const reasons = explainCandidate(
+      candidate({ category: 'TRAVEL', likeCount: 10 }),
+      taste({
+        followingIds: new Set(['a1']),
+        chosenInterests: new Set(['TRAVEL']),
+        categoryAffinity: new Map([['TRAVEL', 1]]),
+        authorAffinity: new Map([['a1', 1]]),
+      }),
+      NOW,
+    );
+
+    for (const reason of reasons) {
+      expect(REASON_CODES).toContain(reason.code);
+    }
+  });
+
+  it('tartib QAT\'IY — ikki marta chaqirilganda bir xil', () => {
+    const args = [
+      candidate({ category: 'JOBS', likeCount: 5 }),
+      taste({ chosenInterests: new Set(['JOBS']) }),
+      NOW,
+    ] as const;
+
+    expect(explainCandidate(...args).map((r) => r.code)).toEqual(
+      explainCandidate(...args).map((r) => r.code),
+    );
+  });
+
+  it('eng kuchli sabab HISOBDAGI eng katta hissaga mos', () => {
+    /*
+      Bu sinov tushuntirish bilan hisobning ajralib ketishini
+      to'xtatadi: obuna og'irligi yangilikdan past, lekin eski
+      postda yangilik bahosi tushadi — demak obuna ustun chiqadi.
+    */
+    const oldPost = candidate({ createdAt: hoursAgo(500) });
+    const withFollow = taste({ followingIds: new Set(['a1']) });
+
+    const reasons = explainCandidate(oldPost, withFollow, NOW);
+    const total = scoreCandidate(oldPost, withFollow, NOW);
+
+    expect(reasons[0].code).toBe('FOLLOWING');
+    // Hissalar yig'indisi umumiy bahodan oshmasligi kerak.
+    const sum = reasons.reduce((acc, item) => acc + item.contribution, 0);
+
+    expect(sum).toBeCloseTo(total, 5);
   });
 });

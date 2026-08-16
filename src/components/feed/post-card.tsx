@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { BadgeCheck, Bookmark, Clapperboard, Flag, Heart, MapPin, MessageCircle, MoreHorizontal, MousePointerClick, Pencil, Share2, ShoppingBag, Trash2 } from 'lucide-react';
+import { BadgeCheck, Bookmark, Clapperboard, Flag, Heart, HelpCircle, MapPin, MessageCircle, MoreHorizontal, MousePointerClick, Pencil, Share2, ShoppingBag, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 
@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { formatRelativeUz } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
+import { WhySheet } from '@/components/feed/why-sheet';
 import { distanceKm, formatDistanceUz } from '@/config/geo';
 import { cn } from '@/lib/utils';
 import {
@@ -95,6 +96,7 @@ export function PostCard({
   const distanceLabel =
     viewerPoint && post.place ? formatDistanceUz(distanceKm(viewerPoint, post.place)) : null;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isWhyOpen, setIsWhyOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isReported, setIsReported] = useState(false);
@@ -246,6 +248,28 @@ export function PostCard({
                   role="menu"
                   className="bg-card border-border absolute top-full right-0 z-20 mt-1 w-48 rounded-xl border p-1 shadow-lg"
                 >
+                  {/*
+                    "Nima uchun buni ko'ryapman?" — menyuning
+                    BIRINCHI bandi.
+
+                    Bu savol post yoqmaganda tug'iladi va odam
+                    javobni tez topishi kerak. Pastga qo'ysak,
+                    u "shikoyat" va "o'chirish" orasida yo'qolib
+                    ketardi.
+                  */}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="hover:bg-secondary flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setIsWhyOpen(true);
+                    }}
+                  >
+                    <HelpCircle className="size-4 shrink-0" aria-hidden="true" />
+                    Nima uchun ko&apos;ryapman?
+                  </button>
+
                   {canEdit && (
                     <button
                       type="button"
@@ -296,6 +320,8 @@ export function PostCard({
           </div>
         )}
       </div>
+
+      {isWhyOpen && <WhySheet postId={post.id} onClose={() => setIsWhyOpen(false)} />}
 
       {isReported && (
         <p className="text-success mt-3 text-xs">Shikoyat yuborildi. Moderator uni ko&apos;rib chiqadi.</p>
