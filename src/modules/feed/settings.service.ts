@@ -36,6 +36,7 @@ const SELECT = {
   notifyFollow: true,
   notifyMention: true,
   notifyLive: true,
+  feedOnboardedAt: true,
   recommendationsResetAt: true,
 } as const;
 
@@ -51,6 +52,7 @@ type SettingsRow = {
   notifyFollow: boolean;
   notifyMention: boolean;
   notifyLive: boolean;
+  feedOnboardedAt: Date | null;
   recommendationsResetAt: Date | null;
 };
 
@@ -67,6 +69,7 @@ function toView(row: SettingsRow): FeedSettingsView {
     notifyFollow: row.notifyFollow,
     notifyMention: row.notifyMention,
     notifyLive: row.notifyLive,
+    feedOnboardedAt: row.feedOnboardedAt?.toISOString() ?? null,
     recommendationsResetAt: row.recommendationsResetAt?.toISOString() ?? null,
   };
 }
@@ -158,6 +161,38 @@ export async function resetRecommendations(userId: string): Promise<FeedSettings
     notInterested: [],
     recommendationsResetAt: new Date(),
   };
+
+  const row = await prisma.feedSettings.upsert({
+    where: { userId },
+    create: { userId, ...data },
+    update: data,
+    select: SELECT,
+  });
+
+  return toView(row);
+}
+
+/**
+ * Feed bilan tanishtirishni yakunlaydi.
+ *
+ * ── Nima uchun ALOHIDA funksiya ───────────────────────────────────────
+ * Tanishtiruv oxirida ikki narsa birga bajarilishi kerak: tanlangan
+ * qiziqishlar saqlanadi VA "tanishtirildi" belgisi qo'yiladi.
+ *
+ * Ikkita alohida so'rov qilsak, ular orasida aloqa uzilishi mumkin
+ * edi: qiziqish saqlanib, belgi qo'yilmasdi — va odam ertaga yana
+ * o'sha ekranni ko'rardi.
+ *
+ * ── Nima uchun qiziqish BO'SH bo'lishi mumkin ─────────────────────────
+ * Odam "o'tkazib yuborish" ni tanlashi mumkin va bu to'liq haqiqiy
+ * javob: "menga hammasi qiziq". Uni majburlash — birinchi
+ * tanishuvdayoq to'siq qo'yish bo'lardi.
+ */
+export async function completeFeedOnboarding(
+  userId: string,
+  interests: PostCategoryName[],
+): Promise<FeedSettingsView> {
+  const data = { interests, feedOnboardedAt: new Date() };
 
   const row = await prisma.feedSettings.upsert({
     where: { userId },

@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { FEED_INTRO_DESTINATION, FEED_INTRO_SLIDES } from '@/config/feed-intro';
 import { FEED_SETTINGS_ITEMS } from '@/config/feed-settings-nav';
 import { POST_CATEGORY_VALUES } from '@/modules/feed/feed.types';
 import { feedSettingsSchema } from '@/modules/feed/settings.schemas';
@@ -74,6 +75,36 @@ describe('Feed sozlamalari — turlar', () => {
     const pending = NOTIFY_ITEMS.filter((item) => item.isComingSoon).map((item) => item.key);
 
     expect(pending).toEqual(['notifyLive']);
+  });
+});
+
+describe('Feed tanishtiruvi', () => {
+  it('tanishtiruv boshida TUGAMAGAN deb hisoblanadi', () => {
+    // Yangi odamda yozuv umuman yo'q — standart holat qaytadi.
+    // Agar bu qiymat `null` bo'lmasa, tanishtiruv hech kimga
+    // ko'rsatilmasdi.
+    expect(DEFAULT_FEED_SETTINGS.feedOnboardedAt).toBeNull();
+  });
+
+  it('bazada ham ixtiyoriy ustun', () => {
+    const schema = readFileSync(join(process.cwd(), 'prisma', 'schema.prisma'), 'utf8');
+    const model = /model FeedSettings \{([\s\S]*?)\n\}/.exec(schema);
+
+    expect(/feedOnboardedAt\s+DateTime\?/.test(model?.[1] ?? '')).toBe(true);
+  });
+
+  it('uchta tanishtiruv qadami bor', () => {
+    // Uzun tanishtiruvni hech kim o'qimaydi.
+    expect(FEED_INTRO_SLIDES).toHaveLength(3);
+
+    for (const slide of FEED_INTRO_SLIDES) {
+      expect(slide.title.length).toBeGreaterThan(0);
+      expect(slide.description.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('tanishtiruvdan keyin VIDEO sahifasiga otiladi', () => {
+    expect(FEED_INTRO_DESTINATION).toBe('/feed/watch');
   });
 });
 

@@ -2341,6 +2341,19 @@ model FeedSettings {
   notifyMention Boolean @default(true)
   notifyLive    Boolean @default(true)
 
+  /// Feed bilan tanishtirish qachon tugagan.
+  ///
+  /// ── Nima uchun BAZADA, brauzerda emas ───────────────────────────────
+  /// `localStorage` da saqlash oson bo'lardi, lekin u qurilmaga
+  /// bog'langan: odam telefonini almashtirsa yoki brauzer keshini
+  /// tozalasa, tanishtiruv yana boshidan chiqardi.
+  ///
+  /// ── Nima uchun sana, bayroq emas ────────────────────────────────────
+  /// Sana "qachon" degan savolga ham javob beradi. Kelajakda Feed
+  /// jiddiy o'zgarsa, eski sanali odamlarga yangi tanishtiruv
+  /// ko'rsatish mumkin — bayroq bilan buni qilib bo'lmasdi.
+  feedOnboardedAt DateTime?
+
   /// Tavsiyalar oxirgi marta qachon noldan boshlangan.
   ///
   /// ── Nima uchun sana, bayroq emas ────────────────────────────────────

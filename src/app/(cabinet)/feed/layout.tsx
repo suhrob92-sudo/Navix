@@ -1,4 +1,5 @@
 import { FeedCreateProvider } from '@/components/feed/feed-create-provider';
+import { FeedOnboardingGate } from '@/components/feed/feed-onboarding-gate';
 import { FeedTabBar } from '@/components/feed/feed-tab-bar';
 
 /**
@@ -23,6 +24,14 @@ export default function FeedLayout({ children }: { children: React.ReactNode }) 
       {children}
 
       <FeedTabBar />
+
+      {/*
+        Birinchi kirishda tanishtiruv.
+
+        Eng OXIRIDA chiziladi: u to'liq ekranli oyna va sahifa
+        tayyor bo'lgach uning ustiga ochiladi.
+      */}
+      <FeedOnboardingGate />
     </FeedCreateProvider>
   );
 }

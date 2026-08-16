@@ -84,6 +84,13 @@ export interface FeedSettingsView {
   notifyFollow: boolean;
   notifyMention: boolean;
   notifyLive: boolean;
+  /**
+   * Feed bilan tanishtirish tugaganmi.
+   *
+   * `null` — odam Feed'ni birinchi marta ochyapti va unga qiziqish
+   * so'rovi bilan tanishtiruv ko'rsatiladi.
+   */
+  feedOnboardedAt: string | null;
   /** ISO sana yoki `null` — hech qachon tiklanmagan. */
   recommendationsResetAt: string | null;
 }
@@ -110,5 +117,6 @@ export const DEFAULT_FEED_SETTINGS: FeedSettingsView = {
   notifyFollow: true,
   notifyMention: true,
   notifyLive: true,
+  feedOnboardedAt: null,
   recommendationsResetAt: null,
 };
