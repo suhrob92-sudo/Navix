@@ -8,7 +8,7 @@ import { notifyUser } from '@/modules/notification/notification.service';
 import { sendPush } from '@/modules/notification/push.service';
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
 import { MAX_PLACE_NAME_LENGTH, MAX_TAGGED_PRODUCTS, SHORT_VIDEO_SECONDS } from '@/modules/feed/feed.types';
-import { blurCoordinate, isValidCoordinate } from '@/config/geo';
+import { NEARBY_RADIUS_KM, blurCoordinate, boundingBox, isValidCoordinate } from '@/config/geo';
 import { extractHashtags, extractMentions, isValidHashtag } from '@/modules/feed/feed.text';
 import { getFeedSettings, isAllowedBy, isNotifyEnabled } from '@/modules/feed/settings.service';
 import type { PostCategoryName } from '@/modules/feed/feed.types';
@@ -401,6 +401,30 @@ export async function listFeed(
     ? { reports: { none: { status: 'OPEN' } } }
     : {};
 
+  /**
+   * "Yaqin atrofda" — koordinata oralig'i bo'yicha filtr.
+   *
+   * ── Nima uchun joylashuvsiz postlar CHIQARIB tashlanadi ─────────────
+   * Boshqa filtrlarda bo'limsiz postlar qoldirilgan edi ("bugun havo
+   * yaxshi" degan post hech qaysi bo'limga tushmaydi, lekin do'stning
+   * posti sifatida ko'rinishi kerak).
+   *
+   * Bu yerda esa aksincha: odam AYNAN "menga yaqin nima bor?" deb
+   * so'ragan. Joylashuvsiz postni ko'rsatsak, savolga javob
+   * bermagan bo'lardik — u qayerdaligi noma'lum.
+   */
+  const nearbyFilter: Prisma.PostWhereInput =
+    query.lat !== undefined && query.lng !== undefined
+      ? (() => {
+          const box = boundingBox({ latitude: query.lat, longitude: query.lng }, NEARBY_RADIUS_KM);
+
+          return {
+            latitude: { gte: box.minLatitude, lte: box.maxLatitude },
+            longitude: { gte: box.minLongitude, lte: box.maxLongitude },
+          };
+        })()
+      : {};
+
   const durationFilter: Prisma.PostWhereInput =
     query.tab === 'VIDEO' && query.duration
       ? query.duration === 'SHORT'
@@ -416,6 +440,7 @@ export async function listFeed(
       ...durationFilter,
       ...settingsFilter,
       ...sensitiveFilterWhere,
+      ...nearbyFilter,
       ...olderThan(query.cursor),
     },
     select: postSelect(viewerId),

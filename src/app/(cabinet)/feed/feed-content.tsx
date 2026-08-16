@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutGrid, List, Menu, Newspaper } from 'lucide-react';
+import { LayoutGrid, List, MapPin, Menu, Newspaper } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { FEED_CATEGORIES, feedQueryFor, type FeedFilterValue } from '@/config/feed-nav';
+import { NEARBY_RADIUS_KM } from '@/config/geo';
+import { useViewerLocation } from '@/hooks/use-viewer-location';
 import { useCursorList } from '@/hooks/use-cursor-list';
 import { usePostActions } from '@/hooks/use-post-actions';
 import { cn } from '@/lib/utils';
@@ -52,6 +54,15 @@ export function FeedContent() {
   const [isGrid, setIsGrid] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  /**
+   * Ko'ruvchining joylashuvi — FAQAT "Yaqin atrofda" uchun.
+   *
+   * So'rov sahifa ochilishi bilan yuborilmaydi: sababi bilinmagan
+   * ruxsat oynasini odam ko'pincha rad etadi va keyin uni qaytarish
+   * qiyin.
+   */
+  const location = useViewerLocation();
+
   const active = FEED_CATEGORIES.find((item) => item.value === filter) ?? FEED_CATEGORIES[0];
   const query = feedQueryFor(filter);
 
@@ -61,10 +72,23 @@ export function FeedContent() {
    * Matnli postning muqovasi yo'q — panjarada u bo'sh katak bo'lib
    * turardi.
    */
-  const path = active.isComingSoon
-    ? null
-    : `/api/v1/feed?tab=${isGrid ? 'VIDEO' : query.tab}` +
-      (query.category ? `&category=${query.category}` : '');
+  const isNearby = filter === 'NEARBY';
+
+  /**
+   * "Yaqin atrofda" joylashuvsiz SO'RALMAYDI.
+   *
+   * Koordinatasiz so'rov oddiy lentani qaytarardi — ya'ni ekran
+   * "yaqin atrofda" deb turib, butun mamlakat postlarini
+   * ko'rsatardi. Bu yolg'on bo'lardi.
+   */
+  const path =
+    active.isComingSoon || (isNearby && !location.point)
+      ? null
+      : `/api/v1/feed?tab=${isGrid ? 'VIDEO' : query.tab}` +
+        (query.category ? `&category=${query.category}` : '') +
+        (isNearby && location.point
+          ? `&lat=${location.point.latitude}&lng=${location.point.longitude}`
+          : '');
 
   const list = useCursorList<PostView>(path, 'posts');
   const actions = usePostActions(list.setItems);
@@ -94,7 +118,10 @@ export function FeedContent() {
     // yaratilib turardi.
   }, [create, isGrid, query.category, setItems]);
 
-  const isEmpty = !list.isLoading && !list.error && list.items.length === 0;
+  const isEmpty = !list.isLoading && !list.error && list.items.length === 0 && path !== null;
+
+  /** "Yaqin atrofda" hali joylashuv kutyaptimi. */
+  const needsLocation = isNearby && !location.point;
 
   return (
     <>
@@ -115,6 +142,8 @@ export function FeedContent() {
         <div className="flex items-center justify-between gap-2">
           <p className="text-muted-foreground truncate text-xs">
             {`${active.emoji} ${active.label}`}
+            {/* Oraliq ochiq aytiladi — "yaqin" so'zi mavhum. */}
+            {isNearby && location.point && ` · ${NEARBY_RADIUS_KM} km`}
           </p>
 
           <div className="flex shrink-0 gap-2">
@@ -161,6 +190,45 @@ export function FeedContent() {
           </div>
         )}
 
+        {/*
+          Joylashuv so'rovi — TUSHUNTIRISH bilan.
+
+          Brauzerning o'z oynasi faqat "ruxsat berasizmi?" deb
+          so'raydi va nima uchunligini aytmaydi. Odam sababni
+          bilmasa, deyarli har doim rad etadi.
+        */}
+        {needsLocation && (
+          <div className="border-border rounded-2xl border p-5 text-center">
+            <span className="bg-secondary text-primary mx-auto mb-3 inline-flex size-12 items-center justify-center rounded-full">
+              <MapPin className="size-6" aria-hidden="true" />
+            </span>
+
+            <h2 className="text-base font-semibold">Yaqin atrofdagilarni ko&apos;rsatamiz</h2>
+
+            <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
+              {`Buning uchun joylashuvingiz kerak. U hech qayerga saqlanmaydi — faqat shu so'rov uchun ishlatiladi va ${NEARBY_RADIUS_KM} km oralig'idagi postlar topiladi.`}
+            </p>
+
+            {location.error && (
+              <Alert variant="warning" className="mt-3 text-left">
+                {location.status === 'DENIED'
+                  ? "Joylashuvga ruxsat berilmadi. Brauzer sozlamalaridan ruxsat berib, qaytadan urinib ko'ring."
+                  : location.error}
+              </Alert>
+            )}
+
+            <Button
+              className="mt-4"
+              isLoading={location.status === 'ASKING'}
+              loadingText="Aniqlanmoqda..."
+              onClick={location.request}
+            >
+              <MapPin className="size-4" aria-hidden="true" />
+              Joylashuvni aniqlash
+            </Button>
+          </div>
+        )}
+
         {isEmpty && (
           <EmptyState
             icon={Newspaper}
@@ -176,7 +244,11 @@ export function FeedContent() {
           />
         )}
 
-        {isGrid ? <VideoGrid posts={list.items} /> : <PostList posts={list.items} actions={actions} />}
+        {isGrid ? (
+          <VideoGrid posts={list.items} />
+        ) : (
+          <PostList posts={list.items} actions={actions} viewerPoint={isNearby ? location.point : null} />
+        )}
 
         {list.hasMore && (
           <Button

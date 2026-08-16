@@ -153,3 +153,99 @@ export function blurCoordinate(value: number): number {
 export function isValidCoordinate(latitude: number, longitude: number): boolean {
   return latitude >= -90 && latitude <= 90 && longitude >= -180 && longitude <= 180;
 }
+
+/**
+ * "Yaqin atrofda" oralig'i — 50 kilometr.
+ *
+ * ── Nima uchun aynan shuncha ──────────────────────────────────────────
+ * Toshkent shahri chetdan chetga ~30 km. Ellik kilometr butun
+ * shaharni va yaqin tumanlarni qamrab oladi — ya'ni odam haqiqatan
+ * borib kela oladigan masofa.
+ *
+ * Kamroq bo'lsa (masalan 5 km) lenta deyarli bo'sh bo'lardi: hozir
+ * postlar kam va ular butun mamlakat bo'ylab tarqalgan.
+ *
+ * Ko'proq bo'lsa (200 km) "yaqin" so'zi ma'nosini yo'qotardi:
+ * Samarqanddagi restoran toshkentlik uchun yaqin emas.
+ */
+export const NEARBY_RADIUS_KM = 50;
+
+/** Bir daraja kenglik necha kilometr (Yer bo'ylab deyarli o'zgarmas). */
+const KM_PER_LATITUDE_DEGREE = 111;
+
+export interface BoundingBox {
+  minLatitude: number;
+  maxLatitude: number;
+  minLongitude: number;
+  maxLongitude: number;
+}
+
+/**
+ * Nuqta atrofidagi to'rtburchak.
+ *
+ * ── Nima uchun DOIRA emas, to'rtburchak ───────────────────────────────
+ * Baza doira bo'yicha qidira olmaydi — buning uchun PostGIS
+ * kengaytmasi kerak, u esa serverni alohida sozlashni talab qiladi.
+ *
+ * To'rtburchak esa oddiy `>=` va `<=` shartlari: indeks ishlaydi va
+ * so'rov tez bajariladi. Burchaklarda biroz ortiqcha hudud qoladi
+ * (eng ko'pi ~41%), lekin bu "yaqin atrofda" uchun ahamiyatsiz —
+ * u aniq o'lchov emas, taxminiy filtr.
+ *
+ * ── Nima uchun uzunlik boshqacha hisoblanadi ──────────────────────────
+ * Meridianlar qutbga yaqinlashgan sari bir-biriga yaqinlashadi.
+ * O'zbekistonda (~41°) bir daraja uzunlik ~84 km, kenglik esa
+ * ~111 km. Farqni hisobga olmasak, to'rtburchak sharq-g'arb
+ * yo'nalishida haddan tashqari cho'zilib ketardi.
+ */
+export function boundingBox(
+  center: { latitude: number; longitude: number },
+  radiusKm: number,
+): BoundingBox {
+  const latitudeDelta = radiusKm / KM_PER_LATITUDE_DEGREE;
+
+  /**
+   * Kosinus nolga yaqinlashsa (qutblarda) bo'linma cheksizlikka
+   * ketardi. Pastki chegara buni to'xtatadi.
+   */
+  const cosine = Math.max(0.01, Math.cos(toRadians(center.latitude)));
+  const longitudeDelta = radiusKm / (KM_PER_LATITUDE_DEGREE * cosine);
+
+  return {
+    minLatitude: center.latitude - latitudeDelta,
+    maxLatitude: center.latitude + latitudeDelta,
+    minLongitude: center.longitude - longitudeDelta,
+    maxLongitude: center.longitude + longitudeDelta,
+  };
+}
+
+/**
+ * Masofani odam tiliga o'giradi: 0.35 → "350 m", 12.4 → "12 km".
+ *
+ * ── Nima uchun `Intl` EMAS ────────────────────────────────────────────
+ * Loyihadagi barcha formatlash qo'lda: `Intl` server va brauzerda
+ * boshqacha natija berib, React "hydration mismatch" xatosini
+ * chiqarardi (sabab `src/lib/money.ts` da batafsil).
+ *
+ * ── Nima uchun 10 km dan keyin kasr YO'Q ──────────────────────────────
+ * "12.4 km" va "12 km" orasida odam uchun farq yo'q, lekin kasr
+ * qator uzunligini oshiradi va aniqlik borday taassurot qoldiradi —
+ * holbuki koordinata ataylab ~110 metrga yaxlitlangan.
+ */
+export function formatDistanceUz(km: number): string {
+  if (!Number.isFinite(km) || km < 0) return '';
+
+  if (km < 1) {
+    const meters = Math.max(10, Math.round((km * 1000) / 10) * 10);
+
+    return `${meters} m`;
+  }
+
+  if (km < 10) {
+    const rounded = Math.round(km * 10) / 10;
+
+    return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)} km`;
+  }
+
+  return `${Math.round(km)} km`;
+}

@@ -9,6 +9,14 @@ export interface PostListProps {
   actions: PostActions;
   /** O'chirish va tahrirlash tugmalari ko'rinsinmi (o'z postlarida). */
   canManage?: boolean;
+  /**
+   * Ko'ruvchining joylashuvi — masofa ko'rsatish uchun.
+   *
+   * Faqat "Yaqin atrofda" bo'limida beriladi. Qolgan joylarda
+   * masofa ma'nosiz: odam butun mamlakat lentasini ko'rayotganda
+   * "480 km" degan yozuv hech narsa bermaydi.
+   */
+  viewerPoint?: { latitude: number; longitude: number } | null;
 }
 
 /**
@@ -22,7 +30,7 @@ export interface PostListProps {
  *
  * Shu sababdan ulanish shu yerda — bir marta.
  */
-export function PostList({ posts, actions, canManage = true }: PostListProps) {
+export function PostList({ posts, actions, canManage = true, viewerPoint = null }: PostListProps) {
   return (
     <div className="space-y-3">
       {posts.map((post, index) => (
@@ -33,6 +41,7 @@ export function PostList({ posts, actions, canManage = true }: PostListProps) {
         >
           <PostCard
             post={post}
+            viewerPoint={viewerPoint}
             isBusy={actions.busyPostId === post.id}
             onToggleLike={() => actions.toggleLike(post)}
             onDoubleTapLike={() => actions.likeOnly(post)}

@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { formatRelativeUz } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
+import { distanceKm, formatDistanceUz } from '@/config/geo';
 import { cn } from '@/lib/utils';
 import {
   authorDisplayName,
@@ -28,6 +29,8 @@ import type { ReportReasonName } from '@/modules/moderation/moderation.types';
 
 export interface PostCardProps {
   post: PostView;
+  /** Ko'ruvchining joylashuvi — masofa ko'rsatish uchun (ixtiyoriy). */
+  viewerPoint?: { latitude: number; longitude: number } | null;
   /** Yoqtirish tugmasi bosildi. */
   onToggleLike: () => void;
   /**
@@ -68,6 +71,7 @@ export interface PostCardProps {
  */
 export function PostCard({
   post,
+  viewerPoint = null,
   onToggleLike,
   onDoubleTapLike,
   onToggleSave,
@@ -79,6 +83,17 @@ export function PostCard({
   isDetail = false,
   isBusy = false,
 }: PostCardProps) {
+  /**
+   * Masofa BRAUZERDA hisoblanadi.
+   *
+   * Serverda hisoblab, har bir postga qo'shib yuborish ham mumkin
+   * edi — lekin u faqat bitta bo'limda kerak va qolgan barcha
+   * so'rovlarda bekorga uzatilardi.
+   *
+   * Koordinata allaqachon javobda bor, hisob esa yigirma qatorlik.
+   */
+  const distanceLabel =
+    viewerPoint && post.place ? formatDistanceUz(distanceKm(viewerPoint, post.place)) : null;
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -184,6 +199,17 @@ export function PostCard({
             <p className="text-muted-foreground flex items-center gap-1 text-xs">
               <MapPin className="size-3 shrink-0" aria-hidden="true" />
               <span className="truncate">{post.place.name}</span>
+
+              {/*
+                Masofa FAQAT "Yaqin atrofda" bo'limida.
+
+                Boshqa joyda u ma'nosiz: butun mamlakat lentasida
+                "480 km" degan yozuv hech narsa bermaydi va faqat
+                qatorni uzaytiradi.
+              */}
+              {distanceLabel && (
+                <span className="shrink-0 tabular-nums">{`· ${distanceLabel}`}</span>
+              )}
             </p>
           )}
         </div>

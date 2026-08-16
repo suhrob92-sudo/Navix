@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 
 import type { NavIcon } from '@/config/app-nav';
+import { NEARBY_RADIUS_KM } from '@/config/geo';
 
 /**
  * Feed bo'limining tuzilishi — YAGONA manba.
@@ -192,10 +193,8 @@ export const FEED_CATEGORIES: readonly FeedCategoryItem[] = [
     value: 'NEARBY',
     label: 'Yaqin atrofda',
     emoji: '📍',
-    isComingSoon: true,
-    emptyTitle: 'Tez orada',
-    emptyDescription:
-      "Videoga joylashuv biriktirish ustida ishlanmoqda. Tayyor bo'lgach, shu yerda sizga eng yaqin videolar chiqadi.",
+    emptyTitle: "Yaqin atrofda post yo'q",
+    emptyDescription: `Sizdan ${NEARBY_RADIUS_KM} km oralig'ida hali hech kim joylashuvli post joylamagan. Birinchi bo'ling.`,
   },
   {
     value: 'DISCOUNTS',
@@ -280,6 +279,12 @@ export function isFeedMode(value: FeedFilterValue): value is FeedModeValue {
  */
 export function feedQueryFor(value: FeedFilterValue): { tab: string; category?: string } {
   if (value === 'FOLLOWING') return { tab: 'FOLLOWING' };
+  /**
+   * "Yaqin atrofda" ham oddiy lentani so'raydi.
+   *
+   * Farqi so'rovga QO'SHILADIGAN koordinatada: uni ekran qo'shadi,
+   * chunki koordinata brauzerdan keladi va bu funksiya uni bilmaydi.
+   */
   if (value === 'FOR_YOU' || value === 'NEARBY') return { tab: 'LATEST' };
 
   return { tab: 'LATEST', category: value };

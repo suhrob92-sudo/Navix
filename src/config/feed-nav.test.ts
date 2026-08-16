@@ -58,19 +58,19 @@ describe('Feed kategoriyalari', () => {
     }
   });
 
-  it('"Yaqin atrofda" hali tayyor emas deb belgilangan', () => {
+  it('"Yaqin atrofda" endi ISHLAYDI', () => {
     const nearby = FEED_CATEGORIES.find((item) => item.value === 'NEARBY');
 
-    // Joylashuv keyingi bosqichda qo'shiladi. Doirani yashirish
-    // o'rniga halol "Tez orada" yozuvi ko'rsatiladi.
-    expect(nearby?.isComingSoon).toBe(true);
-    expect(nearby?.emptyTitle).toBe('Tez orada');
+    // Joylashuv qo'shilgach bayroq olib tashlandi. Agar u qaytib
+    // qolsa, doira jim turib qolardi va hech narsa yuklamasdi.
+    expect(nearby?.isComingSoon).toBeUndefined();
+    expect(nearby?.emptyTitle).not.toBe('Tez orada');
   });
 
-  it('faqat "Yaqin atrofda" tayyor emas', () => {
+  it('barcha doiralar tayyor', () => {
     const pending = FEED_CATEGORIES.filter((item) => item.isComingSoon).map((item) => item.value);
 
-    expect(pending).toEqual(['NEARBY']);
+    expect(pending).toEqual([]);
   });
 });
 

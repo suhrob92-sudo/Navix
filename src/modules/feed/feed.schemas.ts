@@ -43,6 +43,21 @@ export const feedQuerySchema = z.object({
    * qoldiriladi.
    */
   duration: z.enum(VIDEO_DURATIONS).optional(),
+  /**
+   * "Yaqin atrofda" uchun KO'RUVCHINING joylashuvi.
+   *
+   * ── Nima uchun har so'rovda yuboriladi, saqlanmaydi ─────────────────
+   * Odamning hozirgi joyi — eng nozik ma'lumotlardan biri. Uni
+   * bazaga yozsak, u yerda abadiy qolardi va kim qayerda
+   * yurgani tarixga aylanardi.
+   *
+   * So'rov bilan kelgan koordinata esa javob berilishi bilan
+   * unutiladi: hech qayerga yozilmaydi.
+   *
+   * Ikkalasi BIRGA keladi — bittasi bo'lsa filtr ma'nosiz.
+   */
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
   cursor: feedCursorSchema.optional(),
   /**
    * Bir so'rovda nechta post.
