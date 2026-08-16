@@ -1,7 +1,8 @@
 import { Prisma } from '@/generated/prisma/client';
-import { ConflictError, NotFoundError } from '@/lib/api/errors';
+import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/api/errors';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
+import { isAllowedBy, isNotifyEnabled } from '@/modules/feed/settings.service';
 import { blockedUserIds, findBlock } from '@/modules/moderation/moderation.service';
 import { notifyUser } from '@/modules/notification/notification.service';
 import {
@@ -113,6 +114,18 @@ export async function getPublicProfile(username: string, viewerId: string): Prom
    * bilan bir xil ko'rinadi.
    */
   if (block?.blockedByThem) {
+    throw new NotFoundError('Profil');
+  }
+
+  /**
+   * Yopiq hisob.
+   *
+   * ── Nima uchun "topilmadi", "yopiq" emas ────────────────────────────
+   * Bloklashdagi bilan bir xil sabab: javob farqi ma'lumot beradi.
+   * "Bu profil yopiq" degan javob "bu odam bor" degani ham bo'lardi
+   * va qidiruv orqali ro'yxat yig'ib olish mumkin bo'lardi.
+   */
+  if (!isOwn && !(await isAllowedBy(row.id, viewerId, 'profileVisibility'))) {
     throw new NotFoundError('Profil');
   }
 
@@ -297,6 +310,16 @@ export async function followUser(followerId: string, username: string): Promise<
     throw new NotFoundError('Profil');
   }
 
+  /**
+   * Egasining OBUNA sozlamasi.
+   *
+   * Ekranda tugmani yashirish yetarli emas: so'rovni to'g'ridan-to'g'ri
+   * yuborish oson. Qoida faqat serverda haqiqiy kuchga ega.
+   */
+  if (!(await isAllowedBy(targetId, followerId, 'followScope'))) {
+    throw new ForbiddenError("Bu foydalanuvchi obunalarni yopib qo'ygan.");
+  }
+
   try {
     await prisma.follow.create({ data: { followerId, followingId: targetId } });
 
@@ -311,6 +334,10 @@ export async function followUser(followerId: string, username: string): Promise<
       where: { id: followerId },
       select: { firstName: true, lastName: true, profile: { select: { username: true } } },
     });
+
+    if (!(await isNotifyEnabled(targetId, 'notifyFollow'))) {
+      return { isFollowing: true, followerCount: await prisma.follow.count({ where: { followingId: targetId } }) };
+    }
 
     await notifyUser(targetId, 'social.new_follower', {
       followerId,

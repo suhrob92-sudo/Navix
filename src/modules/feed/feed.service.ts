@@ -9,6 +9,7 @@ import { sendPush } from '@/modules/notification/push.service';
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
 import { MAX_TAGGED_PRODUCTS, SHORT_VIDEO_SECONDS } from '@/modules/feed/feed.types';
 import { extractHashtags, extractMentions, isValidHashtag } from '@/modules/feed/feed.text';
+import { getFeedSettings, isAllowedBy, isNotifyEnabled } from '@/modules/feed/settings.service';
 import type { PostCategoryName } from '@/modules/feed/feed.types';
 import type {
   CommentView,
@@ -259,13 +260,47 @@ async function followingIds(userId: string): Promise<string[]> {
   return rows.map((row) => row.followingId);
 }
 
+/**
+ * Qiziqishlarni lenta shartiga aylantiradi.
+ *
+ * ── Nima uchun "yuqoriroq ko'tarish" EMAS, filtr ─────────────────────
+ * Tabiiy yechim "qiziqishlarni yuqoriga chiqarish" bo'lardi. Lekin
+ * lenta vaqt bo'yicha tartiblangan va sahifalash ham vaqtga
+ * bog'langan (`cursor`). Tartibni o'zgartirsak, ikkinchi sahifada
+ * postlar takrorlanib yoki tushib qolardi.
+ *
+ * Shuning uchun sozlama HALOL va oddiy ishlaydi: tanlangan bo'limlar
+ * lentaga tushadi, tanlanmaganlari tushmaydi. Ekranda ham aynan
+ * shunday yozilgan — va'da bajarilishi kerak.
+ *
+ * ── Nima uchun bo'limsiz postlar HAR DOIM qoladi ─────────────────────
+ * "Bugun havo yaxshi" degan post hech qaysi bo'limga tushmaydi. Uni
+ * qiziqish tanlagan odamdan yashirsak, do'stlarining oddiy postlari
+ * lentadan yo'qolardi.
+ */
+function buildPreferenceFilter(
+  interests: PostCategoryName[],
+  notInterested: PostCategoryName[],
+): Prisma.PostWhereInput {
+  if (interests.length > 0) {
+    return { OR: [{ category: null }, { category: { in: interests } }] };
+  }
+
+  if (notInterested.length > 0) {
+    return { OR: [{ category: null }, { category: { notIn: notInterested } }] };
+  }
+
+  return {};
+}
+
 export async function listFeed(
   viewerId: string,
   query: FeedQuery,
 ): Promise<{ posts: PostView[]; nextCursor: string | null }> {
-  const [hidden, following] = await Promise.all([
+  const [hidden, following, settings] = await Promise.all([
     blockedUserIds(viewerId),
     query.tab === 'FOLLOWING' ? followingIds(viewerId) : Promise.resolve<string[]>([]),
+    getFeedSettings(viewerId),
   ]);
 
   const hiddenSet = new Set(hidden);
@@ -323,6 +358,35 @@ export async function listFeed(
    * Uzunligi noma'lum (eski) videolar QISQA deb hisoblanadi —
    * yuklash chegarasi baribir 60 soniya bo'lgan.
    */
+  /**
+   * Foydalanuvchi sozlamalari lentaga QO'LLANADI.
+   *
+   * ── Nima uchun "qizig'i emas" kategoriya tanlanganda ishlamaydi ─────
+   * Odam ataylab "Restoranlar" doirasini bosgan bo'lsa, u aynan shuni
+   * so'ragan. Sozlamaga qarab bo'sh ekran ko'rsatish — so'rovni
+   * e'tiborsiz qoldirish bo'lardi.
+   *
+   * Ya'ni sozlama UMUMIY lentani tozalaydi, aniq so'rovni emas.
+   */
+  const settingsFilter: Prisma.PostWhereInput = query.category
+    ? {}
+    : buildPreferenceFilter(settings.interests, settings.notInterested);
+
+  /**
+   * Hassos filtr — shikoyat qilingan, lekin hali ko'rilmagan postlar.
+   *
+   * ── Nima uchun FAQAT "ko'rilmagan" ──────────────────────────────────
+   * Moderator ko'rib chiqqan post ikki holatda bo'ladi: chora ko'rilgan
+   * (u allaqachon o'chirilgan) yoki asos topilmagan (u toza). Ikkalasini
+   * ham yashirishning ma'nosi yo'q.
+   *
+   * Xavf esa aynan ORALIQDA: shikoyat kelgan, lekin hali hech kim
+   * ko'rmagan post. Filtr yoqilgan odam uni ko'rmaydi.
+   */
+  const sensitiveFilterWhere: Prisma.PostWhereInput = settings.sensitiveFilter
+    ? { reports: { none: { status: 'OPEN' } } }
+    : {};
+
   const durationFilter: Prisma.PostWhereInput =
     query.tab === 'VIDEO' && query.duration
       ? query.duration === 'SHORT'
@@ -331,7 +395,15 @@ export async function listFeed(
       : {};
 
   const rows = await prisma.post.findMany({
-    where: { ...LIVE_AUTHOR, ...scope, ...categoryFilter, ...durationFilter, ...olderThan(query.cursor) },
+    where: {
+      ...LIVE_AUTHOR,
+      ...scope,
+      ...categoryFilter,
+      ...durationFilter,
+      ...settingsFilter,
+      ...sensitiveFilterWhere,
+      ...olderThan(query.cursor),
+    },
     select: postSelect(viewerId),
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: query.limit + 1,
@@ -975,6 +1047,18 @@ export async function addComment(
   const post = await requireLivePost(postId, authorId);
 
   /**
+   * Muallifning IZOH sozlamasi tekshiriladi.
+   *
+   * ── Nima uchun bu yerda, sahifada emas ──────────────────────────────
+   * Ekranda izoh maydonini yashirish yetarli emas: so'rovni to'g'ridan
+   * to'g'ri yuborish oson. Ruxsat qoidasi faqat SERVERDA haqiqiy
+   * kuchga ega.
+   */
+  if (!(await isAllowedBy(post.authorId, authorId, 'commentScope'))) {
+    throw new ForbiddenError('Bu postga izoh yozish mumkin emas.');
+  }
+
+  /**
    * Javob doim ASOSIY izohga biriktiriladi.
    *
    * Odam javobga javob yozsa, uning `parentId` si o'sha javobning
@@ -1460,6 +1544,8 @@ async function actorName(userId: string): Promise<{ name: string; username: stri
  */
 async function notifyPostLiked(authorId: string, postId: string, likerId: string): Promise<void> {
   try {
+    if (!(await isNotifyEnabled(authorId, 'notifyLike'))) return;
+
     const actor = await actorName(likerId);
 
     await notifyUser(authorId, 'feed.post_liked', {
@@ -1484,6 +1570,8 @@ async function notifyPostCommented(
   body: string,
 ): Promise<void> {
   try {
+    if (!(await isNotifyEnabled(authorId, 'notifyComment'))) return;
+
     const actor = await actorName(commenterId);
 
     await notifyUser(authorId, 'feed.post_commented', {
@@ -1524,6 +1612,7 @@ async function notifyCommentReplied(
     });
 
     if (!root || root.authorId === replierId) return;
+    if (!(await isNotifyEnabled(root.authorId, 'notifyComment'))) return;
 
     const actor = await actorName(replierId);
 
@@ -1540,6 +1629,8 @@ async function notifyCommentReplied(
 /** Izoh yoqtirilgani haqida xabar — push yo'q, yoqtirish bilan bir xil sabab. */
 async function notifyCommentLiked(authorId: string, postId: string, likerId: string): Promise<void> {
   try {
+    if (!(await isNotifyEnabled(authorId, 'notifyLike'))) return;
+
     const actor = await actorName(likerId);
 
     await notifyUser(authorId, 'feed.comment_liked', { postId, actorName: actor.name });
@@ -1577,6 +1668,7 @@ async function notifyMentioned(actorId: string, postId: string, body: string): P
     for (const profile of profiles) {
       // O'zini eslash — xabar kerak emas.
       if (profile.userId === actorId) continue;
+      if (!(await isNotifyEnabled(profile.userId, 'notifyMention'))) continue;
 
       await notifyUser(profile.userId, 'feed.mentioned', { postId, actorName: actor.name });
     }

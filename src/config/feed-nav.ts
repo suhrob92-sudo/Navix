@@ -10,6 +10,7 @@ import {
   Plus,
   Radio,
   Search,
+  Settings,
   User,
   Video,
 } from 'lucide-react';
@@ -388,6 +389,12 @@ export const FEED_FEATURES: readonly FeedFeatureItem[] = [
     label: 'Mashhur mavzular',
     description: 'Xeshteglar bo\'yicha kashf qilish',
     icon: Hash,
+  },
+  {
+    href: '/feed/settings',
+    label: 'Feed sozlamalari',
+    description: 'Kontent, maxfiylik va bildirishnomalar',
+    icon: Settings,
   },
 ] as const;
 

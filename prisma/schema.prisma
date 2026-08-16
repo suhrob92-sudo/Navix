@@ -253,6 +253,7 @@ model User {
   deletedAt DateTime?
 
   profile           UserProfile?
+  feedSettings      FeedSettings?
   roles             UserRoleAssignment[]
   sessions          Session[]
   wallet            Wallet?
@@ -2268,6 +2269,92 @@ enum ReportStatus {
   REVIEWED
   /// Ko'rildi, asos topilmadi.
   DISMISSED
+}
+
+/// Kimga ruxsat berilgan — Feed sozlamalari uchun.
+///
+/// ── Nima uchun `MessagePrivacy` qayta ishlatilmadi ─────────────────────
+/// U nomidan ko'rinib turibdiki XABAR uchun yozilgan va chat moduliga
+/// tegishli. Uni izohlar bilan obunaga ham ulasak, ertaga chatga yangi
+/// qiymat qo'shilganda (masalan "faqat aloqalarim") u Feed'ga ham
+/// tarqalib ketardi.
+///
+/// Qiymatlar bir xil ko'rinsa ham, ma'nosi boshqa — shuning uchun
+/// alohida.
+enum AudienceScope {
+  /// Hamma.
+  EVERYONE
+  /// Faqat menga obuna bo'lganlar.
+  FOLLOWERS
+  /// Hech kim.
+  NOBODY
+}
+
+/// Feed sozlamalari — har bir odam uchun bitta.
+///
+/// ── Nima uchun ALOHIDA jadval ─────────────────────────────────────────
+/// `UserProfile` allaqachon o'ndan ortiq ustunga ega va u butun ilovaga
+/// tegishli (til, mavzu, avatar). Feed sozlamalari esa faqat lentaga
+/// tegishli va ular tez-tez o'zgaradi.
+///
+/// Ular bir jadvalga qo'shilsa, lenta sozlamasi o'zgargan har safar
+/// profil qatori ham qayta yozilardi — ya'ni butunlay boshqa modul
+/// ma'lumoti bekorga qo'zg'atilardi.
+///
+/// ── Nima uchun yozuv "kerak bo'lganda" yaratiladi ─────────────────────
+/// Yangi ro'yxatdan o'tgan odamning hamma sozlamasi standart. Unga
+/// darhol qator yozish — millionlab bo'sh qator degani. Qator faqat
+/// odam biror narsani o'zgartirganda paydo bo'ladi.
+model FeedSettings {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @db.Uuid
+
+  /// Qiziqish mavzulari — lentada YUQORIROQ chiqadi.
+  ///
+  /// Ro'yxat bo'sh bo'lsa, hech narsa ustun emas: yangi odamga
+  /// hammasi bir xil ko'rsatiladi.
+  interests PostCategory[]
+
+  /// Qizig'i emas — lentaga UMUMAN tushmaydi.
+  ///
+  /// `interests` bilan kesishmaydi: bir bo'lim bir vaqtda ham
+  /// yoqishi, ham yoqmasligi mumkin emas. Buni xizmat ta'minlaydi.
+  notInterested PostCategory[]
+
+  /// Shikoyat qilingan, lekin hali ko'rilmagan postlar yashirilsinmi.
+  ///
+  /// Yoqilgan holda keladi: yangi odam birinchi ochganda noqulay
+  /// kontentga duch kelmasligi kerak.
+  sensitiveFilter Boolean @default(true)
+
+  /// Profilimni kim ko'ra oladi.
+  profileVisibility AudienceScope @default(EVERYONE)
+  /// Postlarimga kim izoh yoza oladi.
+  commentScope AudienceScope @default(EVERYONE)
+  /// Menga kim obuna bo'la oladi.
+  followScope AudienceScope @default(EVERYONE)
+
+  /// Bildirishnomalar — har biri alohida o'chiriladi.
+  notifyLike    Boolean @default(true)
+  notifyComment Boolean @default(true)
+  notifyFollow  Boolean @default(true)
+  notifyMention Boolean @default(true)
+  notifyLive    Boolean @default(true)
+
+  /// Tavsiyalar oxirgi marta qachon noldan boshlangan.
+  ///
+  /// ── Nima uchun sana, bayroq emas ────────────────────────────────────
+  /// "Tiklandi" degan bayroq bir marta ishlatilib, keyin ma'nosini
+  /// yo'qotardi. Sana esa "shu vaqtdan keyingi xatti-harakat
+  /// hisobga olinadi" degan aniq chegara beradi.
+  recommendationsResetAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("feed_settings")
 }
 
 /// Bir foydalanuvchi boshqasini bloklagani.

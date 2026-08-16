@@ -132,7 +132,7 @@ export function FeedProfileContent() {
               </div>
 
               <Button variant="ghost" size="icon" aria-label="Sozlamalar" asChild>
-                <Link href="/profile/settings">
+                <Link href="/feed/settings">
                   <Settings className="size-5" aria-hidden="true" />
                 </Link>
               </Button>
