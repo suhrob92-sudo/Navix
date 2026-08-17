@@ -1,4 +1,5 @@
 import type { AttachmentKindName } from '@/config/attachments';
+import type { PostCtaKindName } from '@/config/post-cta';
 
 /**
  * Lenta — brauzer va server uchun umumiy turlar.
@@ -44,6 +45,13 @@ export interface PostView {
    * (kiyim + poyabzal + sumka).
    */
   attachments: PostAttachmentView[];
+  /**
+   * Videoning chaqiruvi — "endi nima qilay?".
+   *
+   * `null` — muallif chaqiruv qo'ymagan. Biriktirmalardan farqli
+   * o'laroq bittasi: ikkita chaqiruv javob bermaslik bilan barobar.
+   */
+  cta: PostCtaView | null;
   /** Videoni necha marta ko'rishgan. */
   viewCount: number;
   /** Qaysi bo'limga tegishli. `null` — muallif tanlamagan. */
@@ -230,6 +238,26 @@ export interface PostAttachmentView {
    * kuzatib turardi.
    *
    * Postning egasi bo'lmaganda bu yerda doim `0` turadi.
+   */
+  clickCount: number;
+}
+
+/**
+ * Videoning chaqiruvi — ekran uchun kerakli minimum.
+ *
+ * Manzil BU YERDA yo'q: uni ekran `ctaHref()` orqali yasaydi. Shu
+ * tufayli javobga tashqi manzil hech qachon tushmaydi va uni
+ * o'zgartirib yuborishning iloji ham qolmaydi.
+ */
+export interface PostCtaView {
+  kind: PostCtaKindName;
+  /** Foydalanuvchi nomi yoki telefon. `FOLLOW`/`MESSAGE` da `null`. */
+  value: string | null;
+  /**
+   * Tugma necha marta bosilgan.
+   *
+   * Biriktirmalardagi bilan bir xil qoida: faqat post EGASIGA
+   * ko'rinadi, begonaga doim `0` ketadi.
    */
   clickCount: number;
 }

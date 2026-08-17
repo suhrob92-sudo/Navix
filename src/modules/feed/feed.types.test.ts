@@ -407,6 +407,71 @@ describe('video post sxemasi', () => {
   });
 });
 
+/**
+ * Videoning chaqiruvi — sxema darajasidagi qoidalar.
+ *
+ * Qiymatning MAZMUNI xizmat qatlamida tekshiriladi (telefon
+ * me'yorlashtiriladi, nom tozalanadi). Bu yerda esa shakl.
+ */
+describe('createPostSchema — chaqiruv', () => {
+  const video = '/api/v1/files/posts/a/b.mp4';
+
+  it('qiymatsiz chaqiruv qabul qilinadi', () => {
+    // FOLLOW muallifning o'ziga ishora qiladi — qiymat kerak emas.
+    expect(
+      createPostSchema.safeParse({ body: '', videoUrl: video, cta: { kind: 'FOLLOW' } }).success,
+    ).toBe(true);
+  });
+
+  it('qiymatli chaqiruv qabul qilinadi', () => {
+    expect(
+      createPostSchema.safeParse({
+        body: '',
+        videoUrl: video,
+        cta: { kind: 'TELEGRAM', value: 'navix_uz' },
+      }).success,
+    ).toBe(true);
+  });
+
+  it('qiymat KERAK bo\'lgan turda bo\'sh qiymat rad etiladi', () => {
+    /*
+      Qiymatsiz "Telegramda ochish" tugmasi hech qayerga olib
+      bormasdi — tomoshabin bosardi va hech narsa bo'lmasdi.
+    */
+    expect(
+      createPostSchema.safeParse({ body: '', videoUrl: video, cta: { kind: 'TELEGRAM' } }).success,
+    ).toBe(false);
+    expect(
+      createPostSchema.safeParse({
+        body: '',
+        videoUrl: video,
+        cta: { kind: 'PHONE', value: '   ' },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("noma'lum tur rad etiladi", () => {
+    expect(
+      createPostSchema.safeParse({ body: '', videoUrl: video, cta: { kind: 'TIKTOK' } }).success,
+    ).toBe(false);
+  });
+
+  it('VIDEOSIZ postga chaqiruv qo\'yib bo\'lmaydi', () => {
+    /*
+      Matnli postda chaqiruv tugmasi qo'yadigan joy yo'q va u
+      lentani reklama qatoriga aylantirardi.
+    */
+    expect(
+      createPostSchema.safeParse({ body: 'Matn', cta: { kind: 'FOLLOW' } }).success,
+    ).toBe(false);
+  });
+
+  it('chaqiruvsiz post ham qabul qilinadi', () => {
+    // Chaqiruv MAJBURIY emas.
+    expect(createPostSchema.safeParse({ body: '', videoUrl: video }).success).toBe(true);
+  });
+});
+
 describe('conversionPercent', () => {
   it('nisbatni foizda beradi', () => {
     expect(conversionPercent(30, 300)).toBe(10);

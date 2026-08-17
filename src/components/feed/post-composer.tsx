@@ -1,10 +1,11 @@
 'use client';
 
-import { Link2, MapPin, Scissors, Send, Video, X } from 'lucide-react';
+import { Link2, MapPin, Megaphone, Scissors, Send, Video, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { LocationPicker } from '@/components/feed/location-picker';
 import { AttachmentPicker, type PickedAttachment } from '@/components/feed/attachment-picker';
+import { CtaPicker, type PickedCta } from '@/components/feed/cta-picker';
 import { VideoEditor, type VideoEdit } from '@/components/feed/video-editor';
 import { POST_CATEGORIES } from '@/config/feed-nav';
 import { ImageAttach } from '@/components/upload/image-attach';
@@ -22,6 +23,7 @@ import {
   type PostPlaceView,
 } from '@/modules/feed/feed.types';
 import { ATTACHMENT_KIND_CONFIG, MAX_ATTACHMENTS } from '@/config/attachments';
+import { POST_CTA_CONFIG } from '@/config/post-cta';
 import { MAX_VIDEO_SECONDS, formatDuration } from '@/modules/upload/upload.types';
 
 /** Yuborilayotgan postning to'liq tarkibi. */
@@ -35,6 +37,8 @@ export interface ComposerDraft {
   videoStartSeconds: number | null;
   videoEndSeconds: number | null;
   attachments: { kind: PickedAttachment['kind']; targetId: string }[];
+  /** Videoning chaqiruvi. `null` — muallif qo'ymagan. */
+  cta: PickedCta | null;
   /** Qaysi bo'limga tegishli. `null` — tanlanmagan. */
   category: PostCategoryName | null;
   /** Biriktirilgan joylashuv. `null` — qo'shilmagan. */
@@ -135,6 +139,10 @@ export function PostComposer({
   const [attachments, setAttachments] = useState<PickedAttachment[]>([]);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
+  /** Videoning chaqiruvi — bittasi. */
+  const [cta, setCta] = useState<PickedCta | null>(null);
+  const [isCtaOpen, setIsCtaOpen] = useState(false);
+
   /** Tanlangan bo'lim — ixtiyoriy. */
   const [category, setCategory] = useState<PostCategoryName | null>(null);
 
@@ -170,6 +178,7 @@ export function PostComposer({
       videoStartSeconds: video?.trim?.start ?? null,
       videoEndSeconds: video?.trim?.end ?? null,
       attachments: attachments.map((item) => ({ kind: item.kind, targetId: item.targetId })),
+      cta,
       category,
       place,
     });
@@ -179,6 +188,7 @@ export function PostComposer({
       setImageUrl(null);
       setVideo(null);
       setAttachments([]);
+      setCta(null);
       setCategory(null);
       setPlace(null);
       setVideoError(null);
@@ -531,6 +541,24 @@ export function PostComposer({
         )}
 
         {/*
+          Chaqiruv tugmasi — FAQAT videoda.
+
+          ── Nima uchun sotadigan narsasiz ham kerak ─────────────────
+          Ko'p video hech narsa sotmaydi: bloger kulgili video
+          joylaydi, usta ish jarayonini ko'rsatadi. Ular ham bir
+          narsaga chorlaydi — "obuna bo'l", "menga yozing".
+
+          Chaqiruvsiz video tomosha bilan tugaydi va muallif hech
+          narsa olmaydi.
+        */}
+        {video && (
+          <Button type="button" variant="ghost" size="sm" disabled={isBusy} onClick={() => setIsCtaOpen(true)}>
+            <Megaphone className="size-4" aria-hidden="true" />
+            {cta ? POST_CTA_CONFIG[cta.kind].label : 'Chaqiruv'}
+          </Button>
+        )}
+
+        {/*
           Joylashuv tugmasi — HAR QANDAY postga.
 
           ── Nima uchun faqat videoga emas ──────────────────────────
@@ -611,6 +639,21 @@ export function PostComposer({
             setIsPlaceOpen(false);
           }}
           onCancel={() => setIsPlaceOpen(false)}
+        />
+      )}
+
+      {isCtaOpen && (
+        <CtaPicker
+          value={cta}
+          onPick={(picked) => {
+            setCta(picked);
+            setIsCtaOpen(false);
+          }}
+          onClear={() => {
+            setCta(null);
+            setIsCtaOpen(false);
+          }}
+          onCancel={() => setIsCtaOpen(false)}
         />
       )}
 

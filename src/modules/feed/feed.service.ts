@@ -22,6 +22,13 @@ import { NEARBY_RADIUS_KM, blurCoordinate, boundingBox, isValidCoordinate } from
 import { extractHashtags, extractMentions, isValidHashtag } from '@/modules/feed/feed.text';
 import { invalidateRecommendations } from '@/modules/feed/recommend.cache';
 import { isValidTrim, trimmedSeconds } from '@/modules/feed/video-trim';
+import {
+  CTA_HANDLE_PATTERN,
+  POST_CTA_CONFIG,
+  cleanHandle,
+  type PostCtaKindName,
+} from '@/config/post-cta';
+import { normalizeUzPhone } from '@/lib/phone';
 import { listRecommendedFeed } from '@/modules/feed/recommend.service';
 import { getFeedSettings, isAllowedBy, isNotifyEnabled } from '@/modules/feed/settings.service';
 import type { PostCategoryName } from '@/modules/feed/feed.types';
@@ -386,6 +393,13 @@ export interface CreatePostData {
    */
   attachments?: AttachmentInput[];
   /**
+   * Videoning chaqiruvi — bittasi.
+   *
+   * Qiymat SERVERDA tozalanadi: `@` olib tashlanadi, telefon
+   * me'yorlashtiriladi va naqshga moslik tekshiriladi.
+   */
+  cta?: { kind: PostCtaKindName; value?: string } | null;
+  /**
    * Joylashuv — ixtiyoriy.
    *
    * Uchalasi BIRGA keladi yoki umuman kelmaydi: nomsiz koordinata
@@ -467,6 +481,70 @@ function normalizeVideo(data: CreatePostData): {
   };
 }
 
+/**
+ * Chaqiruvni saqlashga tayyorlaydi.
+ *
+ * ── Nima uchun qiymat SERVERDA tozalanadi ────────────────────────────
+ * Brauzerdagi tozalashni chetlab o'tish oson: so'rovni qo'lda yuborish
+ * yetarli. Tozalanmagan qiymat esa bazaga tushib, ekranda buzuq
+ * havolaga aylanardi.
+ *
+ * ── Nima uchun naqsh QAT'IY ──────────────────────────────────────────
+ * Manzil `src/config/post-cta.ts` da nomdan quriladi. Nomga bo'sh joy
+ * yoki `/` tushsa, hosil bo'lgan manzil butunlay boshqa sahifaga
+ * olib borishi mumkin edi.
+ */
+function normalizeCta(data: CreatePostData): {
+  ctaKind: PostCtaKindName | null;
+  ctaValue: string | null;
+} {
+  const cta = data.cta ?? null;
+
+  // Videosiz postda chaqiruv saqlanmaydi — sxema ham buni rad etadi.
+  if (!cta || !data.videoUrl) {
+    return { ctaKind: null, ctaValue: null };
+  }
+
+  const config = POST_CTA_CONFIG[cta.kind];
+
+  /*
+    `FOLLOW` va `MESSAGE` da qiymat BO'LMASLIGI kerak.
+
+    Brauzer uni yuborgan bo'lsa ham tashlab yuboriladi: bazadagi
+    shart bunday qatorni baribir rad etardi, lekin xato matni
+    foydalanuvchiga tushunarsiz bo'lardi.
+  */
+  if (!config.needsValue) {
+    return { ctaKind: cta.kind, ctaValue: null };
+  }
+
+  const raw = (cta.value ?? '').trim();
+
+  if (raw.length === 0) {
+    throw new ConflictError('Chaqiruv uchun nom yoki raqam kiriting.');
+  }
+
+  if (cta.kind === 'PHONE') {
+    const phone = normalizeUzPhone(raw);
+
+    if (!phone) {
+      throw new ConflictError("Telefon raqami noto'g'ri. Namuna: +998 90 123 45 67");
+    }
+
+    return { ctaKind: cta.kind, ctaValue: phone };
+  }
+
+  const handle = cleanHandle(raw);
+
+  if (!CTA_HANDLE_PATTERN.test(handle)) {
+    throw new ConflictError(
+      "Nom noto'g'ri. Faqat harflar, raqamlar, nuqta va pastki chiziq ishlatiladi.",
+    );
+  }
+
+  return { ctaKind: cta.kind, ctaValue: handle };
+}
+
 export async function createPost(authorId: string, data: CreatePostData): Promise<PostView> {
   const attachments = data.attachments ?? [];
 
@@ -503,6 +581,7 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
    */
   const place = normalizePlace(data.place);
   const video = normalizeVideo(data);
+  const cta = normalizeCta(data);
 
   const row = await prisma.$transaction(async (tx) => {
     const created = await tx.post.create({
@@ -513,6 +592,7 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
         videoUrl: data.videoUrl ?? null,
         videoPosterUrl: data.videoPosterUrl ?? null,
         ...video,
+        ...cta,
         category: data.category ?? null,
         placeName: place?.name ?? null,
         latitude: place?.latitude ?? null,
@@ -1724,6 +1804,41 @@ export async function markAttachmentClicked(
     'Biriktirma';
 
   void notifyProductClicked(post.authorId, postId, name, link.clickCount);
+}
+
+/**
+ * Chaqiruv tugmasi bosilganini yozadi.
+ *
+ * ── Nima uchun BIRIKTIRMADAN alohida ─────────────────────────────────
+ * Biriktirma bosilishi "odam mahsulotni ochdi" degani va u sotuvchining
+ * ko'rsatkichi. Chaqiruv esa MUALLIFNING o'zi haqida: "necha kishi
+ * obuna bo'ldi, necha kishi yozdi".
+ *
+ * Ikkalasini bitta songa qo'shsak, muallif "videom sotdimi yoki
+ * obunachi keltirdimi?" degan savolga javob topa olmasdi.
+ *
+ * ── Nima uchun O'Z bosishi sanalmaydi ────────────────────────────────
+ * Muallif o'z tugmasini bosib, sonni ko'tarib qo'ymasligi kerak.
+ */
+export async function markCtaClicked(postId: string, viewerId: string): Promise<void> {
+  /*
+    Son `updateMany` ichida oshiriladi.
+
+    Avval o'qib, keyin yozsak, ikki odam bir vaqtda bosganda
+    bittasining bosishi yo'qolardi.
+
+    Shartlar ham SHU YERDA: chaqiruvi bo'lmagan yoki o'chirilgan
+    postda son oshmaydi va muallifning o'zi sanalmaydi.
+  */
+  await prisma.post.updateMany({
+    where: {
+      id: postId,
+      deletedAt: null,
+      ctaKind: { not: null },
+      authorId: { not: viewerId },
+    },
+    data: { ctaClickCount: { increment: 1 } },
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────

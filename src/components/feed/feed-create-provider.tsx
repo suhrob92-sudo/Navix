@@ -121,6 +121,16 @@ export function FeedCreateProvider({ children }: { children: React.ReactNode }) 
           ...(draft.category ? { category: draft.category } : {}),
           ...(draft.place ? { place: draft.place } : {}),
           ...(draft.attachments.length > 0 ? { attachments: draft.attachments } : {}),
+          /*
+            Chaqiruv qiymati BO'SH bo'lsa yuborilmaydi.
+
+            `FOLLOW` va `MESSAGE` da qiymat yo'q va uni `null` sifatida
+            yuborsak, sxema uni rad etardi (`optional` — `undefined`
+            ni qabul qiladi, `null` ni emas).
+          */
+          ...(draft.cta
+            ? { cta: { kind: draft.cta.kind, ...(draft.cta.value ? { value: draft.cta.value } : {}) } }
+            : {}),
         },
       });
 

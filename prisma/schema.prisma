@@ -2489,6 +2489,30 @@ model UserReport {
 // ─────────────────────────────────────────────────────────────────────
 // Lenta (Feed)
 // ─────────────────────────────────────────────────────────────────────
+/// Videoning chaqiruvi — "endi nima qilay?" degan savolga javob.
+///
+/// ── Nima uchun kerak ──────────────────────────────────────────────────
+/// Ko'p video hech narsa sotmaydi: bloger kulgili video joylaydi, usta
+/// ish jarayonini ko'rsatadi, o'qituvchi qoidani tushuntiradi. Ular ham
+/// bir narsaga chorlaydi — faqat sotuvga emas.
+///
+/// Chaqiruvsiz video tomosha bilan tugaydi va hech qayerga olib
+/// bormaydi.
+enum PostCtaKind {
+  /// Muallifga obuna bo'lish.
+  FOLLOW
+  /// Muallif bilan suhbat ochish.
+  MESSAGE
+  /// Telegram sahifasi (faqat foydalanuvchi nomi saqlanadi).
+  TELEGRAM
+  /// Instagram sahifasi.
+  INSTAGRAM
+  /// YouTube kanali.
+  YOUTUBE
+  /// Telefon raqami.
+  PHONE
+}
+
 /// Videoga biriktiriladigan narsa turlari.
 ///
 /// ── Nima uchun ro'yxat CHEKLANGAN ─────────────────────────────────────
@@ -2662,6 +2686,32 @@ model Post {
   /// `null` — kesilmagan, video butunlay o'ynaydi.
   videoStartSeconds Float?
   videoEndSeconds   Float?
+
+  /// Videoning CHAQIRUVI — bittasi, ro'yxat emas.
+  ///
+  /// ── Nima uchun bitta ────────────────────────────────────────────────
+  /// Biriktirmalar beshtagacha bo'lishi mumkin — ular turli narsalar.
+  /// Chaqiruv esa "endi nima qilay?" degan savolga javob va unga
+  /// IKKITA javob berish javob bermaslik bilan barobar.
+  ctaKind PostCtaKind?
+
+  /// Chaqiruvga tegishli qiymat — foydalanuvchi nomi yoki telefon.
+  ///
+  /// ── Nima uchun to'liq MANZIL saqlanmaydi ────────────────────────────
+  /// Ixtiyoriy manzil yozishga ruxsat bersak, video ustida istalgan
+  /// saytga olib boradigan tugma paydo bo'lardi — firibgarlik uchun
+  /// tayyor vosita.
+  ///
+  /// Bu yerda faqat nom turadi ("navix_uz"), manzilni esa ilova o'zi
+  /// yasaydi (`src/config/post-cta.ts`). Boshqa domenga olib
+  /// borishning iloji yo'q.
+  ///
+  /// `FOLLOW` va `MESSAGE` da bo'sh: ular muallifning O'ZIGA ishora
+  /// qiladi va ilova uni allaqachon biladi.
+  ctaValue String? @db.VarChar(80)
+
+  /// Chaqiruv tugmasi necha marta bosilgan — muallifning ko'rsatkichi.
+  ctaClickCount Int @default(0)
 
   /// Videoni necha marta ko'rishgan.
   ///

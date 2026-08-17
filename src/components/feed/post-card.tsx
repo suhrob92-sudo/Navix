@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRef, useState } from 'react';
 
 import { AttachmentButton } from '@/components/feed/attachment-button';
+import { PostCtaButton } from '@/components/feed/post-cta-button';
 import { RichText } from '@/components/feed/rich-text';
 import { ShareSheet } from '@/components/feed/share-sheet';
 import { ReportDialog } from '@/components/moderation/report-dialog';
@@ -487,6 +488,15 @@ export function PostCard({
               onClick={() => onAttachmentClick?.(item.id)}
             />
           ))}
+
+          {/*
+            Chaqiruv ENG OXIRIDA.
+
+            Biriktirmalar — ekotizimga havola ("shu taomni buyurtma
+            qiling"). Chaqiruv esa MUALLIFGA tegishli ("menga yozing").
+            U yakuniy qadam, shuning uchun pastda turadi.
+          */}
+          <PostCtaButton post={post} />
 
           <Link
             href="/feed/watch"

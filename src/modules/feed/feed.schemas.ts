@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { SEARCH_SCOPES } from '@/modules/feed/discover.types';
 import { COMMENT_MAX_LENGTH, MAX_PLACE_NAME_LENGTH, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
 import { ATTACHMENT_KINDS, MAX_ATTACHMENTS } from '@/config/attachments';
+import { POST_CTA_CONFIG, POST_CTA_KINDS } from '@/config/post-cta';
 import { VIDEO_DURATIONS } from '@/modules/feed/feed.types';
 import { POST_CATEGORY_VALUES } from '@/modules/feed/feed.types';
 import { MIN_TRIM_SECONDS, isValidTrim } from '@/modules/feed/video-trim';
@@ -193,6 +194,25 @@ export const createPostSchema = z
     videoStartSeconds: z.coerce.number().min(0).optional(),
     videoEndSeconds: z.coerce.number().min(0).optional(),
     /**
+     * Videoning chaqiruvi — "endi nima qilay?".
+     *
+     * Bittasi, ro'yxat emas: ikkita chaqiruv javob bermaslik bilan
+     * barobar.
+     */
+    cta: z
+      .object({
+        kind: z.enum(POST_CTA_KINDS),
+        /**
+         * Foydalanuvchi nomi yoki telefon.
+         *
+         * Bu yerda faqat UZUNLIK tekshiriladi — mazmuni turga
+         * bog'liq va u xizmat qatlamida tozalanadi (`@` olib
+         * tashlanadi, telefon me'yorlashtiriladi).
+         */
+        value: z.string().trim().max(80).optional(),
+      })
+      .optional(),
+    /**
      * Post qaysi bo'limga tegishli — ixtiyoriy.
      *
      * Tanlanmagan post faqat "Siz uchun" da ko'rinadi. Majburiy
@@ -245,6 +265,32 @@ export const createPostSchema = z
     message: "Biriktirmani faqat videoga qo'yish mumkin.",
     path: ['attachments'],
   })
+  /**
+   * Chaqiruv ham FAQAT videoga.
+   *
+   * Matnli postda chaqiruv tugmasi qo'yadigan joy yo'q va u
+   * lentani reklama qatoriga aylantirardi.
+   */
+  .refine((value) => value.cta === undefined || Boolean(value.videoUrl), {
+    message: "Chaqiruvni faqat videoga qo'yish mumkin.",
+    path: ['cta'],
+  })
+  /**
+   * Qiymat kerak bo'lgan turda u BO'SH bo'lmasligi kerak.
+   *
+   * Qiymatsiz "Telegramda ochish" tugmasi hech qayerga olib
+   * bormasdi — tomoshabin bosardi va hech narsa bo'lmasdi.
+   */
+  .refine(
+    (value) =>
+      value.cta === undefined ||
+      !POST_CTA_CONFIG[value.cta.kind].needsValue ||
+      (value.cta.value ?? '').trim().length > 0,
+    {
+      message: "Chaqiruv uchun nom yoki raqam kiriting.",
+      path: ['cta'],
+    },
+  )
   /**
    * Kesim nuqtalari BIRGA keladi yoki umuman kelmaydi.
    *

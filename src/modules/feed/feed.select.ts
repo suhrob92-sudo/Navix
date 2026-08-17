@@ -57,6 +57,9 @@ export function postSelect(viewerId: string) {
     videoSeconds: true,
     videoStartSeconds: true,
     videoEndSeconds: true,
+    ctaKind: true,
+    ctaValue: true,
+    ctaClickCount: true,
     viewCount: true,
     category: true,
     placeName: true,
@@ -271,6 +274,21 @@ export function toPostView(row: PostRow, viewerId: string): PostView {
     videoSeconds: row.deletedAt ? null : row.videoSeconds,
     videoStartSeconds: row.deletedAt ? null : row.videoStartSeconds,
     videoEndSeconds: row.deletedAt ? null : row.videoEndSeconds,
+    /*
+      Chaqiruv o'chirilgan postda YUBORILMAYDI.
+
+      Post o'chirilgach uning matni ham, rasmi ham yuborilmaydi —
+      muallifning telefon raqami ham xuddi shunday shaxsiy
+      ma'lumot.
+    */
+    cta:
+      row.deletedAt === null && row.ctaKind !== null
+        ? {
+            kind: row.ctaKind,
+            value: row.ctaValue,
+            clickCount: isMine ? row.ctaClickCount : 0,
+          }
+        : null,
     attachments: row.deletedAt
       ? []
       : /**

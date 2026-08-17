@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 import { AttachmentButton } from '@/components/feed/attachment-button';
+import { PostCtaButton } from '@/components/feed/post-cta-button';
 import { RichText } from '@/components/feed/rich-text';
 import { ShareSheet } from '@/components/feed/share-sheet';
 import { Avatar } from '@/components/ui/avatar';
@@ -374,6 +375,14 @@ export function ReelPlayer({
             </span>
           </button>
         )}
+
+        {/*
+          Chaqiruv — biriktirmalardan KEYIN.
+
+          Biriktirma ekotizimga olib boradi, chaqiruv esa muallifga.
+          U yakuniy qadam va shu sababdan eng pastda turadi.
+        */}
+        <PostCtaButton post={post} onVideo />
       </div>
 
       {/*
