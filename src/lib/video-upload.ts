@@ -8,6 +8,7 @@ import {
   MAX_VIDEO_BYTES,
   MAX_VIDEO_SECONDS,
   VIDEO_UPLOAD_PATH,
+  formatDuration,
   formatFileSize,
   type AllowedVideoType,
   type UploadResponse,
@@ -303,24 +304,72 @@ async function uploadThroughServer(
   purpose: 'VIDEO' | 'POST',
   accessToken: string | null,
   fileName: string,
+  onProgress?: (percent: number) => void,
 ): Promise<string> {
   const form = new FormData();
   form.append('file', file, fileName);
   form.append('purpose', purpose);
 
-  const response = await fetch('/api/v1/uploads', {
-    method: 'POST',
-    headers: accessToken ? { authorization: `Bearer ${accessToken}` } : {},
-    body: form,
+  /*
+    `fetch` EMAS, `XMLHttpRequest`.
+
+    ── Nima uchun eski usul ishlatiladi ────────────────────────────────
+    `fetch` yuborilayotgan faylning qanchasi ketganini AYTMAYDI:
+    brauzerlarda so'rov tanasi uchun jarayon hodisasi yo'q.
+
+    Jarayonsiz esa yuklash chizig'i 0% da qotib turardi — bu
+    chiziqsiz holatdan ham yomon: odam ilova osilib qolgan deb
+    o'ylardi.
+
+    `XMLHttpRequest` eski, lekin AYNAN shu narsani biladi va
+    barcha brauzerlarda ishlaydi.
+  */
+  return new Promise<string>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+
+    request.open('POST', '/api/v1/uploads');
+
+    if (accessToken) request.setRequestHeader('authorization', `Bearer ${accessToken}`);
+
+    if (onProgress) {
+      request.upload.addEventListener('progress', (event) => {
+        // `lengthComputable` yolg'on bo'lsa, umumiy hajm noma'lum —
+        // unda foizni hisoblab bo'lmaydi va son sakrab ketardi.
+        if (!event.lengthComputable || event.total === 0) return;
+
+        onProgress((event.loaded / event.total) * 100);
+      });
+    }
+
+    request.addEventListener('load', () => {
+      type UploadBody = { data?: UploadResponse; error?: { message?: string } };
+
+      let body: UploadBody | null = null;
+
+      try {
+        body = JSON.parse(request.responseText) as UploadBody;
+      } catch {
+        body = null;
+      }
+
+      if (request.status < 200 || request.status >= 300 || !body?.data) {
+        reject(new Error(body?.error?.message ?? "Faylni yuklab bo'lmadi."));
+
+        return;
+      }
+
+      resolve(body.data.url);
+    });
+
+    // Tarmoq uzilishi va bekor qilish — ikkalasi ham xato bo'lishi
+    // kerak. Aks holda va'da hech qachon tugamasdi.
+    request.addEventListener('error', () =>
+      reject(new Error("Faylni yuklab bo'lmadi. Internetni tekshiring.")),
+    );
+    request.addEventListener('abort', () => reject(new Error('Yuklash bekor qilindi.')));
+
+    request.send(form);
   });
-
-  const body = (await response.json()) as { data?: UploadResponse; error?: { message?: string } };
-
-  if (!response.ok || !body.data) {
-    throw new Error(body.error?.message ?? "Faylni yuklab bo'lmadi.");
-  }
-
-  return body.data.url;
 }
 
 export interface UploadedVideo {
@@ -367,8 +416,8 @@ export async function prepareVideo(file: File): Promise<{ contentType: AllowedVi
 
   if (meta.seconds > MAX_VIDEO_SECONDS) {
     throw new Error(
-      `Video ${MAX_VIDEO_SECONDS} soniyadan uzun bo'lmasligi kerak (hozir ${meta.seconds} s). ` +
-        'Telefon galereyasida qirqib, qaytadan tanlang.',
+      `Video ${formatDuration(MAX_VIDEO_SECONDS)} dan uzun bo'lmasligi kerak ` +
+        `(hozir ${formatDuration(meta.seconds)}). Telefon galereyasida qirqib, qaytadan tanlang.`,
     );
   }
 
@@ -376,6 +425,16 @@ export async function prepareVideo(file: File): Promise<{ contentType: AllowedVi
 }
 
 export interface UploadVideoOptions {
+  /**
+   * Yuklash jarayoni — 0 dan 100 gacha.
+   *
+   * ── Nima uchun uzun videoda SHART ───────────────────────────────────
+   * 200 MB lik fayl mobil internetda bir necha daqiqa yuklanadi.
+   * Jarayonsiz ekranda faqat "Yuklanmoqda…" turardi va odam
+   * ilova qotib qolgan deb o'ylab, sahifani yopardi — yuklash
+   * esa boshidan boshlanardi.
+   */
+  onProgress?: (percent: number) => void;
   /**
    * Muharrirda tanlangan muqova.
    *
@@ -427,6 +486,15 @@ export async function uploadVideo(
        * yuborish o'rniga faqat yiqilgan bo'lak qayta yuboriladi.
        */
       multipart: true,
+      /*
+        Jarayon FAQAT to'g'ridan-to'g'ri yuklashda ko'rsatiladi.
+
+        Server orqali yuborishda (ishlab chiqish yo'li) fayl 4 MB
+        dan kichik bo'ladi va u ko'z ochib yumguncha tugaydi.
+      */
+      ...(options.onProgress
+        ? { onUploadProgress: ({ percentage }) => options.onProgress?.(percentage) }
+        : {}),
     });
 
     videoUrl = result.url;
@@ -446,7 +514,7 @@ export async function uploadVideo(
       );
     }
 
-    videoUrl = await uploadThroughServer(file, 'VIDEO', accessToken, file.name);
+    videoUrl = await uploadThroughServer(file, 'VIDEO', accessToken, file.name, options.onProgress);
   }
 
   /**

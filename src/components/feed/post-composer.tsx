@@ -120,6 +120,16 @@ export function PostComposer({
     trim: { start: number; end: number } | null;
   } | null>(null);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  /**
+   * Yuklash jarayoni (0-100). `null` — hali boshlanmagan.
+   *
+   * ── Nima uchun uzun videoda SHART ───────────────────────────────────
+   * 200 MB lik fayl mobil internetda bir necha daqiqa yuklanadi.
+   * Jarayonsiz ekranda faqat "Yuklanmoqda…" turardi va odam ilova
+   * qotib qolgan deb o'ylab, sahifani yopardi — yuklash esa
+   * boshidan boshlanardi.
+   */
+  const [progress, setProgress] = useState<number | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
 
   /**
@@ -229,11 +239,13 @@ export function PostComposer({
     setPending(null);
     setIsUploadingVideo(true);
     setVideoError(null);
+    setProgress(0);
 
     try {
       const result = await uploadVideo(file, accessToken, {
         poster: edit.poster,
         seconds: edit.seconds,
+        onProgress: setProgress,
       });
 
       setVideo({
@@ -249,6 +261,7 @@ export function PostComposer({
       setVideoError(error instanceof Error ? error.message : "Videoni yuklab bo'lmadi.");
     } finally {
       setIsUploadingVideo(false);
+      setProgress(null);
     }
   }
 
@@ -312,7 +325,7 @@ export function PostComposer({
           </span>
 
           <span className="text-muted-foreground text-xs">
-            {`Galereyadan tanlang — ${MAX_VIDEO_SECONDS} soniyagacha`}
+            {`Galereyadan tanlang — ${formatDuration(MAX_VIDEO_SECONDS)} gacha`}
           </span>
 
           <input
@@ -389,6 +402,50 @@ export function PostComposer({
         <Alert variant="error" className="mt-3">
           {videoError}
         </Alert>
+      )}
+
+      {/*
+        Yuklash jarayoni.
+
+        ── Nima uchun bu KERAK bo'lib qoldi ──────────────────────────
+        Chegara 10 daqiqaga ko'tarilgach, fayl 200 MB gacha bo'lishi
+        mumkin va u mobil internetda bir necha daqiqa yuklanadi.
+
+        Jarayonsiz odam ilova qotib qolgan deb o'ylab, sahifani
+        yopardi — yuklash esa boshidan boshlanardi.
+      */}
+      {isUploadingVideo && progress !== null && (
+        <div className="mt-3">
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <p className="text-muted-foreground text-xs">Video yuklanmoqda…</p>
+            <p className="text-muted-foreground text-xs tabular-nums">{`${Math.round(progress)}%`}</p>
+          </div>
+
+          <div
+            role="progressbar"
+            aria-label="Video yuklanmoqda"
+            aria-valuenow={Math.round(progress)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="bg-secondary h-1.5 w-full overflow-hidden rounded-full"
+          >
+            <div
+              className="bg-primary h-full rounded-full transition-[width] duration-300"
+              style={{ width: `${Math.max(2, progress)}%` }}
+            />
+          </div>
+
+          {/*
+            Ogohlantirish — yuklash TUGAMAGUNCHA turadi.
+
+            Odam oynani yopsa, yuklash uziladi va hammasi boshidan
+            boshlanardi. Buni aytmasak, u buni faqat tajriba orqali
+            bilib olardi.
+          */}
+          <p className="text-muted-foreground mt-1.5 text-xs leading-relaxed">
+            Oynani yopmang — yuklash uzilib qoladi.
+          </p>
+        </div>
       )}
 
       {/* Biriktirilgan video — muqovasi bilan. */}
@@ -608,7 +665,7 @@ export function PostComposer({
       </div>
 
       <p className="text-muted-foreground mt-2 text-xs">
-        {`Video ${MAX_VIDEO_SECONDS} soniyagacha. Videoga ${MAX_ATTACHMENTS} tagacha mahsulot, taom, restoran, ish yoki mehmonxona biriktirish mumkin — tomoshabin ularni bir bosishda topadi.`}
+        {`Video ${formatDuration(MAX_VIDEO_SECONDS)} gacha. Videoga ${MAX_ATTACHMENTS} tagacha mahsulot, taom, restoran, ish yoki mehmonxona biriktirish mumkin — tomoshabin ularni bir bosishda topadi.`}
       </p>
 
       {/*

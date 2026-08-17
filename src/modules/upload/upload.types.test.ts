@@ -8,8 +8,12 @@ import {
   isOwnImageUrl,
   keyFromUrl,
   MAX_UPLOAD_BYTES,
+  MAX_VIDEO_BYTES,
+  MAX_VIDEO_SECONDS,
   MAX_VOICE_SECONDS,
+  VIDEO_WARN_BYTES,
 } from '@/modules/upload/upload.types';
+import { SHORT_VIDEO_SECONDS } from '@/modules/feed/feed.types';
 
 describe('formatFileSize', () => {
   it("kichik hajm baytda ko'rsatiladi", () => {
@@ -148,6 +152,35 @@ describe('formatDuration', () => {
   it('manfiy qiymat nolga tenglashtiriladi', () => {
     // Hisob manfiy chiqsa ekranda "-1:-5" turmasligi kerak.
     expect(formatDuration(-4)).toBe('0:00');
+  });
+});
+
+describe('uzun video chegaralari', () => {
+  it("uzunlik 10 daqiqa va u ekranda to'g'ri yoziladi", () => {
+    expect(MAX_VIDEO_SECONDS).toBe(600);
+    expect(formatDuration(MAX_VIDEO_SECONDS)).toBe('10:00');
+  });
+
+  it("qisqa va uzun chegarasi bir-biriga teng emas", () => {
+    /*
+      Ikkalasi teng bo'lib qolsa, lentadagi "Qisqa"/"Uzun" saralash
+      ma'nosini yo'qotardi: bitta bo'lim doim bo'sh chiqardi.
+    */
+    expect(MAX_VIDEO_SECONDS).toBeGreaterThan(SHORT_VIDEO_SECONDS);
+  });
+
+  it("hajm chegarasi 200 MB va u ekranda to'g'ri yoziladi", () => {
+    expect(MAX_VIDEO_BYTES).toBe(200 * 1024 * 1024);
+    expect(formatFileSize(MAX_VIDEO_BYTES)).toBe('200 MB');
+  });
+
+  it('ogohlantirish chegarasi yuklash chegarasidan kichik', () => {
+    /*
+      Teng yoki kattaroq bo'lsa, ogohlantirish HECH QACHON
+      ko'rinmasdi: bunday fayl allaqachon rad etilgan bo'lardi.
+    */
+    expect(VIDEO_WARN_BYTES).toBeLessThan(MAX_VIDEO_BYTES);
+    expect(formatFileSize(VIDEO_WARN_BYTES)).toBe('25 MB');
   });
 });
 

@@ -2,7 +2,7 @@ import { WatchContent } from '@/app/(cabinet)/feed/watch/watch-content';
 
 export const metadata = {
   title: 'Tomosha',
-  description: "Qisqa videolar — ko'ring va mahsulotni bir bosishda toping.",
+  description: "Qisqa va uzun videolar — ko'ring va mahsulotni bir bosishda toping.",
 };
 
 interface PageProps {

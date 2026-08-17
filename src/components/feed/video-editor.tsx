@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Image as ImageIcon, Loader2, Scissors, X } from 'lucide-react';
+import { Check, Image as ImageIcon, Loader2, Scissors, Wifi, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Alert } from '@/components/ui/alert';
@@ -16,7 +16,8 @@ import {
   trimmedSeconds,
   type TrimRange,
 } from '@/modules/feed/video-trim';
-import { formatDuration } from '@/modules/upload/upload.types';
+import { SHORT_VIDEO_SECONDS } from '@/modules/feed/feed.types';
+import { VIDEO_WARN_BYTES, formatDuration, formatFileSize } from '@/modules/upload/upload.types';
 
 /** Muharrirning natijasi — kompozitorga qaytadi. */
 export interface VideoEdit {
@@ -291,7 +292,7 @@ export function VideoEditor({ file, duration, onDone, onCancel }: VideoEditorPro
           type="range"
           min={0}
           max={Math.max(0, duration - MIN_TRIM_SECONDS)}
-          step={0.1}
+          step={duration > SHORT_VIDEO_SECONDS ? 1 : 0.1}
           value={range.start}
           disabled={isSaving}
           onChange={(event) => updateStart(Number(event.target.value))}
@@ -306,7 +307,14 @@ export function VideoEditor({ file, duration, onDone, onCancel }: VideoEditorPro
           type="range"
           min={Math.min(MIN_TRIM_SECONDS, duration)}
           max={duration}
-          step={0.1}
+          /*
+            Uzun videoda qadam KATTAROQ.
+
+            10 daqiqalik videoda 0.1 soniyalik qadam 6000 ta pog'ona
+            degani: barmoq bilan aniq nuqtaga tushish imkonsiz
+            bo'lardi.
+          */
+          step={duration > SHORT_VIDEO_SECONDS ? 1 : 0.1}
           value={range.end}
           disabled={isSaving}
           onChange={(event) => updateEnd(Number(event.target.value))}
@@ -409,6 +417,26 @@ export function VideoEditor({ file, duration, onDone, onCancel }: VideoEditorPro
           Bekor
         </Button>
       </div>
+
+      {/*
+        Trafik ogohlantirishi — FAQAT katta faylda.
+
+        ── Nima uchun kerak ─────────────────────────────────────────
+        O'zbekistonda mobil trafik hali ham qimmat va cheklangan.
+        150 MB lik videoni bilmasdan yuklab yuborgan odam oyning
+        yarmida trafiksiz qolishi mumkin.
+
+        Ogohlantirish TO'XTATMAYDI — faqat aytadi. Qaror odamniki.
+      */}
+      {file.size > VIDEO_WARN_BYTES && (
+        <div className="border-border bg-secondary/40 mt-3 flex items-start gap-2 rounded-xl border px-3 py-2.5">
+          <Wifi className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden="true" />
+
+          <p className="text-muted-foreground text-xs leading-relaxed">
+            {`Fayl hajmi ${formatFileSize(file.size)}. Wi-Fi ga ulanib yuklagan ma'qul — mobil trafik ko'p sarflanadi.`}
+          </p>
+        </div>
+      )}
 
       {/*
         Cheklov HALOL aytiladi.

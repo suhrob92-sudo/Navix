@@ -348,13 +348,14 @@ export interface VideoFilterItem {
 /**
  * Video sahifasidagi filtrlar.
  *
- * ── Nima uchun "Uzun videolar" hozircha tayyor emas ───────────────────
- * Yuklashda chegara 60 soniya (`MAX_VIDEO_SECONDS`), ya'ni bazadagi
- * BARCHA video qisqa. Filtrni hozir yoqsak, u doim bo'sh chiqardi va
- * odam "ishlamayapti" deb o'ylardi.
+ * ── Nima uchun "Uzun videolar" alohida ────────────────────────────────
+ * Yuklash chegarasi 10 daqiqa (`MAX_VIDEO_SECONDS`), qisqa video esa
+ * 60 soniyagacha (`SHORT_VIDEO_SECONDS`). Ya'ni lentada ikki xil
+ * kontent bor va ular bir-biriga xalaqit beradi: qisqa video surib
+ * ko'riladi, uzun video esa o'tirib tomosha qilinadi.
  *
- * Filtr o'zi qoldirildi: uzun video yuklash qo'shilganda bayroqni
- * olib tashlash kifoya, serverdagi mantiq allaqachon tayyor.
+ * Shu sababdan ular alohida filtrda ajratilgan — odam qaysi kayfiyatda
+ * kelganini o'zi tanlaydi.
  */
 export const VIDEO_FILTERS: readonly VideoFilterItem[] = [
   {
@@ -372,10 +373,9 @@ export const VIDEO_FILTERS: readonly VideoFilterItem[] = [
   {
     value: 'LONG',
     label: 'Uzun videolar',
-    isComingSoon: true,
-    emptyTitle: 'Tez orada',
+    emptyTitle: "Uzun video yo'q",
     emptyDescription:
-      "Hozircha video 60 soniyagacha yuklanadi. Uzun video qo'llab-quvvatlangach, ular shu yerda chiqadi.",
+      "Bir daqiqadan uzun videolar shu yerda to'planadi: vlog, retsept, dars.",
   },
   {
     value: 'LIVE',
@@ -390,6 +390,7 @@ export const VIDEO_FILTERS: readonly VideoFilterItem[] = [
 export function videoQueryFor(value: VideoFilterValue): string | null {
   if (value === 'ALL') return '/api/v1/feed?tab=VIDEO';
   if (value === 'SHORT') return '/api/v1/feed?tab=VIDEO&duration=SHORT';
+  if (value === 'LONG') return '/api/v1/feed?tab=VIDEO&duration=LONG';
 
   // Tayyor bo'lmagan filtrlar serverga UMUMAN bormaydi.
   return null;

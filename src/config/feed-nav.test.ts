@@ -9,7 +9,9 @@ import {
   FEED_FEATURES,
   FEED_NAV,
   POST_CATEGORIES,
+  VIDEO_FILTERS,
   feedQueryFor,
+  videoQueryFor,
   isFeedMode,
   isFeedNavActive,
   isInsideFeed,
@@ -244,6 +246,30 @@ describe('Feed moduli navigatsiyasi', () => {
       const create = FEED_NAV[2];
 
       expect(isFeedNavActive('/feed', create)).toBe(false);
+    });
+  });
+
+  describe('videoQueryFor', () => {
+    /*
+      Bu sinov AYNAN bitta xatoni qo'riqlaydi: filtr ro'yxatga
+      qo'shiladi, lekin so'rov yozilmay qoladi. Unda tugma bosiladi,
+      hech narsa yuklanmaydi va sabab hech qayerda ko'rinmaydi.
+    */
+    it("tayyor filtrlarning HAMMASIDA so'rov bor", () => {
+      const ready = VIDEO_FILTERS.filter((item) => !item.isComingSoon);
+
+      for (const item of ready) {
+        expect(videoQueryFor(item.value), `${item.value} uchun so'rov yo'q`).toBeTruthy();
+      }
+    });
+
+    it("uzunlik filtri serverga to'g'ri parametr yuboradi", () => {
+      expect(videoQueryFor('SHORT')).toContain('duration=SHORT');
+      expect(videoQueryFor('LONG')).toContain('duration=LONG');
+    });
+
+    it("tayyor bo'lmagan filtr serverga bormaydi", () => {
+      expect(videoQueryFor('LIVE')).toBeNull();
     });
   });
 

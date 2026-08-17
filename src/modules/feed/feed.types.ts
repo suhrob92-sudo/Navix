@@ -127,11 +127,17 @@ export type PostCategoryName = (typeof POST_CATEGORY_VALUES)[number];
 /**
  * Video uzunligi turlari.
  *
- * ── Nima uchun chegara 60 soniya ──────────────────────────────────────
- * Yuklashda ham aynan shu chegara qo'yilgan (`MAX_VIDEO_SECONDS`).
- * Ya'ni hozircha BARCHA videolar qisqa. "Uzun" turi kelajak uchun
- * qoldirilgan: uzun video yuklash qo'shilganda filtr allaqachon
- * tayyor bo'ladi va ma'lumot bazasi qayta ko'rilmaydi.
+ * ── Nima uchun ayirish chizig'i 60 soniyada ───────────────────────────
+ * Yuklash chegarasi 10 daqiqa (`MAX_VIDEO_SECONDS`), ya'ni lentada
+ * ikki xil video bor: barmoq bilan surib ko'riladigan qisqa video va
+ * o'tirib tomosha qilinadigan uzun video.
+ *
+ * Bu ikkisi bir ro'yxatda aralashsa, ikkalasi ham yutqazadi: qisqa
+ * video izlagan odam 10 daqiqalikka duch keladi, dars ko'rmoqchi
+ * bo'lgan odam esa uni topa olmaydi.
+ *
+ * 60 soniya — o'sha "surib ketish" va "o'tirib ko'rish" orasidagi
+ * tabiiy chegara.
  */
 export const VIDEO_DURATIONS = ['SHORT', 'LONG'] as const;
 

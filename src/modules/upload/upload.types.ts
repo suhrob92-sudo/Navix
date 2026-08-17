@@ -53,28 +53,52 @@ export type AllowedVideoType = (typeof ALLOWED_VIDEO_TYPES)[number];
 export type AllowedUploadType = AllowedImageType | AllowedAudioType | AllowedVideoType;
 
 /**
- * Videoning eng uzun davomiyligi — 60 soniya.
+ * Videoning eng uzun davomiyligi — 10 daqiqa.
  *
- * ── Nima uchun cheklov ───────────────────────────────────────────────
- * Qisqa video lentaning butun ma'nosi: odam bir daqiqada o'nlab
- * videoni ko'rib chiqadi. Uzun video esa boshqa janr va u boshqa
- * imkoniyatlarni talab qiladi (oldinga o'tish, sifat tanlash,
- * qismlarga bo'lib yuklash).
+ * ── Nima uchun 60 soniyadan ko'tarildi ───────────────────────────────
+ * Qisqa video lentaning asosi, lekin bloger toifasining yarmi unga
+ * SIG'MAYDI: vlog 5-15 daqiqa, retsept 3-8 daqiqa, dars 10 daqiqa va
+ * undan uzun.
  *
- * Bundan tashqari uzun video KATTA: bir daqiqalik telefon videosi
- * odatda 15-25 MB, besh daqiqalik esa 100 MB dan oshadi va uni
- * mobil internetda ko'rish azob bo'lardi.
+ * 60 soniya chegarasi bilan ular Navixga umuman kira olmasdi va
+ * lenta faqat bitta janr bilan cheklanardi.
+ *
+ * ── Nima uchun 10 daqiqa, 20 emas ────────────────────────────────────
+ * Chegarani KO'TARISH oson, PASAYTIRISH esa deyarli imkonsiz: odam
+ * allaqachon 20 daqiqalik video joylagan bo'ladi va uni o'chirishga
+ * to'g'ri kelardi.
+ *
+ * Shuning uchun avval 10 daqiqa. Haqiqiy foydalanish ko'rilgach,
+ * raqamni oshirish bir qatorlik ish.
  */
-export const MAX_VIDEO_SECONDS = 60;
+export const MAX_VIDEO_SECONDS = 600;
 
 /**
- * Videoning eng katta hajmi — 48 MB.
+ * Videoning eng katta hajmi — 200 MB.
  *
- * Bir daqiqalik telefon videosi odatda 15-25 MB. Chegara undan
- * kengroq: brauzer videoni kichraytira olmaydi (rasmdan farqli),
- * shuning uchun bu yerda zaxira qoldirilgan.
+ * ── Nima uchun aynan shuncha ─────────────────────────────────────────
+ * 10 daqiqalik telefon videosi (1080p) odatda 150-250 MB. Chegara
+ * shu oraliqning quyi qismida: undan kattasi mobil internetda
+ * yuklab bo'lmaydigan holga kelardi.
+ *
+ * ── Bu XARAJATGA ta'sir qiladi ───────────────────────────────────────
+ * Har 1000 ta uzun video ≈ 200 GB saqlash va undan ham ko'proq
+ * uzatish trafigi. Raqamni oshirishdan oldin haqiqiy foydalanishni
+ * o'lchash kerak.
  */
-export const MAX_VIDEO_BYTES = 48 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+
+/**
+ * Mobil internetda ogohlantirish chegarasi — 25 MB.
+ *
+ * ── Nima uchun kerak ─────────────────────────────────────────────────
+ * O'zbekistonda mobil trafik hali ham qimmat va cheklangan. 150 MB
+ * lik videoni bilmasdan yuklab yuborgan odam oyning yarmida
+ * trafiksiz qolishi mumkin.
+ *
+ * Ogohlantirish to'xtatmaydi — faqat aytadi. Qaror odamniki.
+ */
+export const VIDEO_WARN_BYTES = 25 * 1024 * 1024;
 
 /**
  * Video SERVER ORQALI yuborilmaydi.

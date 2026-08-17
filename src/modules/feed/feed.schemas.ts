@@ -7,7 +7,7 @@ import { POST_CTA_CONFIG, POST_CTA_KINDS } from '@/config/post-cta';
 import { VIDEO_DURATIONS } from '@/modules/feed/feed.types';
 import { POST_CATEGORY_VALUES } from '@/modules/feed/feed.types';
 import { MIN_TRIM_SECONDS, isValidTrim } from '@/modules/feed/video-trim';
-import { MAX_VIDEO_SECONDS } from '@/modules/upload/upload.types';
+import { MAX_VIDEO_SECONDS, formatDuration } from '@/modules/upload/upload.types';
 import { isOwnImageUrl } from '@/modules/upload/upload.types';
 
 /**
@@ -183,7 +183,10 @@ export const createPostSchema = z
       .number()
       .int()
       .min(1)
-      .max(MAX_VIDEO_SECONDS, `Video ${MAX_VIDEO_SECONDS} soniyadan uzun bo'lmasligi kerak.`)
+      .max(
+        MAX_VIDEO_SECONDS,
+        `Video ${formatDuration(MAX_VIDEO_SECONDS)} dan uzun bo'lmasligi kerak.`,
+      )
       .optional(),
     /**
      * Kesish nuqtalari — video muharriridan.

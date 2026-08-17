@@ -1,6 +1,21 @@
 'use client';
 
-import { BadgeCheck, Bookmark, Eye, Heart, Link2, MapPin, MessageCircle, Pause, Share2, Volume2, VolumeX, X } from 'lucide-react';
+import {
+  BadgeCheck,
+  Bookmark,
+  Eye,
+  Heart,
+  Link2,
+  MapPin,
+  MessageCircle,
+  Pause,
+  RotateCcw,
+  RotateCw,
+  Share2,
+  Volume2,
+  VolumeX,
+  X,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
@@ -11,7 +26,14 @@ import { ShareSheet } from '@/components/feed/share-sheet';
 import { Avatar } from '@/components/ui/avatar';
 import { useTrimmedVideo } from '@/hooks/use-trimmed-video';
 import { cn } from '@/lib/utils';
-import { authorDisplayName, formatReactionCount, type PostView } from '@/modules/feed/feed.types';
+import {
+  authorDisplayName,
+  formatReactionCount,
+  SHORT_VIDEO_SECONDS,
+  type PostView,
+} from '@/modules/feed/feed.types';
+import { readTrim } from '@/modules/feed/video-trim';
+import { formatDuration } from '@/modules/upload/upload.types';
 
 export interface ReelPlayerProps {
   post: PostView;
@@ -68,6 +90,21 @@ export function ReelPlayer({
   /** Tomosha tezligi — 1x odatiy. */
   const [speed, setSpeed] = useState(1);
 
+  /**
+   * Hozirgi o'rin va uzunlik — surish paneli uchun.
+   *
+   * ── Nima uchun UZUN videoda shart ───────────────────────────────────
+   * 60 soniyalik videoda surish paneli keraksiz edi: odam kutib
+   * tursa ham video tugardi.
+   *
+   * 10 daqiqalik videoda esa u YAGONA boshqaruv: qiziq joyni
+   * qidirish, o'tkazib yuborish, qaytarib ko'rish — hammasi shu
+   * panel orqali bo'ladi. Usiz uzun video umuman tomosha qilib
+   * bo'lmaydigan holga kelardi.
+   */
+  const [position, setPosition] = useState(0);
+  const [total, setTotal] = useState(0);
+
   /** Biriktirmalar ro'yxati ochilganmi (bittadan ko'p bo'lsa). */
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
@@ -102,6 +139,55 @@ export function ReelPlayer({
   const commentText = formatReactionCount(post.commentCount);
   const shareText = formatReactionCount(post.shareCount);
 
+  /*
+    Surish paneli KESIM bo'yicha hisoblanadi, fayl bo'yicha emas.
+
+    Muallif 10 daqiqalik videoning 2-5 daqiqasini qoldirgan bo'lsa,
+    tomoshabin uchun bu video "3 daqiqa" va u "0:00" dan boshlanadi.
+    Fayl vaqti ko'rsatilsa, panel "2:00" dan boshlanib, oxiri
+    "5:00" da tugardi — hech kim tushunmasdi.
+  */
+  const trim = readTrim(post);
+  const rangeStart = trim ? trim.start : 0;
+  const rangeEnd = trim ? trim.end : total;
+  const span = Math.max(0, rangeEnd - rangeStart);
+  const elapsed = Math.min(Math.max(position - rangeStart, 0), span);
+
+  /*
+    Panel FAQAT uzun videoda ko'rinadi.
+
+    Bir daqiqalik videoda u ekranni band qilardi va foydasi
+    yo'q edi: odam kutib tursa ham video tugaydi. Uzun videoda
+    esa aksincha — usiz tomosha qilib bo'lmaydi.
+  */
+  const hasSeekBar = span > SHORT_VIDEO_SECONDS;
+
+  /**
+   * Kesim ichidagi vaqtga suradi.
+   *
+   * @param offset Kesim boshidan sanalgan soniya.
+   *
+   * Chegara majburiy: kesimdan tashqariga surilsa, muallif
+   * yashirgan kadrlar ko'rinib ketardi.
+   */
+  function seekTo(offset: number) {
+    const element = videoRef.current;
+    if (!element) return;
+
+    const next = rangeStart + Math.min(Math.max(offset, 0), span);
+
+    element.currentTime = next;
+
+    /*
+      Holat DARHOL yangilanadi.
+
+      `timeupdate` hodisasini kutilsa, surgich barmoq ostida
+      bir lahzaga eski joyiga sakrab qaytardi — bu buzuqlikdek
+      ko'rinardi.
+    */
+    setPosition(next);
+  }
+
   /**
    * Videoga bosish IKKI ish qiladi.
    *
@@ -129,6 +215,31 @@ export function ReelPlayer({
     lastTapRef.current = now;
     setIsPaused((current) => !current);
   }
+
+  /**
+   * Vaqtni KUZATISH.
+   *
+   * ── Nima uchun `requestAnimationFrame` emas ─────────────────────────
+   * `timeupdate` sekundiga 4-5 marta keladi va surish paneli uchun bu
+   * yetarli. Har kadrda yangilash esa telefonni bekorga qizdirardi.
+   */
+  useEffect(() => {
+    const element = videoRef.current;
+    if (!element) return;
+
+    const onTime = () => setPosition(element.currentTime);
+    const onMeta = () => setTotal(Number.isFinite(element.duration) ? element.duration : 0);
+
+    element.addEventListener('timeupdate', onTime);
+    element.addEventListener('loadedmetadata', onMeta);
+
+    if (element.readyState >= HTMLMediaElement.HAVE_METADATA) onMeta();
+
+    return () => {
+      element.removeEventListener('timeupdate', onTime);
+      element.removeEventListener('loadedmetadata', onMeta);
+    };
+  }, []);
 
   useEffect(() => {
     const element = videoRef.current;
@@ -383,6 +494,70 @@ export function ReelPlayer({
           U yakuniy qadam va shu sababdan eng pastda turadi.
         */}
         <PostCtaButton post={post} onVideo />
+
+        {/*
+          Surish paneli — eng pastda, chaqiruvdan ham keyin.
+
+          Yuqoriroqqa qo'yilsa, u matn bilan chaqiruv orasiga
+          kirib qolardi va odam o'qiyotganda tasodifan surib
+          yuborardi. Pastki chekka esa telefonda bosh barmoq eng
+          oson yetadigan joy.
+        */}
+        {hasSeekBar && (
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => seekTo(elapsed - SKIP_SECONDS)}
+              aria-label={`${SKIP_SECONDS} soniya orqaga`}
+              className="shrink-0 rounded-full bg-black/40 p-1.5 text-white backdrop-blur-sm transition-transform active:scale-90"
+            >
+              <RotateCcw className="size-4" aria-hidden="true" />
+            </button>
+
+            <span className="shrink-0 text-[11px] font-medium text-white/90 tabular-nums drop-shadow">
+              {formatDuration(elapsed)}
+            </span>
+
+            {/*
+              Oddiy `range` — yasama surgich emas.
+
+              Yasama boshqaruv ekran o'quvchi dasturlar uchun
+              ko'rinmas bo'lardi va klaviatura bilan boshqarilmasdi.
+              Bu esa strelka tugmalari bilan ham ishlaydi.
+            */}
+            <input
+              type="range"
+              min={0}
+              max={span}
+              /*
+                Qadam 1 soniya.
+
+                10 daqiqalik videoda o'ndan bir soniyalik qadam
+                6000 ta pog'ona degani: barmoq bilan aniq nuqtaga
+                tushib bo'lmasdi.
+              */
+              step={1}
+              value={elapsed}
+              aria-label="Video vaqti"
+              aria-valuetext={`${formatDuration(elapsed)} / ${formatDuration(span)}`}
+              onChange={(event) => seekTo(Number(event.target.value))}
+              className="h-1 min-w-0 flex-1 cursor-pointer accent-white"
+            />
+
+            <span className="shrink-0 text-[11px] font-medium text-white/70 tabular-nums drop-shadow">
+              {formatDuration(span)}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => seekTo(elapsed + SKIP_SECONDS)}
+              aria-label={`${SKIP_SECONDS} soniya oldinga`}
+              className="shrink-0 rounded-full bg-black/40 p-1.5 text-white backdrop-blur-sm transition-transform active:scale-90"
+            >
+              <RotateCw className="size-4" aria-hidden="true" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/*
@@ -441,3 +616,13 @@ export function ReelPlayer({
 
 /** Tomosha tezliklari — barmoq bilan aylantirishga qulay qisqa ro'yxat. */
 const SPEEDS: readonly number[] = [1, 1.5, 2, 0.5];
+
+/**
+ * Bir bosishda o'tkaziladigan vaqt.
+ *
+ * ── Nima uchun 10 soniya ──────────────────────────────────────────────
+ * Barcha pleyerlarda shu son ishlatiladi va odam uni o'rgatmasdan
+ * biladi. Kamrog'i (5) uzun videoda foydasiz bo'lardi, ko'prog'i
+ * (30) esa kerakli joyni oshirib yuborardi.
+ */
+const SKIP_SECONDS = 10;
