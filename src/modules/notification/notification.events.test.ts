@@ -203,6 +203,17 @@ const SAMPLES = {
     wasDeclined: false,
     isVideo: false,
   },
+  'collab.offer_received': {
+    offerId: '2c9d4e1f-6a3b-4c8d-9e2f-1a5b7c3d9e4f',
+    subject: 'Restoran haqida video',
+    actorName: 'Milliy Taomlar',
+  },
+  'collab.offer_answered': {
+    offerId: '2c9d4e1f-6a3b-4c8d-9e2f-1a5b7c3d9e4f',
+    subject: 'Restoran haqida video',
+    actorName: 'Bobur Karimov',
+    isAccepted: true,
+  },
 } as const;
 
 const EVENTS = Object.keys(NOTIFICATION_TEMPLATES) as NotificationEventName[];

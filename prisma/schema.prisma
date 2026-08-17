@@ -291,6 +291,8 @@ model User {
   postSaves         PostSave[]           @relation("PostSaves")
   postsSeen         PostSeen[]           @relation("PostsSeen")
   postsHidden       PostHidden[]         @relation("PostsHidden")
+  collabSent        CollabOffer[]        @relation("CollabSent")
+  collabReceived    CollabOffer[]        @relation("CollabReceived")
   commentLikes      CommentLike[]        @relation("CommentLikes")
   productClicks     PostProductClick[]   @relation("ProductClicks")
   stories           Story[]              @relation("StoryAuthor")
@@ -1952,6 +1954,80 @@ model BusinessProfile {
   conversations Conversation[]
 
   @@map("business_profiles")
+}
+
+/// Hamkorlik taklifining holati.
+enum CollabStatus {
+  /// Yuborilgan, javob kutilmoqda.
+  PENDING
+  /// Ijodkor qabul qildi — suhbat ochiladi.
+  ACCEPTED
+  /// Ijodkor rad etdi.
+  DECLINED
+  /// Yuboruvchi o'zi qaytarib oldi.
+  WITHDRAWN
+}
+
+/// Biznesdan ijodkorga HAMKORLIK taklifi.
+///
+/// ── Nima uchun kerak ──────────────────────────────────────────────────
+/// 11-bosqichda ijodkor "hamkorlikka ochiqman" deb belgilay oladigan
+/// bo'ldi. Lekin biznes uni TOPA olmasdi va topsa ham, taklifni
+/// oddiy xabar sifatida yozardi — u boshqa suhbatlar orasida
+/// yo'qolib ketardi.
+///
+/// Taklif alohida yozuv bo'lsa: ijodkor hammasini bir joyda ko'radi,
+/// javob berish ikki bosishga qisqaradi va javobsiz taklif
+/// unutilmaydi.
+///
+/// ── Nima uchun PUL bu yerda YO'Q ──────────────────────────────────────
+/// Navix to'lovga aralashmaydi: bloger reklamadan tushgan pulni
+/// biznes bilan O'ZI kelishadi. Shartlar matn sifatida yoziladi
+/// (`message`), pul oqimi esa platformadan tashqarida qoladi.
+///
+/// Bu ataylab qilingan: pulni o'tkazish soliq va litsenziya
+/// masalalarini keltirib chiqaradi va ular alohida hal qilinishi
+/// kerak.
+///
+/// ── Nima uchun qabul qilinganda SUHBAT ochiladi ───────────────────────
+/// Taklif — tanishtirish. Undan keyingi gaplashuv oddiy suhbatda
+/// davom etadi: u yerda rasm ham, ovoz ham, tarix ham bor. Taklif
+/// yozuviga ularning hammasini takrorlashning ma'nosi yo'q.
+model CollabOffer {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Taklif yuborgan odam (odatda biznes egasi).
+  fromUserId String @db.Uuid
+  /// Ijodkor — taklif KIMGA yuborilgan.
+  toUserId   String @db.Uuid
+
+  /// Qisqa sarlavha — ro'yxatda shu ko'rinadi.
+  subject String @db.VarChar(120)
+  /// Batafsil shartlar: nima kerak, qancha, qachon.
+  message String @db.VarChar(1000)
+
+  status CollabStatus @default(PENDING)
+
+  /// Qabul qilingandan keyin ochilgan suhbat.
+  ///
+  /// Bog'lanish YO'Q: suhbat o'chirilsa ham taklif tarixi qolishi
+  /// kerak. Ustun faqat "qayerda davom etdi" degan ishora.
+  conversationId String? @db.Uuid
+
+  /// Javob berilgan payt — `null` bo'lsa hali kutilmoqda.
+  respondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fromUser User @relation("CollabSent", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User @relation("CollabReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  /// Ijodkorning qutisi — yangi takliflar birinchi.
+  @@index([toUserId, status, createdAt])
+  /// Yuboruvchining qutisi.
+  @@index([fromUserId, createdAt])
+  @@map("collab_offers")
 }
 
 /// Foydalanuvchining biznesga obunasi.

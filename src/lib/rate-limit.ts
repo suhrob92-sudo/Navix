@@ -178,6 +178,19 @@ export const PUBLIC_RATE_LIMITS = {
    */
   userReport: { limit: 20, windowSeconds: 60 * 60 },
   /**
+   * Hamkorlik taklifi — kuniga o'ntagacha.
+   *
+   * ── Nima uchun chegara QAT'IY ───────────────────────────────────────
+   * "Hamkorlikka ochiq" degan belgi ijodkorni ochiq nishonga
+   * aylantirmasligi kerak. Bitta juftlikda faqat bitta javobsiz
+   * taklif bo'lishi bazada majburlangan, lekin usiz ham bitta odam
+   * yuzlab ijodkorga bir xil matn yuborishi mumkin edi.
+   *
+   * O'nta — haqiqiy biznes uchun yetarli: u kuniga o'nta blogerga
+   * yozsa, bu allaqachon jiddiy kampaniya.
+   */
+  collabOffer: { limit: 10, windowSeconds: 60 * 60 * 24 },
+  /**
    * Post yozish: soatiga 20 ta.
    *
    * Har bir post obunachilarning lentasiga tushadi. Odam uchun soatiga

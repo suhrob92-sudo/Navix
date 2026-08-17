@@ -2,6 +2,8 @@
 
 import { Handshake } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+
 import { CREATOR_LINK_KINDS, creatorLinkConfig, type CreatorLinkKind } from '@/config/creator';
 import { ctaHref } from '@/config/post-cta';
 
@@ -9,6 +11,13 @@ export interface CreatorLinksProps {
   links: { kind: CreatorLinkKind; handle: string }[];
   isOpenToCollab: boolean;
   collabNote: string | null;
+  /**
+   * Taklif yuborish tugmasi ko'rinsinmi.
+   *
+   * O'z profilida va bloklangan odamda berilmaydi: birinchisida u
+   * ma'nosiz, ikkinchisida server baribir rad etardi.
+   */
+  onOffer?: () => void;
 }
 
 /**
@@ -29,7 +38,7 @@ export interface CreatorLinksProps {
  * qiladimi yoki shunchaki blog yuritadimi?" degan savolga javob
  * izlaydi va uni topa olmasa, umuman yozmaydi.
  */
-export function CreatorLinks({ links, isOpenToCollab, collabNote }: CreatorLinksProps) {
+export function CreatorLinks({ links, isOpenToCollab, collabNote, onOffer }: CreatorLinksProps) {
   // Hech narsa yo'q bo'lsa, bo'sh sarlavha ham chizilmaydi.
   if (links.length === 0 && !isOpenToCollab) return null;
 
@@ -88,6 +97,19 @@ export function CreatorLinks({ links, isOpenToCollab, collabNote }: CreatorLinks
             */}
             {collabNote && (
               <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed">{collabNote}</p>
+            )}
+
+            {/*
+              Taklif tugmasi — belgining ICHIDA.
+
+              Alohida qatorda tursa, "hamkorlikka ochiq" yozuvi bilan
+              tugma o'rtasida bog'liqlik yo'qolardi va odam tugmani
+              boshqa narsa deb o'ylardi.
+            */}
+            {onOffer && (
+              <Button type="button" size="sm" className="mt-2.5" onClick={onOffer}>
+                Taklif yuborish
+              </Button>
             )}
           </div>
         </div>

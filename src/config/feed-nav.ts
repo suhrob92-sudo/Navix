@@ -3,6 +3,7 @@ import {
   BarChart3,
   Bookmark,
   Clapperboard,
+  Handshake,
   Hash,
   History,
   Home,
@@ -12,6 +13,7 @@ import {
   Radio,
   Settings,
   User,
+  Users,
   Video,
 } from 'lucide-react';
 
@@ -432,6 +434,25 @@ export const FEED_FEATURES: readonly FeedFeatureItem[] = [
     label: 'Videolarim natijasi',
     description: "Ko'rishlar, bosishlar va savdo",
     icon: BarChart3,
+  },
+  /*
+    Hamkorlik — IJODKOR va BIZNES uchun.
+
+    Menyuda ikkita alohida qator emas, bittasi: bir odam ham
+    ijodkor, ham biznes egasi bo'lishi mumkin va ikkala quti ham
+    bitta sahifada turadi.
+  */
+  {
+    href: '/feed/collab',
+    label: 'Hamkorlik',
+    description: 'Reklama takliflari — kelgan va yuborilgan',
+    icon: Handshake,
+  },
+  {
+    href: '/feed/creators',
+    label: 'Ijodkorlar',
+    description: 'Hamkorlikka ochiq blogerlar katalogi',
+    icon: Users,
   },
   {
     href: '/feed/tags',

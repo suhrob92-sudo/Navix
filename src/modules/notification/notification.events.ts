@@ -189,6 +189,24 @@ export interface NotificationEventData {
     /** Nechinchi bosish — bosqich soni. */
     clickCount: number;
   };
+  /**
+   * Hamkorlik taklifi keldi — IJODKOR uchun.
+   *
+   * Bu oddiy xabar emas: unga javob berish kerak va javobsiz
+   * qolgan taklif ikkala tomonni ham kutib qoldiradi.
+   */
+  'collab.offer_received': {
+    offerId: string;
+    subject: string;
+    actorName: string;
+  };
+  /** Taklifga javob berildi — YUBORUVCHI uchun. */
+  'collab.offer_answered': {
+    offerId: string;
+    subject: string;
+    actorName: string;
+    isAccepted: boolean;
+  };
   'security.password_changed': { revokedSessions: number };
   'support.replied': {
     ticketId: string;
@@ -592,6 +610,29 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
         : `Videongizdagi "${productName}" ${clickCount} marta ochildi.`,
     actionUrl: `/feed/${postId}`,
     sourceModule: 'feed',
+  }),
+
+  'collab.offer_received': ({ subject, actorName }) => ({
+    title: 'Hamkorlik taklifi',
+    body: `${actorName}: "${subject}"`,
+    actionUrl: '/feed/collab',
+    sourceModule: 'collab',
+  }),
+
+  /**
+   * Javob matni HOLATNI oldinga chiqaradi.
+   *
+   * "Javob keldi" degan yozuv odamni ilovaga kirishga majbur
+   * qilardi. Qabul qilinganmi yoki yo'qmi — bir qarashda
+   * ko'rinishi kerak.
+   */
+  'collab.offer_answered': ({ subject, actorName, isAccepted }) => ({
+    title: isAccepted ? 'Taklifingiz qabul qilindi' : 'Taklifingiz rad etildi',
+    body: isAccepted
+      ? `${actorName} "${subject}" taklifini qabul qildi. Suhbat ochildi.`
+      : `${actorName} "${subject}" taklifini rad etdi.`,
+    actionUrl: '/feed/collab',
+    sourceModule: 'collab',
   }),
 
   'security.password_changed': ({ revokedSessions }) => ({

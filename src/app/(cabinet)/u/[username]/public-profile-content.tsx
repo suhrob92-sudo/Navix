@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
+import { CollabOfferDialog } from '@/components/collab/collab-offer-dialog';
 import { CreatorLinks } from '@/components/profile/creator-links';
 import { toUserMessage } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
@@ -69,6 +70,8 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isBlockOpen, setIsBlockOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  /** Hamkorlik taklifi oynasi ochiqmi. */
+  const [isOfferOpen, setIsOfferOpen] = useState(false);
   const [reportSent, setReportSent] = useState(false);
 
   const profile = data?.profile ?? null;
@@ -417,6 +420,9 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                 links={profile.links}
                 isOpenToCollab={profile.isOpenToCollab}
                 collabNote={profile.collabNote}
+                {...(profile.isOwn || profile.isBlocked
+                  ? {}
+                  : { onOffer: () => setIsOfferOpen(true) })}
               />
 
               {/*
@@ -538,6 +544,14 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
               onConfirm={() => void toggleBlock()}
               onCancel={() => setIsBlockOpen(false)}
             />
+
+            {isOfferOpen && (
+              <CollabOfferDialog
+                username={profile.username}
+                name={profile.fullName ?? formatUsername(profile.username)}
+                onClose={() => setIsOfferOpen(false)}
+              />
+            )}
 
             {isReportOpen && (
               <ReportDialog
