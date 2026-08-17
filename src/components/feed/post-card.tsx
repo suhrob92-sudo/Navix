@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { BadgeCheck, Bookmark, Clapperboard, EyeOff, Flag, Heart, HelpCircle, MapPin, MessageCircle, MoreHorizontal, Pencil, Share2, Trash2 } from 'lucide-react';
+import { BadgeCheck, Bookmark, Clapperboard, EyeOff, Flag, Heart, HelpCircle, MapPin, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Share2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 
@@ -63,6 +63,13 @@ export interface PostCardProps {
    */
   onHide?: () => void;
   /**
+   * Profilda mahkamlash / bo'shatish. Berilmasa band ko'rinmaydi.
+   *
+   * FAQAT profil sahifasida beriladi: mahkamlash profil ko'rinishi
+   * haqidagi qaror va lentada uning ma'nosi yo'q.
+   */
+  onTogglePin?: () => void;
+  /**
    * Post sahifasining O'ZIDA ko'rsatilyaptimi.
    *
    * Shunda izohga havola kerak emas (odam allaqachon o'sha yerda) va
@@ -92,6 +99,7 @@ export function PostCard({
   onEdit,
   onReport,
   onHide,
+  onTogglePin,
   isDetail = false,
   isBusy = false,
 }: PostCardProps) {
@@ -182,7 +190,9 @@ export function PostCard({
     qoidani tekshiradi.
   */
   const canHide = !post.isMine && !post.isDeleted && Boolean(onHide);
-  const hasMenu = canEdit || canDelete || canReport || canHide;
+  /* Mahkamlash — faqat O'Z postida va faqat profil sahifasida. */
+  const canPin = post.isMine && !post.isDeleted && Boolean(onTogglePin);
+  const hasMenu = canEdit || canDelete || canReport || canHide || canPin;
 
   async function saveEdit() {
     if (draft === null || !onEdit) return;
@@ -193,6 +203,20 @@ export function PostCard({
 
   return (
     <article className="bg-card border-border relative rounded-2xl border p-4">
+      {/*
+        Mahkamlangan belgisi — kartaning ENG TEPASIDA.
+
+        Usiz post nima uchun eng yuqorida turgani tushunarsiz
+        bo'lardi: odam uni "eng yangi" deb o'ylab, sanaga qarab
+        chalkashardi.
+      */}
+      {post.isPinned && !post.isDeleted && (
+        <p className="text-muted-foreground mb-2 flex items-center gap-1.5 text-xs">
+          <Pin className="size-3.5 shrink-0" aria-hidden="true" />
+          Mahkamlangan
+        </p>
+      )}
+
       <div className="flex items-start gap-3">
         <Link href={`/u/${post.author.username}`} className="shrink-0" aria-label={`${name} profili`}>
           <Avatar src={post.author.avatarUrl} name={post.author.fullName} size="md" />
@@ -319,6 +343,25 @@ export function PostCard({
                     >
                       <EyeOff className="size-4 shrink-0" aria-hidden="true" />
                       Bu qiziq emas
+                    </button>
+                  )}
+
+                  {canPin && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="hover:bg-secondary flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onTogglePin?.();
+                      }}
+                    >
+                      {post.isPinned ? (
+                        <PinOff className="size-4 shrink-0" aria-hidden="true" />
+                      ) : (
+                        <Pin className="size-4 shrink-0" aria-hidden="true" />
+                      )}
+                      {post.isPinned ? "Mahkamlashni bo'shatish" : 'Yuqoriga mahkamlash'}
                     </button>
                   )}
 

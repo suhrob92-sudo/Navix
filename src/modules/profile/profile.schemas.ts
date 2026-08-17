@@ -1,3 +1,5 @@
+import { COLLAB_NOTE_MAX_LENGTH } from '@/config/creator';
+import { CTA_HANDLE_PATTERN, cleanHandle } from '@/config/post-cta';
 import { z } from 'zod';
 
 import { isChatWallpaperName } from '@/config/chat-wallpapers';
@@ -59,6 +61,25 @@ export const MESSAGE_PRIVACY_OPTIONS = [
   { value: 'FOLLOWERS', label: 'Faqat men kuzatadiganlar' },
   { value: 'NOBODY', label: 'Hech kim' },
 ] as const;
+/**
+ * Tarmoqdagi nom — profil uchun.
+ *
+ * Chaqiruvdagi (CTA) bilan AYNAN bir xil qoida: bitta naqsh, bitta
+ * tozalovchi. Ular ajralib ketsa, videodagi tugma ishlab, profildagi
+ * havola buzilardi.
+ */
+const creatorHandleField = z
+  .string()
+  .trim()
+  .max(80)
+  .transform((value) => (value ? cleanHandle(value) : null))
+  .nullable()
+  .optional()
+  .refine(
+    (value) => value === null || value === undefined || CTA_HANDLE_PATTERN.test(value),
+    "Nom noto'g'ri. Faqat harflar, raqamlar, nuqta va pastki chiziq.",
+  );
+
 
 /** PATCH /api/v1/profile */
 export const updateProfileSchema = z
@@ -154,6 +175,29 @@ export const updateProfileSchema = z
         (value) => value === null || value === undefined || /^https?:\/\/.+\..+/.test(value),
         'Manzil https:// bilan boshlanishi kerak',
       ),
+    /**
+     * Ijodkorning tarmoqlari — FAQAT foydalanuvchi nomi.
+     *
+     * ── Nima uchun `website` dan boshqacha ──────────────────────────
+     * `website` da to'liq manzil saqlanadi va u tekshiriladi. Bu
+     * yerda esa manzilni ilova o'zi yasaydi — ya'ni begona domenga
+     * olib boradigan havolaning profilga tushishi mumkin emas.
+     *
+     * To'liq manzil nusxalab qo'yilsa RAD etilmaydi: u tozalanadi
+     * (`cleanHandle`) va natija baribir bir xil bo'ladi.
+     */
+    telegramHandle: creatorHandleField,
+    instagramHandle: creatorHandleField,
+    youtubeHandle: creatorHandleField,
+    /** Hamkorlikka ochiqmi — biznes uchun aniq javob. */
+    isOpenToCollab: z.boolean().optional(),
+    collabNote: z
+      .string()
+      .trim()
+      .max(COLLAB_NOTE_MAX_LENGTH, `${COLLAB_NOTE_MAX_LENGTH} ta belgidan oshmasligi kerak`)
+      .transform((value) => value || null)
+      .nullable()
+      .optional(),
     gender: z.enum(['MALE', 'FEMALE']).nullable().optional(),
     messagePrivacy: z.enum(['EVERYONE', 'FOLLOWERS', 'NOBODY']).optional(),
     /**

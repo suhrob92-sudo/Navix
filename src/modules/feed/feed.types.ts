@@ -89,6 +89,14 @@ export interface PostView {
    * Saqlash shaxsiy: uni faqat saqlagan odam ko'radi, muallif emas.
    */
   isSaved: boolean;
+  /**
+   * Profilda YUQORIGA mahkamlanganmi.
+   *
+   * Lentada ham yuboriladi, lekin u yerda ishlatilmaydi: mahkamlash
+   * PROFIL ko'rinishi haqidagi qaror. Alohida javob shakli yasash
+   * esa `toPostView` ni ikkiga bo'lishni talab qilardi.
+   */
+  isPinned: boolean;
   /** Post so'rov yuborgan odamning O'ZINIKIMI (o'chirish tugmasi uchun). */
   isMine: boolean;
   isDeleted: boolean;

@@ -60,6 +60,7 @@ export function postSelect(viewerId: string) {
     ctaKind: true,
     ctaValue: true,
     ctaClickCount: true,
+    pinnedAt: true,
     viewCount: true,
     category: true,
     placeName: true,
@@ -322,6 +323,7 @@ export function toPostView(row: PostRow, viewerId: string): PostView {
     shareCount: row.shareCount,
     isLiked: row.likes.length > 0,
     isSaved: row.saves.length > 0,
+    isPinned: row.deletedAt === null && row.pinnedAt !== null,
     isMine,
     isDeleted: row.deletedAt !== null,
   };

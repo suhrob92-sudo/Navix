@@ -70,6 +70,11 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
   const [bio, setBio] = useState(profile.bio ?? '');
   const [location, setLocation] = useState(profile.location ?? '');
   const [website, setWebsite] = useState(profile.website ?? '');
+  const [telegramHandle, setTelegramHandle] = useState(profile.telegramHandle ?? '');
+  const [instagramHandle, setInstagramHandle] = useState(profile.instagramHandle ?? '');
+  const [youtubeHandle, setYoutubeHandle] = useState(profile.youtubeHandle ?? '');
+  const [isOpenToCollab, setIsOpenToCollab] = useState(profile.isOpenToCollab);
+  const [collabNote, setCollabNote] = useState(profile.collabNote ?? '');
   const [gender, setGender] = useState(profile.gender ?? '');
   const [messagePrivacy, setMessagePrivacy] = useState(profile.messagePrivacy);
   const [chatWallpaper, setChatWallpaper] = useState<ChatWallpaperName>(resolveWallpaper(profile.chatWallpaper).value);
@@ -164,6 +169,11 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
       bio: bio.trim() || null,
       location: location.trim() || null,
       website: website.trim() || null,
+      telegramHandle: telegramHandle.trim() || null,
+      instagramHandle: instagramHandle.trim() || null,
+      youtubeHandle: youtubeHandle.trim() || null,
+      isOpenToCollab,
+      collabNote: collabNote.trim() || null,
       gender: gender || null,
       messagePrivacy,
       chatWallpaper,
@@ -406,6 +416,104 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
                 disabled={isSaving}
               />
             </Field>
+          </div>
+
+          {/*
+            Ijodkor bo'limi.
+
+            ── Nima uchun bu yerda, alohida sahifada emas ─────────────
+            Bu maydonlar profilning bir qismi va ular ham nom, bio va
+            sayt bilan bir joyda tahrirlanishi kerak. Alohida sahifa
+            odamni "yana qayerdadir sozlama bor" degan holatga
+            qo'yardi.
+
+            ── Nima uchun faqat NOM so'raladi ─────────────────────────
+            To'liq manzil yozishga ruxsat bersak, profilda istalgan
+            saytga olib boradigan havola paydo bo'lardi. Manzilni
+            ilova o'zi yasaydi.
+          */}
+          <div className="border-border/60 space-y-5 border-t pt-5">
+            <div>
+              <h3 className="text-sm font-semibold">Ijodkor uchun</h3>
+              <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+                Tarmoqlaringiz profilingizda havola bo&apos;lib turadi. Faqat nom kiriting —
+                manzilni ilova o&apos;zi yasaydi.
+              </p>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-3">
+              <Field id="telegramHandle" label="Telegram" errors={fieldErrors.telegramHandle}>
+                <Input
+                  id="telegramHandle"
+                  value={telegramHandle}
+                  onChange={(event) => setTelegramHandle(event.target.value)}
+                  placeholder="navix_uz"
+                  autoComplete="off"
+                  hasError={Boolean(fieldErrors.telegramHandle)}
+                  disabled={isSaving}
+                />
+              </Field>
+
+              <Field id="instagramHandle" label="Instagram" errors={fieldErrors.instagramHandle}>
+                <Input
+                  id="instagramHandle"
+                  value={instagramHandle}
+                  onChange={(event) => setInstagramHandle(event.target.value)}
+                  placeholder="navix.uz"
+                  autoComplete="off"
+                  hasError={Boolean(fieldErrors.instagramHandle)}
+                  disabled={isSaving}
+                />
+              </Field>
+
+              <Field id="youtubeHandle" label="YouTube" errors={fieldErrors.youtubeHandle}>
+                <Input
+                  id="youtubeHandle"
+                  value={youtubeHandle}
+                  onChange={(event) => setYoutubeHandle(event.target.value)}
+                  placeholder="navixuz"
+                  autoComplete="off"
+                  hasError={Boolean(fieldErrors.youtubeHandle)}
+                  disabled={isSaving}
+                />
+              </Field>
+            </div>
+
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={isOpenToCollab}
+                onChange={(event) => setIsOpenToCollab(event.target.checked)}
+                disabled={isSaving}
+                className="accent-primary mt-0.5 size-4 shrink-0"
+              />
+
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">Hamkorlikka ochiqman</span>
+                <span className="text-muted-foreground block text-xs leading-relaxed">
+                  Profilingizda belgi paydo bo&apos;ladi. Biznes &quot;bu odam reklama qiladimi?&quot;
+                  degan savolga javob topadi va yozadi.
+                </span>
+              </span>
+            </label>
+
+            {isOpenToCollab && (
+              <Field
+                id="collabNote"
+                label="Hamkorlik shartlari"
+                hint="Ixtiyoriy — qanday takliflar kutayotganingiz"
+                errors={fieldErrors.collabNote}
+              >
+                <Input
+                  id="collabNote"
+                  value={collabNote}
+                  onChange={(event) => setCollabNote(event.target.value)}
+                  placeholder="Restoran va kiyim brendlari"
+                  hasError={Boolean(fieldErrors.collabNote)}
+                  disabled={isSaving}
+                />
+              </Field>
+            )}
           </div>
 
           <Field id="gender" label="Jins" hint="Ixtiyoriy" errors={fieldErrors.gender}>

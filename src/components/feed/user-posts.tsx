@@ -59,7 +59,7 @@ export function UserPosts({ username, isOwn }: UserPostsProps) {
         />
       )}
 
-      <PostList posts={list.items} actions={actions} />
+      <PostList posts={list.items} actions={actions} canPin={isOwn} />
 
       {list.hasMore && (
         <Button

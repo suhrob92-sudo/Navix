@@ -26,7 +26,9 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
+import { CreatorLinks } from '@/components/profile/creator-links';
 import { toUserMessage } from '@/lib/api-client';
+import { cn } from '@/lib/utils';
 import { formatUzDate } from '@/lib/date';
 import { useCall } from '@/modules/call/call-provider';
 import type { CallKindName } from '@/modules/call/call.types';
@@ -404,8 +406,37 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                 </div>
               </div>
 
-              {/* Sonlar */}
-              <div className="border-border/60 mt-5 grid grid-cols-2 gap-3 border-t pt-4">
+              {/*
+                Tarmoqlar va hamkorlik holati.
+
+                Sonlardan YUQORIDA: odam avval "bu kim va u bilan
+                bog'lanish mumkinmi?" degan savolga javob izlaydi,
+                keyin raqamlarga qaraydi.
+              */}
+              <CreatorLinks
+                links={profile.links}
+                isOpenToCollab={profile.isOpenToCollab}
+                collabNote={profile.collabNote}
+              />
+
+              {/*
+                Sonlar.
+
+                ── Nima uchun KO'RISHLAR ham ko'rsatiladi ────────────
+                Obunachilar soni — "menga nechta odam obuna bo'lgan".
+                Ko'rishlar esa "ishim nechta odamga yetib bordi".
+                Ikkinchisi ijodkor uchun ancha muhimroq: obunachisiz
+                ham million ko'rish bo'lishi mumkin.
+
+                Ko'rish bo'lmasa ustun CHIZILMAYDI — nol raqam
+                yangi odamni ruhlantirmaydi.
+              */}
+              <div
+                className={cn(
+                  'border-border/60 mt-5 grid gap-3 border-t pt-4',
+                  profile.videoViewCount > 0 ? 'grid-cols-3' : 'grid-cols-2',
+                )}
+              >
                 <div className="text-center">
                   <p className="text-lg font-semibold tabular-nums">{formatCount(profile.followerCount)}</p>
                   <p className="text-muted-foreground text-xs">Obunachilar</p>
@@ -414,6 +445,15 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                   <p className="text-lg font-semibold tabular-nums">{formatCount(profile.followingCount)}</p>
                   <p className="text-muted-foreground text-xs">Obunalari</p>
                 </div>
+
+                {profile.videoViewCount > 0 && (
+                  <div className="text-center">
+                    <p className="text-lg font-semibold tabular-nums">
+                      {formatCount(profile.videoViewCount)}
+                    </p>
+                    <p className="text-muted-foreground text-xs">Ko&apos;rishlar</p>
+                  </div>
+                )}
               </div>
 
               {/* Amallar */}

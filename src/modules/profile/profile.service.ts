@@ -43,6 +43,13 @@ export interface ProfilePayload {
   bio: string | null;
   location: string | null;
   website: string | null;
+  /** Ijodkorning tarmoqlari — FAQAT nom, manzilni ilova yasaydi. */
+  telegramHandle: string | null;
+  instagramHandle: string | null;
+  youtubeHandle: string | null;
+  /** Hamkorlikka ochiqmi — biznes uchun aniq javob. */
+  isOpenToCollab: boolean;
+  collabNote: string | null;
   gender: string | null;
   messagePrivacy: string;
   /** Suhbat oynasining foni — `config/chat-wallpapers.ts` dagi nom. */
@@ -80,6 +87,11 @@ const PROFILE_SELECT = {
       bio: true,
       location: true,
       website: true,
+      telegramHandle: true,
+      instagramHandle: true,
+      youtubeHandle: true,
+      isOpenToCollab: true,
+      collabNote: true,
       gender: true,
       messagePrivacy: true,
       chatWallpaper: true,
@@ -110,6 +122,11 @@ function toProfilePayload(user: {
     bio: string | null;
     location: string | null;
     website: string | null;
+    telegramHandle: string | null;
+    instagramHandle: string | null;
+    youtubeHandle: string | null;
+    isOpenToCollab: boolean;
+    collabNote: string | null;
     gender: string | null;
     messagePrivacy: string;
     chatWallpaper: string;
@@ -136,6 +153,11 @@ function toProfilePayload(user: {
     bio: user.profile?.bio ?? null,
     location: user.profile?.location ?? null,
     website: user.profile?.website ?? null,
+    telegramHandle: user.profile?.telegramHandle ?? null,
+    instagramHandle: user.profile?.instagramHandle ?? null,
+    youtubeHandle: user.profile?.youtubeHandle ?? null,
+    isOpenToCollab: user.profile?.isOpenToCollab ?? false,
+    collabNote: user.profile?.collabNote ?? null,
     gender: user.profile?.gender ?? null,
     messagePrivacy: user.profile?.messagePrivacy ?? 'EVERYONE',
     chatWallpaper: user.profile?.chatWallpaper ?? 'DEFAULT',
@@ -232,6 +254,11 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
     ...(input.bio !== undefined ? { bio: input.bio } : {}),
     ...(input.location !== undefined ? { location: input.location } : {}),
     ...(input.website !== undefined ? { website: input.website } : {}),
+    ...(input.telegramHandle !== undefined ? { telegramHandle: input.telegramHandle } : {}),
+    ...(input.instagramHandle !== undefined ? { instagramHandle: input.instagramHandle } : {}),
+    ...(input.youtubeHandle !== undefined ? { youtubeHandle: input.youtubeHandle } : {}),
+    ...(input.isOpenToCollab !== undefined ? { isOpenToCollab: input.isOpenToCollab } : {}),
+    ...(input.collabNote !== undefined ? { collabNote: input.collabNote } : {}),
     ...(input.gender !== undefined ? { gender: input.gender } : {}),
     ...(input.messagePrivacy !== undefined ? { messagePrivacy: input.messagePrivacy } : {}),
     ...(input.chatWallpaper !== undefined ? { chatWallpaper: input.chatWallpaper } : {}),

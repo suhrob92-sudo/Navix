@@ -47,6 +47,16 @@ export interface PostActions {
   hidePost: (postId: string) => void;
   undoHide: (postId: string) => void;
   /**
+   * Profilda yuqoriga mahkamlash / bo'shatish.
+   *
+   * ── Nima uchun optimistik EMAS ──────────────────────────────────────
+   * Server chegarani tekshiradi (uchtadan ortiq mahkamlab bo'lmaydi).
+   * Oldindan belgi qo'ysak, chegara to'lgan holatda u qo'yilib,
+   * darhol qaytib olinardi — bu "tugma buzuq" degan taassurot
+   * qoldirardi.
+   */
+  togglePin: (post: PostView) => Promise<void>;
+  /**
    * Shu sahifada yashirilgan postlar.
    *
    * ── Nima uchun post ro'yxatdan OLIB TASHLANMAYDI ────────────────────
@@ -334,6 +344,29 @@ export function usePostActions(update: (updater: (current: PostView[]) => PostVi
     [applyHidden, request],
   );
 
+  const togglePin = useCallback(
+    async (post: PostView) => {
+      setBusyPostId(post.id);
+      setError(null);
+
+      try {
+        const result = await request<{ isPinned: boolean }>(`/api/v1/posts/${post.id}/pin`, {
+          method: post.isPinned ? 'DELETE' : 'POST',
+          ...(post.isPinned ? {} : { body: {} }),
+        });
+
+        update((current) =>
+          current.map((item) => (item.id === post.id ? { ...item, isPinned: result.isPinned } : item)),
+        );
+      } catch (caught) {
+        setError(toUserMessage(caught));
+      } finally {
+        setBusyPostId(null);
+      }
+    },
+    [request, update],
+  );
+
   const clearError = useCallback(() => setError(null), []);
 
   return {
@@ -351,5 +384,6 @@ export function usePostActions(update: (updater: (current: PostView[]) => PostVi
     hidePost,
     undoHide,
     hiddenIds,
+    togglePin,
   };
 }

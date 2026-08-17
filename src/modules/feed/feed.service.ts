@@ -17,6 +17,7 @@ import {
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
 import { MAX_PLACE_NAME_LENGTH, SHORT_VIDEO_SECONDS } from '@/modules/feed/feed.types';
 import { MAX_ATTACHMENTS } from '@/config/attachments';
+import { MAX_PINNED_POSTS } from '@/config/creator';
 import { prepareAttachments, type AttachmentInput } from '@/modules/feed/attachment.service';
 import { NEARBY_RADIUS_KM, blurCoordinate, boundingBox, isValidCoordinate } from '@/config/geo';
 import { extractHashtags, extractMentions, isValidHashtag } from '@/modules/feed/feed.text';
@@ -351,8 +352,36 @@ export async function listUserPosts(
     }
   }
 
+  /**
+   * Mahkamlangan postlar BIRINCHI sahifada, eng tepada.
+   *
+   * ── Nima uchun sahifalashga QO'SHILMAYDI ────────────────────────────
+   * Sahifalash vaqt belgisiga (`cursor`) tayanadi. Mahkamlangan post
+   * eski bo'lishi mumkin va uni umumiy tartibga qo'shsak, u ikkinchi
+   * sahifada QAYTA chiqib qolardi.
+   *
+   * Shuning uchun ular alohida o'qiladi va faqat birinchi sahifaga
+   * qo'shiladi. Umumiy ro'yxatdan esa chiqarib tashlanadi —
+   * takrorlanmasligi uchun.
+   */
+  const pinned = query.cursor
+    ? []
+    : await prisma.post.findMany({
+        where: { ...LIVE_AUTHOR, authorId: author.id, pinnedAt: { not: null } },
+        select: postSelect(viewerId),
+        orderBy: [{ pinnedAt: 'desc' }],
+        take: MAX_PINNED_POSTS,
+      });
+
+  const pinnedIds = pinned.map((row) => row.id);
+
   const rows = await prisma.post.findMany({
-    where: { ...LIVE_AUTHOR, authorId: author.id, ...olderThan(query.cursor) },
+    where: {
+      ...LIVE_AUTHOR,
+      authorId: author.id,
+      ...(pinnedIds.length > 0 ? { id: { notIn: pinnedIds } } : {}),
+      ...olderThan(query.cursor),
+    },
     select: postSelect(viewerId),
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: query.limit + 1,
@@ -362,7 +391,14 @@ export async function listUserPosts(
   const page = hasMore ? rows.slice(0, query.limit) : rows;
 
   return {
-    posts: page.map((row) => toPostView(row, viewerId)),
+    posts: [...pinned, ...page].map((row) => toPostView(row, viewerId)),
+    /*
+      Belgi FAQAT oddiy ro'yxatdan olinadi.
+
+      Mahkamlangan post eski bo'lishi mumkin va uning vaqtini belgi
+      qilib qo'ysak, keyingi sahifa undan ham eskisidan boshlanardi —
+      ya'ni oradagi postlar butunlay tushib qolardi.
+    */
     nextCursor: hasMore && page.length > 0 ? buildCursor(page[page.length - 1]) : null,
   };
 }
@@ -1466,6 +1502,78 @@ export async function unsavePost(postId: string, userId: string): Promise<{ isSa
   await prisma.postSave.deleteMany({ where: { postId, userId } });
 
   return { isSaved: false };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Mahkamlash
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Postni profilda YUQORIGA mahkamlaydi.
+ *
+ * ── Nima uchun kerak ─────────────────────────────────────────────────
+ * Profil vaqt bo'yicha tartiblangan: eng yangi post birinchi. Lekin
+ * ijodkorning eng yaxshi ishi ko'pincha eskiroq bo'ladi va pastga
+ * tushib ketadi.
+ *
+ * Yangi kelgan odam esa profilning BOSHIDAN qaraydi. U yerda
+ * tasodifiy post turgani — ijodkorning eng yomon reklamasi.
+ *
+ * ── Nima uchun faqat O'Z posti ───────────────────────────────────────
+ * Mahkamlash — profilning ko'rinishi haqidagi qaror. Uni faqat
+ * profil egasi qabul qila oladi.
+ */
+export async function pinPost(postId: string, userId: string): Promise<{ isPinned: boolean }> {
+  const post = await prisma.post.findFirst({
+    where: { id: postId, authorId: userId, deletedAt: null },
+    select: { id: true, pinnedAt: true },
+  });
+
+  if (!post) {
+    throw new NotFoundError('Post');
+  }
+
+  // Allaqachon mahkamlangan — hech narsa o'zgarmaydi.
+  if (post.pinnedAt !== null) {
+    return { isPinned: true };
+  }
+
+  const pinned = await prisma.post.count({
+    where: { authorId: userId, deletedAt: null, pinnedAt: { not: null } },
+  });
+
+  /*
+    Chegara SERVERDA tekshiriladi.
+
+    Ekranda ham tugma o'chiriladi, lekin so'rovni qo'lda yuborish
+    oson. Chegarasiz esa ijodkor hamma postini mahkamlab qo'yardi
+    va mahkamlash ma'nosini butunlay yo'qotardi.
+  */
+  if (pinned >= MAX_PINNED_POSTS) {
+    throw new ConflictError(
+      `Ko'pi bilan ${MAX_PINNED_POSTS} ta post mahkamlanadi. Avval boshqasini bo'shating.`,
+    );
+  }
+
+  await prisma.post.update({ where: { id: postId }, data: { pinnedAt: new Date() } });
+
+  return { isPinned: true };
+}
+
+export async function unpinPost(postId: string, userId: string): Promise<{ isPinned: boolean }> {
+  /*
+    Bu yerda post TEKSHIRILMAYDI — `updateMany` sharti yetarli.
+
+    Begona postni bo'shatishga urinish jimgina hech narsa qilmaydi:
+    xato qaytarish "bunday post bor" degan ma'lumotni oshkor
+    qilardi.
+  */
+  await prisma.post.updateMany({
+    where: { id: postId, authorId: userId },
+    data: { pinnedAt: null },
+  });
+
+  return { isPinned: false };
 }
 
 // ─────────────────────────────────────────────────────────────────────

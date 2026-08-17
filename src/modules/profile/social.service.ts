@@ -2,6 +2,7 @@ import { Prisma } from '@/generated/prisma/client';
 import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/api/errors';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
+import { CREATOR_LINK_FIELD, CREATOR_LINK_KINDS } from '@/config/creator';
 import { isAllowedBy, isNotifyEnabled } from '@/modules/feed/settings.service';
 import { blockedUserIds, findBlock } from '@/modules/moderation/moderation.service';
 import { notifyUser } from '@/modules/notification/notification.service';
@@ -38,6 +39,11 @@ const PROFILE_SELECT = {
       location: true,
       website: true,
       isVerified: true,
+      telegramHandle: true,
+      instagramHandle: true,
+      youtubeHandle: true,
+      isOpenToCollab: true,
+      collabNote: true,
     },
   },
 } as const;
@@ -83,7 +89,7 @@ export async function getPublicProfile(username: string, viewerId: string): Prom
    * Ketma-ket yuborilsa, sahifa to'rt marta kutardi. Ular bir-biriga
    * bog'liq emas, shuning uchun birga ketaveradi.
    */
-  const [followerCount, followingCount, postCount, follow, block] = await Promise.all([
+  const [followerCount, followingCount, postCount, videoViews, follow, block] = await Promise.all([
     prisma.follow.count({ where: { followingId: row.id } }),
     prisma.follow.count({ where: { followerId: row.id } }),
     /**
@@ -93,6 +99,22 @@ export async function getPublicProfile(username: string, viewerId: string): Prom
      * deb turib, ro'yxatda 120 tasi ko'rinsa — son yolg'on bo'lardi.
      */
     prisma.post.count({ where: { authorId: row.id, deletedAt: null } }),
+    /**
+     * Videolarning JAMI ko'rishlari.
+     *
+     * ── Nima uchun `_sum`, alohida ustun emas ───────────────────────────
+     * Profilga "jami ko'rishlar" ustunini qo'shish tezroq bo'lardi,
+     * lekin u har bir ko'rishda yangilanishi kerak edi — ya'ni har
+     * video ochilganda ikkita jadval o'zgarardi.
+     *
+     * Yig'indi esa faqat profil ochilganda hisoblanadi va u kuniga
+     * bir necha marta bo'ladi. Indeks (`authorId, createdAt`)
+     * allaqachon bor.
+     */
+    prisma.post.aggregate({
+      where: { authorId: row.id, deletedAt: null, videoUrl: { not: null } },
+      _sum: { viewCount: true },
+    }),
     isOwn
       ? Promise.resolve(null)
       : prisma.follow.findUnique({
@@ -142,6 +164,21 @@ export async function getPublicProfile(username: string, viewerId: string): Prom
     followerCount,
     followingCount,
     postCount,
+    videoViewCount: videoViews._sum.viewCount ?? 0,
+    /*
+      Bo'sh havolalar RO'YXATGA tushmaydi.
+
+      `null` larni ham yuborib, ekranda filtrlash mumkin edi — lekin
+      unda har profil javobida uchta ortiqcha maydon ketardi va
+      ekranda "bu bormi?" degan tekshiruv uch joyda takrorlanardi.
+    */
+    links: CREATOR_LINK_KINDS.flatMap((kind) => {
+      const handle = row.profile?.[CREATOR_LINK_FIELD[kind]] ?? null;
+
+      return handle ? [{ kind, handle }] : [];
+    }),
+    isOpenToCollab: row.profile.isOpenToCollab,
+    collabNote: row.profile.collabNote,
     isOwn,
     isFollowing: follow !== null,
     isBlocked: block?.blockedByMe ?? false,

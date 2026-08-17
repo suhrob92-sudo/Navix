@@ -1,3 +1,4 @@
+import { COLLAB_NOTE_MAX_LENGTH } from '@/config/creator';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -215,5 +216,68 @@ describe('profil tahrirlash — ijtimoiy maydonlar', () => {
 
   it('obunachilar sonini qabul qilmaydi', () => {
     expect(updateProfileSchema.parse({ followerCount: 999, bio: 'salom' })).not.toHaveProperty('followerCount');
+  });
+});
+
+/**
+ * Ijodkor maydonlari — tarmoq nomlari va hamkorlik.
+ *
+ * Nom naqshi CHAQIRUV bilan bir xil. Ular ajralib ketsa, videodagi
+ * tugma ishlab, profildagi havola buzilardi.
+ */
+describe('updateProfileSchema — ijodkor maydonlari', () => {
+  it('oddiy nomni qabul qiladi', () => {
+    const result = updateProfileSchema.safeParse({ telegramHandle: 'navix_uz' });
+
+    expect(result.success).toBe(true);
+    expect(result.success && result.data.telegramHandle).toBe('navix_uz');
+  });
+
+  it('boshidagi @ ni OLIB TASHLAYDI', () => {
+    const result = updateProfileSchema.safeParse({ instagramHandle: '@navix.uz' });
+
+    expect(result.success && result.data.instagramHandle).toBe('navix.uz');
+  });
+
+  it("TO'LIQ manzilni nomga aylantiradi", () => {
+    /*
+      Odam ko'pincha manzilni nusxalab qo'yadi. Uni rad etish
+      o'rniga tozalash qulayroq: natija baribir bir xil.
+    */
+    const result = updateProfileSchema.safeParse({ telegramHandle: 'https://t.me/navix_uz' });
+
+    expect(result.success && result.data.telegramHandle).toBe('navix_uz');
+  });
+
+  it('XAVFLI nomni rad etadi', () => {
+    /*
+      Nomga `/` yoki `:` tushsa, hosil bo'lgan manzil butunlay
+      boshqa sahifaga olib borishi mumkin edi.
+    */
+    expect(updateProfileSchema.safeParse({ telegramHandle: '../evil.com' }).success).toBe(false);
+    expect(updateProfileSchema.safeParse({ youtubeHandle: 'na vix' }).success).toBe(false);
+    expect(updateProfileSchema.safeParse({ instagramHandle: 'a' }).success).toBe(false);
+  });
+
+  it("bo'sh qiymat havolani O'CHIRADI", () => {
+    // Maydonni tozalash — havolani olib tashlashning yagona yo'li.
+    const result = updateProfileSchema.safeParse({ telegramHandle: '' });
+
+    expect(result.success && result.data.telegramHandle).toBeNull();
+  });
+
+  it('hamkorlik bayrog\'i va izohi qabul qilinadi', () => {
+    const result = updateProfileSchema.safeParse({
+      isOpenToCollab: true,
+      collabNote: 'Restoran va kiyim brendlari',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('juda uzun hamkorlik izohi rad etiladi', () => {
+    expect(
+      updateProfileSchema.safeParse({ collabNote: 'x'.repeat(COLLAB_NOTE_MAX_LENGTH + 1) }).success,
+    ).toBe(false);
   });
 });

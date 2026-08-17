@@ -32,6 +32,13 @@ export interface PostListProps {
    * "o'zim so'ragan narsani nega yashiraman?"
    */
   canHide?: boolean;
+  /**
+   * Mahkamlash tugmasi ishlasinmi.
+   *
+   * FAQAT profil sahifasida: mahkamlash profil ko'rinishi haqidagi
+   * qaror va lentada uning natijasi ko'rinmaydi.
+   */
+  canPin?: boolean;
 }
 
 /**
@@ -51,6 +58,7 @@ export function PostList({
   canManage = true,
   viewerPoint = null,
   canHide = false,
+  canPin = false,
 }: PostListProps) {
   return (
     <div className="space-y-3">
@@ -74,6 +82,7 @@ export function PostList({
               onAttachmentClick={(attachmentId) => actions.trackAttachmentClick(post.id, attachmentId)}
               onReport={(reason, note) => actions.reportPost(post.id, reason, note)}
               {...(canHide ? { onHide: () => actions.hidePost(post.id) } : {})}
+              {...(canPin ? { onTogglePin: () => void actions.togglePin(post) } : {})}
               {...(canManage
                 ? {
                     onEdit: (body: string) => actions.editPost(post.id, body),

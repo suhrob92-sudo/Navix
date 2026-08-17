@@ -44,6 +44,13 @@ export interface ProfileResponse {
   bio: string | null;
   location: string | null;
   website: string | null;
+  /** Ijodkorning tarmoqlari — FAQAT nom, manzilni ilova yasaydi. */
+  telegramHandle: string | null;
+  instagramHandle: string | null;
+  youtubeHandle: string | null;
+  /** Hamkorlikka ochiqmi — biznes uchun aniq javob. */
+  isOpenToCollab: boolean;
+  collabNote: string | null;
   gender: string | null;
   messagePrivacy: string;
   /** Suhbat oynasining foni — `config/chat-wallpapers.ts` dagi nom. */

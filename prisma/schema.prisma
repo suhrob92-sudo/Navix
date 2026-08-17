@@ -325,6 +325,33 @@ model UserProfile {
   location String? @db.VarChar(80)
   website  String? @db.VarChar(200)
 
+  /// Ijodkorning tarmoqlari — FAQAT foydalanuvchi nomi saqlanadi.
+  ///
+  /// ── Nima uchun to'liq manzil emas ───────────────────────────────────
+  /// `website` da to'liq manzil saqlanadi va u tekshiriladi. Bu yerda
+  /// esa manzilni ilova o'zi yasaydi (`src/config/post-cta.ts` dagi
+  /// `ctaHref`) — ya'ni begona domenga olib boradigan havolaning
+  /// profilga tushishi mumkin emas.
+  ///
+  /// Chaqiruv (CTA) bilan AYNAN bir xil qoida: ikkalasida ham nom
+  /// bir xil naqshga tekshiriladi va bitta funksiya manzil yasaydi.
+  telegramHandle  String? @db.VarChar(32)
+  instagramHandle String? @db.VarChar(32)
+  youtubeHandle   String? @db.VarChar(32)
+
+  /// Hamkorlikka ochiqmi — reklama va buyurtma takliflari uchun.
+  ///
+  /// ── Nima uchun BAYROQ, oddiy "menga yozing" emas ────────────────────
+  /// Har kimga xabar yozish mumkin. Lekin biznes "bu odam reklama
+  /// qiladimi yoki shunchaki blog yuritadimi?" degan savolga javob
+  /// izlaydi va uni topa olmasa, umuman yozmaydi.
+  ///
+  /// Bayroq shu savolga ochiq javob beradi.
+  isOpenToCollab Boolean @default(false)
+
+  /// Hamkorlik shartlari — qisqa izoh ("Restoran va kiyim brendlari").
+  collabNote String? @db.VarChar(200)
+
   /// Jins — IXTIYORIY.
   ///
   /// Majburiy emas va profilda ko'rsatilmaydi: u faqat statistika va
@@ -2713,6 +2740,21 @@ model Post {
   /// Chaqiruv tugmasi necha marta bosilgan — muallifning ko'rsatkichi.
   ctaClickCount Int @default(0)
 
+  /// Profilda YUQORIGA mahkamlangan payt.
+  ///
+  /// ── Nima uchun kerak ────────────────────────────────────────────────
+  /// Profil vaqt bo'yicha tartiblangan: eng yangi post birinchi. Lekin
+  /// ijodkorning eng yaxshi ishi ko'pincha eskiroq bo'ladi va u
+  /// pastga tushib ketadi.
+  ///
+  /// Yangi kelgan odam esa profilning BOSHIDAN qaraydi. U yerda
+  /// tasodifiy post turgani — ijodkorning eng yomon reklamasi.
+  ///
+  /// ── Nima uchun SANA, oddiy bayroq emas ──────────────────────────────
+  /// Bir nechta post mahkamlanishi mumkin va ular orasida ham tartib
+  /// kerak. Bayroq bilan ular tasodifiy tartibda chiqardi.
+  pinnedAt DateTime?
+
   /// Videoni necha marta ko'rishgan.
   ///
   /// ── Nima uchun USTUNDA saqlanadi ────────────────────────────────────
@@ -2773,6 +2815,8 @@ model Post {
   @@index([videoUrl, createdAt])
   /// Profildagi "uning postlari" ro'yxati uchun.
   @@index([authorId, createdAt])
+  /// Mahkamlangan postlar — profilning eng boshida o'qiladi.
+  @@index([authorId, pinnedAt])
   /// Kategoriya bo'yicha filtr — indekssiz butun jadval o'qilardi.
   @@index([category, createdAt])
   /// "Yaqin atrofda": koordinata oralig'i bo'yicha qidiruv.

@@ -1,3 +1,5 @@
+import type { CreatorLinkKind } from '@/config/creator';
+
 /**
  * Ommaviy profil — brauzer va server uchun umumiy turlar.
  *
@@ -28,6 +30,27 @@ export interface PublicProfile {
   followingCount: number;
   /** Nechta post yozgan — o'chirilganlari hisobga olinmaydi. */
   postCount: number;
+  /**
+   * Videolari jami necha marta ko'rilgan.
+   *
+   * ── Nima uchun bu son ijodkor uchun MUHIM ───────────────────────────
+   * Obunachilar soni — "menga nechta odam obuna bo'lgan". Ko'rishlar
+   * esa "ishim nechta odamga yetib bordi". Ikkinchisi biznes uchun
+   * ancha muhimroq: obunachisiz ham million ko'rish bo'lishi mumkin.
+   */
+  videoViewCount: number;
+
+  /**
+   * Ijodkorning tarmoqlari — FAQAT foydalanuvchi nomi.
+   *
+   * Manzilni ekran `ctaHref()` orqali yasaydi. Shu tufayli javobga
+   * tashqi manzil hech qachon tushmaydi.
+   */
+  links: { kind: CreatorLinkKind; handle: string }[];
+  /** Hamkorlikka ochiqmi — reklama takliflari uchun. */
+  isOpenToCollab: boolean;
+  /** Hamkorlik shartlari — qisqa izoh. */
+  collabNote: string | null;
 
   /**
    * Bu profil so'rov yuborgan odamning O'ZINIKIMI.
