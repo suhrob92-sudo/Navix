@@ -1,5 +1,4 @@
 import { Prisma } from '@/generated/prisma/client';
-import { NotFoundError } from '@/lib/api/errors';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { getRedis } from '@/lib/redis';
@@ -11,13 +10,11 @@ import {
 import { LIVE_AUTHOR, notHiddenBy, postSelect, toPostView } from '@/modules/feed/feed.select';
 import type { PostCategoryName, PostView } from '@/modules/feed/feed.types';
 import {
-  explainCandidate,
   normalizeCounts,
   rankCandidates,
   type RankableCandidate,
   type TasteProfile,
 } from '@/modules/feed/ranking';
-import type { PostReasonView } from '@/modules/feed/reason.types';
 import { getFeedSettings } from '@/modules/feed/settings.service';
 import { blockedUserIds } from '@/modules/moderation/moderation.service';
 
@@ -341,52 +338,3 @@ export async function listRecommendedFeed(
   };
 }
 
-/**
- * "Nima uchun buni ko'ryapman?" — bitta post uchun javob.
- *
- * ── Nima uchun ALOHIDA so'rov, lentaga qo'shilmagan ───────────────────
- * Sababni har bir postga qo'shib yuborsak, javob hajmi o'sardi va
- * bu ma'lumot deyarli hech qachon o'qilmasdi: odam yigirmata
- * postdan bittasi haqida so'raydi.
- *
- * Alohida so'rov esa faqat kerak bo'lganda yuboriladi.
- *
- * ── Nima uchun did QAYTA hisoblanadi ──────────────────────────────────
- * Uni keshdan olish tezroq bo'lardi, lekin kesh faqat TARTIBLANGAN
- * RO'YXATNI saqlaydi — didning o'zini emas. Uni ham keshlash mumkin,
- * lekin bu so'rov kamdan-kam yuboriladi va murakkablik foydadan
- * ortiq bo'lardi.
- */
-export async function explainPost(viewerId: string, postId: string): Promise<PostReasonView> {
-  const post = await prisma.post.findFirst({
-    where: { id: postId, ...LIVE_AUTHOR },
-    select: {
-      id: true,
-      authorId: true,
-      category: true,
-      createdAt: true,
-      likeCount: true,
-      commentCount: true,
-      viewCount: true,
-      author: { select: { firstName: true, lastName: true, profile: { select: { username: true } } } },
-    },
-  });
-
-  if (!post) {
-    throw new NotFoundError('Post');
-  }
-
-  const taste = await buildTasteProfile(viewerId);
-
-  const reasons = explainCandidate(post as RankableCandidate, taste, new Date());
-
-  const fullName = [post.author.firstName, post.author.lastName].filter(Boolean).join(' ');
-
-  return {
-    primary: reasons[0].code,
-    // Ikkitadan ortiq sabab ro'yxatni o'qib bo'lmas holga keltirardi.
-    others: reasons.slice(1, 3).map((item) => item.code),
-    category: post.category,
-    authorName: fullName || post.author.profile?.username || null,
-  };
-}
