@@ -5,6 +5,7 @@ import { apiSuccess } from '@/lib/api/response';
 import { enforcePublicRateLimit } from '@/lib/rate-limit';
 import { requireAuth } from '@/modules/auth/auth.guard';
 import { loadDiscover, searchFeed } from '@/modules/feed/discover.service';
+import { rememberSearch } from '@/modules/feed/search-history.service';
 import { feedSearchQuerySchema } from '@/modules/feed/feed.schemas';
 import type { FeedSearchResult } from '@/modules/feed/discover.types';
 
@@ -34,9 +35,18 @@ export const GET = withApiHandler(async (request: NextRequest, { requestId }) =>
    */
   await enforcePublicRateLimit('userSearch', auth.userId);
 
-  const { q, scope } = parseSearchParams(request, feedSearchQuerySchema);
+  const { q, scope, remember } = parseSearchParams(request, feedSearchQuerySchema);
 
   const result: FeedSearchResult = q ? await searchFeed(auth.userId, q, scope) : await loadDiscover(auth.userId);
+
+  /*
+    Tarixga yozish javobni KUTTIRMAYDI.
+
+    `await` qilinsa, Redisga yozish vaqti qidiruv javobiga
+    qo'shilardi — holbuki bu ma'lumot javob uchun umuman kerak
+    emas. Xatosi esa xizmat ichida yutiladi.
+  */
+  if (q && remember) void rememberSearch(auth.userId, q);
 
   return apiSuccess(result, { requestId, headers: { 'cache-control': 'no-store' } });
 });

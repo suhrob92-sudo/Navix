@@ -5,7 +5,7 @@ import type { UserSearchResult } from '@/modules/profile/social.types';
  * Qidiruv turlari — "Barchasi" dan tashqari uchtasi aniq bir turni
  * so'raydi.
  */
-export const SEARCH_SCOPES = ['ALL', 'VIDEO', 'CREATOR', 'HASHTAG'] as const;
+export const SEARCH_SCOPES = ['ALL', 'POST', 'VIDEO', 'CREATOR', 'HASHTAG'] as const;
 
 /**
  * Qidiruv so'zining eng kam uzunligi.
@@ -22,16 +22,29 @@ export type SearchScope = (typeof SEARCH_SCOPES)[number];
 /** Yorliqdagi yozuv — ekranda ko'rinadi. */
 export const SEARCH_SCOPE_LABELS: Record<SearchScope, string> = {
   ALL: 'Barchasi',
+  POST: 'Postlar',
   VIDEO: 'Videolar',
   CREATOR: 'Yaratuvchilar',
   HASHTAG: 'Xeshteglar',
 };
 
-/** Qidiruv natijasi — uchala turdan. */
+/** Qidiruv natijasi — barcha turdan. */
 export interface FeedSearchResult {
   hashtags: HashtagView[];
   creators: UserSearchResult[];
   videos: PostView[];
+  /**
+   * Videosiz postlar — matn va rasm.
+   *
+   * ── Nima uchun videodan AJRATILGAN ──────────────────────────────────
+   * Video panjara (grid) bo'lib chiziladi: uchta ustun, muqovalar.
+   * Matnli post esa kartochka: muallif, matn, tugmalar. Ularni bir
+   * ro'yxatga qo'shsak, panjara buzilib, ekran chalkash bo'lardi.
+   *
+   * Ajratish yana bir muammoni ham hal qiladi: "Barchasi" da bitta
+   * post ikki marta ko'rinmaydi.
+   */
+  posts: PostView[];
 }
 
 /**

@@ -174,7 +174,15 @@ export async function loadDiscover(viewerId: string): Promise<DiscoverResult> {
     listPopularVideos(viewerId, 12),
   ]);
 
-  return { hashtags, creators, videos };
+  /*
+    Kashf qilishda POST ro'yxati BO'SH.
+
+    Bu sahifa "nima mashhur?" degan savolga javob beradi va u
+    yerda video ustun turadi: muqovasi bor, bir qarashda tanlanadi.
+    Matnli postlarni ham qo'shsak, ekran uzun ro'yxatga aylanib,
+    kashf qilish o'z ma'nosini yo'qotardi.
+  */
+  return { hashtags, creators, videos, posts: [] };
 }
 
 /** Mavzuni nomi bo'yicha qidirish. */
@@ -211,6 +219,59 @@ async function searchVideos(viewerId: string, query: string, limit: number): Pro
 }
 
 /**
+ * Videosiz postlarni qidirish — matn va JOY nomi bo'yicha.
+ *
+ * ── Nima uchun bu KERAK bo'lib qoldi ─────────────────────────────────
+ * Qidiruv shu paytgacha faqat VIDEOni ko'rardi. Ya'ni matnli va
+ * rasmli postlar qidiruv uchun umuman mavjud emas edi: odam o'zi
+ * kecha o'qigan e'lonni izlab topa olmasdi.
+ *
+ * Bu ayniqsa e'lonlar va ishlar uchun og'ir edi — ular ko'pincha
+ * videosiz joylanadi.
+ *
+ * ── Nima uchun JOY nomi ham qaraladi ─────────────────────────────────
+ * "Chorsu" yoki "Samarqand" deb qidirgan odam o'sha joydagi
+ * postlarni kutadi. Joy nomi postning matnida bo'lmasligi mumkin:
+ * u alohida maydonda saqlanadi va faqat matn bo'yicha qidirilsa,
+ * post topilmasdi.
+ */
+async function searchPosts(viewerId: string, query: string, limit: number): Promise<PostView[]> {
+  const hidden = await blockedUserIds(viewerId);
+
+  const where: Prisma.PostWhereInput = {
+    ...LIVE_AUTHOR,
+    /*
+      Video BU YERGA tushmaydi.
+
+      U alohida bo'limda panjara bo'lib ko'rsatiladi. Ikkalasiga
+      ham qo'shilsa, bitta post ekranda ikki marta chiqardi.
+    */
+    videoUrl: null,
+    OR: [
+      { body: { contains: query, mode: 'insensitive' } },
+      { placeName: { contains: query, mode: 'insensitive' } },
+    ],
+    ...(hidden.length > 0 ? { authorId: { notIn: hidden } } : {}),
+  };
+
+  const rows = await prisma.post.findMany({
+    where,
+    select: postSelect(viewerId),
+    /*
+      Tartib: avval YANGI, keyin mashhur.
+
+      Videoda aksincha edi (avval mashhur): video tomosha uchun
+      qidiriladi va sifatlisi ustun. Matnli post esa ko'pincha
+      e'lon yoki xabar — u yerda eskirgan ma'lumot foydasiz.
+    */
+    orderBy: [{ createdAt: 'desc' }, { viewCount: 'desc' }],
+    take: limit,
+  });
+
+  return rows.map((row) => toPostView(row, viewerId));
+}
+
+/**
  * Feed qidiruvi.
  *
  * ── Nima uchun `scope` bor ────────────────────────────────────────────
@@ -229,16 +290,17 @@ export async function searchFeed(
   const query = rawQuery.trim().replace(/^[#@]/, '');
 
   if (query.length < MIN_SEARCH_LENGTH) {
-    return { hashtags: [], creators: [], videos: [] };
+    return { hashtags: [], creators: [], videos: [], posts: [] };
   }
 
   const wide = scope === 'ALL';
 
-  const [hashtags, creators, videos] = await Promise.all([
+  const [hashtags, creators, videos, posts] = await Promise.all([
     wide || scope === 'HASHTAG' ? searchHashtags(query, wide ? 8 : 30) : Promise.resolve([]),
     wide || scope === 'CREATOR' ? searchUsers(viewerId, query, wide ? 5 : 20) : Promise.resolve([]),
     wide || scope === 'VIDEO' ? searchVideos(viewerId, query, wide ? 9 : 30) : Promise.resolve([]),
+    wide || scope === 'POST' ? searchPosts(viewerId, query, wide ? 5 : 20) : Promise.resolve([]),
   ]);
 
-  return { hashtags, creators, videos };
+  return { hashtags, creators, videos, posts };
 }

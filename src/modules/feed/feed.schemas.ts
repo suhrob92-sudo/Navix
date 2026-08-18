@@ -106,9 +106,35 @@ export type FeedQuery = z.infer<typeof feedQuerySchema>;
 export const feedSearchQuerySchema = z.object({
   q: z.string().trim().max(80, "So'rov juda uzun").optional(),
   scope: z.enum(SEARCH_SCOPES).default('ALL'),
+  /**
+   * So'rov TARIXGA yozilsinmi.
+   *
+   * ── Nima uchun har qidiruvda emas ───────────────────────────────────
+   * So'rov har bosilgan harfdan keyin (kechikish bilan) yuboriladi.
+   * Hammasi yozilsa, tarix "b", "bu", "bur", "burge", "burger" bilan
+   * to'lib ketardi va odam o'z tarixini tanimasdi.
+   *
+   * Shuning uchun yozish ANIQ tasdiqlanganda bo'ladi: odam
+   * klaviaturadagi "qidirish" tugmasini bosganda.
+   */
+  remember: z
+    .enum(['0', '1'])
+    .default('0')
+    .transform((value) => value === '1'),
 });
 
 export type FeedSearchQuery = z.infer<typeof feedSearchQuerySchema>;
+
+/**
+ * Qidiruv tarixini o'chirish.
+ *
+ * `q` berilmasa — BUTUN tarix o'chadi. Berilsa — faqat o'sha yozuv.
+ */
+export const searchHistoryQuerySchema = z.object({
+  q: z.string().trim().max(80).optional(),
+});
+
+export type SearchHistoryQuery = z.infer<typeof searchHistoryQuerySchema>;
 
 export const commentsQuerySchema = z.object({
   cursor: feedCursorSchema.optional(),
