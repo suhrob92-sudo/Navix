@@ -9,6 +9,7 @@ import type { CreateStoryInput } from '@/modules/story/story.schemas';
 import {
   MAX_STORIES_PER_DAY,
   STORY_LIFETIME_HOURS,
+  storyPostTitle,
   type StoryGroupView,
   type StoryView,
   type StoryViewerRow,
@@ -77,6 +78,13 @@ function storySelect(viewerId: string) {
         shop: { select: { name: true, isActive: true } },
       },
     },
+    /**
+     * Ulashilgan post — FAQAT tugma uchun kerak bo'lgan maydonlar.
+     *
+     * `deletedAt` ham olinadi: o'chirilgan postga tugma
+     * ko'rsatilmaydi, aks holda odam bo'sh sahifaga tushardi.
+     */
+    post: { select: { id: true, body: true, videoUrl: true, deletedAt: true } },
     /** Faqat SO'RAGAN odamning ko'rishi — hammasi emas. */
     views: { where: { viewerId }, select: { id: true }, take: 1 },
   } as const;
@@ -108,6 +116,22 @@ function toStoryView(row: StoryRow, viewerId: string): StoryView {
     videoPosterUrl: row.videoPosterUrl,
     videoSeconds: row.videoSeconds,
     product: row.product ? toProductView(row.product) : null,
+    /*
+      O'chirilgan post — tugma YO'Q.
+
+      Post o'chirilganda ustun `null` ga o'tadi, lekin YUMSHOQ
+      o'chirishda (`deletedAt`) qator o'z joyida qoladi. Ikkinchi
+      holat ham tekshirilmasa, tugma "bu post o'chirilgan" degan
+      sahifaga olib borardi.
+    */
+    post:
+      row.post && !row.post.deletedAt
+        ? {
+            id: row.post.id,
+            title: storyPostTitle(row.post.body, Boolean(row.post.videoUrl)),
+            isVideo: Boolean(row.post.videoUrl),
+          }
+        : null,
     createdAt: row.createdAt.toISOString(),
     expiresAt: row.expiresAt.toISOString(),
     isSeen: row.views.length > 0,
@@ -172,6 +196,34 @@ export async function createStory(authorId: string, input: CreateStoryInput): Pr
     }
   }
 
+  /**
+   * Ulashilayotgan post ham TEKSHIRILADI.
+   *
+   * ── Nima uchun bu tekshiruv shart ───────────────────────────────────
+   * ID brauzerdan keladi. Tekshirilmasa, o'chirilgan yoki umuman
+   * mavjud bo'lmagan postga tugma yasalardi va odam bo'sh sahifaga
+   * tushardi.
+   *
+   * ── Nima uchun BLOKLASH ham qaraladi ────────────────────────────────
+   * Muallif bizni bloklagan bo'lsa, uning postini o'z hikoyamiz
+   * orqali boshqalarga tarqatish — bloklashni chetlab o'tish
+   * degani. Bloklash aynan buning oldini olish uchun bor.
+   */
+  if (input.postId) {
+    const post = await prisma.post.findFirst({
+      where: { id: input.postId, deletedAt: null },
+      select: { id: true, authorId: true },
+    });
+
+    if (!post) {
+      throw new NotFoundError('Post');
+    }
+
+    if (post.authorId !== authorId && (await isBlockedBetween(authorId, post.authorId))) {
+      throw new ForbiddenError('Bu postni hikoyaga qo\'shib bo\'lmaydi.');
+    }
+  }
+
   const row = await prisma.story.create({
     data: {
       authorId,
@@ -181,6 +233,7 @@ export async function createStory(authorId: string, input: CreateStoryInput): Pr
       videoPosterUrl: input.videoPosterUrl ?? null,
       videoSeconds: input.videoSeconds ?? null,
       productId: input.productId ?? null,
+      postId: input.postId ?? null,
       /**
        * Muddat SAQLANADI, hisoblanmaydi.
        *

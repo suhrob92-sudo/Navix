@@ -2883,6 +2883,7 @@ model Post {
   hashtags     PostHashtag[]
   clicks       PostProductClick[]
   orderedItems MarketOrderItem[]  @relation("OrderSource")
+  stories      Story[]            @relation("StoryPost")
 
   /// Lenta aynan shu tartibda o'qiladi: yangi postlar birinchi.
   @@index([createdAt])
@@ -3007,6 +3008,21 @@ model Story {
   /// ham, joy ham yo'q. Bitta tugma esa aynan shu qisqa vaqtga mos.
   productId String? @db.Uuid
 
+  /// Hikoya QAYSI postdan ulashilgan.
+  ///
+  /// ── Nima uchun bu KERAK ─────────────────────────────────────────────
+  /// Hikoya 24 soatda yo'qoladi, post esa qoladi. Odam hikoyani
+  /// ko'rib qiziqsa, to'liq postni (izohlar, yoqtirishlar,
+  /// biriktirmalar) ocha olishi kerak.
+  ///
+  /// Busiz hikoya ko'chada tarqatilgan varaqaga o'xshardi: ko'rasan,
+  /// lekin davomini qayerdan topishni bilmaysan.
+  ///
+  /// ── Nima uchun `SetNull`, `Cascade` emas ────────────────────────────
+  /// Post o'chirilsa, hikoyaning O'ZI yo'q bo'lib qolmasligi kerak:
+  /// unda muallif yuklagan rasm va izoh bor. Faqat tugma yo'qoladi.
+  postId String? @db.Uuid
+
   /// Necha marta ochilgan (bir odam bir marta sanaladi).
   viewCount Int @default(0)
 
@@ -3018,6 +3034,7 @@ model Story {
 
   author  User         @relation("StoryAuthor", fields: [authorId], references: [id], onDelete: Cascade)
   product Product?     @relation("StoryProduct", fields: [productId], references: [id], onDelete: SetNull)
+  post    Post?        @relation("StoryPost", fields: [postId], references: [id], onDelete: SetNull)
   views   StoryView[]
   reports UserReport[] @relation("StoryReports")
 
@@ -3025,6 +3042,11 @@ model Story {
   @@index([expiresAt])
   /// Bitta odamning hikoyalari — joylash tartibida.
   @@index([authorId, createdAt])
+  /// Post o'chirilganda bog'liq hikoyalarni TEZ topish uchun.
+  ///
+  /// Indekssiz `SetNull` butun jadvalni ko'zdan kechirardi va post
+  /// o'chirish sekinlashardi.
+  @@index([postId])
   @@map("stories")
 }
 

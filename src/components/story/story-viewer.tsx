@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { BadgeCheck, Eye, Flag, ShoppingBag, Trash2, X } from 'lucide-react';
+import { BadgeCheck, Clapperboard, Eye, FileText, Flag, ShoppingBag, Trash2, X } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -336,6 +336,21 @@ export function StoryViewer({ groups, startIndex, onClose }: StoryViewerProps) {
         {story.product && <StoryProductButton product={story.product} onNavigate={onClose} />}
 
         {/*
+          Postga qaytish tugmasi.
+
+          ── Nima uchun mahsulotdan KEYIN ──────────────────────────
+          Mahsulot tugmasi xaridga olib boradi va u savdo uchun
+          muhimroq. Post esa "davomini ko'rish" — qiziqqan odam
+          uni baribir topadi.
+
+          ── Nima uchun post o'chirilgan bo'lsa YO'Q ───────────────
+          Server bunday holatda `post` ni `null` qilib yuboradi.
+          Tugma ko'rsatilsa, u "post topilmadi" sahifasiga olib
+          borardi.
+        */}
+        {story.post && <StoryPostButton post={story.post} onNavigate={onClose} />}
+
+        {/*
           Ko'ruvchilar tugmasi FAQAT o'z hikoyasida.
 
           Boshqa odamning hikoyasini kim ko'rgani hech kimga
@@ -436,6 +451,52 @@ function StoryProductButton({
   return (
     <Link href={`/marketplace/p/${product.slug}`} onClick={onNavigate} className={className}>
       {inner}
+    </Link>
+  );
+}
+
+/**
+ * Hikoyadan POSTGA qaytish tugmasi.
+ *
+ * ── Nima uchun bu bog'lanish muhim ────────────────────────────────────
+ * Hikoya 24 soatda yo'qoladi, post esa qoladi. Hikoyani ko'rgan odam
+ * qiziqsa, izohlarni o'qishi, yoqtirishi va biriktirmalarni ochishi
+ * kerak — bularning hech biri hikoyada yo'q.
+ *
+ * Tugmasiz hikoya boshi berk ko'cha bo'lardi: odam ko'radi, qiziqadi
+ * va davomini qayerdan topishni bilmay chiqib ketadi.
+ */
+function StoryPostButton({
+  post,
+  onNavigate,
+}: {
+  post: NonNullable<StoryView['post']>;
+  onNavigate: () => void;
+}) {
+  return (
+    <Link
+      href={`/feed/${post.id}`}
+      onClick={onNavigate}
+      className="flex items-center gap-3 rounded-2xl bg-white/10 p-2.5 backdrop-blur-md transition-transform active:scale-[0.98]"
+    >
+      <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/20">
+        {post.isVideo ? (
+          <Clapperboard className="size-5 text-white" aria-hidden="true" />
+        ) : (
+          <FileText className="size-5 text-white" aria-hidden="true" />
+        )}
+      </span>
+
+      <span className="min-w-0 flex-1 text-left">
+        <span className="block truncate text-sm font-medium text-white">{post.title}</span>
+        <span className="text-xs text-white/70">
+          {post.isVideo ? "Videoni to'liq ko'rish" : 'Postni ochish'}
+        </span>
+      </span>
+
+      <span className="shrink-0 rounded-full bg-white px-3.5 py-1.5 text-xs font-semibold text-black">
+        Ochish
+      </span>
     </Link>
   );
 }

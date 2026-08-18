@@ -5,8 +5,10 @@ import {
   MAX_STORY_SECONDS,
   STORY_CAPTION_MAX_LENGTH,
   STORY_IMAGE_SECONDS,
+  STORY_POST_TITLE_MAX_LENGTH,
   remainingLabel,
   storyDurationSeconds,
+  storyPostTitle,
 } from '@/modules/story/story.types';
 
 /** O'zimiz yuklagan fayl manzili — sxema faqat shundayini qabul qiladi. */
@@ -129,5 +131,52 @@ describe('createStorySchema', () => {
     const result = createStorySchema.safeParse({ imageUrl: image });
 
     expect(result.success && result.data.caption).toBe('');
+  });
+
+  it("ulashilgan post ID qabul qilinadi", () => {
+    const result = createStorySchema.safeParse({
+      imageUrl: image,
+      postId: '3f1a6c2e-9b4d-4f8a-8c1e-2d7b5a9e0c34',
+    });
+
+    expect(result.success && result.data.postId).toBe('3f1a6c2e-9b4d-4f8a-8c1e-2d7b5a9e0c34');
+  });
+
+  it("buzuq post ID rad etiladi", () => {
+    /*
+      Bu qiymat tugmadan keladi, lekin brauzerda o'zgartirilishi
+      mumkin. Sxema uni ushlamasa, buzuq ID bazaga yetib borardi.
+    */
+    expect(createStorySchema.safeParse({ imageUrl: image, postId: '../admin' }).success).toBe(false);
+  });
+});
+
+describe('storyPostTitle', () => {
+  it("qisqa matn o'zgarmaydi", () => {
+    expect(storyPostTitle('Yangi burger keldi', false)).toBe('Yangi burger keldi');
+  });
+
+  it("uzun matn KESILADI va chegaradan oshmaydi", () => {
+    const title = storyPostTitle('a'.repeat(200), false);
+
+    expect(title.length).toBe(STORY_POST_TITLE_MAX_LENGTH);
+    expect(title.endsWith('\u2026')).toBe(true);
+  });
+
+  it("qator uzilishlari BITTA bo'shliqqa aylanadi", () => {
+    /*
+      Tugma bir qatorli. Matndagi qator uzilishi tozalanmasa,
+      tugma ichida g'alati bo'shliqlar paydo bo'lardi.
+    */
+    expect(storyPostTitle('Birinchi\n\nIkkinchi', false)).toBe('Birinchi Ikkinchi');
+  });
+
+  it("matnsiz postda MA'NOLI yozuv qoladi", () => {
+    /*
+      Faqat videodan iborat postda matn bo'sh bo'ladi. Tugma
+      bo'sh chiqsa, odam uni bosish kerakligini bilmasdi.
+    */
+    expect(storyPostTitle('', true)).toBe('Videoni ochish');
+    expect(storyPostTitle('   ', false)).toBe('Postni ochish');
   });
 });

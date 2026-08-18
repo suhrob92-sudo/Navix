@@ -81,6 +81,18 @@ export function StoryTray() {
             key={group.author.userId}
             type="button"
             onClick={() => setOpenIndex(index)}
+            /*
+              Nomi ATAYIN to'liq yozilgan.
+
+              Tugmaning ichida faqat ism va rasm bor. Ekranni
+              o'qiydigan dastur uni "Aziz" deb o'qirdi — odam esa
+              bu tugma nima qilishini bilmasdi.
+            */
+            aria-label={
+              group.author.userId === user?.id
+                ? 'Sizning hikoyalaringiz'
+                : `${authorDisplayName(group.author)} hikoyalari`
+            }
             className="flex w-20 shrink-0 flex-col items-center gap-1.5"
           >
             {/*

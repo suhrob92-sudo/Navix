@@ -40,6 +40,43 @@ export const STORY_IMAGE_SECONDS = 5;
 
 export const STORY_CAPTION_MAX_LENGTH = 200;
 
+/**
+ * Hikoya ortidagi post — qisqacha.
+ *
+ * ── Nima uchun TO'LIQ post emas ───────────────────────────────────────
+ * Hikoyada postning o'zi ko'rsatilmaydi: u yerda faqat bitta tugma
+ * turadi. To'liq post yuborilsa, halqadagi har bir hikoya bilan
+ * birga izohlar soni, biriktirmalar va muallif ma'lumoti ham
+ * ketardi — telefon uchun bekorga sarflangan trafik.
+ */
+export interface StoryPostRef {
+  id: string;
+  /** Tugmada ko'rinadigan qisqa matn — postning boshlanishi. */
+  title: string;
+  /** Post video ekanmi — tugma yozuvi shunga qarab o'zgaradi. */
+  isVideo: boolean;
+}
+
+/** Tugmadagi matn uzunligi — bir qatorga sig'ishi kerak. */
+export const STORY_POST_TITLE_MAX_LENGTH = 60;
+
+/**
+ * Post matnidan tugma yozuvini yasaydi.
+ *
+ * ── Nima uchun serverda kesiladi ──────────────────────────────────────
+ * Post matni 2000 belgigacha bo'lishi mumkin. To'liq yuborilsa,
+ * halqadagi o'nta hikoya uchun o'n ming belgi ketardi — hammasi
+ * ekranda ko'rinmaydigan matn.
+ */
+export function storyPostTitle(body: string, isVideo: boolean): string {
+  const clean = body.replace(/\s+/g, ' ').trim();
+
+  if (clean.length === 0) return isVideo ? 'Videoni ochish' : 'Postni ochish';
+  if (clean.length <= STORY_POST_TITLE_MAX_LENGTH) return clean;
+
+  return `${clean.slice(0, STORY_POST_TITLE_MAX_LENGTH - 1).trimEnd()}…`;
+}
+
 /** Bitta hikoya. */
 export interface StoryView {
   id: string;
@@ -50,6 +87,13 @@ export interface StoryView {
   videoSeconds: number | null;
   /** Biriktirilgan mahsulot — bo'lmasligi mumkin. */
   product: TaggedProductView | null;
+  /**
+   * Ulashilgan post — bo'lmasligi mumkin.
+   *
+   * Post o'chirilgan bo'lsa ham `null` bo'ladi: tugma yo'q sahifaga
+   * olib borishi mumkin emas.
+   */
+  post: StoryPostRef | null;
   createdAt: string;
   expiresAt: string;
   /** So'rov yuborgan odam buni allaqachon ko'rganmi. */

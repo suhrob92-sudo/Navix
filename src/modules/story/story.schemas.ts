@@ -37,6 +37,14 @@ export const createStorySchema = z
       .max(MAX_STORY_SECONDS, `Hikoya videosi ${MAX_STORY_SECONDS} soniyadan uzun bo'lmasligi kerak.`)
       .optional(),
     productId: z.uuid("Mahsulot noto'g'ri tanlandi").optional(),
+    /**
+     * Ulashilayotgan post.
+     *
+     * Bu maydon ODAM to'ldirmaydi — u lentadagi "Hikoyaga qo'shish"
+     * tugmasidan keladi. Shuning uchun uni tekshirish ayniqsa
+     * muhim: qiymat brauzerdan kelayotgani o'zgarmaydi.
+     */
+    postId: z.uuid("Post noto'g'ri tanlandi").optional(),
   })
   /**
    * Matnning O'ZI hikoya bo'la olmaydi.
