@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { BadgeCheck, Bookmark, Clapperboard, EyeOff, Flag, Heart, HelpCircle, MapPin, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Share2, Trash2 } from 'lucide-react';
+import { BadgeCheck, Bookmark, Clapperboard, EyeOff, Flag, FolderPlus, Heart, HelpCircle, MapPin, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Share2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 
@@ -70,6 +70,14 @@ export interface PostCardProps {
    */
   onTogglePin?: () => void;
   /**
+   * "To'plamga solish" bosildi. Berilmasa band ko'rinmaydi.
+   *
+   * FAQAT "Saqlanganlar" sahifasida beriladi: to'plam saqlangan
+   * postni tartiblash usuli va lentadagi post hali saqlanmagan
+   * bo'lishi mumkin.
+   */
+  onChooseCollection?: () => void;
+  /**
    * Post sahifasining O'ZIDA ko'rsatilyaptimi.
    *
    * Shunda izohga havola kerak emas (odam allaqachon o'sha yerda) va
@@ -100,6 +108,7 @@ export function PostCard({
   onReport,
   onHide,
   onTogglePin,
+  onChooseCollection,
   isDetail = false,
   isBusy = false,
 }: PostCardProps) {
@@ -192,7 +201,15 @@ export function PostCard({
   const canHide = !post.isMine && !post.isDeleted && Boolean(onHide);
   /* Mahkamlash — faqat O'Z postida va faqat profil sahifasida. */
   const canPin = post.isMine && !post.isDeleted && Boolean(onTogglePin);
-  const hasMenu = canEdit || canDelete || canReport || canHide || canPin;
+
+  /*
+    To'plamga solish — o'chirilgan postda MA'NOSIZ.
+
+    O'chirilgan post ro'yxatda "post o'chirilgan" yozuvi bo'lib
+    turadi. Uni papkaga solish odamga hech narsa bermasdi.
+  */
+  const canCollect = !post.isDeleted && Boolean(onChooseCollection);
+  const hasMenu = canEdit || canDelete || canReport || canHide || canPin || canCollect;
 
   async function saveEdit() {
     if (draft === null || !onEdit) return;
@@ -343,6 +360,28 @@ export function PostCard({
                     >
                       <EyeOff className="size-4 shrink-0" aria-hidden="true" />
                       Bu qiziq emas
+                    </button>
+                  )}
+
+                  {/*
+                    "To'plamga solish" — menyuning YUQORI qismida.
+
+                    Bu band faqat "Saqlanganlar" sahifasida chiqadi
+                    va o'sha yerda u menyudagi eng ko'p ishlatiladigan
+                    amal: odam u yerga aynan tartiblash uchun keladi.
+                  */}
+                  {canCollect && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="hover:bg-secondary flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm transition-colors"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onChooseCollection?.();
+                      }}
+                    >
+                      <FolderPlus className="size-4 shrink-0" aria-hidden="true" />
+                      To&apos;plamga solish
                     </button>
                   )}
 

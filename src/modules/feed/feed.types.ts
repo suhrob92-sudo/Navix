@@ -90,6 +90,18 @@ export interface PostView {
    */
   isSaved: boolean;
   /**
+   * Post qaysi TO'PLAMDA.
+   *
+   * ── Nima uchun faqat "Saqlanganlar" sahifasida to'ldiriladi ─────────
+   * Lentada bu ma'lumot ko'rsatilmaydi va har bir post uchun
+   * qo'shimcha ustun o'qish bekorga sarflangan mehnat bo'lardi.
+   *
+   * `undefined` — "noma'lum" (lenta), `null` — "guruhlanmagan".
+   * Ikkalasini bir qiymat bilan ko'rsatib bo'lmasdi: unda lentadagi
+   * post ham "guruhlanmagan" deb ko'rinardi.
+   */
+  collectionId?: string | null;
+  /**
    * Profilda YUQORIGA mahkamlanganmi.
    *
    * Lentada ham yuboriladi, lekin u yerda ishlatilmaydi: mahkamlash

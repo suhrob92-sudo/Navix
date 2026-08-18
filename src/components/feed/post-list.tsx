@@ -39,6 +39,13 @@ export interface PostListProps {
    * qaror va lentada uning natijasi ko'rinmaydi.
    */
   canPin?: boolean;
+  /**
+   * "To'plamga solish" bosilganda chaqiriladi.
+   *
+   * FAQAT "Saqlanganlar" sahifasida beriladi. Berilmasa, band
+   * menyuda umuman ko'rinmaydi.
+   */
+  onChooseCollection?: (post: PostView) => void;
 }
 
 /**
@@ -59,6 +66,7 @@ export function PostList({
   viewerPoint = null,
   canHide = false,
   canPin = false,
+  onChooseCollection,
 }: PostListProps) {
   return (
     <div className="space-y-3">
@@ -83,6 +91,7 @@ export function PostList({
               onReport={(reason, note) => actions.reportPost(post.id, reason, note)}
               {...(canHide ? { onHide: () => actions.hidePost(post.id) } : {})}
               {...(canPin ? { onTogglePin: () => void actions.togglePin(post) } : {})}
+              {...(onChooseCollection ? { onChooseCollection: () => onChooseCollection(post) } : {})}
               {...(canManage
                 ? {
                     onEdit: (body: string) => actions.editPost(post.id, body),

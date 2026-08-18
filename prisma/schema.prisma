@@ -289,6 +289,7 @@ model User {
   postLikes         PostLike[]           @relation("PostLikes")
   postComments      PostComment[]        @relation("CommentAuthor")
   postSaves         PostSave[]           @relation("PostSaves")
+  postCollections   PostCollection[]     @relation("PostCollections")
   postsSeen         PostSeen[]           @relation("PostsSeen")
   postsHidden       PostHidden[]         @relation("PostsHidden")
   collabSent        CollabOffer[]        @relation("CollabSent")
@@ -3271,15 +3272,71 @@ model PostSave {
   postId String @db.Uuid
   userId String @db.Uuid
 
+  /// Qaysi to'plamda.
+  ///
+  /// ── Nima uchun BO'SH bo'lishi mumkin ────────────────────────────────
+  /// To'plamlar qo'shilishidan oldin saqlangan yuzlab post bor va
+  /// ular hech qaysi to'plamga tegishli emas. Majburiy qilinsa,
+  /// ularning hammasiga sun'iy to'plam yasash kerak bo'lardi.
+  ///
+  /// Bo'sh qiymat "guruhlanmagan" degani va bu butunlay normal
+  /// holat: ko'p odam umuman to'plam yasamaydi.
+  collectionId String? @db.Uuid
+
   createdAt DateTime @default(now())
 
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user User @relation("PostSaves", fields: [userId], references: [id], onDelete: Cascade)
+  post       Post            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user       User            @relation("PostSaves", fields: [userId], references: [id], onDelete: Cascade)
+  collection PostCollection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
 
   @@unique([postId, userId])
   /// "Saqlanganlarim" ro'yxati — oxirgi saqlangani birinchi.
   @@index([userId, createdAt])
+  /// Bitta to'plam ichidagi ro'yxat — indekssiz butun saqlanganlar
+  /// o'qilib, keyin ortiqchasi tashlab yuborilardi.
+  @@index([userId, collectionId, createdAt])
   @@map("post_saves")
+}
+
+/// Saqlangan postlar to'plami — "papka".
+///
+/// ── Nima uchun bu KERAK ───────────────────────────────────────────────
+/// "Saqlanganlar" bitta uzun ro'yxat edi. Ikki yuzta post saqlagan
+/// odam kerakli retseptni topa olmasdi va ro'yxat o'z ma'nosini
+/// yo'qotardi: saqlash "keyin topaman" degani, topib bo'lmasa esa
+/// saqlashning foydasi yo'q.
+///
+/// ── Nima uchun bitta post FAQAT BITTA to'plamda ───────────────────────
+/// Postni bir nechta to'plamga solish uchun alohida bog'lovchi jadval
+/// kerak bo'lardi. Bu esa har bir ro'yxat so'roviga qo'shimcha
+/// birlashtirish (join) qo'shadi va "postni saqlanganlardan olib
+/// tashlash" amali murakkablashadi.
+///
+/// Papka mantig'i odamga ham tanishroq: bitta narsa bitta papkada
+/// turadi. Kerak bo'lsa, kelajakda ko'pga o'tkazish mumkin —
+/// teskarisi esa deyarli imkonsiz.
+model PostCollection {
+  id String @id @default(uuid()) @db.Uuid
+
+  ownerId String @db.Uuid
+
+  /// To'plam nomi — odam o'zi yozadi.
+  name String @db.VarChar(40)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner User       @relation("PostCollections", fields: [ownerId], references: [id], onDelete: Cascade)
+  saves PostSave[]
+
+  /// Bir odamda bir xil nomli ikkita to'plam bo'lmaydi.
+  ///
+  /// Aks holda ikkita "Retseptlar" paydo bo'lardi va odam qaysi
+  /// biriga solganini eslay olmasdi.
+  @@unique([ownerId, name])
+  /// To'plamlar ro'yxati — yangi yasalgani birinchi.
+  @@index([ownerId, createdAt])
+  @@map("post_collections")
 }
 
 /// Xeshteg — `#poyabzal` kabi mavzu belgisi.

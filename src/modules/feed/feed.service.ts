@@ -17,6 +17,7 @@ import {
 import type { CommentsQuery, FeedQuery } from '@/modules/feed/feed.schemas';
 import { MAX_PLACE_NAME_LENGTH, SHORT_VIDEO_SECONDS } from '@/modules/feed/feed.types';
 import { MAX_ATTACHMENTS } from '@/config/attachments';
+import { COLLECTION_FILTER_ALL, COLLECTION_FILTER_NONE } from '@/config/collections';
 import { MAX_PINNED_POSTS } from '@/config/creator';
 import { prepareAttachments, type AttachmentInput } from '@/modules/feed/attachment.service';
 import { NEARBY_RADIUS_KM, blurCoordinate, boundingBox, isValidCoordinate } from '@/config/geo';
@@ -1659,10 +1660,31 @@ export async function listSavedPosts(
   userId: string,
   cursor?: string,
   limit = 20,
+  /**
+   * To'plam filtri.
+   *
+   * `ALL` — hammasi, `NONE` — hech qaysi to'plamda bo'lmaganlari,
+   * qolgan holatda to'plamning ID si.
+   */
+  collection: string = COLLECTION_FILTER_ALL,
 ): Promise<{ posts: PostView[]; nextCursor: string | null }> {
+  /*
+    Filtr shartini AYRIM hisoblash.
+
+    Uni to'g'ridan-to'g'ri `where` ichiga yozish mumkin edi, lekin
+    uch holatli shart o'sha yerda o'qib bo'lmas ko'rinishga kelardi.
+  */
+  const collectionWhere: Prisma.PostSaveWhereInput =
+    collection === COLLECTION_FILTER_ALL
+      ? {}
+      : collection === COLLECTION_FILTER_NONE
+        ? { collectionId: null }
+        : { collectionId: collection };
+
   const rows = await prisma.postSave.findMany({
     where: {
       userId,
+      ...collectionWhere,
       ...(cursor
         ? (() => {
             const { createdAt, id } = parseCursor(cursor);
@@ -1675,14 +1697,26 @@ export async function listSavedPosts(
     },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     take: limit + 1,
-    select: { id: true, createdAt: true, post: { select: postSelect(userId) } },
+    select: {
+      id: true,
+      createdAt: true,
+      collectionId: true,
+      post: { select: postSelect(userId) },
+    },
   });
 
   const hasMore = rows.length > limit;
   const page = hasMore ? rows.slice(0, limit) : rows;
 
   return {
-    posts: page.map((row) => toPostView(row.post, userId)),
+    /*
+      Post qaysi to'plamdaligi HAR BIR postga qo'shiladi.
+
+      Busiz "to'plamga solish" oynasi ochilganda hozirgi tanlov
+      belgilanmasdi va odam postni qaysi papkaga solganini eslay
+      olmasdi.
+    */
+    posts: page.map((row) => ({ ...toPostView(row.post, userId), collectionId: row.collectionId })),
     nextCursor: hasMore && page.length > 0 ? buildCursor(page[page.length - 1]) : null,
   };
 }
