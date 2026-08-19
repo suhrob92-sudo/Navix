@@ -1163,6 +1163,7 @@ function commentSelect(viewerId: string) {
     parentId: true,
     likeCount: true,
     replyCount: true,
+    pinnedAt: true,
     author: { select: AUTHOR_SELECT },
     likes: { where: { userId: viewerId }, select: { id: true }, take: 1 },
   } as const;
@@ -1170,7 +1171,17 @@ function commentSelect(viewerId: string) {
 
 type CommentRow = Prisma.PostCommentGetPayload<{ select: ReturnType<typeof commentSelect> }>;
 
-function toCommentView(row: CommentRow, viewerId: string): CommentView {
+/**
+ * @param postAuthorId Post muallifining ID si — "Muallif" belgisi uchun.
+ *
+ * ── Nima uchun tashqaridan uzatiladi ──────────────────────────────────
+ * Har bir izoh bilan birga postni ham o'qish mumkin edi, lekin bu
+ * o'ttizta izoh uchun o'ttizta ortiqcha birlashtirish (join) degani.
+ *
+ * Post esa ro'yxatdan OLDIN bir marta o'qiladi (huquq tekshiruvi
+ * uchun) — ya'ni bu ma'lumot allaqachon qo'lda.
+ */
+function toCommentView(row: CommentRow, viewerId: string, postAuthorId: string): CommentView {
   return {
     id: row.id,
     body: row.body,
@@ -1181,6 +1192,53 @@ function toCommentView(row: CommentRow, viewerId: string): CommentView {
     likeCount: row.likeCount,
     isLiked: row.likes.length > 0,
     replyCount: row.replyCount,
+    isPinned: row.pinnedAt !== null,
+    isPostAuthor: row.authorId === postAuthorId,
+  };
+}
+
+/**
+ * "Mashhur" tartib uchun BELGI.
+ *
+ * ── Nima uchun alohida shakl ──────────────────────────────────────────
+ * Oddiy belgi vaqtdan iborat (`sana_id`) va u vaqt bo'yicha
+ * tartiblangan ro'yxat uchun to'g'ri ishlaydi.
+ *
+ * "Mashhur" esa YOQTIRISHLAR bo'yicha tartiblangan. Vaqt belgisi
+ * bilan sahifalasak, ikkinchi sahifada izohlar takrorlanib yoki
+ * butunlay tushib qolardi — va buni payqash deyarli imkonsiz.
+ */
+function buildTopCursor(row: { likeCount: number; id: string }): string {
+  return `p${row.likeCount}_${row.id}`;
+}
+
+function parseTopCursor(cursor: string): { likeCount: number; id: string } | null {
+  if (!cursor.startsWith('p')) return null;
+
+  const separator = cursor.indexOf('_');
+
+  if (separator < 0) return null;
+
+  const likeCount = Number(cursor.slice(1, separator));
+
+  if (!Number.isFinite(likeCount)) return null;
+
+  return { likeCount, id: cursor.slice(separator + 1) };
+}
+
+/** "Shu belgidan keyingi" — yoqtirishlar kamayish tartibida. */
+function afterTop(cursor: string | undefined): Prisma.PostCommentWhereInput {
+  if (!cursor) return {};
+
+  const parsed = parseTopCursor(cursor);
+
+  if (!parsed) return {};
+
+  return {
+    OR: [
+      { likeCount: { lt: parsed.likeCount } },
+      { likeCount: parsed.likeCount, id: { gt: parsed.id } },
+    ],
   };
 }
 
@@ -1190,34 +1248,94 @@ export async function listComments(
   query: CommentsQuery,
 ): Promise<{ comments: CommentView[]; nextCursor: string | null }> {
   // Postni ko'rish huquqi tekshiriladi — izohlar u orqali ochiladi.
-  await getPost(postId, viewerId);
+  const post = await getPost(postId, viewerId);
+
+  const isTop = query.sort === 'TOP';
+
+  /*
+    Post muallifining ID si.
+
+    `getPost` `PostView` qaytaradi va u yerda muallif ma'lumoti bor —
+    ya'ni qo'shimcha so'rov kerak emas.
+  */
+  const postAuthorId = post.author.userId;
+
+  const baseWhere: Prisma.PostCommentWhereInput = {
+    postId,
+    deletedAt: null,
+    author: { deletedAt: null, status: { not: 'SUSPENDED' } },
+    /**
+     * Javoblar asosiy ro'yxatga ARALASHMAYDI.
+     *
+     * `parentId` berilmasa faqat asosiy izohlar chiqadi; berilsa —
+     * faqat o'sha izohning javoblari.
+     */
+    parentId: query.parentId ?? null,
+  };
+
+  /*
+    Mahkamlangan izoh ALOHIDA o'qiladi.
+
+    ── Nima uchun umumiy ro'yxatga qo'shilmaydi ────────────────────────
+    U ro'yxatning o'rtasida ham turishi mumkin (masalan eski izoh
+    mahkamlangan). Belgi bilan chizib qo'yish yetarli emasdi: odam
+    uni topish uchun pastga surishga majbur bo'lardi.
+
+    Alohida o'qib, eng boshga qo'yish esa uni HAR DOIM ko'rinadigan
+    qiladi — mahkamlashning butun ma'nosi shu.
+
+    ── Nima uchun faqat BIRINCHI sahifada ─────────────────────────────
+    Ikkinchi sahifada ham qo'shilsa, u ro'yxatda ikki marta
+    ko'rinardi.
+  */
+  const pinned =
+    query.cursor || query.parentId
+      ? null
+      : await prisma.postComment.findFirst({
+          where: { ...baseWhere, pinnedAt: { not: null } },
+          select: commentSelect(viewerId),
+          orderBy: [{ pinnedAt: 'desc' }],
+        });
 
   const rows = await prisma.postComment.findMany({
     where: {
-      postId,
-      deletedAt: null,
-      author: { deletedAt: null, status: { not: 'SUSPENDED' } },
-      /**
-       * Javoblar asosiy ro'yxatga ARALASHMAYDI.
-       *
-       * `parentId` berilmasa faqat asosiy izohlar chiqadi; berilsa —
-       * faqat o'sha izohning javoblari.
-       */
-      parentId: query.parentId ?? null,
-      ...newerThan(query.cursor),
+      ...baseWhere,
+      /*
+        Mahkamlangan izoh asosiy ro'yxatdan CHIQARIB tashlanadi.
+
+        Aks holda u ekranda ikki marta ko'rinardi: bir marta
+        tepada, bir marta o'z o'rnida.
+      */
+      ...(pinned ? { id: { not: pinned.id } } : {}),
+      ...(isTop ? afterTop(query.cursor) : newerThan(query.cursor)),
     },
     select: commentSelect(viewerId),
-    // Izohlar suhbat kabi o'qiladi: eskisidan yangisiga.
-    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    /*
+      Ikki xil tartib.
+
+      "Yangi" — suhbat tartibi: eskisidan yangisiga.
+      "Mashhur" — yoqtirishlar bo'yicha, teng bo'lsa ID bo'yicha.
+
+      Teng yoqtirishda ID bo'yicha tartib SHART: usiz baza
+      istalgan tartibda qaytarardi va sahifalash buzilardi.
+    */
+    orderBy: isTop ? [{ likeCount: 'desc' }, { id: 'asc' }] : [{ createdAt: 'asc' }, { id: 'asc' }],
     take: query.limit + 1,
   });
 
   const hasMore = rows.length > query.limit;
   const page = hasMore ? rows.slice(0, query.limit) : rows;
 
+  const comments = page.map((row) => toCommentView(row, viewerId, postAuthorId));
+
   return {
-    comments: page.map((row) => toCommentView(row, viewerId)),
-    nextCursor: hasMore && page.length > 0 ? buildCursor(page[page.length - 1]) : null,
+    comments: pinned ? [toCommentView(pinned, viewerId, postAuthorId), ...comments] : comments,
+    nextCursor:
+      hasMore && page.length > 0
+        ? isTop
+          ? buildTopCursor(page[page.length - 1])
+          : buildCursor(page[page.length - 1])
+        : null,
   };
 }
 
@@ -1295,7 +1413,7 @@ export async function addComment(
 
   void notifyMentioned(authorId, postId, body);
 
-  return toCommentView(comment, authorId);
+  return toCommentView(comment, authorId, post.authorId);
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -1393,6 +1511,90 @@ export async function unlikeComment(
  * Faqat izoh muallifi o'chira olsa, haqoratli izohni olib tashlashning
  * yagona yo'li shikoyat yozib, moderatorni kutish bo'lardi.
  */
+/**
+ * Izohni yuqoriga MAHKAMLAYDI (yoki bo'shatadi).
+ *
+ * ── Nima uchun faqat POST MUALLIFI ────────────────────────────────────
+ * Mahkamlash — "bu javob to'g'ri" degan tasdiq. Uni istalgan odam
+ * qila olsa, u tasdiq bo'lishdan to'xtardi: har kim o'z izohini
+ * tepaga chiqarib olardi.
+ *
+ * Izoh muallifining o'zi ham qila olmaydi — aks holda bu shunchaki
+ * "o'zimni tepaga chiqarish" tugmasi bo'lardi.
+ *
+ * ── Nima uchun BITTA izoh ─────────────────────────────────────────────
+ * Ikkita "eng muhim" javob bir-birining ma'nosini yo'qotadi. Yangisi
+ * mahkamlanganda eskisi AVTOMATIK bo'shatiladi — muallifni "avval
+ * eskisini bo'shating" deb ovora qilish keraksiz qadam bo'lardi.
+ */
+export async function pinComment(
+  commentId: string,
+  userId: string,
+  isPinned: boolean,
+): Promise<{ isPinned: boolean }> {
+  const comment = await prisma.postComment.findUnique({
+    where: { id: commentId },
+    select: {
+      id: true,
+      postId: true,
+      parentId: true,
+      deletedAt: true,
+      post: { select: { authorId: true, deletedAt: true } },
+    },
+  });
+
+  if (!comment || comment.deletedAt || comment.post.deletedAt) {
+    throw new NotFoundError('Izoh');
+  }
+
+  if (comment.post.authorId !== userId) {
+    throw new ForbiddenError('Izohni faqat post muallifi mahkamlay oladi.');
+  }
+
+  /*
+    JAVOBNI mahkamlab bo'lmaydi.
+
+    Javob asosiy izohning ichida, yopiq ro'yxatda turadi. Uni
+    tepaga chiqarsak, u kimga javob berayotgani ko'rinmay qolardi
+    va o'quvchi uchun ma'nosiz gap bo'lardi.
+  */
+  if (comment.parentId !== null) {
+    throw new ConflictError('Javobni mahkamlab bo\'lmaydi — faqat asosiy izohni.');
+  }
+
+  if (!isPinned) {
+    await prisma.postComment.updateMany({
+      where: { id: commentId, pinnedAt: { not: null } },
+      data: { pinnedAt: null },
+    });
+
+    return { isPinned: false };
+  }
+
+  /*
+    Ikki amal BITTA tranzaksiyada.
+
+    Orasida uzilib qolsa, postda ikkita mahkamlangan izoh qolardi
+    va ro'yxat qaysi birini ko'rsatishni bilmasdi.
+  */
+  await prisma.$transaction(async (tx) => {
+    await tx.postComment.updateMany({
+      where: { postId: comment.postId, pinnedAt: { not: null } },
+      data: { pinnedAt: null },
+    });
+
+    await tx.postComment.update({
+      where: { id: commentId },
+      data: { pinnedAt: new Date() },
+      select: { id: true },
+    });
+  });
+
+  logger.info({ userId, commentId, postId: comment.postId }, 'Izoh mahkamlandi');
+
+  return { isPinned: true };
+}
+
 export async function deleteComment(commentId: string, userId: string): Promise<void> {
   const comment = await prisma.postComment.findUnique({
     where: { id: commentId },

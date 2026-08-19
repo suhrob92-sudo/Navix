@@ -6,6 +6,12 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { CommentItem } from '@/components/feed/comment-item';
+import {
+  COMMENT_SORTS,
+  COMMENT_SORT_LABELS,
+  DEFAULT_COMMENT_SORT,
+  type CommentSort,
+} from '@/config/comments';
 import { PostCard } from '@/components/feed/post-card';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -16,6 +22,7 @@ import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { useCursorList } from '@/hooks/use-cursor-list';
 import { usePostActions } from '@/hooks/use-post-actions';
 import { toUserMessage } from '@/lib/api-client';
+import { cn } from '@/lib/utils';
 import { COMMENT_MAX_LENGTH, type CommentView, type PostResponse } from '@/modules/feed/feed.types';
 
 export interface PostDetailContentProps {
@@ -35,7 +42,21 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
   const router = useRouter();
 
   const { data, isLoading, error, setData } = useApiQuery<PostResponse>(`/api/v1/posts/${postId}`);
-  const comments = useCursorList<CommentView>(`/api/v1/posts/${postId}/comments`, 'comments');
+  /**
+   * Izohlarni saralash.
+   *
+   * ── Nima uchun odatda "Yangi" ───────────────────────────────────────
+   * Suhbat tabiiy ravishda vaqt bo'yicha o'qiladi: javob undan
+   * oldingi gapga tegishli bo'ladi. Yangi postda esa hali hech kim
+   * izohga yoqtirish qo'ymagan — "mashhur" tartib ham aynan vaqt
+   * tartibi bo'lardi, lekin odam buni bilmasdi.
+   */
+  const [sort, setSort] = useState<CommentSort>(DEFAULT_COMMENT_SORT);
+
+  const comments = useCursorList<CommentView>(
+    `/api/v1/posts/${postId}/comments?sort=${sort}`,
+    'comments',
+  );
 
   const [body, setBody] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -170,7 +191,37 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
             )}
 
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold">Izohlar</h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold">Izohlar</h2>
+
+                {/*
+                  Saralash — FAQAT izoh bo'lganda.
+
+                  Bo'sh ro'yxatda ikkita tugma nimani saralashi
+                  noma'lum edi va faqat chalkashtirardi.
+                */}
+                {comments.items.length > 0 && (
+                  <div role="tablist" aria-label="Izohlarni saralash" className="flex gap-1">
+                    {COMMENT_SORTS.map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="tab"
+                        aria-selected={sort === value}
+                        onClick={() => setSort(value)}
+                        className={cn(
+                          'rounded-full px-2.5 py-1 text-xs transition-colors',
+                          sort === value
+                            ? 'bg-secondary font-medium'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {COMMENT_SORT_LABELS[value]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {comments.isLoading && (
                 <>

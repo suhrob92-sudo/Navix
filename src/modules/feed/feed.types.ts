@@ -335,6 +335,26 @@ export interface CommentView {
   isLiked: boolean;
   /** Javoblar soni — ro'yxatni ochmasdan turib ko'rinadi. */
   replyCount: number;
+  /**
+   * POST MUALLIFI yuqoriga mahkamlaganmi.
+   *
+   * Mahkamlangan izoh ro'yxatning eng boshida turadi va saralash
+   * turi o'zgarganda ham o'sha yerda qoladi: uning butun ma'nosi
+   * "buni birinchi o'qing" deyishda.
+   */
+  isPinned: boolean;
+  /**
+   * Izohni POST MUALLIFI yozganmi.
+   *
+   * ── Nima uchun bu alohida maydon ────────────────────────────────────
+   * Buni brauzerda ham hisoblash mumkin edi (izoh muallifining ID
+   * si post muallifiniki bilan bir xilmi). Lekin izohlar ro'yxati
+   * postdan ALOHIDA so'ral(ad)i va u yerda post muallifi haqida
+   * ma'lumot yo'q.
+   *
+   * Serverda hisoblash esa bepul: taqqoslash allaqachon qilingan.
+   */
+  isPostAuthor: boolean;
 }
 
 /**

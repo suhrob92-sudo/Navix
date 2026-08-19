@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { SEARCH_SCOPES } from '@/modules/feed/discover.types';
+import { COMMENT_SORTS, DEFAULT_COMMENT_SORT } from '@/config/comments';
 import { COMMENT_MAX_LENGTH, MAX_PLACE_NAME_LENGTH, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
 import { ATTACHMENT_KINDS, MAX_ATTACHMENTS } from '@/config/attachments';
 import { POST_CTA_CONFIG, POST_CTA_KINDS } from '@/config/post-cta';
@@ -136,9 +137,30 @@ export const searchHistoryQuerySchema = z.object({
 
 export type SearchHistoryQuery = z.infer<typeof searchHistoryQuerySchema>;
 
+/**
+ * Izoh belgisi — IKKI xil bo'lishi mumkin.
+ *
+ * "Yangi" tartibda u vaqtdan iborat (`sana_id`), "Mashhur" tartibda
+ * esa yoqtirishlar sonidan (`p12_id`).
+ *
+ * Ikkalasini bitta naqshga tiqishtirsak, noto'g'ri belgi jim ishlab,
+ * ikkinchi sahifada izohlarni takrorlab yoki tushirib qoldirardi.
+ */
+const commentCursorSchema = z.union([
+  feedCursorSchema,
+  z.string().regex(/^p\d{1,9}_[0-9a-f-]{36}$/, "Belgi noto'g'ri"),
+]);
+
 export const commentsQuerySchema = z.object({
-  cursor: feedCursorSchema.optional(),
+  cursor: commentCursorSchema.optional(),
   limit: z.coerce.number().int().min(1).max(50).default(30),
+  /**
+   * Saralash turi.
+   *
+   * Odatiy qiymat — "yangi": suhbat tabiiy ravishda vaqt bo'yicha
+   * o'qiladi va javob undan oldingi gapga tegishli bo'ladi.
+   */
+  sort: z.enum(COMMENT_SORTS).default(DEFAULT_COMMENT_SORT),
   /**
    * Qaysi izohning javoblari.
    *

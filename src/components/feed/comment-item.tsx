@@ -1,10 +1,11 @@
 'use client';
 
-import { CornerDownRight, Heart, Send, Trash2 } from 'lucide-react';
+import { CornerDownRight, Heart, Pin, PinOff, Send, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
 import { RichText } from '@/components/feed/rich-text';
+import { AUTHOR_COMMENT_LABEL, PINNED_COMMENT_LABEL } from '@/config/comments';
 import { Alert } from '@/components/ui/alert';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -64,6 +65,7 @@ export function CommentItem({
   const [draft, setDraft] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isPinning, setIsPinning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const replies = useCursorList<CommentView>(
@@ -101,6 +103,41 @@ export function CommentItem({
         setError(toUserMessage(caught));
       }
     })();
+  }
+
+  /**
+   * Mahkamlash / bo'shatish.
+   *
+   * ── Nima uchun oldindan o'zgartirilmaydi ────────────────────────────
+   * Yoqtirishda ekran darhol o'zgaradi: u faqat shu izohga tegishli.
+   *
+   * Mahkamlash esa BOSHQA izohga ham ta'sir qiladi — eskisi
+   * avtomatik bo'shatiladi. Ekranda oldindan chizsak, bir zumga
+   * IKKITA mahkamlangan izoh ko'rinardi.
+   *
+   * Server javobini kutish esa bir lahza vaqt oladi, lekin natija
+   * doim to'g'ri bo'ladi.
+   */
+  async function togglePin() {
+    if (isPinning) return;
+
+    const wasPinned = comment.isPinned;
+
+    setIsPinning(true);
+    setError(null);
+
+    try {
+      await request(`/api/v1/posts/${postId}/comments/${comment.id}/pin`, {
+        method: wasPinned ? 'DELETE' : 'POST',
+        ...(wasPinned ? {} : { body: {} }),
+      });
+
+      onChanged({ ...comment, isPinned: !wasPinned });
+    } catch (caught) {
+      setError(toUserMessage(caught));
+    } finally {
+      setIsPinning(false);
+    }
   }
 
   async function sendReply() {
@@ -178,6 +215,26 @@ export function CommentItem({
             <span className="text-muted-foreground shrink-0 text-xs">
               {formatRelativeUz(comment.createdAt)}
             </span>
+
+            {/*
+              "Muallif" belgisi — izohlar orasida ENG ishonchli ma'lumot.
+
+              Belgisiz muallifning javobi boshqa yuzta izoh orasida
+              yo'qolib ketardi va odam "muallif javob bermabdi"
+              degan xulosaga kelardi.
+            */}
+            {comment.isPostAuthor && (
+              <span className="bg-primary/10 text-primary shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium">
+                {AUTHOR_COMMENT_LABEL}
+              </span>
+            )}
+
+            {comment.isPinned && (
+              <span className="text-muted-foreground flex shrink-0 items-center gap-0.5 text-[10px]">
+                <Pin className="size-3" aria-hidden="true" />
+                {PINNED_COMMENT_LABEL}
+              </span>
+            )}
           </div>
 
           <p className="mt-1 text-sm leading-relaxed break-words whitespace-pre-wrap">
@@ -206,6 +263,29 @@ export function CommentItem({
             >
               Javob berish
             </button>
+
+            {/*
+              Mahkamlash — FAQAT post egasiga va faqat asosiy izohda.
+
+              Javobni mahkamlab bo'lmaydi: u kimga javob berayotgani
+              ko'rinmay qolardi va o'quvchi uchun ma'nosiz gap
+              bo'lardi. Server ham aynan shu qoidani tekshiradi.
+            */}
+            {isPostOwner && !isReply && (
+              <button
+                type="button"
+                onClick={() => void togglePin()}
+                disabled={isPinning}
+                className="hover:text-foreground flex items-center gap-1 text-xs transition-colors disabled:opacity-60"
+              >
+                {comment.isPinned ? (
+                  <PinOff className="size-3.5" aria-hidden="true" />
+                ) : (
+                  <Pin className="size-3.5" aria-hidden="true" />
+                )}
+                {comment.isPinned ? "Bo'shatish" : 'Mahkamlash'}
+              </button>
+            )}
           </div>
         </div>
 

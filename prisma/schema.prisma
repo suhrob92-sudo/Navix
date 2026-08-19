@@ -3245,6 +3245,26 @@ model PostComment {
   /// Javoblar soni — ro'yxatni ochmasdan turib ko'rinadi.
   replyCount Int @default(0)
 
+  /// POST MUALLIFI tomonidan yuqoriga mahkamlangan payt.
+  ///
+  /// ── Nima uchun bu KERAK ─────────────────────────────────────────────
+  /// Izohlar vaqt bo'yicha tartiblangan. Ko'p izohli postda eng
+  /// foydali javob (masalan "narxi 250 ming, do'kon Chorsu'da")
+  /// yuzta izoh ostida ko'milib qoladi.
+  ///
+  /// Natijada o'sha savol qayta-qayta beriladi va muallif har biriga
+  /// alohida javob yozishga majbur bo'ladi. Mahkamlash aynan shu
+  /// mehnatni bir marta bajarishga imkon beradi.
+  ///
+  /// ── Nima uchun SANA, oddiy bayroq emas ──────────────────────────────
+  /// Sana "qachon mahkamlangan" degan savolga ham javob beradi va
+  /// kelajakda bir nechta mahkamlangan izoh kerak bo'lsa, ular
+  /// orasida tartib tayyor bo'ladi.
+  ///
+  /// Hozircha bittasi mahkamlanadi: ikkita "eng muhim" javob
+  /// bir-birining ma'nosini yo'qotardi.
+  pinnedAt DateTime?
+
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
@@ -3257,6 +3277,13 @@ model PostComment {
 
   /// Izohlar eskisidan yangisiga qarab o'qiladi — suhbat kabi.
   @@index([postId, createdAt])
+  /// "Mashhur" saralash: eng ko'p yoqtirilgan izohlar birinchi.
+  ///
+  /// Indekssiz butun postning izohlari o'qilib, keyin xotirada
+  /// tartiblanardi — mingta izohli postda bu sezilarli sekinlik.
+  @@index([postId, likeCount])
+  /// Mahkamlangan izohni TEZ topish uchun.
+  @@index([postId, pinnedAt])
   /// Bitta izohning javoblari.
   @@index([parentId, createdAt])
   @@map("post_comments")
