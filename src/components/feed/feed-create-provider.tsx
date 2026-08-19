@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 import { CreateMenu } from '@/components/feed/create-menu';
@@ -47,6 +48,7 @@ const FeedCreateContext = createContext<FeedCreateContextValue | null>(null);
  */
 export function FeedCreateProvider({ children }: { children: React.ReactNode }) {
   const request = useApiClient();
+  const router = useRouter();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isComposerOpen, setIsComposerOpen] = useState(false);
@@ -184,6 +186,22 @@ export function FeedCreateProvider({ children }: { children: React.ReactNode }) 
 
             if (choice === 'STORY') {
               setIsStoryOpen(true);
+
+              return;
+            }
+
+            /*
+              Jonli efir — OYNA emas, SAHIFA.
+
+              E'lon qilishda uchta maydon bor (sarlavha, vaqt, izoh)
+              va ular yonida mavjud efirlar ro'yxati turadi: bloger
+              "yana bittasini qo'shsam bo'ladimi?" degan savolga
+              javobni o'sha yerda ko'radi.
+
+              Kichik oynada bu ma'lumotning hammasi sig'masdi.
+            */
+            if (choice === 'LIVE') {
+              router.push('/feed/live');
 
               return;
             }

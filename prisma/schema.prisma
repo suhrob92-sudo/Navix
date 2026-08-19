@@ -290,6 +290,8 @@ model User {
   postComments      PostComment[]        @relation("CommentAuthor")
   postSaves         PostSave[]           @relation("PostSaves")
   postCollections   PostCollection[]     @relation("PostCollections")
+  liveStreams       LiveStream[]         @relation("LiveHost")
+  liveReminders     LiveReminder[]       @relation("LiveReminders")
   postsSeen         PostSeen[]           @relation("PostsSeen")
   postsHidden       PostHidden[]         @relation("PostsHidden")
   collabSent        CollabOffer[]        @relation("CollabSent")
@@ -3313,6 +3315,93 @@ model CommentLike {
 /// Yoqtirish — OMMAVIY: muallif ko'radi, soni hammaga ko'rinadi.
 /// Saqlash — SHAXSIY: uni faqat saqlagan odam ko'radi.
 ///
+/// Jonli efir E'LONI.
+///
+/// ── Nima uchun bu "efir" emas, E'LON ──────────────────────────────────
+/// Haqiqiy jonli efir (video oqimi) alohida katta ish: media server,
+/// tarmoq kanallari, sifat darajalari. Uni hozir qurish erta —
+/// avval lentada odam yig'ilishi kerak.
+///
+/// Lekin efirning ENG QIYIN qismi texnika emas: odamlarni AYNAN
+/// o'sha vaqtda ekran oldiga yig'ish. Bloger "bugun soat 20:00 da
+/// efir" deb yozadi va uni hech kim ko'rmaydi.
+///
+/// Shu sababdan avval o'sha qism quriladi: e'lon, eslatma va
+/// xabar. Efirning o'zi keyin qo'shilganda, tomoshabin allaqachon
+/// tayyor bo'ladi.
+///
+/// ── Nima uchun holat SAQLANADI, hisoblanmaydi ─────────────────────────
+/// "Vaqti kelgan bo'lsa — efirda" deb hisoblash mumkin edi. Lekin
+/// bloger kechikishi, umuman boshlamasligi yoki erta boshlashi
+/// mumkin. Hisoblangan holat yolg'on gapirardi: tomoshabin efirga
+/// kirib, hech kimni topmasdi.
+model LiveStream {
+  id String @id @default(uuid()) @db.Uuid
+
+  hostId String @db.Uuid
+
+  /// Efir sarlavhasi — ro'yxatda ko'rinadigan asosiy matn.
+  title String @db.VarChar(120)
+
+  /// Qo'shimcha izoh — nima haqida gaplashiladi.
+  description String? @db.VarChar(500)
+
+  /// Qachon boshlanishi REJALASHTIRILGAN.
+  scheduledAt DateTime
+
+  /// Holati: SCHEDULED, LIVE, ENDED, CANCELLED.
+  ///
+  /// Matn sifatida saqlanadi (enum emas): ro'yxat kelajakda
+  /// o'zgarishi mumkin va har o'zgarishda migratsiya yozish
+  /// telefondan ishlayotgan odam uchun og'ir.
+  status String @default("SCHEDULED") @db.VarChar(20)
+
+  /// Haqiqatda qachon boshlangan va tugagan.
+  ///
+  /// Rejalashtirilgan vaqtdan FARQ qiladi: bloger kechikishi yoki
+  /// erta boshlashi mumkin. Ikkalasini bir maydonga tiqishtirsak,
+  /// "qancha kechikdi?" degan savolga javob qolmasdi.
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  host      User           @relation("LiveHost", fields: [hostId], references: [id], onDelete: Cascade)
+  reminders LiveReminder[]
+
+  /// Yaqinlashayotgan efirlar ro'yxati — vaqt bo'yicha.
+  @@index([status, scheduledAt])
+  /// Blogerning o'z efirlari.
+  @@index([hostId, scheduledAt])
+  @@map("live_streams")
+}
+
+/// "Eslatib qo'y" — efir boshlanganda xabar keladi.
+///
+/// ── Nima uchun ALOHIDA jadval, oddiy obuna emas ───────────────────────
+/// Obunachi blogerning HAMMA efirini emas, aynan qiziqqanini
+/// ko'rmoqchi. Har efirda barcha obunachiga xabar yuborilsa, odamlar
+/// xabarlarni butunlay o'chirib qo'yardi — va keyin haqiqatan
+/// muhim xabar ham yetib bormasdi.
+model LiveReminder {
+  id String @id @default(uuid()) @db.Uuid
+
+  streamId String @db.Uuid
+  userId   String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  stream LiveStream @relation(fields: [streamId], references: [id], onDelete: Cascade)
+  user   User       @relation("LiveReminders", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Bir odam bir efirga bir marta yoziladi.
+  @@unique([streamId, userId])
+  /// "Menga eslatiladigan efirlar" ro'yxati.
+  @@index([userId])
+  @@map("live_reminders")
+}
+
 /// Ikkalasini birlashtirsak, odam mahsulotni keyin sotib olish uchun
 /// belgilaganida buni butun dunyoga e'lon qilgan bo'lardi.
 model PostSave {

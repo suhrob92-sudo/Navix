@@ -456,6 +456,12 @@ export const FEED_FEATURES: readonly FeedFeatureItem[] = [
     icon: Users,
   },
   {
+    href: '/feed/live',
+    label: 'Jonli efirlar',
+    description: "Rejalashtirilgan efirlar va eslatmalar",
+    icon: Radio,
+  },
+  {
     href: '/feed/tags',
     label: 'Mashhur mavzular',
     description: 'Xeshteglar bo\'yicha kashf qilish',
@@ -512,9 +518,15 @@ export const CREATE_CHOICES: readonly CreateChoice[] = [
   },
   {
     id: 'LIVE',
-    label: 'Jonli efir boshlash',
-    description: 'Real vaqtda efir',
+    /*
+      Yozuv HALOL: "e'lon qilish", "boshlash" emas.
+
+      Efirning o'zi hali Navix ichida ko'rsatilmaydi. "Boshlash"
+      deb yozilsa, odam video kutardi va kutgani chiqmaganda
+      ilovani buzuq deb hisoblardi.
+    */
+    label: "Jonli efir e'lon qilish",
+    description: "Vaqtini belgilang — obunachilar eslatma qo'yadi",
     icon: Radio,
-    isComingSoon: true,
   },
 ] as const;

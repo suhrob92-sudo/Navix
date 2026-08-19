@@ -200,6 +200,22 @@ export interface NotificationEventData {
     subject: string;
     actorName: string;
   };
+  /**
+   * Jonli efir BOSHLANDI.
+   *
+   * ── Nima uchun faqat "eslatib qo'y" bosganlarga ─────────────────────
+   * Har efirda barcha obunachiga xabar yuborilsa, odamlar xabarlarni
+   * butunlay o'chirib qo'yardi — va keyin haqiqatan muhim xabar ham
+   * yetib bormasdi.
+   *
+   * Bu xabarni odam O'ZI so'ragan: u "eslatib qo'y" tugmasini
+   * bosgan.
+   */
+  'live.started': {
+    streamId: string;
+    title: string;
+    hostName: string;
+  };
   /** Taklifga javob berildi — YUBORUVCHI uchun. */
   'collab.offer_answered': {
     offerId: string;
@@ -617,6 +633,13 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
     body: `${actorName}: "${subject}"`,
     actionUrl: '/feed/collab',
     sourceModule: 'collab',
+  }),
+
+  'live.started': ({ title, hostName }) => ({
+    title: 'Efir boshlandi',
+    body: `${hostName}: "${title}"`,
+    actionUrl: '/feed/live',
+    sourceModule: 'live',
   }),
 
   /**

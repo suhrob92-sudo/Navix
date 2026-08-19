@@ -175,10 +175,29 @@ describe('Feed menyusi', () => {
     expect(ids).toEqual(['VIDEO', 'POST', 'STORY', 'LIVE']);
   });
 
-  it('faqat jonli efir tayyor emas', () => {
+  it("yaratish menyusida TAYYOR BO'LMAGAN band qolmadi", () => {
+    /*
+      19-bosqichda jonli efir E'LONI qo'shildi va bu oxirgi
+      "tez orada" band edi.
+
+      Tugma bosilib, hech narsa bo'lmasligi — eng yomon holat:
+      odam ilovani buzuq deb hisoblaydi. Shuning uchun menyuda
+      ishlamaydigan band qolmasligi tekshiriladi.
+    */
     const pending = CREATE_CHOICES.filter((item) => item.isComingSoon).map((item) => item.id);
 
-    expect(pending).toEqual(['LIVE']);
+    expect(pending).toEqual([]);
+  });
+
+  it("jonli efir yozuvi HALOL — 'boshlash' emas, 'e'lon qilish'", () => {
+    /*
+      Efirning o'zi hali Navix ichida ko'rsatilmaydi. "Boshlash"
+      deb yozilsa, odam video kutardi va kutgani chiqmaganda
+      ilovani buzuq deb hisoblardi.
+    */
+    const live = CREATE_CHOICES.find((item) => item.id === 'LIVE');
+
+    expect(live?.label).toContain("e'lon");
   });
 });
 

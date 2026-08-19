@@ -214,6 +214,11 @@ const SAMPLES = {
     actorName: 'Bobur Karimov',
     isAccepted: true,
   },
+  'live.started': {
+    streamId: '7b1c9d3e-5f2a-4b8c-9d1e-3a6f8c2b5d4e',
+    title: 'Retsept: osh',
+    hostName: 'Milliy Taomlar',
+  },
 } as const;
 
 const EVENTS = Object.keys(NOTIFICATION_TEMPLATES) as NotificationEventName[];
