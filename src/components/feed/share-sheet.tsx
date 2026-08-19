@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, CirclePlus, Copy, MessageCircle, Send, Share2, X } from 'lucide-react';
+import { Check, CirclePlus, Copy, MessageCircle, MessageSquare, Send, Share2, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,20 @@ export function ShareSheet({ post, onShared, onClose }: ShareSheetProps) {
     () => typeof navigator !== 'undefined' && typeof navigator.share === 'function',
   );
   const [isCopied, setIsCopied] = useState(false);
+
+  /**
+   * Nusxalash ISHLAMADI — havola qo'lda tanlanadigan maydonda.
+   *
+   * ── Nima uchun bu holat kerak ───────────────────────────────────────
+   * Brauzer buferga yozishga ruxsat bermasligi mumkin: xavfsiz
+   * bo'lmagan ulanish (http), eski brauzer yoki foydalanuvchi
+   * rad etgan ruxsat.
+   *
+   * Ilgari bunday holatda HECH NARSA bo'lmasdi: odam tugmani
+   * bosardi, "Nusxalandi" yozuvi chiqmasdi va u nima
+   * qilishni bilmasdi — havola esa hech qayerda ko'rinmasdi.
+   */
+  const [isCopyFailed, setIsCopyFailed] = useState(false);
 
   const request = useApiClient();
 
@@ -123,6 +137,7 @@ export function ShareSheet({ post, onShared, onClose }: ShareSheetProps) {
     try {
       await navigator.clipboard.writeText(link);
       setIsCopied(true);
+      setIsCopyFailed(false);
       onShared();
 
       // Belgi bir necha soniyadan keyin o'chadi — oyna ochiq qoladi.
@@ -136,6 +151,7 @@ export function ShareSheet({ post, onShared, onClose }: ShareSheetProps) {
        * odam uni qo'lda nusxalay oladi.
        */
       setIsCopied(false);
+      setIsCopyFailed(true);
     }
   }
 
@@ -147,6 +163,21 @@ export function ShareSheet({ post, onShared, onClose }: ShareSheetProps) {
     } catch {
       // Odam bekor qilgan bo'lishi mumkin — bu xato emas.
     }
+  }
+
+  function openWhatsApp() {
+    /*
+      Matn va havola BIRGA yuboriladi.
+
+      WhatsApp'da alohida "havola" maydoni yo'q — hammasi bitta
+      matn. Havolani oxiriga qo'yish muhim: ko'p ilova matnning
+      OXIRIDAGI havolani kartochka qilib chizadi.
+    */
+    const url = `https://wa.me/?text=${encodeURIComponent(`${title}\n${link}`)}`;
+
+    window.open(url, '_blank', 'noopener,noreferrer');
+    onShared();
+    onClose();
   }
 
   function openTelegram() {
@@ -235,6 +266,29 @@ export function ShareSheet({ post, onShared, onClose }: ShareSheetProps) {
           </span>
         </button>
 
+        {/*
+          WhatsApp — ALOHIDA tugma.
+
+          ── Nima uchun tizim ulashuvi yetarli emas ────────────────
+          Tizim ro'yxati faqat telefonda bor va kompyuterda umuman
+          ochilmaydi. O'zbekistonda esa WhatsApp — Telegramdan
+          keyingi eng ko'p ishlatiladigan ilova va uni ro'yxatning
+          ichida qidirishga majburlash ortiqcha qadam bo'lardi.
+        */}
+        <button
+          type="button"
+          onClick={openWhatsApp}
+          className="border-border hover:bg-secondary flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+            <MessageSquare className="size-5" aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium">WhatsApp</span>
+            <span className="text-muted-foreground block text-xs">Suhbat yoki guruhga yuboring</span>
+          </span>
+        </button>
+
         {canUseSystemShare && (
           <button
             type="button"
@@ -269,6 +323,29 @@ export function ShareSheet({ post, onShared, onClose }: ShareSheetProps) {
           </span>
         </button>
       </div>
+
+      {/*
+        Nusxalash ishlamadi — havola ochiq maydonda.
+
+        Odam uni barmog'i bilan tanlab, o'zi nusxalay oladi. Bu
+        eng oxirgi, lekin HAR DOIM ishlaydigan yo'l.
+      */}
+      {isCopyFailed && (
+        <div className="mt-3">
+          <p className="text-muted-foreground mb-1.5 text-xs">
+            Brauzer nusxalashga ruxsat bermadi. Havolani qo&apos;lda nusxalang:
+          </p>
+
+          <input
+            type="text"
+            readOnly
+            value={link}
+            aria-label="Post havolasi"
+            onFocus={(event) => event.target.select()}
+            className="bg-secondary border-border w-full rounded-lg border px-3 py-2 text-xs outline-none"
+          />
+        </div>
+      )}
 
       <p className="text-muted-foreground mt-4 text-xs leading-relaxed">
         Havolani ochgan odam postni ko&apos;rish uchun Navix&apos;ga kirishi kerak bo&apos;ladi.

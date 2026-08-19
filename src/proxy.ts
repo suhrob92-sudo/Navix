@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { PROTECTED_PREFIXES } from '@/config/protected-routes';
+import { PROTECTED_PREFIXES, isPublicPreviewPath } from '@/config/protected-routes';
 import { REFRESH_COOKIE_NAME } from '@/modules/auth/auth.cookies';
 
 /**
@@ -30,7 +30,23 @@ export default function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const hasSessionCookie = request.cookies.has(REFRESH_COOKIE_NAME);
 
-  if (PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix)) && !hasSessionCookie) {
+  /*
+    Ochiq oldindan ko'rinish — yo'naltirishdan CHETDA.
+
+    Ulashilgan post havolasi Telegram va WhatsApp serverlari orqali
+    ochiladi va ularda sessiya yo'q. Yo'naltirilsa, ular kirish
+    sahifasini o'qib, kartochkani umumiy "Navix" yozuvi bilan
+    chizardi.
+
+    Sahifaning O'ZI baribir himoyalangan: postning mazmuni token
+    bilan so'raladi va kirmagan odamni `RequireAuth` kirish
+    sahifasiga yuboradi.
+  */
+  if (
+    PROTECTED_PREFIXES.some((prefix) => pathname.startsWith(prefix)) &&
+    !hasSessionCookie &&
+    !isPublicPreviewPath(pathname)
+  ) {
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('next', `${pathname}${search}`);
 
