@@ -9,6 +9,7 @@ import { AttachmentButton } from '@/components/feed/attachment-button';
 import { PostCtaButton } from '@/components/feed/post-cta-button';
 import { RichText } from '@/components/feed/rich-text';
 import { ShareSheet } from '@/components/feed/share-sheet';
+import { SponsoredBadge } from '@/components/feed/sponsored-badge';
 import { ReportDialog } from '@/components/moderation/report-dialog';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -246,6 +247,18 @@ export function PostCard({
             {post.author.isVerified && (
               <BadgeCheck className="text-primary size-4 shrink-0" aria-label="Tasdiqlangan profil" />
             )}
+
+            {/*
+              "Reklama" nishoni — MUALLIF NOMI yonida.
+
+              ── Nima uchun aynan shu yer ──────────────────────────
+              Odam postni yuqoridan pastga o'qiydi: avval kim
+              yozgan, keyin nima yozilgan. Nishon matn ostiga
+              qo'yilsa, u AVVAL ishonib o'qib, KEYIN bu reklama
+              ekanini bilardi — ya'ni oshkoralik kechikkan
+              bo'lardi.
+            */}
+            {post.isSponsored && <SponsoredBadge />}
           </div>
 
           <p className="text-muted-foreground text-xs">

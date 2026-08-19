@@ -120,6 +120,15 @@ export function FeedCreateProvider({ children }: { children: React.ReactNode }) 
             : {}),
           ...(draft.category ? { category: draft.category } : {}),
           ...(draft.place ? { place: draft.place } : {}),
+          /*
+            Reklama belgisi HAR DOIM yuboriladi.
+
+            Qolgan maydonlar kabi "bor bo'lsa qo'sh" qilinsa,
+            `false` qiymat umuman ketmasdi. Hozir bu zararsiz
+            (server odatiy `false` qo'yadi), lekin ertaga
+            tahrirlashda belgini OLIB TASHLASH imkonsiz bo'lardi.
+          */
+          isSponsored: draft.isSponsored,
           ...(draft.attachments.length > 0 ? { attachments: draft.attachments } : {}),
           /*
             Chaqiruv qiymati BO'SH bo'lsa yuborilmaydi.

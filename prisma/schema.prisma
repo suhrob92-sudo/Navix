@@ -2832,6 +2832,28 @@ model Post {
   /// kerak. Bayroq bilan ular tasodifiy tartibda chiqardi.
   pinnedAt DateTime?
 
+  /// Postda REKLAMA bormi — muallif o'zi belgilaydi.
+  ///
+  /// ── Nima uchun bu KERAK ─────────────────────────────────────────────
+  /// Navix pulga tegmaydi: bloger biznes bilan to'g'ridan-to'g'ri
+  /// kelishadi. Lekin tomoshabin buni BILISHI kerak.
+  ///
+  /// Yashirin reklama ikki narsani buzadi. Birinchisi — ishonch:
+  /// odam "bu uning haqiqiy fikri" deb o'ylab mahsulot sotib oladi
+  /// va keyin bu to'langan maqtov ekanini bilib qoladi. Ikkinchisi —
+  /// qonun: ko'p mamlakatda reklamani oshkor qilish MAJBURIY.
+  ///
+  /// ── Nima uchun oddiy bayroq, hamkor nomi EMAS ───────────────────────
+  /// Hamkor nomini erkin matn qilib yozdirish mumkin edi ("Hamkor:
+  /// Korzinka"). Lekin uni tasdiqlashning yo'li yo'q: istalgan odam
+  /// istalgan brend nomini yozib, o'zini uning rasmiy hamkori qilib
+  /// ko'rsatardi.
+  ///
+  /// Tasdiqlanmagan nom esa oshkoralik emas — aksincha, yangi
+  /// aldash usuli bo'lardi. Bayroq esa faqat rost narsani aytadi:
+  /// "bu postda reklama bor".
+  isSponsored Boolean @default(false)
+
   /// Videoni necha marta ko'rishgan.
   ///
   /// ── Nima uchun USTUNDA saqlanadi ────────────────────────────────────

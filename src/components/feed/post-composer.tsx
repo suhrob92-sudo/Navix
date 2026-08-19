@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useFileUpload } from '@/hooks/use-file-upload';
 import { dialogCancelHandler } from '@/lib/dialog';
+import { SPONSORED_TOGGLE_HINT, SPONSORED_TOGGLE_LABEL } from '@/config/disclosure';
 import { cn } from '@/lib/utils';
 import { prepareVideo, uploadVideo } from '@/lib/video-upload';
 import { useAuth } from '@/modules/auth/auth-context';
@@ -43,6 +44,8 @@ export interface ComposerDraft {
   category: PostCategoryName | null;
   /** Biriktirilgan joylashuv. `null` — qo'shilmagan. */
   place: PostPlaceView | null;
+  /** Muallif postda reklama borligini bildirdimi. */
+  isSponsored: boolean;
 }
 
 export interface PostComposerProps {
@@ -156,6 +159,16 @@ export function PostComposer({
   /** Tanlangan bo'lim — ixtiyoriy. */
   const [category, setCategory] = useState<PostCategoryName | null>(null);
 
+  /**
+   * Reklama belgisi.
+   *
+   * ── Nima uchun odatda O'CHIQ ────────────────────────────────────────
+   * Ko'pchilik post reklama emas. Yoqiq bo'lsa, nishon deyarli har
+   * postda turib, ma'nosini butunlay yo'qotardi: odam uni ko'rmay
+   * qo'yardi va aynan reklamali postda ham e'tibor bermasdi.
+   */
+  const [isSponsored, setIsSponsored] = useState(false);
+
   /** Biriktirilgan joylashuv — ixtiyoriy. */
   const [place, setPlace] = useState<PostPlaceView | null>(null);
   const [isPlaceOpen, setIsPlaceOpen] = useState(false);
@@ -191,6 +204,7 @@ export function PostComposer({
       cta,
       category,
       place,
+      isSponsored,
     });
 
     if (sent) {
@@ -201,6 +215,7 @@ export function PostComposer({
       setCta(null);
       setCategory(null);
       setPlace(null);
+      setIsSponsored(false);
       setVideoError(null);
     }
   }
@@ -385,6 +400,32 @@ export function PostComposer({
           })}
         </div>
       </div>
+
+      {/*
+        Reklama belgisi — bo'lim tanlashdan KEYIN.
+
+        ── Nima uchun aynan shu yer ──────────────────────────────────
+        U "Joylash" tugmasiga eng yaqin joyda turadi: bloger postni
+        tugatib, yuborish oldidan oxirgi marta o'ylab ko'radi.
+        Yuqoriga qo'yilsa, u matn yozayotganda ko'rilib, keyin
+        unutilardi.
+      */}
+      <label className="border-border mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl border p-3">
+        <input
+          type="checkbox"
+          checked={isSponsored}
+          disabled={isBusy}
+          onChange={(event) => setIsSponsored(event.target.checked)}
+          className="accent-primary mt-0.5 size-4 shrink-0"
+        />
+
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-medium">{SPONSORED_TOGGLE_LABEL}</span>
+          <span className="text-muted-foreground mt-0.5 block text-xs leading-relaxed">
+            {SPONSORED_TOGGLE_HINT}
+          </span>
+        </span>
+      </label>
 
       {error && (
         <Alert variant="error" className="mt-3">

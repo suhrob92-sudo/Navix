@@ -12,6 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useApiClient } from '@/hooks/use-api';
 import { useCursorList } from '@/hooks/use-cursor-list';
 import { usePostActions } from '@/hooks/use-post-actions';
+import { useScreenAwake } from '@/hooks/use-screen-awake';
+import { useWatchSettings } from '@/hooks/use-watch-settings';
 import { useAuth } from '@/modules/auth/auth-context';
 import { RequireAuth } from '@/modules/auth/require-auth';
 import type { PostView } from '@/modules/feed/feed.types';
@@ -105,12 +107,59 @@ function WatchBody({ startId }: WatchContentProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   /**
-   * Ovoz sozlamasi BARCHA videolar uchun umumiy.
+   * Uzun video tugadi — KEYINGISIGA o'tamiz.
    *
-   * Har bir videoda qayta yoqish charchatardi. Boshida o'chiq:
-   * brauzer ovozli avtomatik o'ynashga ruxsat bermaydi.
+   * ── Nima uchun avtomatik o'tish faqat uzun videoda ──────────────────
+   * Qisqa reel takrorlanadi va bu to'g'ri: odam uni ataylab qayta
+   * ko'radi. Uzun video esa tugagach o'z ishini bajarib bo'ldi —
+   * uni qayta boshlash odamning vaqtini ham, trafigini ham
+   * bekorga sarflardi.
+   *
+   * ── Nima uchun `scrollIntoView`, holat emas ─────────────────────────
+   * Ekranda qaysi video "faol" ekanini kuzatuvchi (observer)
+   * aniqlaydi. Holatni qo'lda o'zgartirsak, sahifa surilmasdan
+   * turib boshqa video "faol" bo'lib qolardi: ovoz keyingi
+   * videodan chiqib, ekranda esa eskisi turardi.
+   *
+   * Surish esa kuzatuvchini tabiiy ishga tushiradi.
    */
-  const [isMuted, setIsMuted] = useState(true);
+  const goToNext = useCallback((postId: string) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const current = container.querySelector(`[data-post-id="${postId}"]`);
+    const next = current?.nextElementSibling;
+
+    /*
+      Oxirgi video — hech qayerga o'tilmaydi.
+
+      Ro'yxat oxirida "yana yuklash" hali tugamagan bo'lishi
+      mumkin. Bunday holatda video shunchaki to'xtab turadi va
+      odam o'zi qaror qiladi.
+    */
+    if (!next) return;
+
+    next.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  /**
+   * Ovoz sozlamasi — barcha videolar uchun umumiy va ESLAB QOLINADI.
+   *
+   * Ilgari u sahifa bilan birga yashardi: odam ovozni yoqib
+   * ko'rar, lentaga qaytib yana kirsa — ovoz yana o'chiq bo'lardi.
+   * Kuniga o'n marta bosiladigan tugma ilovaning eng charchatadigan
+   * joyi edi.
+   */
+  const { isMuted, toggleMuted } = useWatchSettings();
+
+  /*
+    Tomosha sahifasida ekran O'CHMAYDI.
+
+    Bu sahifaning butun mazmuni — video ko'rish. Telefon esa 30
+    soniya tegilmasa ekranni qoraytiradi va uzun videoda odam har
+    yarim daqiqada ekranga tegishga majbur bo'lardi.
+  */
+  useScreenAwake(true);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -248,7 +297,8 @@ function WatchBody({ startId }: WatchContentProps) {
               post={post}
               isActive={activeId === post.id}
               isMuted={isMuted}
-              onToggleMuted={() => setIsMuted((current) => !current)}
+              onToggleMuted={toggleMuted}
+              onEnded={() => goToNext(post.id)}
               onToggleLike={() => actions.toggleLike(post)}
               onToggleSave={() => actions.toggleSave(post)}
               onShared={() => void actions.sharePost(post)}

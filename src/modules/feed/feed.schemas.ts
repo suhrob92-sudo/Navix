@@ -281,6 +281,23 @@ export const createPostSchema = z
       )
       .max(MAX_ATTACHMENTS, `Ko'pi bilan ${MAX_ATTACHMENTS} ta narsa biriktiriladi.`)
       .optional(),
+    /**
+     * Postda reklama bormi — muallif o'zi belgilaydi.
+     *
+     * ── Nima uchun odatiy qiymat "yo'q" ─────────────────────────────
+     * Ko'pchilik post reklama emas. Odatiy qiymat "ha" bo'lsa,
+     * nishon deyarli har postda turib, ma'nosini butunlay
+     * yo'qotardi — odam uni ko'rmay qo'yardi.
+     */
+    /*
+      `z.boolean()`, `z.coerce.boolean()` EMAS.
+
+      Majburlash (`coerce`) har qanday bo'sh bo'lmagan satrni
+      `true` ga aylantiradi — ya'ni "false" degan satr ham `true`
+      bo'lib qolardi. Bu esa eng yomon xato turi: jimgina noto'g'ri
+      ishlaydi.
+    */
+    isSponsored: z.boolean().default(false),
   })
   .refine(
     (value) => value.body.length > 0 || Boolean(value.imageUrl) || Boolean(value.videoUrl),
@@ -368,6 +385,18 @@ export const updatePostSchema = z.object({
   body: z.string().trim().max(POST_MAX_LENGTH, `Matn ${POST_MAX_LENGTH} belgidan oshmasligi kerak.`),
   /** Bo'limni keyin ham o'zgartirish mumkin. */
   category: z.enum(POST_CATEGORY_VALUES).nullable().optional(),
+  /**
+   * Reklama belgisini KEYIN ham qo'yish mumkin.
+   *
+   * ── Nima uchun tahrirlashda ham ruxsat beriladi ───────────────────
+   * Bloger belgilashni unutgan bo'lishi mumkin. Yagona yo'l "postni
+   * o'chirib, qaytadan joylash" bo'lsa, u yoqtirishlar va izohlarni
+   * yo'qotardi — ya'ni halollik uchun jarima to'lardi.
+   *
+   * Bu esa aynan teskari natija berardi: unutgan odam belgilamay
+   * qo'ya qolardi.
+   */
+  isSponsored: z.boolean().optional(),
 });
 
 export type UpdatePostInput = z.infer<typeof updatePostSchema>;

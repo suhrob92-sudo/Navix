@@ -90,6 +90,16 @@ export interface PostView {
    */
   isSaved: boolean;
   /**
+   * Muallif postda REKLAMA borligini bildirganmi.
+   *
+   * ── Nima uchun bu HAR DOIM yuboriladi ───────────────────────────────
+   * Oshkoralik shartli bo'lishi mumkin emas: nishon lentada ham,
+   * to'liq ekranda ham, post sahifasida ham bir xil ko'rinishi
+   * kerak. Bitta joyda tushib qolsa, aynan o'sha joyda odam
+   * aldangan bo'lardi.
+   */
+  isSponsored: boolean;
+  /**
    * Post qaysi TO'PLAMDA.
    *
    * ── Nima uchun faqat "Saqlanganlar" sahifasida to'ldiriladi ─────────

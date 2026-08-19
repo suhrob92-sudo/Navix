@@ -411,6 +411,8 @@ export async function listUserPosts(
 export interface CreatePostData {
   body: string;
   category?: PostCategoryName | null;
+  /** Muallif postda reklama borligini bildirganmi. */
+  isSponsored?: boolean;
   imageUrl?: string | null;
   videoUrl?: string | null;
   videoPosterUrl?: string | null;
@@ -631,6 +633,7 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
         ...video,
         ...cta,
         category: data.category ?? null,
+        isSponsored: data.isSponsored ?? false,
         placeName: place?.name ?? null,
         latitude: place?.latitude ?? null,
         longitude: place?.longitude ?? null,
@@ -693,6 +696,7 @@ export async function updatePost(
   userId: string,
   body: string,
   category?: PostCategoryName | null,
+  isSponsored?: boolean,
 ): Promise<PostView> {
   const existing = await prisma.post.findUnique({
     where: { id: postId },
@@ -731,6 +735,14 @@ export async function updatePost(
          * bilmasdan yo'qotardi.
          */
         ...(category === undefined ? {} : { category }),
+        /*
+          Reklama belgisi ham FAQAT yuborilganda o'zgaradi.
+
+          Yuborilmagan bo'lsa tegilmaydi: faqat matnni tuzatgan
+          bloger belgisini bilmasdan olib tashlab qo'ymasligi
+          kerak — bu oshkoralikni jimgina yo'q qilardi.
+        */
+        ...(isSponsored === undefined ? {} : { isSponsored }),
       },
       select: { id: true },
     });

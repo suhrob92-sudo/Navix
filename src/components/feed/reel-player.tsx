@@ -6,6 +6,7 @@ import {
   Eye,
   Heart,
   Link2,
+  Loader2,
   MapPin,
   MessageCircle,
   Pause,
@@ -23,8 +24,11 @@ import { AttachmentButton } from '@/components/feed/attachment-button';
 import { PostCtaButton } from '@/components/feed/post-cta-button';
 import { RichText } from '@/components/feed/rich-text';
 import { ShareSheet } from '@/components/feed/share-sheet';
+import { SponsoredBadge } from '@/components/feed/sponsored-badge';
 import { Avatar } from '@/components/ui/avatar';
 import { useTrimmedVideo } from '@/hooks/use-trimmed-video';
+import { useWatchSettings } from '@/hooks/use-watch-settings';
+import { WATCH_SPEEDS } from '@/lib/watch-preference';
 import { cn } from '@/lib/utils';
 import {
   authorDisplayName,
@@ -51,6 +55,19 @@ export interface ReelPlayerProps {
   onAttachmentClick: (attachmentId: string) => void;
   /** Video ko'rildi deb belgilash — bir ochilishda BIR MARTA. */
   onViewed?: () => void;
+  /**
+   * UZUN video oxirigacha ko'rildi — keyingisiga o'tish mumkin.
+   *
+   * ── Nima uchun faqat uzun videoda ───────────────────────────────────
+   * Qisqa video TAKRORLANADI va bu to'g'ri: 15 soniyalik reel
+   * ikkinchi aylanishda ham qiziq, odam ko'pincha uni ataylab
+   * qayta ko'radi.
+   *
+   * 10 daqiqalik video esa boshqa: u tugagach takrorlansa, odam
+   * o'zi to'xtatmaguncha bir xil videoni qayta-qayta ko'rardi va
+   * trafik bekorga sarflanardi.
+   */
+  onEnded?: () => void;
 }
 
 /**
@@ -81,14 +98,35 @@ export function ReelPlayer({
   onShared,
   onAttachmentClick,
   onViewed,
+  onEnded,
 }: ReelPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   /** Odam qo'lda to'xtatganmi — faollik o'zgarsa ham tiklanmaydi. */
   const [isPaused, setIsPaused] = useState(false);
 
-  /** Tomosha tezligi — 1x odatiy. */
-  const [speed, setSpeed] = useState(1);
+  /**
+   * Tomosha tezligi — QURILMADA eslab qolinadi.
+   *
+   * ── Nima uchun komponent ichida saqlanmaydi ─────────────────────────
+   * Ilgari u har bir video uchun alohida edi: odam 1.5x qo'yib,
+   * keyingi videoga o'tsa — tezlik yana 1x bo'lardi. Dars yoki
+   * uzun vlog ko'rayotgan odam uni HAR videoda qayta bosardi.
+   */
+  const { speed, setSpeed } = useWatchSettings();
+
+  /**
+   * Video BUFERGA yig'ilyaptimi (internet sekin).
+   *
+   * ── Nima uchun buni ko'rsatish SHART ────────────────────────────────
+   * Sekin internetda video jimgina to'xtaydi: ekranda qotib qolgan
+   * kadr turadi. Odam esa buni "ilova buzildi" deb tushunadi va
+   * ilovani yopadi.
+   *
+   * Bitta aylanuvchi belgi bu xulosani butunlay o'zgartiradi:
+   * "internet sekin ekan, kutaman".
+   */
+  const [isBuffering, setIsBuffering] = useState(false);
 
   /**
    * Hozirgi o'rin va uzunlik — surish paneli uchun.
@@ -126,13 +164,32 @@ export function ReelPlayer({
   const viewedRef = useRef(false);
 
   /**
+   * Video UZUNMI — takrorlash va surish paneli shunga bog'liq.
+   *
+   * ── Nima uchun `videoSeconds`, faylning o'zi emas ───────────────────
+   * Faylning uzunligi metama'lumot yuklangandan KEYIN ma'lum
+   * bo'ladi. Ya'ni birinchi soniyalarda video "qisqa" deb
+   * hisoblanib, takrorlash yoqilib qolardi.
+   *
+   * `videoSeconds` esa serverdan darhol keladi va u kesimdan
+   * keyingi haqiqiy uzunlik.
+   */
+  const isLong = (post.videoSeconds ?? 0) > SHORT_VIDEO_SECONDS;
+
+  /**
    * Muallif kesgan qism KO'RSATILMAYDI.
    *
-   * `loop` — ha: to'liq ekranli pleyerda video takrorlanadi va
-   * takrorlanish ham kesim ichida bo'lishi kerak. Brauzerning o'z
-   * `loop` xossasi esa har doim nolga qaytarardi.
+   * `loop` — faqat QISQA videoda. 15 soniyalik reel ikkinchi
+   * aylanishda ham qiziq va odam uni ataylab qayta ko'radi.
+   *
+   * 10 daqiqalik video esa tugagach takrorlansa, odam o'zi
+   * to'xtatmaguncha bir xil videoni qayta-qayta ko'rardi —
+   * trafik ham, batareya ham bekorga sarflanardi.
    */
-  const { rewind } = useTrimmedVideo(videoRef, post, { loop: true });
+  const { rewind } = useTrimmedVideo(videoRef, post, {
+    loop: !isLong,
+    ...(isLong && onEnded ? { onEnded } : {}),
+  });
 
   const name = authorDisplayName(post.author);
   const likeText = formatReactionCount(post.likeCount);
@@ -160,7 +217,7 @@ export function ReelPlayer({
     yo'q edi: odam kutib tursa ham video tugaydi. Uzun videoda
     esa aksincha — usiz tomosha qilib bo'lmaydi.
   */
-  const hasSeekBar = span > SHORT_VIDEO_SECONDS;
+  const hasSeekBar = isLong && span > 0;
 
   /**
    * Kesim ichidagi vaqtga suradi.
@@ -217,6 +274,44 @@ export function ReelPlayer({
   }
 
   /**
+   * KESILMAGAN uzun video tugaganda.
+   *
+   * ── Nima uchun alohida effekt ───────────────────────────────────────
+   * Kesilgan videoda "tugadi" xabarini `useTrimmedVideo` beradi:
+   * u faylning oxirigacha yetmaydi va brauzer `ended` chiqarmaydi.
+   *
+   * Kesilmagan videoda esa aksincha — u yerda faqat brauzerning
+   * `ended` hodisasi bor. Ikkala yo'l ham kerak, aks holda
+   * videolarning yarmida avtomatik o'tish ishlamasdi.
+   */
+  const endedRef = useRef(onEnded);
+
+  /*
+    Havola EFFEKT ichida yangilanadi.
+
+    Chizish paytida yozish React qoidasini buzadi: chizish sof
+    bo'lishi kerak va uni yarim yo'lda to'xtatib, qaytadan
+    boshlash mumkin. Bunday holatda ref eski qiymatda qolib
+    ketishi mumkin edi.
+  */
+  useEffect(() => {
+    endedRef.current = onEnded;
+  }, [onEnded]);
+
+  const isTrimmed = trim !== null;
+
+  useEffect(() => {
+    const element = videoRef.current;
+    if (!element || !isLong || isTrimmed) return;
+
+    const onNativeEnded = () => endedRef.current?.();
+
+    element.addEventListener('ended', onNativeEnded);
+
+    return () => element.removeEventListener('ended', onNativeEnded);
+  }, [isLong, isTrimmed]);
+
+  /**
    * Vaqtni KUZATISH.
    *
    * ── Nima uchun `requestAnimationFrame` emas ─────────────────────────
@@ -230,14 +325,34 @@ export function ReelPlayer({
     const onTime = () => setPosition(element.currentTime);
     const onMeta = () => setTotal(Number.isFinite(element.duration) ? element.duration : 0);
 
+    /*
+      Uchta hodisa — bittasi yetarli emas.
+
+      `waiting` — ma'lumot tugadi, kutilyapti.
+      `playing` — qaytadan o'ynay boshladi.
+      `canplay`  — yetarli ma'lumot yig'ildi.
+
+      Faqat `waiting` va `playing` ishlatilsa, ba'zi brauzerlarda
+      belgi ekranda osilib qolardi: ular to'xtashdan keyin
+      `playing` emas, `canplay` chiqaradi.
+    */
+    const onWaiting = () => setIsBuffering(true);
+    const onReady = () => setIsBuffering(false);
+
     element.addEventListener('timeupdate', onTime);
     element.addEventListener('loadedmetadata', onMeta);
+    element.addEventListener('waiting', onWaiting);
+    element.addEventListener('playing', onReady);
+    element.addEventListener('canplay', onReady);
 
     if (element.readyState >= HTMLMediaElement.HAVE_METADATA) onMeta();
 
     return () => {
       element.removeEventListener('timeupdate', onTime);
       element.removeEventListener('loadedmetadata', onMeta);
+      element.removeEventListener('waiting', onWaiting);
+      element.removeEventListener('playing', onReady);
+      element.removeEventListener('canplay', onReady);
     };
   }, []);
 
@@ -286,7 +401,14 @@ export function ReelPlayer({
         src={post.videoUrl ?? undefined}
         poster={post.videoPosterUrl ?? undefined}
         muted={isMuted}
-        loop
+        /*
+          Brauzerning O'Z takrorlashi — faqat qisqa videoda.
+
+          Kesilgan videoda uni `useTrimmedVideo` boshqaradi, lekin
+          KESILMAGAN uzun videoda faqat shu xossa ishlaydi. Yoqiq
+          qolsa, 10 daqiqalik video cheksiz takrorlanardi.
+        */
+        loop={!isLong}
         playsInline
         preload={isActive ? 'auto' : 'metadata'}
         className="h-full w-full object-contain"
@@ -297,6 +419,23 @@ export function ReelPlayer({
       {isHeartFlying && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
           <Heart className="animate-heart-pop size-24 fill-white text-white drop-shadow-lg" aria-hidden="true" />
+        </div>
+      )}
+
+      {/*
+        Internet sekin — aylanuvchi belgi.
+
+        ── Nima uchun to'xtatish belgisidan OLDIN tekshiriladi ────
+        Odam videoni qo'lda to'xtatgan bo'lsa, "internet sekin"
+        deb aytish yolg'on bo'lardi. Shuning uchun belgi faqat
+        o'ynayotgan, lekin ma'lumot kutayotgan videoda chiqadi.
+      */}
+      {isBuffering && isActive && !isPaused && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <span className="flex items-center gap-2 rounded-full bg-black/55 px-3.5 py-2 backdrop-blur-sm">
+            <Loader2 className="size-4 animate-spin text-white" aria-hidden="true" />
+            <span className="text-xs text-white">Internet sekin...</span>
+          </span>
         </div>
       )}
 
@@ -338,7 +477,7 @@ export function ReelPlayer({
       */}
       <button
         type="button"
-        onClick={() => setSpeed((current) => SPEEDS[(SPEEDS.indexOf(current) + 1) % SPEEDS.length])}
+        onClick={() => setSpeed(WATCH_SPEEDS[(WATCH_SPEEDS.indexOf(speed) + 1) % WATCH_SPEEDS.length])}
         aria-label={`Tezlik: ${speed}x`}
         className="absolute top-16 right-4 rounded-full bg-black/40 px-2.5 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition-transform active:scale-95"
       >
@@ -426,6 +565,9 @@ export function ReelPlayer({
             {post.author.isVerified && (
               <BadgeCheck className="size-4 text-white drop-shadow" aria-label="Tasdiqlangan profil" />
             )}
+
+            {/* Reklama nishoni — to'liq ekranda ham muallif nomi yonida. */}
+            {post.isSponsored && <SponsoredBadge onMedia />}
           </span>
         </Link>
 
@@ -613,9 +755,6 @@ export function ReelPlayer({
     </div>
   );
 }
-
-/** Tomosha tezliklari — barmoq bilan aylantirishga qulay qisqa ro'yxat. */
-const SPEEDS: readonly number[] = [1, 1.5, 2, 0.5];
 
 /**
  * Bir bosishda o'tkaziladigan vaqt.

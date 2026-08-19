@@ -61,6 +61,7 @@ export function postSelect(viewerId: string) {
     ctaValue: true,
     ctaClickCount: true,
     pinnedAt: true,
+    isSponsored: true,
     viewCount: true,
     category: true,
     placeName: true,
@@ -324,6 +325,13 @@ export function toPostView(row: PostRow, viewerId: string): PostView {
     isLiked: row.likes.length > 0,
     isSaved: row.saves.length > 0,
     isPinned: row.deletedAt === null && row.pinnedAt !== null,
+    /*
+      O'chirilgan postda nishon ham YO'Q.
+
+      O'chirilgan post ro'yxatda "post o'chirilgan" yozuvi bo'lib
+      turadi: uning yonidagi "Reklama" nishoni faqat chalkashtirardi.
+    */
+    isSponsored: row.deletedAt === null && row.isSponsored,
     isMine,
     isDeleted: row.deletedAt !== null,
   };

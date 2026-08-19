@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
 
 import { readTrim } from '@/modules/feed/video-trim';
 
@@ -16,6 +16,18 @@ export interface TrimmedVideoOptions {
    * takrorlanadigan video chalg'itardi.
    */
   loop?: boolean;
+  /**
+   * Kesim OXIRIGA yetilganda chaqiriladi (faqat `loop` o'chiq bo'lsa).
+   *
+   * ── Nima uchun bu kerak ─────────────────────────────────────────────
+   * Kesilgan videoda brauzer `ended` hodisasini CHIQARMAYDI: fayl
+   * oxiriga yetmagan, biz uni oldinroq to'xtatganmiz.
+   *
+   * Ya'ni "video tugadi" degan xabarni faqat shu hook bera oladi.
+   * Usiz uzun kesilgan videodan keyingisiga avtomatik o'tish
+   * ishlamasdi.
+   */
+  onEnded?: () => void;
 }
 
 /**
@@ -43,7 +55,28 @@ export function useTrimmedVideo(
   post: { videoStartSeconds: number | null; videoEndSeconds: number | null },
   options: TrimmedVideoOptions = {},
 ): { rewind: () => void } {
-  const { loop = false } = options;
+  const { loop = false, onEnded } = options;
+
+  /*
+    Chaqiruv HAVOLASI o'zgarishi effektni qayta ulamasligi kerak.
+
+    `onEnded` ota komponentda har qayta chizishda yangidan
+    yasaladi. Uni effekt bog'liqligiga qo'shsak, hodisa
+    tinglovchilari sekundiga bir necha marta uzilib-ulanardi.
+  */
+  const endedRef = useRef(onEnded);
+
+  /*
+    Havola EFFEKT ichida yangilanadi.
+
+    Chizish paytida yozish React qoidasini buzadi: chizish sof
+    bo'lishi kerak va uni yarim yo'lda to'xtatib, qaytadan
+    boshlash mumkin. Bunday holatda ref eski qiymatda qolib
+    ketishi mumkin edi.
+  */
+  useEffect(() => {
+    endedRef.current = onEnded;
+  }, [onEnded]);
 
   const start = post.videoStartSeconds;
   const end = post.videoEndSeconds;
@@ -97,6 +130,7 @@ export function useTrimmedVideo(
 
         element.pause();
         toStart();
+        endedRef.current?.();
 
         return;
       }
