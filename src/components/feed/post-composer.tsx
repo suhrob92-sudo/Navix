@@ -1,7 +1,7 @@
 'use client';
 
-import { Link2, MapPin, Megaphone, Scissors, Send, Video, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Link2, MapPin, Megaphone, Scissors, Send, Sparkles, Video, X } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { LocationPicker } from '@/components/feed/location-picker';
 import { AttachmentPicker, type PickedAttachment } from '@/components/feed/attachment-picker';
@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useFileUpload } from '@/hooks/use-file-upload';
 import { dialogCancelHandler } from '@/lib/dialog';
 import { SPONSORED_TOGGLE_HINT, SPONSORED_TOGGLE_LABEL } from '@/config/disclosure';
+import { assistPost } from '@/modules/feed/feed-assist';
 import { cn } from '@/lib/utils';
 import { prepareVideo, uploadVideo } from '@/lib/video-upload';
 import { useAuth } from '@/modules/auth/auth-context';
@@ -178,6 +179,34 @@ export function PostComposer({
   useEffect(() => {
     dialogRef.current?.showModal();
   }, []);
+
+  /**
+   * Yordamchi takliflari.
+   *
+   * ── Nima uchun SERVERGA so'rov yuborilmaydi ─────────────────────────
+   * Butun hisob sof funksiyalardan iborat: bazaga ham, tarmoqqa ham
+   * murojaat yo'q. Uni serverga chiqarish har harfda so'rov yuborish
+   * degani bo'lardi — mobil trafik ham, kutish vaqti ham bekorga
+   * sarflanardi.
+   *
+   * Brauzerda esa u BIR LAHZADA ishlaydi va internet uzilganda ham
+   * ishlashda davom etadi.
+   *
+   * ── Nima uchun `useMemo` ────────────────────────────────────────────
+   * Hisob har bosilgan harfda qayta bajariladi. U yengil, lekin
+   * natijasi massiv va obyekt: har render'da yangisi yasalsa,
+   * quyidagi ro'yxatlar bekorga qayta chizilardi.
+   */
+  const assist = useMemo(
+    () =>
+      assistPost({
+        body,
+        hasMedia: imageUrl !== null || video !== null,
+        hasAttachments: attachments.length > 0,
+        hasCta: cta !== null,
+      }),
+    [body, imageUrl, video, attachments.length, cta],
+  );
 
   const trimmed = body.trim();
   /**
@@ -400,6 +429,109 @@ export function PostComposer({
           })}
         </div>
       </div>
+
+      {/*
+        Yordamchi — bo'lim qatoridan KEYIN.
+
+        ── Nima uchun ushbu tartib ───────────────────────────────────
+        Yordamchi bo'lim TAKLIF qiladi. Taklif qatordan yuqorida
+        tursa, odam avval taklifni ko'rib, keyin qaysi doirani
+        bosishni qidirardi. Pastda esa u "mana shu" deb qatorga
+        ishora qiladi.
+
+        ── Nima uchun faqat KERAK bo'lganda ──────────────────────────
+        Bo'sh maydonda taklif ham bo'lmaydi. Doim ko'rinib tursa,
+        u ekranni band qilib, e'tiborni yo'qotardi.
+      */}
+      {/*
+        BO'SH qoralamada yordamchi umuman ko'rinmaydi.
+
+        ── HAQIQIY XATO, sinovda topilgan ────────────────────────
+        Umumiy mavzular (#navix, #toshkent) matnsiz ham taklif
+        qilinardi va panel kompozitor ochilishi bilan chiqib
+        turardi.
+
+        Odam hali bir harf ham yozmasdan turib maslahat ko'rsa,
+        u "mendan nimadir talab qilinyapti" degan taassurot
+        olardi. Yordam esa ish boshlangandan keyin kerak.
+      */}
+      {!isEmpty &&
+        (assist.category !== null || assist.hashtags.length > 0 || assist.tips.length > 0) && (
+        <div className="border-border bg-secondary/40 mt-3 space-y-2.5 rounded-xl border p-3">
+          <p className="flex items-center gap-1.5 text-xs font-medium">
+            <Sparkles className="size-3.5" aria-hidden="true" />
+            Yordamchi
+          </p>
+
+          {/*
+            Bo'lim taklifi — FAQAT tanlanmagan bo'lsa.
+
+            Odam o'zi tanlagan bo'limni "tuzatishga" urinish
+            behurmatlik bo'lardi: u o'z postini bizdan yaxshiroq
+            biladi.
+          */}
+          {assist.category !== null && category === null && (
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={() => setCategory(assist.category)}
+              className="border-border hover:bg-secondary flex w-full items-center gap-2 rounded-lg border p-2 text-left text-xs transition-colors disabled:opacity-60"
+            >
+              <span className="min-w-0 flex-1">
+                {`Bo'lim: `}
+                <span className="font-medium">{assist.categoryLabel}</span>
+              </span>
+
+              <span className="bg-primary text-primary-foreground shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium">
+                Tanlash
+              </span>
+            </button>
+          )}
+
+          {assist.hashtags.length > 0 && (
+            <div>
+              <p className="text-muted-foreground mb-1.5 text-xs">Mavzu qo&apos;shish</p>
+
+              <div className="flex flex-wrap gap-1.5">
+                {assist.hashtags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    disabled={isBusy}
+                    /*
+                      Xeshteg matn OXIRIGA qo'shiladi.
+
+                      Kursor turgan joyga qo'yish ham mumkin edi,
+                      lekin u so'zning o'rtasiga tushib, matnni
+                      buzib qo'yardi.
+                    */
+                    onClick={() =>
+                      setBody((current) => {
+                        const base = current.trimEnd();
+
+                        return base.length === 0 ? `#${tag} ` : `${base} #${tag} `;
+                      })
+                    }
+                    className="border-border hover:bg-secondary rounded-full border px-2.5 py-1 text-xs transition-colors disabled:opacity-60"
+                  >
+                    {`#${tag}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {assist.tips.length > 0 && (
+            <ul className="space-y-1">
+              {assist.tips.map((tip) => (
+                <li key={tip.code} className="text-muted-foreground text-xs leading-relaxed">
+                  {`• ${tip.text}`}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/*
         Reklama belgisi — bo'lim tanlashdan KEYIN.
