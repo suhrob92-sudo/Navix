@@ -1,4 +1,11 @@
+import {
+  MODERATED_CONTENT_KINDS,
+  MODERATED_CONTENT_LABELS,
+  type ContentRemovalReasonName,
+  type ModeratedContentKindName,
+} from '@/config/moderation-reasons';
 import { AuditAction, recordAudit } from '@/lib/audit';
+import { notifyUser } from '@/modules/notification/notification.service';
 import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
@@ -32,16 +39,16 @@ import type { AdminContentQuery, SetContentVisibleInput } from '@/modules/admin/
 
 const MODULE = 'admin';
 
-export const CONTENT_KINDS = ['PRODUCT', 'DISH', 'POST', 'VACANCY'] as const;
+/*
+  Turlar ro'yxati `@/config/moderation-reasons` ga ko'chirildi:
+  endi u muallif ekraniga va bildirishnoma matniga ham kerak.
+  Eski nomlar saqlanadi — ular admin modulining o'z tilida.
+*/
+export const CONTENT_KINDS = MODERATED_CONTENT_KINDS;
 
-export type ContentKind = (typeof CONTENT_KINDS)[number];
+export type ContentKind = ModeratedContentKindName;
 
-export const CONTENT_KIND_LABELS: Record<ContentKind, string> = {
-  PRODUCT: 'Mahsulot',
-  DISH: 'Taom',
-  POST: 'Post',
-  VACANCY: 'Vakansiya',
-};
+export const CONTENT_KIND_LABELS = MODERATED_CONTENT_LABELS;
 
 export interface AdminContentItem {
   id: string;
@@ -193,29 +200,59 @@ export async function listAdminContent(query: AdminContentQuery): Promise<AdminC
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-/** Yozuvning hozirgi holatini o'qiydi. */
-async function findContent(kind: ContentKind, id: string): Promise<{ title: string; isVisible: boolean } | null> {
+/**
+ * Yozuvning hozirgi holatini o'qiydi.
+ *
+ * ── Nima uchun EGASI ham o'qiladi ─────────────────────────────────────
+ * Sabab muallifga yetib borishi kerak: bildirishnoma ham, ro'yxat ham
+ * odamga bog'langan. Egasiz sabab faqat jurnalda qolardi — ya'ni
+ * hech narsa o'zgarmasdi.
+ *
+ * `ownerId` BO'SH bo'lishi mumkin: do'kon, restoran va kompaniya
+ * egasi o'chirilgan bo'lsa (`SetNull`). Bunday holatda sabab baribir
+ * yoziladi, faqat bildirishnoma yuboriladigan odam yo'q.
+ */
+async function findContent(
+  kind: ContentKind,
+  id: string,
+): Promise<{ title: string; isVisible: boolean; ownerId: string | null } | null> {
   if (kind === 'PRODUCT') {
-    const row = await prisma.product.findUnique({ where: { id }, select: { name: true, isActive: true } });
+    const row = await prisma.product.findUnique({
+      where: { id },
+      select: { name: true, isActive: true, shop: { select: { ownerId: true } } },
+    });
 
-    return row ? { title: row.name, isVisible: row.isActive } : null;
+    return row ? { title: row.name, isVisible: row.isActive, ownerId: row.shop.ownerId } : null;
   }
 
   if (kind === 'DISH') {
-    const row = await prisma.menuItem.findUnique({ where: { id }, select: { name: true, isAvailable: true } });
+    const row = await prisma.menuItem.findUnique({
+      where: { id },
+      select: { name: true, isAvailable: true, restaurant: { select: { ownerId: true } } },
+    });
 
-    return row ? { title: row.name, isVisible: row.isAvailable } : null;
+    return row
+      ? { title: row.name, isVisible: row.isAvailable, ownerId: row.restaurant.ownerId }
+      : null;
   }
 
   if (kind === 'POST') {
-    const row = await prisma.post.findUnique({ where: { id }, select: { body: true, deletedAt: true } });
+    const row = await prisma.post.findUnique({
+      where: { id },
+      select: { body: true, deletedAt: true, authorId: true },
+    });
 
-    return row ? { title: shorten(row.body), isVisible: row.deletedAt === null } : null;
+    return row
+      ? { title: shorten(row.body) || '(faqat rasm)', isVisible: row.deletedAt === null, ownerId: row.authorId }
+      : null;
   }
 
-  const row = await prisma.vacancy.findUnique({ where: { id }, select: { title: true, isActive: true } });
+  const row = await prisma.vacancy.findUnique({
+    where: { id },
+    select: { title: true, isActive: true, company: { select: { ownerId: true } } },
+  });
 
-  return row ? { title: row.title, isVisible: row.isActive } : null;
+  return row ? { title: row.title, isVisible: row.isActive, ownerId: row.company.ownerId } : null;
 }
 
 /**
@@ -261,6 +298,29 @@ export async function setContentVisible(
     await prisma.vacancy.update({ where: { id: contentId }, data: { isActive: input.isVisible } });
   }
 
+  /*
+    Sabab MUALLIF uchun yoziladi.
+
+    Audit jurnali ham yoziladi (pastda), lekin u faqat admin panelda
+    ko'rinadi. Muallif o'z yozuvining nega olib tashlanganini
+    ko'rmasa, ertaga xuddi shuni qaytaradi.
+  */
+  if (!input.isVisible && input.reason) {
+    await recordRemoval({
+      kind,
+      contentId,
+      ownerId: current.ownerId,
+      reason: input.reason,
+      note: input.note ?? null,
+      moderatorId: actorId,
+      title: current.title,
+    });
+  }
+
+  if (input.isVisible) {
+    await clearRemoval(kind, contentId, current.ownerId, current.title);
+  }
+
   await recordAudit({
     actorId,
     action: input.isVisible ? AuditAction.ADMIN_CONTENT_RESTORED : AuditAction.ADMIN_CONTENT_HIDDEN,
@@ -292,4 +352,98 @@ export async function setContentVisible(
    * javob yolg'on ma'lumot bo'lardi.
    */
   return { id: contentId, kind, title: current.title, isVisible: input.isVisible };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Sabab yozuvi
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Sababni yozadi va muallifga xabar beradi.
+ *
+ * ── Nima uchun bildirishnoma XATOSI amalni to'xtatmaydi ───────────────
+ * Yozuv allaqachon yashirilgan. Bildirishnoma yuborilmagani uchun
+ * butun amalni bekor qilish moderatorga "ishlamadi" degan xato
+ * ko'rsatardi va u tugmani yana bosardi — natijada yozuv qayta
+ * yashirilardi.
+ *
+ * Sabab bazada turibdi va muallif uni ro'yxatda baribir ko'radi.
+ */
+async function recordRemoval(input: {
+  kind: ContentKind;
+  contentId: string;
+  ownerId: string | null;
+  reason: ContentRemovalReasonName;
+  note: string | null;
+  moderatorId: string;
+  title: string;
+}): Promise<void> {
+  if (!input.ownerId) {
+    /*
+      Egasi o'chirilgan — sababni bog'laydigan odam yo'q.
+
+      Qatorni egasiz yozib bo'lmaydi (`ownerId` majburiy), shuning
+      uchun faqat jurnalga yoziladi.
+    */
+    logger.warn({ kind: input.kind, contentId: input.contentId }, 'Kontent egasi topilmadi');
+
+    return;
+  }
+
+  await prisma.contentRemoval.create({
+    data: {
+      kind: input.kind,
+      contentId: input.contentId,
+      ownerId: input.ownerId,
+      title: input.title.slice(0, 120),
+      reason: input.reason,
+      note: input.note,
+      moderatorId: input.moderatorId,
+    },
+  });
+
+  try {
+    await notifyUser(input.ownerId, 'content.removed', {
+      kind: input.kind,
+      title: input.title,
+      reason: input.reason,
+    });
+  } catch (error) {
+    logger.error({ err: error, contentId: input.contentId }, 'Sabab bildirishnomasi yuborilmadi');
+  }
+}
+
+/**
+ * Yozuv qaytarilganda sababni yopadi.
+ *
+ * ── Nima uchun qator O'CHIRILMAYDI ────────────────────────────────────
+ * Muallif "e'tirozim qabul qilindi" degan izni ko'rishi kerak.
+ * O'chirilsa, ro'yxat bo'shab qolardi va odam qaror o'zgarganini
+ * emas, tizim uni unutganini ko'rardi.
+ */
+async function clearRemoval(
+  kind: ContentKind,
+  contentId: string,
+  ownerId: string | null,
+  title: string,
+): Promise<void> {
+  /*
+    `updateMany` — qator bo'lmasligi ham mumkin.
+
+    Yozuv sabab tizimi qo'shilishidan OLDIN yashirilgan bo'lsa,
+    unga tegishli qator yo'q. `update` bunday holatda xato berardi
+    va qaytarish amali yiqilardi.
+  */
+  const changed = await prisma.contentRemoval.updateMany({
+    where: { kind, contentId, restoredAt: null },
+    data: { restoredAt: new Date() },
+  });
+
+  if (changed.count === 0 || !ownerId) return;
+
+  try {
+    await notifyUser(ownerId, 'content.restored', { kind, title });
+  } catch (error) {
+    logger.error({ err: error, contentId }, 'Qaytarish bildirishnomasi yuborilmadi');
+  }
 }

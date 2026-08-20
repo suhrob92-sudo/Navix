@@ -12,7 +12,15 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  CONTENT_REMOVAL_REASONS,
+  CONTENT_REMOVAL_REASON_CONFIG,
+  REMOVAL_NOTE_MAX_LENGTH,
+  REMOVAL_NOTE_MIN_LENGTH,
+  type ContentRemovalReasonName,
+} from '@/config/moderation-reasons';
 import { Permission } from '@/config/rbac';
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
@@ -86,24 +94,30 @@ function ContentBody() {
   );
 
   const [hidingId, setHidingId] = useState<string | null>(null);
-  const [reason, setReason] = useState('');
+  const [reason, setReason] = useState<ContentRemovalReasonName | ''>('');
+  const [note, setNote] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const items = data?.items ?? [];
 
-  async function apply(item: AdminContentItem, isVisible: boolean, why?: string) {
+  async function apply(item: AdminContentItem, isVisible: boolean) {
     setBusyId(item.id);
     setActionError(null);
 
     try {
       await request(`/api/v1/admin/content/${item.kind}/${item.id}`, {
         method: 'PATCH',
-        body: { isVisible, ...(why ? { reason: why } : {}) },
+        body: {
+          isVisible,
+          ...(isVisible ? {} : { reason }),
+          ...(!isVisible && note.trim() ? { note: note.trim() } : {}),
+        },
       });
 
       setHidingId(null);
       setReason('');
+      setNote('');
       reload();
     } catch (caught) {
       setActionError(toUserMessage(caught));
@@ -209,24 +223,71 @@ function ContentBody() {
 
                 {isHiding ? (
                   <div className="mt-3 space-y-3">
-                    <Field id={`reason-${item.id}`} label="Yashirish sababi" hint="Jurnalga yoziladi" required>
-                      <Textarea
+                    {/*
+                      Sabab RO'YXATDAN tanlanadi.
+
+                      Ilgari bu erkin matn edi va faqat jurnalga
+                      tushardi. Endi u MUALLIFGA ko'rsatiladi — ya'ni
+                      har safar bir xil va tushunarli bo'lishi kerak.
+                    */}
+                    <Field
+                      id={`reason-${item.id}`}
+                      label="Yashirish sababi"
+                      hint="Muallif shu sababni ko'radi"
+                      required
+                    >
+                      <Select
                         id={`reason-${item.id}`}
                         value={reason}
-                        onChange={(event) => setReason(event.target.value)}
-                        placeholder="Masalan: Taqiqlangan tovar"
-                        rows={2}
-                        maxLength={200}
+                        placeholder="Sababni tanlang"
+                        onChange={(event) => setReason(event.target.value as ContentRemovalReasonName)}
+                        options={CONTENT_REMOVAL_REASONS.map((value) => ({
+                          value,
+                          label: CONTENT_REMOVAL_REASON_CONFIG[value].label,
+                        }))}
                       />
                     </Field>
+
+                    {reason !== '' && (
+                      <>
+                        {/* Muallif ko'radigan matn — moderator uni oldindan o'qiydi. */}
+                        <p className="text-muted-foreground bg-secondary rounded-xl p-3 text-xs leading-relaxed">
+                          {CONTENT_REMOVAL_REASON_CONFIG[reason].notice}
+                        </p>
+
+                        <Field
+                          id={`note-${item.id}`}
+                          label="Qo'shimcha izoh"
+                          hint={
+                            CONTENT_REMOVAL_REASON_CONFIG[reason].needsNote
+                              ? 'Bu sabab uchun izoh majburiy'
+                              : 'Ixtiyoriy — u ham muallifga ko\'rinadi'
+                          }
+                          required={CONTENT_REMOVAL_REASON_CONFIG[reason].needsNote}
+                        >
+                          <Textarea
+                            id={`note-${item.id}`}
+                            value={note}
+                            onChange={(event) => setNote(event.target.value)}
+                            placeholder="Masalan: rasmda boshqa do'konning logotipi bor"
+                            rows={2}
+                            maxLength={REMOVAL_NOTE_MAX_LENGTH}
+                          />
+                        </Field>
+                      </>
+                    )}
 
                     <div className="flex gap-2">
                       <Button
                         size="sm"
                         variant="destructive"
                         isLoading={isBusy}
-                        disabled={reason.trim().length < 5}
-                        onClick={() => void apply(item, false, reason.trim())}
+                        disabled={
+                          reason === '' ||
+                          (CONTENT_REMOVAL_REASON_CONFIG[reason].needsNote &&
+                            note.trim().length < REMOVAL_NOTE_MIN_LENGTH)
+                        }
+                        onClick={() => void apply(item, false)}
                       >
                         Yashirish
                       </Button>
@@ -236,6 +297,7 @@ function ContentBody() {
                         onClick={() => {
                           setHidingId(null);
                           setReason('');
+                          setNote('');
                         }}
                       >
                         Bekor qilish

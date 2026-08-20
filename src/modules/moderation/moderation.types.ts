@@ -1,3 +1,8 @@
+import type {
+  ContentRemovalReasonName,
+  ModeratedContentKindName,
+} from '@/config/moderation-reasons';
+
 /**
  * Moderatsiya — brauzer va server uchun umumiy turlar.
  */
@@ -156,4 +161,39 @@ export function messageDenyText(reason: MessageDenyReason): string {
 
   // BLOCKED_BY_THEM va NOBODY — ataylab BIR XIL matn.
   return "Bu foydalanuvchiga xabar yozib bo'lmaydi.";
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Olib tashlangan yozuvlar — MUALLIF uchun
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Muallif ko'radigan bitta qaror.
+ *
+ * ── Nima uchun yorliq va izoh SERVERDA tayyorlanadi ───────────────────
+ * Ularni brauzerda ham hisoblash mumkin edi (sozlama fayli
+ * brauzerga ketadi). Lekin bu qaror bildirishnomada ham, sahifada
+ * ham, kelajakda elektron pochtada ham bir xil ko'rinishi kerak —
+ * ya'ni matn bitta joyda yig'ilgani ma'qul.
+ */
+export interface ContentRemovalView {
+  id: string;
+  kind: ModeratedContentKindName;
+  /** "Post", "Mahsulot" — ekranda ko'rinadigan tur nomi. */
+  kindLabel: string;
+  /** Yozuvning qaror paytidagi nomi. */
+  title: string;
+  reason: ContentRemovalReasonName;
+  /** Qisqa yorliq — "Spam". */
+  reasonLabel: string;
+  /** To'liq tushuntirish: qoida + moderator izohi. */
+  notice: string;
+  /** Yozuv qaytarilganmi. */
+  isRestored: boolean;
+  createdAt: string;
+  restoredAt: string | null;
+}
+
+export interface ContentRemovalListResponse {
+  removals: ContentRemovalView[];
 }

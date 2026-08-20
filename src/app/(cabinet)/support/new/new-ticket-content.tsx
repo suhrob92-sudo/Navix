@@ -1,7 +1,7 @@
 'use client';
 
 import { Send } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
@@ -37,13 +37,42 @@ export function NewTicketContent() {
   );
 }
 
+/**
+ * Manzildagi turni tekshiradi.
+ *
+ * Qiymat MANZILDAN keladi, ya'ni uni istalgan odam o'zgartira
+ * oladi. Tekshirilmasa, ro'yxatda umuman yo'q tur tanlangandek
+ * ko'rinardi va yuborish tugmasi sababsiz ishlamasdi.
+ */
+function asCategory(value: string | null): SupportCategoryName | null {
+  return SUPPORT_CATEGORIES.some((item) => item.value === value)
+    ? (value as SupportCategoryName)
+    : null;
+}
+
 function NewTicketBody() {
   const router = useRouter();
   const request = useApiClient();
 
-  const [category, setCategory] = useState<SupportCategoryName | null>(null);
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
+  /**
+   * Murojaat OLDINDAN to'ldirilishi mumkin.
+   *
+   * ── Nima uchun ────────────────────────────────────────────────────
+   * Moderatsiya qarori sahifasidagi "E'tiroz bildirish" tugmasi shu
+   * yerga olib keladi. Bo'sh oynaga tushgan odam "postim o'chirilgan"
+   * deb yozadi, xodim esa qaysi post ekanini so'rab yana bir kun
+   * yo'qotadi.
+   *
+   * Qiymatlar faqat BOSHLANG'ICH holat: odam ularni bemalol
+   * o'zgartiradi va server baribir hammasini qayta tekshiradi.
+   */
+  const params = useSearchParams();
+
+  const [category, setCategory] = useState<SupportCategoryName | null>(
+    asCategory(params.get('category')),
+  );
+  const [subject, setSubject] = useState(params.get('subject') ?? '');
+  const [message, setMessage] = useState(params.get('message') ?? '');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);

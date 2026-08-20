@@ -1,3 +1,8 @@
+import {
+  CONTENT_REMOVAL_REASON_CONFIG,
+  MODERATED_CONTENT_LABELS,
+  removalNoticeText,
+} from '@/config/moderation-reasons';
 import { Prisma } from '@/generated/prisma/client';
 import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/api/errors';
 import { AuditAction, recordAudit } from '@/lib/audit';
@@ -12,6 +17,7 @@ import {
   messageDenyText,
   type AdminReportView,
   type BlockedUserView,
+  type ContentRemovalView,
   type MessageDenyReason,
   type ReportedContentView,
   type ReportPartyView,
@@ -646,4 +652,56 @@ export async function resolveReport(
   });
 
   logger.info({ actorId, reportId, status: input.status }, 'Shikoyat yopildi');
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Olib tashlangan yozuvlar — MUALLIF uchun
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Nechta qaror ko'rsatiladi.
+ *
+ * ── Nima uchun chegara bor ────────────────────────────────────────────
+ * Bu ro'yxat kundalik ish emas — odam unga qoidabuzarlik bo'lganda
+ * kiradi. Cheksiz sahifalash "yana yuklash" tugmasi va belgini
+ * talab qilardi, ular esa deyarli hech qachon bosilmasdi.
+ */
+const REMOVAL_LIST_LIMIT = 50;
+
+/**
+ * Menga tegishli olib tashlash qarorlari — yangisidan eskisiga.
+ *
+ * ── Nima uchun QAYTARILGANLARI ham ko'rsatiladi ───────────────────────
+ * Odam e'tiroz bildirgan bo'lsa, natijani ko'rishi kerak. Qator
+ * ro'yxatdan yo'qolsa, u qaror o'zgarganini emas, tizim uni
+ * unutganini ko'rardi.
+ */
+export async function listMyRemovals(userId: string): Promise<ContentRemovalView[]> {
+  const rows = await prisma.contentRemoval.findMany({
+    where: { ownerId: userId },
+    orderBy: { createdAt: 'desc' },
+    take: REMOVAL_LIST_LIMIT,
+    select: {
+      id: true,
+      kind: true,
+      title: true,
+      reason: true,
+      note: true,
+      restoredAt: true,
+      createdAt: true,
+    },
+  });
+
+  return rows.map((row) => ({
+    id: row.id,
+    kind: row.kind,
+    kindLabel: MODERATED_CONTENT_LABELS[row.kind],
+    title: row.title,
+    reason: row.reason,
+    reasonLabel: CONTENT_REMOVAL_REASON_CONFIG[row.reason].label,
+    notice: removalNoticeText(row.reason, row.note),
+    isRestored: row.restoredAt !== null,
+    createdAt: row.createdAt.toISOString(),
+    restoredAt: row.restoredAt?.toISOString() ?? null,
+  }));
 }

@@ -304,6 +304,8 @@ model User {
   supportTickets    SupportTicket[]      @relation("SupportTickets")
   supportAssigned   SupportTicket[]      @relation("SupportAssignee")
   supportMessages   SupportMessage[]     @relation("SupportMessages")
+  contentRemovals   ContentRemoval[]     @relation("RemovalOwner")
+  removalsIssued    ContentRemoval[]     @relation("RemovalModerator")
 
   @@index([status])
   @@index([createdAt])
@@ -3739,4 +3741,95 @@ model SupportMessage {
 
   @@index([ticketId, createdAt])
   @@map("support_messages")
+}
+
+/// Moderator kontentni olib tashlaganda yoziladigan SABAB.
+///
+/// ── Nima uchun audit jurnalining o'zi yetarli emas edi ────────────────
+/// Sabab audit jurnaliga yozilardi, lekin u faqat admin panelda
+/// ko'rinadi. Muallif esa postining nega yo'qolganini bilmasdi va
+/// ertaga xuddi shuni qaytadan joylardi.
+///
+/// ── Nima uchun ALOHIDA jadval, ustun emas ─────────────────────────────
+/// Sabab to'rt xil kontentga kerak: post, mahsulot, taom va ish
+/// e'loni. Har biriga ikkitadan ustun qo'shish (sabab + izoh) sakkizta
+/// ustun degani va beshinchi tur qo'shilganda yana ikkitasi.
+///
+/// Alohida jadvalda esa tur oddiy qiymat bo'ladi va yangi tur
+/// hech qanday ko'chirishni talab qilmaydi.
+///
+/// ── Nima uchun TARIX saqlanadi ────────────────────────────────────────
+/// Yozuv qaytarilganda qator o'chirilmaydi — `restoredAt` qo'yiladi.
+/// Muallif "e'tirozim qabul qilindi" degan yozuvni ko'rishi kerak,
+/// moderator esa takroriy qoidabuzarlikni ko'ra olishi kerak.
+model ContentRemoval {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Qaysi turdagi yozuv. `CONTENT_KINDS` bilan bir xil.
+  kind ModeratedContentKind
+
+  /// Yozuvning ID si.
+  ///
+  /// Tashqi kalit ATAYLAB qo'yilmagan: bitta ustun to'rtta jadvalga
+  /// bir vaqtda ishora qila olmaydi. Yozuv butunlay o'chirilsa,
+  /// sabab yetim qoladi — lekin u shundoq ham TARIX va muallifga
+  /// ko'rsatilishi kerak.
+  contentId String @db.Uuid
+
+  /// Yozuv egasi — bildirishnoma va ro'yxat shu odamga tegishli.
+  ownerId String @db.Uuid
+  owner   User   @relation("RemovalOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  /// Yozuvning nomi — QAROR PAYTIDAGI nusxasi.
+  ///
+  /// ── Nima uchun nusxa saqlanadi ─────────────────────────────────────
+  /// Muallif ro'yxatda "qaysi yozuvim?" degan savolga javob topishi
+  /// kerak. Nomni asl jadvaldan o'qish mumkin edi, lekin yozuv
+  /// butunlay o'chirilsa (masalan muallifning o'zi o'chirsa),
+  /// ro'yxatda nomsiz qatorlar qolardi.
+  ///
+  /// Bu matn FAQAT egasiga ko'rsatiladi va u o'zining yozuvi —
+  /// shuning uchun audit jurnalidagi cheklov bu yerga tegishli emas.
+  title String @db.VarChar(120)
+
+  reason ContentRemovalReason
+
+  /// Moderatorning qo'shimcha izohi. "Boshqa sabab" da majburiy.
+  note String? @db.VarChar(200)
+
+  /// Qaysi moderator. Hisobi o'chirilsa qaror qolaveradi.
+  moderatorId String? @db.Uuid
+  moderator   User?   @relation("RemovalModerator", fields: [moderatorId], references: [id], onDelete: SetNull)
+
+  /// Yozuv qaytarilgan payt. `null` — hali olib tashlangan holatda.
+  restoredAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  /// Muallifning ro'yxati — yangisidan eskisiga.
+  @@index([ownerId, createdAt])
+  /// "Shu yozuvning amaldagi sababi" — sahifa har ochilganda so'raladi.
+  @@index([kind, contentId, restoredAt])
+  @@map("content_removals")
+}
+
+/// Moderatsiya qilinadigan kontent turlari.
+enum ModeratedContentKind {
+  PRODUCT
+  DISH
+  POST
+  VACANCY
+}
+
+/// Olib tashlash sabablari. Izohlari `src/config/moderation-reasons.ts` da.
+enum ContentRemovalReason {
+  SPAM
+  ADULT
+  VIOLENCE
+  HATE
+  FRAUD
+  COPYRIGHT
+  MISLEADING
+  PRIVACY
+  OTHER
 }

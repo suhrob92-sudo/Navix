@@ -1,5 +1,11 @@
 import { z } from 'zod';
 
+import {
+  CONTENT_REMOVAL_REASONS,
+  CONTENT_REMOVAL_REASON_CONFIG,
+  REMOVAL_NOTE_MAX_LENGTH,
+  REMOVAL_NOTE_MIN_LENGTH,
+} from '@/config/moderation-reasons';
 import { paginationQuerySchema } from '@/lib/api/pagination';
 import { MAX_ACCOUNT_REGEX_LENGTH, validateAccountRegex } from '@/modules/admin/account-regex';
 
@@ -256,19 +262,45 @@ export type AdminContentQuery = z.infer<typeof adminContentQuerySchema>;
 /**
  * PATCH /api/v1/admin/content/[kind]/[id]
  *
- * Sabab yashirishda majburiy: sotuvchi "mahsulotim nega yo'qoldi?"
- * deb so'raganda javob jurnalda bo'lishi kerak, xodimning
- * xotirasida emas.
+ * ── Nima uchun sabab endi RO'YXATDAN tanlanadi ────────────────────────
+ * Ilgari u erkin matn edi va faqat audit jurnaliga tushardi. Endi
+ * sabab MUALLIFGA ko'rsatiladi — ya'ni u har safar bir xil, tushunarli
+ * va tarjima qilingan bo'lishi kerak.
+ *
+ * Erkin matnda buning iloji yo'q: bir moderator "reklama", ikkinchisi
+ * "spam" deb yozardi va muallif uchun bu ikki xil ayb bo'lib
+ * ko'rinardi.
+ *
+ * Qo'shimcha izoh (`note`) qoladi — lekin u sababning O'RNINI emas,
+ * DAVOMINI yozadi.
  */
 export const setContentVisibleSchema = z
   .object({
     isVisible: z.boolean(),
-    reason: z.string().trim().min(5, 'Sababni batafsilroq yozing (kamida 5 ta belgi)').max(200).optional(),
+    reason: z.enum(CONTENT_REMOVAL_REASONS).optional(),
+    note: z
+      .string()
+      .trim()
+      .min(REMOVAL_NOTE_MIN_LENGTH, 'Izohni batafsilroq yozing')
+      .max(REMOVAL_NOTE_MAX_LENGTH)
+      .optional(),
   })
   .refine((value) => value.isVisible || Boolean(value.reason), {
-    message: 'Yashirish sababini yozing — u jurnalga yoziladi',
+    message: 'Yashirish sababini tanlang — u muallifga ko\'rsatiladi',
     path: ['reason'],
-  });
+  })
+  /*
+    "Boshqa sabab" izohsiz hech narsa tushuntirmaydi.
+
+    Muallif "Yozuv qoidalarga mos kelmadi" degan jumlani o'qib,
+    nima qilishini bilmasdi — va e'tiroz yozishdan boshqa yo'li
+    qolmasdi. Bu esa moderatorning ishini ikki barobar oshirardi.
+  */
+  .refine(
+    (value) =>
+      !value.reason || !CONTENT_REMOVAL_REASON_CONFIG[value.reason].needsNote || Boolean(value.note),
+    { message: 'Bu sabab uchun izoh yozing', path: ['note'] },
+  );
 
 export type SetContentVisibleInput = z.infer<typeof setContentVisibleSchema>;
 

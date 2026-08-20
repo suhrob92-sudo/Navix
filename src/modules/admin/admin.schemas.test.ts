@@ -6,6 +6,7 @@ import {
   adminUserQuerySchema,
   createProviderSchema,
   refundPaymentSchema,
+  setContentVisibleSchema,
   updateProviderSchema,
   updateUserRoleSchema,
   updateUserStatusSchema,
@@ -216,5 +217,86 @@ describe('adminAuditQuerySchema', () => {
     const result = adminAuditQuerySchema.parse({ action: 'payment.service.refunded' });
 
     expect(result.action).toBe('payment.service.refunded');
+  });
+});
+
+/**
+ * Kontentni yashirish — SABAB endi ro'yxatdan tanlanadi.
+ *
+ * Bu qiymat muallifga ko'rsatiladi, ya'ni u har safar bir xil va
+ * tushunarli bo'lishi kerak. Erkin matn buni ta'minlay olmasdi.
+ */
+describe('setContentVisibleSchema', () => {
+  it('sababsiz yashirishni rad etadi', () => {
+    /*
+      Ilgari sabab jurnal uchun kerak edi. Endi u MUALLIF uchun —
+      sababsiz yashirish odamni yana qorong'ida qoldirardi.
+    */
+    const result = setContentVisibleSchema.safeParse({ isVisible: false });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("ro'yxatda yo'q sababni rad etadi", () => {
+    const result = setContentVisibleSchema.safeParse({ isVisible: false, reason: 'YOQTIRMADIM' });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('erkin matnli eski sababni rad etadi', () => {
+    /*
+      Eski mijoz (yoki eski kod) matn yuborsa, u jimgina o'tib
+      ketmasligi kerak: aks holda bazada tarjima qilib bo'lmaydigan
+      qiymat paydo bo'lardi.
+    */
+    const result = setContentVisibleSchema.safeParse({
+      isVisible: false,
+      reason: 'Taqiqlangan tovar',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("to'g'ri sabab bilan o'tadi", () => {
+    const result = setContentVisibleSchema.safeParse({ isVisible: false, reason: 'SPAM' });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('"Boshqa sabab" izohsiz rad etiladi', () => {
+    const result = setContentVisibleSchema.safeParse({ isVisible: false, reason: 'OTHER' });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('"Boshqa sabab" izoh bilan o\'tadi', () => {
+    const result = setContentVisibleSchema.safeParse({
+      isVisible: false,
+      reason: 'OTHER',
+      note: 'Rasmda begona logotip bor',
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('juda kalta izohni rad etadi', () => {
+    const result = setContentVisibleSchema.safeParse({
+      isVisible: false,
+      reason: 'OTHER',
+      note: 'ok',
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('qaytarishda sabab talab qilinmaydi', () => {
+    /*
+      Qaytarish — yozuvni odamga QAYTARISH. Uning sababini
+      so'rash xodimni ortiqcha ishga majbur qilardi va hech kimga
+      foyda bermasdi.
+    */
+    const result = setContentVisibleSchema.safeParse({ isVisible: true });
+
+    expect(result.success).toBe(true);
   });
 });

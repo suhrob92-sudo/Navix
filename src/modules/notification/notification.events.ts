@@ -1,4 +1,10 @@
 import { formatTiyin } from '@/lib/money';
+import {
+  CONTENT_REMOVAL_REASON_CONFIG,
+  MODERATED_CONTENT_LABELS,
+  type ContentRemovalReasonName,
+  type ModeratedContentKindName,
+} from '@/config/moderation-reasons';
 
 /**
  * Bildirishnoma hodisalari — yagona katalog.
@@ -222,6 +228,25 @@ export interface NotificationEventData {
     subject: string;
     actorName: string;
     isAccepted: boolean;
+  };
+  /**
+   * Yozuv olib tashlandi — MUALLIF uchun.
+   *
+   * ── Nima uchun bu bildirishnoma SHART ───────────────────────────────
+   * Ilgari post jimgina yo'qolardi. Muallif nima bo'lganini bilmasa,
+   * ertaga xuddi shuni qaytadan joylaydi va moderator o'sha ishni
+   * yana qiladi — ikkalasi ham vaqtini behuda sarflaydi.
+   */
+  'content.removed': {
+    kind: ModeratedContentKindName;
+    /** Yozuvning nomi yoki matn boshi — muallif qaysinisi ekanini bilishi kerak. */
+    title: string;
+    reason: ContentRemovalReasonName;
+  };
+  /** Yozuv qaytarildi — e'tiroz qabul qilingan yoki xato tuzatilgan. */
+  'content.restored': {
+    kind: ModeratedContentKindName;
+    title: string;
   };
   'security.password_changed': { revokedSessions: number };
   'support.replied': {
@@ -656,6 +681,26 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
       : `${actorName} "${subject}" taklifini rad etdi.`,
     actionUrl: '/feed/collab',
     sourceModule: 'collab',
+  }),
+
+  /**
+   * Sabab SARLAVHAGA emas, MATNGA yoziladi.
+   *
+   * Sarlavha ro'yxatda ko'rinadi va u qisqa bo'lishi kerak. Sabab
+   * esa asosiy mazmun — u ochilganda to'liq o'qiladi.
+   */
+  'content.removed': ({ kind, title, reason }) => ({
+    title: `${MODERATED_CONTENT_LABELS[kind]} olib tashlandi`,
+    body: `"${title}" — ${CONTENT_REMOVAL_REASON_CONFIG[reason].label}. Sababini va e'tiroz yo'lini oching.`,
+    actionUrl: '/profile/moderation',
+    sourceModule: 'moderation',
+  }),
+
+  'content.restored': ({ kind, title }) => ({
+    title: `${MODERATED_CONTENT_LABELS[kind]} qaytarildi`,
+    body: `"${title}" yana ko'rinadigan bo'ldi.`,
+    actionUrl: '/profile/moderation',
+    sourceModule: 'moderation',
   }),
 
   'security.password_changed': ({ revokedSessions }) => ({

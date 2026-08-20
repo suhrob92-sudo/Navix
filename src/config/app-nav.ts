@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
   Bell,
   ClipboardList,
+  Gavel,
   Home,
   LifeBuoy,
   MapPin,
@@ -106,6 +107,18 @@ export const PROFILE_MENU: readonly ProfileMenuItem[] = [
     label: 'Bloklanganlar',
     description: 'Siz bloklagan foydalanuvchilar',
     icon: ShieldOff,
+  },
+  /**
+   * Moderatsiya qarorlari — bloklanganlardan KEYIN.
+   *
+   * Ikkalasi ham "kim nima qildi" haqida: biri men qilgan
+   * cheklovlar, ikkinchisi menga qo'yilgan cheklovlar.
+   */
+  {
+    href: '/profile/moderation',
+    label: 'Qoidalar va qarorlar',
+    description: 'Olib tashlangan yozuvlar va sabablari',
+    icon: Gavel,
   },
   {
     href: '/profile/settings',

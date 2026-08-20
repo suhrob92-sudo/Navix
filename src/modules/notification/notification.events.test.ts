@@ -219,6 +219,15 @@ const SAMPLES = {
     title: 'Retsept: osh',
     hostName: 'Milliy Taomlar',
   },
+  'content.removed': {
+    kind: 'POST',
+    title: 'Yangi mahsulot haqida',
+    reason: 'SPAM',
+  },
+  'content.restored': {
+    kind: 'POST',
+    title: 'Yangi mahsulot haqida',
+  },
 } as const;
 
 const EVENTS = Object.keys(NOTIFICATION_TEMPLATES) as NotificationEventName[];
