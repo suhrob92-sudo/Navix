@@ -4,6 +4,7 @@ import { Briefcase, Building2, Check, MapPin, Users } from 'lucide-react';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { LinkedPosts } from '@/components/feed/linked-posts';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { VacancyCard } from '@/components/jobs/vacancy-card';
 import { Alert } from '@/components/ui/alert';
@@ -166,6 +167,8 @@ export function VacancyContent({ slug }: VacancyContentProps) {
                 Ariza yuborish
               </Button>
             )}
+
+            <LinkedPosts kind="VACANCY" targetId={vacancy.id} />
 
             {/* O'xshash e'lonlar */}
             {(data?.related.length ?? 0) > 0 && (

@@ -4,6 +4,7 @@ import { SEARCH_SCOPES } from '@/modules/feed/discover.types';
 import { COMMENT_SORTS, DEFAULT_COMMENT_SORT } from '@/config/comments';
 import { COMMENT_MAX_LENGTH, MAX_PLACE_NAME_LENGTH, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
 import { ATTACHMENT_KINDS, MAX_ATTACHMENTS } from '@/config/attachments';
+import { LINKED_POSTS_LIMIT } from '@/config/linked-posts';
 import { POST_CTA_CONFIG, POST_CTA_KINDS } from '@/config/post-cta';
 import { VIDEO_DURATIONS } from '@/modules/feed/feed.types';
 import { POST_CATEGORY_VALUES } from '@/modules/feed/feed.types';
@@ -179,6 +180,23 @@ export const hashtagQuerySchema = z.object({
 });
 
 export type HashtagQuery = z.infer<typeof hashtagQuerySchema>;
+
+/**
+ * "Shu narsa ko'rsatilgan videolar" so'rovi.
+ *
+ * ── Nima uchun ikkala maydon ham QAT'IY tekshiriladi ──────────────────
+ * Ikkovi ham manzildan keladi. `kind` ro'yxatdan tashqari bo'lsa,
+ * xizmat qaysi ustunni izlashni bilmasdi; `targetId` esa to'g'ridan-
+ * to'g'ri so'rovga tushadi va shakli tekshirilmasa baza xatosi
+ * foydalanuvchiga ko'rinardi.
+ */
+export const linkedPostsQuerySchema = z.object({
+  kind: z.enum(ATTACHMENT_KINDS),
+  targetId: z.uuid("Nishon noto'g'ri"),
+  limit: z.coerce.number().int().min(1).max(LINKED_POSTS_LIMIT).default(LINKED_POSTS_LIMIT),
+});
+
+export type LinkedPostsQuery = z.infer<typeof linkedPostsQuerySchema>;
 
 /**
  * Matn maydoni uchun umumiy qoida.

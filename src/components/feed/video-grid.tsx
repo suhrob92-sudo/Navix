@@ -9,6 +9,35 @@ import { formatDuration } from '@/modules/upload/upload.types';
 
 export interface VideoGridProps {
   posts: PostView[];
+  /**
+   * Joylashuv turi.
+   *
+   * ── Nima uchun ikkita ─────────────────────────────────────────────
+   * `grid` — sahifaning O'ZI videolar haqida (profil, "videolarim").
+   * U yerda ro'yxat qancha joy egallasa ham to'g'ri.
+   *
+   * `row` — video sahifadagi QO'SHIMCHA bo'lim (mahsulot, restoran).
+   * Panjara u yerda asosiy mazmunni pastga surib yuborardi va odam
+   * "Savatga qo'shish" tugmasini topa olmasdi.
+   */
+  layout?: 'grid' | 'row';
+  /**
+   * Kartochka qayerga olib boradi.
+   *
+   * ── Nima uchun bu O'ZGARUVCHAN ────────────────────────────────────
+   * Profildagi panjara to'liq ekranli pleyerga olib boradi: u yerda
+   * ro'yxat allaqachon yuklangan va surish tabiiy davom etadi.
+   *
+   * Boshqa sahifadagi tasmada esa bunday ro'yxat yo'q — pleyer
+   * kerakli videoni topa olmasdi. Shuning uchun u postning o'z
+   * sahifasini ochadi.
+   */
+  href?: (post: PostView) => string;
+}
+
+/** Odatiy manzil — profil panjarasi shu tarzda ishlagan. */
+function watchHref(post: PostView): string {
+  return `/feed/watch?start=${post.id}`;
 }
 
 /**
@@ -28,13 +57,22 @@ export interface VideoGridProps {
  * kadrning yarmi kesilib ketardi va odam nimani ochayotganini
  * bilmasdi.
  */
-export function VideoGrid({ posts }: VideoGridProps) {
+export function VideoGrid({ posts, layout = 'grid', href = watchHref }: VideoGridProps) {
+  const isRow = layout === 'row';
+
   return (
-    <ul className="-mx-1 grid grid-cols-3 gap-1">
+    <ul
+      className={
+        isRow
+          ? // `snap` — barmoq qo'yib yuborganda kadr yarmida to'xtamaydi.
+            '-mx-4 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-1'
+          : '-mx-1 grid grid-cols-3 gap-1'
+      }
+    >
       {posts.map((post) => (
-        <li key={post.id}>
+        <li key={post.id} className={isRow ? 'w-28 shrink-0 snap-start' : undefined}>
           <Link
-            href={`/feed/watch?start=${post.id}`}
+            href={href(post)}
             className="bg-secondary relative block aspect-[9/16] overflow-hidden rounded-lg"
           >
             {post.videoPosterUrl ? (

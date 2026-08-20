@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import { MAX_ATTACHMENTS } from '@/config/attachments';
+import { LINKED_POSTS_LIMIT } from '@/config/linked-posts';
 import {
   commentsQuerySchema,
   createCommentSchema,
   createPostSchema,
   feedCursorSchema,
   feedQuerySchema,
+  linkedPostsQuerySchema,
   updatePostSchema,
 } from '@/modules/feed/feed.schemas';
 import {
@@ -534,5 +536,58 @@ describe('shareTitle', () => {
 
     expect(result.length).toBeLessThanOrEqual(135);
     expect(result.endsWith('...')).toBe(true);
+  });
+});
+
+/**
+ * "Shu narsa ko'rsatilgan videolar" so'rovi.
+ *
+ * Ikkala maydon ham MANZILDAN keladi — ya'ni ularni istalgan odam
+ * o'zgartira oladi.
+ */
+describe('linkedPostsQuerySchema', () => {
+  const TARGET = '9f0e8d7c-1234-4321-8888-000000000001';
+
+  it("to'g'ri so'rovni qabul qiladi", () => {
+    const result = linkedPostsQuerySchema.safeParse({ kind: 'PRODUCT', targetId: TARGET });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("chegara berilmasa odatiy qiymat qo'yiladi", () => {
+    const result = linkedPostsQuerySchema.parse({ kind: 'HOTEL', targetId: TARGET });
+
+    expect(result.limit).toBe(LINKED_POSTS_LIMIT);
+  });
+
+  it("noma'lum turni rad etadi", () => {
+    /*
+      Tur ro'yxatdan tashqari bo'lsa, xizmat qaysi ustunni
+      izlashni bilmasdi.
+    */
+    const result = linkedPostsQuerySchema.safeParse({ kind: 'CAR', targetId: TARGET });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("noto'g'ri shakldagi nishonni rad etadi", () => {
+    /*
+      Tekshirilmasa, ID to'g'ridan-to'g'ri so'rovga tushardi va
+      baza xatosi foydalanuvchiga ko'rinardi.
+    */
+    const result = linkedPostsQuerySchema.safeParse({ kind: 'PRODUCT', targetId: 'salom' });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('chegaradan oshiq sonni rad etadi', () => {
+    // Aks holda bitta so'rov bilan butun lentani so'rash mumkin bo'lardi.
+    const result = linkedPostsQuerySchema.safeParse({
+      kind: 'PRODUCT',
+      targetId: TARGET,
+      limit: LINKED_POSTS_LIMIT + 1,
+    });
+
+    expect(result.success).toBe(false);
   });
 });

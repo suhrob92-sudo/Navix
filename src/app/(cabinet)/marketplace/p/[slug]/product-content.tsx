@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { LinkedPosts } from '@/components/feed/linked-posts';
 import { MarketCartBar } from '@/components/market/market-cart-bar';
 import { ProductCard } from '@/components/market/product-card';
 import { QuantityStepper } from '@/components/market/quantity-stepper';
@@ -145,6 +146,8 @@ export function ProductContent({ slug }: ProductContentProps) {
                 </Button>
               </div>
             )}
+
+            <LinkedPosts kind="PRODUCT" targetId={product.id} />
 
             {related.length > 0 && (
               <section>

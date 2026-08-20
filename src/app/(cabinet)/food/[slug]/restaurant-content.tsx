@@ -6,6 +6,7 @@ import { Clock, Star, UtensilsCrossed, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { LinkedPosts } from '@/components/feed/linked-posts';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { CartBar } from '@/components/food/cart-bar';
 import { QuantityStepper } from '@/components/food/quantity-stepper';
@@ -175,6 +176,10 @@ export function RestaurantContent({ slug }: RestaurantContentProps) {
                 </ul>
               </section>
             ))}
+
+            <div className="mt-6">
+              <LinkedPosts kind="RESTAURANT" targetId={restaurant.id} />
+            </div>
           </>
         )}
       </div>

@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { LinkedPosts } from '@/components/feed/linked-posts';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -281,6 +282,8 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
                 })}
               </ul>
             </section>
+
+            <LinkedPosts kind="HOTEL" targetId={hotel.id} />
           </>
         )}
       </div>

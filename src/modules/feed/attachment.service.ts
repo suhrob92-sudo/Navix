@@ -2,6 +2,10 @@ import { Prisma } from '@/generated/prisma/client';
 import { NotFoundError } from '@/lib/api/errors';
 import { prisma } from '@/lib/prisma';
 import { ATTACHMENT_KIND_CONFIG, type AttachmentKindName } from '@/config/attachments';
+import { LINKED_POSTS_LIMIT } from '@/config/linked-posts';
+import { LIVE_AUTHOR, postSelect, toPostView } from '@/modules/feed/feed.select';
+import type { PostView } from '@/modules/feed/feed.types';
+import { blockedUserIds } from '@/modules/moderation/moderation.service';
 
 /**
  * Videoga biriktirilgan narsalar — TEKSHIRISH va QIDIRISH.
@@ -286,4 +290,81 @@ export async function searchAttachments(
  */
 export function attachmentHref(kind: AttachmentKindName, slug: string): string {
   return ATTACHMENT_KIND_CONFIG[kind].href(slug);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Teskari yo'nalish — "shu narsa ko'rsatilgan videolar"
+// ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Nishonga mos biriktirma sharti.
+ *
+ * ── Nima uchun RESTORAN alohida ko'rib chiqiladi ──────────────────────
+ * Boshqa turlarda bog'lanish bitta ustunda turadi. Restoran esa
+ * IKKI YO'L bilan ko'rsatiladi: bloger restoranning o'zini
+ * biriktiradi yoki uning aniq bir taomini.
+ *
+ * Faqat birinchisini hisoblasak, restoran sahifasi "video yo'q"
+ * deb turardi — holbuki uning lag'moni haqida o'nta video bor edi.
+ * Egasi uchun bu bo'lim shunchaki ishlamayotgandek ko'rinardi.
+ */
+function attachmentFilter(
+  kind: AttachmentKindName,
+  targetId: string,
+): Prisma.PostAttachmentWhereInput {
+  if (kind === 'RESTAURANT') {
+    return { OR: [{ restaurantId: targetId }, { menuItem: { restaurantId: targetId } }] };
+  }
+
+  return { [TARGETS[kind].column]: targetId };
+}
+
+/**
+ * Shu narsa biriktirilgan videolar — YANGISIDAN eskisiga.
+ *
+ * ── Nima uchun faqat VIDEO ────────────────────────────────────────────
+ * Biriktirish tugmasi post yozish oynasida faqat video yuklanganda
+ * chiqadi. Ya'ni matnli postda biriktirma bo'lishi mumkin emas.
+ *
+ * Shart baribir SO'ROVDA turadi: ekrandagi tasma tik kadrlarni
+ * ko'rsatadi va matnli post u yerda bo'sh to'rtburchak bo'lardi.
+ * Kelajakda oynadagi qoida o'zgarsa ham, bu bo'lim buzilmaydi.
+ *
+ * ── Nima uchun TAVSIYA emas, VAQT bo'yicha ────────────────────────────
+ * Odam mahsulot sahifasida "eng yangi fikr qanday?" deb qaraydi.
+ * Bir yil oldingi video eng ko'p ko'rilgani bo'lishi mumkin, lekin
+ * mahsulot o'shandan beri o'zgargan bo'lishi ham mumkin.
+ *
+ * ── Nima uchun BELGI (cursor) yo'q ────────────────────────────────────
+ * Bu bo'lim sahifaning asosiy mazmuni emas — chegara bitta va
+ * qat'iy (`LINKED_POSTS_LIMIT`). Sahifalash qo'shilsa, mahsulot
+ * sahifasi lentaga aylanib qolardi.
+ */
+export async function listPostsForTarget(
+  kind: AttachmentKindName,
+  targetId: string,
+  viewerId: string,
+  limit = LINKED_POSTS_LIMIT,
+): Promise<PostView[]> {
+  /*
+    Bloklangan odamning videosi bu yerda ham ko'rinmaydi.
+
+    Lentada yashirib, mahsulot sahifasida ko'rsatish va'dani
+    buzardi: odam "bu odamni ko'rmayman" deb tugma bosgan.
+  */
+  const hidden = await blockedUserIds(viewerId);
+
+  const rows = await prisma.post.findMany({
+    where: {
+      ...LIVE_AUTHOR,
+      videoUrl: { not: null },
+      attachments: { some: attachmentFilter(kind, targetId) },
+      ...(hidden.length > 0 ? { authorId: { notIn: hidden } } : {}),
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: limit,
+    select: postSelect(viewerId),
+  });
+
+  return rows.map((row) => toPostView(row, viewerId));
 }
