@@ -3,8 +3,11 @@ import { Geist, Geist_Mono } from 'next/font/google';
 
 import './globals.css';
 
+import { OfflineBanner } from '@/components/app/offline-banner';
+import { PwaSetup } from '@/components/app/pwa-setup';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { WebVitals } from '@/components/providers/web-vitals';
+import { PWA_SHORT_NAME } from '@/config/pwa';
 import { siteConfig } from '@/config/site';
 import { AuthProvider } from '@/modules/auth/auth-context';
 
@@ -47,6 +50,43 @@ export const metadata: Metadata = {
     description: siteConfig.description,
   },
   robots: { index: true, follow: true },
+  /*
+    Ilova ma'lumotnomasi — usiz brauzer o'rnatish taklifini
+    umuman ko'rsatmaydi. Fayl `src/app/manifest.ts` da yasaladi.
+  */
+  manifest: '/manifest.webmanifest',
+  /*
+    iOS uchun alohida sozlama.
+
+    Apple ma'lumotnomani (`manifest`) faqat qisman qo'llaydi.
+    Ilova to'liq ekranda ochilishi va sarlavhasi to'g'ri
+    ko'rinishi uchun bu uchta qiymat kerak.
+  */
+  appleWebApp: {
+    capable: true,
+    title: PWA_SHORT_NAME,
+    /*
+      `default` — tizim paneli oq matn bilan qorayadi.
+
+      `black-translucent` chiroyliroq ko'rinardi, lekin unda
+      sahifa tizim panelining OSTIGA chiqib ketadi va sarlavha
+      soat bilan ustma-ust tushardi.
+    */
+    statusBarStyle: 'default',
+  },
+  /*
+    Eski iPhone'lar uchun QO'SHIMCHA belgi.
+
+    Next.js zamonaviy `mobile-web-app-capable` ni yozadi va uni
+    iOS 16.4 dan boshlab Safari tushunadi. Undan eski telefonlar
+    esa faqat Apple'ning o'z nomini biladi.
+
+    O'zbekistonda eski iPhone'lar ko'p — ikkalasini ham yozamiz.
+    Ular bir-biriga xalaqit bermaydi.
+  */
+  other: {
+    'apple-mobile-web-app-capable': 'yes',
+  },
 };
 
 /** Telefon brauzerlari uchun sozlamalar (status panel rangi, masshtab). */
@@ -85,7 +125,27 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="uz" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full`}>
       <body className="scrollbar-slim flex min-h-full flex-col">
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            {children}
+
+            {/*
+              Ilovani o'rnatish taklifi va xizmat ishchisi.
+
+              `AuthProvider` ICHIDA: taklif ilova ichidagi
+              sahifalarda ma'noli, tanishtiruv sahifasida esa
+              odam hali nima ekanini bilmaydi.
+            */}
+            <PwaSetup />
+
+            {/*
+              Aloqa uzilganini AYTAMIZ.
+
+              Ilova keshdan ochilib turaveradi, lekin yangi
+              ma'lumot kelmaydi. Sababi aytilmasa, odam ilovani
+              ayblaydi.
+            */}
+            <OfflineBanner />
+          </AuthProvider>
         </ThemeProvider>
 
         {/* Tezlik o'lchovi — hech narsa chizmaydi. */}
