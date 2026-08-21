@@ -1,6 +1,6 @@
 'use client';
 
-import { Link2, MapPin, Megaphone, Scissors, Send, Sparkles, Video, X } from 'lucide-react';
+import { History, Link2, MapPin, Megaphone, Scissors, Send, Sparkles, Video, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -19,6 +19,12 @@ import { assistPost } from '@/modules/feed/feed-assist';
 import { cn } from '@/lib/utils';
 import { prepareVideo, uploadVideo } from '@/lib/video-upload';
 import { useAuth } from '@/modules/auth/auth-context';
+import {
+  DRAFT_DISCARD_LABEL,
+  DRAFT_RESTORED_LABEL,
+  DRAFT_SAVE_DELAY_MS,
+} from '@/config/draft';
+import { clearDraft, getDraft, saveDraft } from '@/lib/post-draft';
 import {
   POST_MAX_LENGTH,
   type PostCategoryName,
@@ -147,12 +153,28 @@ export function PostComposer({
   autoPick = null,
   error = null,
 }: PostComposerProps) {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
+
+  /*
+    Qoralama BIR MARTA, birinchi chizishda o'qiladi.
+
+    ── Nima uchun `useEffect` emas ─────────────────────────────────────
+    Effekt ichida o'qib `setState` qilsak, oyna avval BO'SH chizilib,
+    keyin to'lardi — ekran bir zumga sakrardi. Loyihaning lint
+    qoidasi ham buni taqiqlaydi.
+
+    Bu yerda dangasa boshlang'ich qiymat (`useState(() => ...)`)
+    xavfsiz: oyna `ssr: false` bilan yuklanadi, ya'ni u serverda
+    umuman chizilmaydi va `localStorage` doim mavjud bo'ladi.
+  */
+  const userId = user?.id ?? '';
+  const [restored] = useState(() => (userId ? getDraft(userId) : null));
+  const [isRestoredVisible, setIsRestoredVisible] = useState(restored !== null);
 
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  const [body, setBody] = useState('');
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [body, setBody] = useState(restored?.body ?? '');
+  const [imageUrl, setImageUrl] = useState<string | null>(restored?.imageUrl ?? null);
 
   const [video, setVideo] = useState<{
     url: string;
@@ -160,7 +182,7 @@ export function PostComposer({
     seconds: number;
     /** Kesim — kesilmagan videoda `null`. */
     trim: { start: number; end: number } | null;
-  } | null>(null);
+  } | null>(restored?.video ?? null);
   const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   /**
    * Yuklash jarayoni (0-100). `null` — hali boshlanmagan.
@@ -188,15 +210,15 @@ export function PostComposer({
    */
   const [pending, setPending] = useState<{ file: File; duration: number } | null>(null);
 
-  const [attachments, setAttachments] = useState<PickedAttachment[]>([]);
+  const [attachments, setAttachments] = useState<PickedAttachment[]>(restored?.attachments ?? []);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   /** Videoning chaqiruvi — bittasi. */
-  const [cta, setCta] = useState<PickedCta | null>(null);
+  const [cta, setCta] = useState<PickedCta | null>(restored?.cta ?? null);
   const [isCtaOpen, setIsCtaOpen] = useState(false);
 
   /** Tanlangan bo'lim — ixtiyoriy. */
-  const [category, setCategory] = useState<PostCategoryName | null>(null);
+  const [category, setCategory] = useState<PostCategoryName | null>(restored?.category ?? null);
 
   /**
    * Reklama belgisi.
@@ -206,10 +228,10 @@ export function PostComposer({
    * postda turib, ma'nosini butunlay yo'qotardi: odam uni ko'rmay
    * qo'yardi va aynan reklamali postda ham e'tibor bermasdi.
    */
-  const [isSponsored, setIsSponsored] = useState(false);
+  const [isSponsored, setIsSponsored] = useState(restored?.isSponsored ?? false);
 
   /** Biriktirilgan joylashuv — ixtiyoriy. */
-  const [place, setPlace] = useState<PostPlaceView | null>(null);
+  const [place, setPlace] = useState<PostPlaceView | null>(restored?.place ?? null);
   const [isPlaceOpen, setIsPlaceOpen] = useState(false);
 
   const image = useFileUpload('POST');
@@ -256,6 +278,70 @@ export function PostComposer({
   const remaining = POST_MAX_LENGTH - body.length;
   const isBusy = isSending || image.isUploading || isUploadingVideo;
 
+  /*
+    Qoralama AVTOMATIK saqlanadi.
+
+    ── Nima uchun kechiktirib ──────────────────────────────────────────
+    Har bosilgan harfda saqlansa, `localStorage` sekundiga o'nlab
+    marta yozilardi. U SINXRON ishlaydi — ya'ni yozayotgan paytda
+    brauzer boshqa hech narsa qila olmaydi va matn kiritish
+    sekinlashardi.
+
+    Yarim soniya — odam bir so'zni yozib tugatadigan vaqt. Saqlash
+    "pauza" paytlarida bo'ladi.
+
+    ── Nima uchun VIDEO YUKLANAYOTGANDA saqlanmaydi ────────────────────
+    Yuklanish tugamaguncha video manzili yo'q. O'sha paytdagi
+    holatni saqlasak, qoralamada videosiz nusxa qolardi va odam
+    uni tiklaganda video yo'qolgandek ko'rinardi.
+  */
+  useEffect(() => {
+    if (!userId || isUploadingVideo || image.isUploading) return;
+
+    const timer = window.setTimeout(() => {
+      saveDraft(userId, {
+        body,
+        imageUrl,
+        video,
+        attachments,
+        cta,
+        category,
+        place,
+        isSponsored,
+      });
+    }, DRAFT_SAVE_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    userId,
+    body,
+    imageUrl,
+    video,
+    attachments,
+    cta,
+    category,
+    place,
+    isSponsored,
+    isUploadingVideo,
+    image.isUploading,
+  ]);
+
+  /** Qoralamani tashlab, oynani tozalaydi. */
+  function discardDraft() {
+    setBody('');
+    setImageUrl(null);
+    setVideo(null);
+    setAttachments([]);
+    setCta(null);
+    setCategory(null);
+    setPlace(null);
+    setIsSponsored(false);
+    setVideoError(null);
+    setIsRestoredVisible(false);
+
+    if (userId) clearDraft(userId);
+  }
+
   async function send() {
     if (isEmpty || isBusy) return;
 
@@ -275,15 +361,14 @@ export function PostComposer({
     });
 
     if (sent) {
-      setBody('');
-      setImageUrl(null);
-      setVideo(null);
-      setAttachments([]);
-      setCta(null);
-      setCategory(null);
-      setPlace(null);
-      setIsSponsored(false);
-      setVideoError(null);
+      /*
+        Post joylandi — qoralama endi KERAK EMAS.
+
+        Uni qoldirsak, keyingi safar oyna ochilganda allaqachon
+        joylangan matn "tiklandi" deb chiqardi va odam uni
+        ikkinchi marta joylab yuborardi.
+      */
+      discardDraft();
     }
   }
 
@@ -366,6 +451,32 @@ export function PostComposer({
           <X className="size-5" aria-hidden="true" />
         </Button>
       </div>
+
+      {/*
+        Qoralama tiklanganini AYTAMIZ.
+
+        ── Nima uchun bu yozuv shart ─────────────────────────────────
+        Oyna to'la matn bilan ochilsa, odam "men buni yozganmidim?"
+        deb hayron bo'ladi — ayniqsa bir necha kun o'tgan bo'lsa.
+
+        Yozuv ikki narsani beradi: sabab va chiqish yo'li.
+        "Tozalash" bosilsa, oyna bo'shaydi va qoralama o'chadi.
+      */}
+      {isRestoredVisible && (
+        <div className="bg-secondary mb-3 flex items-center gap-2 rounded-xl px-3 py-2">
+          <History className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+
+          <p className="text-muted-foreground flex-1 text-xs">{DRAFT_RESTORED_LABEL}</p>
+
+          <button
+            type="button"
+            onClick={discardDraft}
+            className="tap-target tap-target-y text-primary shrink-0 text-xs font-medium hover:underline"
+          >
+            {DRAFT_DISCARD_LABEL}
+          </button>
+        </div>
+      )}
 
       <label htmlFor="post-body" className="sr-only">
         Post matni
