@@ -45,7 +45,7 @@ export function VideosContent() {
     <>
       <FeedHeader title="Videolar" />
 
-      <div className="space-y-4 px-4 pt-4 pb-24">
+      <div className="space-y-4 px-4 pt-4 pb-tabbar">
         {/* Filtrlar — gorizontal, telefonga sig'ishi uchun. */}
         <div
           role="tablist"

@@ -43,7 +43,7 @@ export function ContentSettingsContent() {
     <>
       <AppHeader title="Kontent sozlamalari" showBack backHref="/feed/settings" />
 
-      <div className="space-y-6 px-4 pt-4 pb-24">
+      <div className="space-y-6 px-4 pt-4 pb-tabbar">
         {error && <Alert variant="error">{error}</Alert>}
 
         {isLoading && <Skeleton className="h-40 rounded-2xl" />}

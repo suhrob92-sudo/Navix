@@ -287,6 +287,27 @@
   */
   :root {
     color-scheme: light;
+
+    /*
+      Pastki menyu geometriyasi — YAGONA manba.
+
+      ── Muammo ────────────────────────────────────────────────────────
+      Pastki menyu balandligi va telefonning "iyagi" (safe area) har
+      joyda QO'LDA yozilgan edi:
+
+          savat paneli    bottom-20  (80px — iyakni HISOBGA OLMAYDI)
+          sahifa oxiri    pb-24      (96px — iyakni HISOBGA OLMAYDI)
+          menyuning o'zi  56px + iyak
+
+      Ishorali boshqaruvli Androidda iyak ~24px, iPhone'da ~34px.
+      Ya'ni menyu 90px joy egallaydi, savat paneli esa 80px da
+      turadi — u menyu USTIGA chiqib qoladi. Sahifaning oxirgi
+      qatori ham menyu ostida ko'rinmay qoladi.
+
+      Endi son BITTA joyda turadi va hamma undan foydalanadi.
+    */
+    --tabbar-height: 3.5rem;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .dark {
@@ -520,5 +541,28 @@
   .tap-target-y::after {
     min-width: 0;
     width: 100%;
+  }
+}
+
+/*
+  Pastki menyu bilan bog'liq masofalar.
+
+  Har biri `--tabbar-height` va `--safe-bottom` dan quriladi:
+  menyu balandligi o'zgarsa, hamma joy o'z-o'zidan to'g'rilanadi.
+*/
+@layer utilities {
+  /* Sahifa oxiri — oxirgi qator menyu ostida qolmasin. */
+  .pb-tabbar {
+    padding-bottom: calc(var(--tabbar-height) + var(--safe-bottom) + 1.5rem);
+  }
+
+  /* Menyu USTIDA turadigan suzuvchi panel (savat kabi). */
+  .above-tabbar {
+    bottom: calc(var(--tabbar-height) + var(--safe-bottom) + 0.75rem);
+  }
+
+  /* Ekranning eng pastiga yopishgan element — faqat iyak qadar. */
+  .pb-safe {
+    padding-bottom: var(--safe-bottom);
   }
 }

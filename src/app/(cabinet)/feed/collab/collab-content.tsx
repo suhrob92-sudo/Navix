@@ -86,7 +86,7 @@ export function CollabContent() {
     <>
       <AppHeader title="Hamkorlik" showBack backHref="/feed/profile" />
 
-      <div className="space-y-4 px-4 pt-4 pb-24">
+      <div className="space-y-4 px-4 pt-4 pb-tabbar">
         <div role="tablist" aria-label="Takliflar" className="border-border flex gap-1 border-b">
           {BOXES.map((item) => (
             <button

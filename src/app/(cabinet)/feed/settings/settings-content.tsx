@@ -75,7 +75,7 @@ export function FeedSettingsContent() {
     <>
       <AppHeader title="Sozlamalar" showBack backHref="/feed/profile" />
 
-      <div className="space-y-4 px-4 pt-4 pb-24">
+      <div className="space-y-4 px-4 pt-4 pb-tabbar">
         {error && <Alert variant="error">{error}</Alert>}
         {notice && <Alert variant="success">{notice}</Alert>}
 

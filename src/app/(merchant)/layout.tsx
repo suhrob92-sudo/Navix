@@ -9,7 +9,7 @@ import { MerchantTabBar } from '@/components/merchant/merchant-tab-bar';
 export default function MerchantLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <div className="mx-auto w-full max-w-lg flex-1 pb-24">{children}</div>
+      <div className="mx-auto w-full max-w-lg flex-1 pb-tabbar">{children}</div>
 
       <MerchantTabBar />
     </>

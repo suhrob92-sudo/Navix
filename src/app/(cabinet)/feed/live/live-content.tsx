@@ -130,7 +130,7 @@ function LiveBody() {
     <>
       <AppHeader title="Jonli efirlar" showBack backHref="/feed" />
 
-      <div className="space-y-4 px-4 pt-4 pb-24">
+      <div className="space-y-4 px-4 pt-4 pb-tabbar">
         {/*
           Halol ogohlantirish — ENG TEPADA.
 

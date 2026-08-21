@@ -18,14 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import Link from 'next/link';
-import {
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type FormEvent,
-  type UIEvent,
-} from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type UIEvent } from 'react';
 
 import { ServiceIcon } from '@/components/app/service-icon';
 import { Alert } from '@/components/ui/alert';
@@ -38,6 +31,7 @@ import { VoicePlayer } from '@/components/chat/voice-player';
 import { VoiceRecorderBar } from '@/components/chat/voice-recorder-bar';
 import { ImageAttach } from '@/components/upload/image-attach';
 import { resolveWallpaper } from '@/config/chat-wallpapers';
+import { useVisualViewport } from '@/hooks/use-visual-viewport';
 import { useApiClient } from '@/hooks/use-api';
 import { useChatStream } from '@/hooks/use-chat-stream';
 import { useFileUpload } from '@/hooks/use-file-upload';
@@ -597,6 +591,12 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
 
   const wallpaper = resolveWallpaper(thread?.wallpaper);
 
+  /*
+    Oyna balandligi — brauzer aytgan ko'rinadigan balandlik.
+    Izohi `use-visual-viewport.ts` da.
+  */
+  const viewport = useVisualViewport();
+
   return (
     /*
       Suhbat oynasi — BUTUN ekranni egallaydi.
@@ -618,7 +618,24 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
       telefon ekranida ~64px bekorga ketardi va yozish maydoni yuqoriga
       siqilardi.
     */
-    <div className="bg-background fixed inset-0 z-50 flex flex-col">
+    <div
+      className="bg-background fixed inset-x-0 top-0 z-50 flex flex-col"
+      /*
+        Balandlik BRAUZERDAN olinadi, CSS dan emas.
+
+        `inset-0` qolip oynasiga yopishadi — u esa manzil qatori
+        yashiringan holatdagi balandlik. Manzil qatori ko'rinib
+        turganda oynaning pastki cheti ekrandan chiqib ketardi va
+        yozish maydoni joyida turmasdi.
+
+        `100dvh` — zaxira: JavaScript hali ishga tushmagan yoki
+        brauzer `visualViewport` ni bilmaydigan holat uchun.
+      */
+      style={{
+        height: viewport.height !== null ? `${viewport.height}px` : '100dvh',
+        transform: viewport.offsetTop > 0 ? `translateY(${viewport.offsetTop}px)` : undefined,
+      }}
+    >
       {/* Sarlavha — qimirlamaydi */}
       <header className="glass-chrome shrink-0 border-b">
         <div className="mx-auto flex h-14 max-w-lg items-center gap-3 px-2">
@@ -803,11 +820,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
       </div>
 
       {/* Yozish maydoni — DOIM pastda, qimirlamaydi */}
-      <form
-        onSubmit={send}
-        className="glass-chrome shrink-0 border-t"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
+      <form onSubmit={send} className="glass-chrome pb-safe shrink-0 border-t">
         {/*
           Javob yoki tahrir belgisi — yozish maydonining USTIDA.
 

@@ -127,7 +127,7 @@ export function FeedSearchContent() {
     <>
       <FeedHeader title="Qidirish" showSearch={false} />
 
-      <div className="space-y-5 px-4 pt-4 pb-24">
+      <div className="space-y-5 px-4 pt-4 pb-tabbar">
         <div className="relative">
           <Search
             className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4.5 -translate-y-1/2"

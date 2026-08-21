@@ -50,7 +50,7 @@ export function CreatorsContent() {
     <>
       <AppHeader title="Ijodkorlar" showBack backHref="/feed/profile" />
 
-      <div className="space-y-4 px-4 pt-4 pb-24">
+      <div className="space-y-4 px-4 pt-4 pb-tabbar">
         <p className="text-muted-foreground text-sm leading-relaxed">
           Hamkorlikka ochiq blogerlar. Taklif yuboring — u ijodkorning qutisida javob kutib
           turadi.

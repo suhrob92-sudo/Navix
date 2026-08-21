@@ -127,7 +127,7 @@ export function FeedContent() {
     <>
       <FeedHeader title="Feed" />
 
-      <div className="space-y-4 px-4 pt-4 pb-24">
+      <div className="space-y-4 px-4 pt-4 pb-tabbar">
         <StoryTray />
 
         <CategoryRow value={filter} onChange={setFilter} />

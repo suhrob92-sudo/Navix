@@ -38,7 +38,7 @@ export function FeedHistoryContent() {
     <>
       <FeedHeader title="Oxirgi ko'rganlar" />
 
-      <div className="space-y-4 px-4 pt-4 pb-24">
+      <div className="space-y-4 px-4 pt-4 pb-tabbar">
         {actions.error && <Alert variant="error">{actions.error}</Alert>}
 
         {list.error && (

@@ -107,7 +107,7 @@ export function FeedProfileContent() {
     <>
       <FeedHeader title="Profil" />
 
-      <div className="space-y-5 px-4 pt-4 pb-24">
+      <div className="space-y-5 px-4 pt-4 pb-tabbar">
         {profile.error && (
           <Alert variant="error" title="Profilni yuklab bo'lmadi">
             {profile.error}

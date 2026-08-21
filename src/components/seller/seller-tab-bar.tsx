@@ -34,9 +34,8 @@ export function SellerTabBar() {
 
   return (
     <nav
-      className="glass-chrome fixed inset-x-0 bottom-0 z-40 border-t"
+      className="glass-chrome pb-safe fixed inset-x-0 bottom-0 z-40 border-t"
       aria-label="Sotuvchi kabineti navigatsiyasi"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <ul className="mx-auto flex max-w-lg items-end justify-around px-2">
         {SELLER_NAV.map((item) => {

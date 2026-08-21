@@ -66,11 +66,10 @@ export function CallOverlay() {
       aria-modal="true"
       aria-label="Qo'ng'iroq"
       className={cn(
-        'fixed inset-0 z-[100] flex flex-col',
+        'pb-safe fixed inset-0 z-[100] flex flex-col',
         // Video kelayotganda fon qora: rasm atrofidagi rang uni buzmasligi kerak.
         hasRemoteVideo ? 'bg-black' : 'bg-background/95 backdrop-blur-xl',
       )}
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       {/* Suhbatdoshning tasviri */}
       {hasRemoteVideo && (
