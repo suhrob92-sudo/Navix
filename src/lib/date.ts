@@ -156,6 +156,21 @@ export function startOfTashkentDay(value: Date = new Date()): Date {
   return new Date(localMidnight - TASHKENT_OFFSET_MINUTES * 60_000);
 }
 
+/**
+ * Toshkent bo'yicha SANA kaliti: `2026-08-21`.
+ *
+ * ── Nima uchun `toDateKey` yetarli emas ───────────────────────────────
+ * `toDateKey` sanani UTC bo'yicha o'qiydi. Server Frankfurtda,
+ * Toshkent esa besh soat oldinda: kechqurun soat 03:00 gacha bo'lgan
+ * hodisalar UTC bo'yicha "kechagi kun" ga tushardi.
+ *
+ * Statistika diagrammasida bu bir kunlik siljish bo'lib ko'rinardi —
+ * bugungi obunachi kechagi ustunchaga qo'shilardi.
+ */
+export function tashkentDateKey(value: Date | string = new Date()): string {
+  return toDateKey(toTashkent(value));
+}
+
 /** Toshkent bo'yicha `days` kun oldingi kun boshi. */
 export function startOfTashkentDaysAgo(days: number, value: Date = new Date()): Date {
   return new Date(startOfTashkentDay(value).getTime() - days * 24 * 60 * 60_000);

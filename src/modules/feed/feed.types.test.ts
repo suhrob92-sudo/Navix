@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { MAX_ATTACHMENTS } from '@/config/attachments';
+import { DEFAULT_ANALYTICS_PERIOD } from '@/config/analytics';
 import { LINKED_POSTS_LIMIT } from '@/config/linked-posts';
 import {
   commentsQuerySchema,
@@ -8,6 +9,7 @@ import {
   createPostSchema,
   feedCursorSchema,
   feedQuerySchema,
+  growthQuerySchema,
   linkedPostsQuerySchema,
   updatePostSchema,
 } from '@/modules/feed/feed.schemas';
@@ -589,5 +591,38 @@ describe('linkedPostsQuerySchema', () => {
     });
 
     expect(result.success).toBe(false);
+  });
+});
+
+/**
+ * O'sish so'rovi.
+ *
+ * Davr MANZILDAN keladi — ya'ni uni istalgan odam o'zgartira oladi.
+ */
+describe('growthQuerySchema', () => {
+  it("davr berilmasa odatiy qiymat qo'yiladi", () => {
+    expect(growthQuerySchema.parse({}).days).toBe(DEFAULT_ANALYTICS_PERIOD);
+  });
+
+  it("ro'yxatdagi davrni qabul qiladi", () => {
+    expect(growthQuerySchema.parse({ days: '30' }).days).toBe(30);
+  });
+
+  it("ro'yxatda yo'q davrni rad etadi", () => {
+    /*
+      Chegarasiz son serverga o'n yillik hodisalarni o'qishga
+      buyruq berardi.
+    */
+    expect(growthQuerySchema.safeParse({ days: 3650 }).success).toBe(false);
+    expect(growthQuerySchema.safeParse({ days: 8 }).success).toBe(false);
+  });
+
+  it('manfiy va nolni rad etadi', () => {
+    expect(growthQuerySchema.safeParse({ days: -7 }).success).toBe(false);
+    expect(growthQuerySchema.safeParse({ days: 0 }).success).toBe(false);
+  });
+
+  it("matnni rad etadi", () => {
+    expect(growthQuerySchema.safeParse({ days: 'hammasi' }).success).toBe(false);
   });
 });

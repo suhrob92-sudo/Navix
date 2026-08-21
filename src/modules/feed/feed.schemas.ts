@@ -4,6 +4,7 @@ import { SEARCH_SCOPES } from '@/modules/feed/discover.types';
 import { COMMENT_SORTS, DEFAULT_COMMENT_SORT } from '@/config/comments';
 import { COMMENT_MAX_LENGTH, MAX_PLACE_NAME_LENGTH, POST_MAX_LENGTH } from '@/modules/feed/feed.types';
 import { ATTACHMENT_KINDS, MAX_ATTACHMENTS } from '@/config/attachments';
+import { DEFAULT_ANALYTICS_PERIOD, isAnalyticsPeriod } from '@/config/analytics';
 import { LINKED_POSTS_LIMIT } from '@/config/linked-posts';
 import { POST_CTA_CONFIG, POST_CTA_KINDS } from '@/config/post-cta';
 import { VIDEO_DURATIONS } from '@/modules/feed/feed.types';
@@ -197,6 +198,24 @@ export const linkedPostsQuerySchema = z.object({
 });
 
 export type LinkedPostsQuery = z.infer<typeof linkedPostsQuerySchema>;
+
+/**
+ * Ijodkor o'sishi uchun so'rov.
+ *
+ * ── Nima uchun davr RO'YXATDAN tanlanadi ──────────────────────────────
+ * Ixtiyoriy songa ruxsat bersak, kimdir 3650 kun so'rardi va server
+ * o'n yillik hodisalarni o'qishga urinardi. Ro'yxat esa chegarani
+ * o'zi qo'yadi va har bir qiymat oldindan sinalgan.
+ */
+export const growthQuerySchema = z.object({
+  days: z.coerce
+    .number()
+    .int()
+    .refine(isAnalyticsPeriod, "Davr noto'g'ri")
+    .default(DEFAULT_ANALYTICS_PERIOD),
+});
+
+export type GrowthQuery = z.infer<typeof growthQuerySchema>;
 
 /**
  * Matn maydoni uchun umumiy qoida.

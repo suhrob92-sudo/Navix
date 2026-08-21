@@ -432,8 +432,15 @@ export const FEED_FEATURES: readonly FeedFeatureItem[] = [
   },
   {
     href: '/feed/stats',
-    label: 'Videolarim natijasi',
-    description: "Ko'rishlar, bosishlar va savdo",
+    /*
+      Nom KENGAYDI: sahifa endi faqat videolar haqida emas.
+
+      26-bosqichda unga o'sish paneli qo'shildi — obunachi,
+      yoqtirish va izohlarning davr bo'yicha dinamikasi. "Videolarim
+      natijasi" degan nom endi mazmunning yarmini yashirardi.
+    */
+    label: 'Natijalarim',
+    description: "O'sish, ko'rishlar, bosishlar va savdo",
     icon: BarChart3,
   },
   /*

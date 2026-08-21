@@ -17,6 +17,7 @@ import {
 import Link from 'next/link';
 
 import { AppHeader } from '@/components/app/app-header';
+import { GrowthPanel } from '@/components/feed/growth-panel';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -59,9 +60,22 @@ function StatsBody() {
 
   return (
     <>
-      <AppHeader title="Videolarim natijasi" showBack backHref="/feed" />
+      <AppHeader title="Natijalarim" showBack backHref="/feed" />
 
       <div className="space-y-4 px-4 pt-4">
+        {/*
+          O'sish paneli ENG TEPADA.
+
+          Videolar ro'yxati "qaysi videom yaxshi ishladi?" degan
+          savolga javob beradi. Lekin birinchi savol boshqa:
+          "men umuman o'syapmanmi?". Yig'indi sonlar unga javob
+          bermaydi — ular hech qachon kamaymaydi.
+
+          Panel videolardan MUSTAQIL yuklanadi: biri kechiksa
+          ikkinchisi kutib turmaydi.
+        */}
+        <GrowthPanel />
+
         {error && (
           <Alert variant="error" title="Statistikani yuklab bo'lmadi">
             {error}
