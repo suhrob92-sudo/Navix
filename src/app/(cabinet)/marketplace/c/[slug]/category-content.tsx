@@ -53,7 +53,7 @@ export function CategoryContent({ slug }: CategoryContentProps) {
               onClick={() => setSort(item.value)}
               aria-pressed={sort === item.value}
               className={cn(
-                'shrink-0 snap-start rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
                 sort === item.value
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border hover:bg-secondary',
@@ -68,7 +68,7 @@ export function CategoryContent({ slug }: CategoryContentProps) {
             onClick={() => setOnlyInStock((current) => !current)}
             aria-pressed={onlyInStock}
             className={cn(
-              'shrink-0 snap-start rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+              'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
               onlyInStock
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-border hover:bg-secondary',

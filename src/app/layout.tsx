@@ -54,6 +54,25 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
+  /**
+   * Klaviatura ochilganda SAHIFA kichrayadi.
+   *
+   * ── Muammo ──────────────────────────────────────────────────────────
+   * Android brauzerining odatiy xatti-harakati (`resizes-visual`)
+   * shunday: klaviatura chiqqanda sahifaning o'lchami O'ZGARMAYDI,
+   * brauzer uni shunchaki yuqoriga suradi.
+   *
+   * Natijada `position: fixed` bilan qo'yilgan pastki panellar —
+   * bo'limlar paneli, savat paneli, "Yuborish" tugmasi — klaviatura
+   * ORQASIDA qolib ketadi. Odam yozadi, lekin yuborish tugmasini
+   * ko'rmaydi.
+   *
+   * ── Yechim ──────────────────────────────────────────────────────────
+   * `resizes-content` da klaviatura chiqqanda sahifaning balandligi
+   * kichrayadi. Pastki panel esa yangi pastki chegaraga yopishadi —
+   * ya'ni klaviatura USTIDA turadi.
+   */
+  interactiveWidget: 'resizes-content',
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: '#fbfbfd' },
     { media: '(prefers-color-scheme: dark)', color: '#0d0e14' },

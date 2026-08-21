@@ -164,7 +164,7 @@ export function SearchContent() {
                   key={popular}
                   type="button"
                   onClick={() => setQuery(popular)}
-                  className="bg-card border-border hover:border-ring rounded-full border px-3.5 py-2 text-sm font-medium transition-colors"
+                  className="bg-card border-border hover:border-ring inline-flex min-h-11 items-center rounded-full border px-3.5 py-2 text-sm font-medium transition-colors"
                 >
                   {popular}
                 </button>
@@ -256,7 +256,7 @@ function FilterChip({ label, isActive, onClick }: { label: string; isActive: boo
       onClick={onClick}
       aria-pressed={isActive}
       className={cn(
-        'shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors',
+        'inline-flex min-h-11 shrink-0 items-center rounded-full px-4 py-2 text-sm font-medium transition-colors',
         isActive
           ? 'bg-primary text-primary-foreground'
           : 'bg-card border-border text-muted-foreground hover:text-foreground border',

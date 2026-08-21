@@ -51,7 +51,7 @@ export function BalanceCard({ balance, reserved, className }: BalanceCardProps) 
         <div className="mt-5 flex gap-2">
           <Link
             href="/wallet/topup"
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/95 px-4 py-2.5 text-sm font-semibold text-neutral-900 transition-transform active:scale-95"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/95 px-4 py-2.5 text-sm font-semibold text-neutral-900 transition-transform active:scale-95"
           >
             <Plus className="size-4" aria-hidden="true" />
             To&apos;ldirish
@@ -59,7 +59,7 @@ export function BalanceCard({ balance, reserved, className }: BalanceCardProps) 
 
           <Link
             href="/wallet/transfer"
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/20 px-4 py-2.5 text-sm font-semibold backdrop-blur-sm transition-transform active:scale-95"
+            className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/20 px-4 py-2.5 text-sm font-semibold backdrop-blur-sm transition-transform active:scale-95"
           >
             <ArrowDownLeft className="size-4 rotate-180" aria-hidden="true" />
             O&apos;tkazish

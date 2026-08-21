@@ -58,7 +58,7 @@ export function WalletContent() {
                 {data.recentTransactions.length > 0 && (
                   <Link
                     href="/wallet/history"
-                    className="text-primary inline-flex items-center gap-0.5 text-sm font-medium"
+                    className="tap-target text-primary inline-flex items-center gap-0.5 text-sm font-medium"
                   >
                     Barchasi
                     <ChevronRight className="size-4" aria-hidden="true" />

@@ -45,7 +45,7 @@ export function TrendingHashtags() {
           <Link
             key={item.tag}
             href={`/feed/tag/${item.tag}`}
-            className="border-border hover:bg-secondary flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors"
+            className="border-border hover:bg-secondary flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors"
           >
             <span className="font-medium">{`#${item.tag}`}</span>
             <span className="text-muted-foreground tabular-nums">{item.postCount}</span>

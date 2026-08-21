@@ -253,7 +253,10 @@ export function PostCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-1.5">
-            <Link href={`/u/${post.author.username}`} className="truncate text-sm font-semibold hover:underline">
+            <Link
+              href={`/u/${post.author.username}`}
+              className="-my-3 truncate py-3 text-sm font-semibold hover:underline"
+            >
               {name}
             </Link>
 
@@ -318,7 +321,7 @@ export function PostCard({
               aria-expanded={isMenuOpen}
               disabled={isBusy}
               onClick={() => setIsMenuOpen((current) => !current)}
-              className="text-muted-foreground hover:text-foreground -m-2 rounded-lg p-2 transition-colors disabled:opacity-60"
+              className="tap-target text-muted-foreground hover:text-foreground -m-2 rounded-lg p-2 transition-colors disabled:opacity-60"
             >
               <MoreHorizontal className="size-4" aria-hidden="true" />
             </button>
@@ -618,7 +621,7 @@ export function PostCard({
       )}
 
       {!post.isDeleted && draft === null && (
-        <div className="text-muted-foreground mt-3 flex items-center gap-1">
+        <div className="text-muted-foreground mt-3 flex items-center">
           <button
             type="button"
             disabled={isBusy}
@@ -626,7 +629,7 @@ export function PostCard({
             aria-pressed={post.isLiked}
             aria-label={post.isLiked ? 'Yoqtirishni olib tashlash' : 'Yoqtirish'}
             className={cn(
-              'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors',
+              'tap-target tap-target-y flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors',
               'hover:bg-secondary active:scale-[0.97] disabled:opacity-60',
               post.isLiked && 'text-destructive',
             )}
@@ -644,7 +647,7 @@ export function PostCard({
             <Link
               href={`/feed/${post.id}`}
               aria-label="Izohlar"
-              className="hover:bg-secondary flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors"
+              className="tap-target tap-target-y hover:bg-secondary flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors"
             >
               <MessageCircle className="size-4" aria-hidden="true" />
               {commentText && <span className="tabular-nums">{commentText}</span>}
@@ -656,7 +659,7 @@ export function PostCard({
               type="button"
               aria-label="Ulashish"
               onClick={() => setIsShareOpen(true)}
-              className="hover:bg-secondary flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors active:scale-[0.97]"
+              className="tap-target tap-target-y hover:bg-secondary flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs transition-colors active:scale-[0.97]"
             >
               <Share2 className="size-4" aria-hidden="true" />
               {shareText && <span className="tabular-nums">{shareText}</span>}
@@ -678,7 +681,7 @@ export function PostCard({
               aria-pressed={post.isSaved}
               aria-label={post.isSaved ? 'Saqlanganlardan olib tashlash' : 'Saqlash'}
               className={cn(
-                'ml-auto flex items-center rounded-full px-3 py-1.5 text-xs transition-colors',
+                'tap-target tap-target-y ml-auto flex items-center rounded-full px-3 py-1.5 text-xs transition-colors',
                 'hover:bg-secondary active:scale-[0.97] disabled:opacity-60',
                 post.isSaved && 'text-primary',
               )}
@@ -696,7 +699,7 @@ export function PostCard({
             <Link
               key={tag}
               href={`/feed/tag/${tag}`}
-              className="bg-secondary text-muted-foreground hover:text-foreground rounded-full px-2.5 py-1 text-xs transition-colors"
+              className="bg-secondary text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center rounded-full px-3 py-1 text-xs transition-colors"
             >
               {`#${tag}`}
             </Link>

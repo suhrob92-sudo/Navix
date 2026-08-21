@@ -479,7 +479,7 @@ export function ReelPlayer({
         type="button"
         onClick={onToggleMuted}
         aria-label={isMuted ? 'Ovozni yoqish' : "Ovozni o'chirish"}
-        className="absolute top-4 right-4 rounded-full bg-black/40 p-2.5 text-white backdrop-blur-sm transition-transform active:scale-95"
+        className="tap-target absolute top-4 right-4 rounded-full bg-black/40 p-2.5 text-white backdrop-blur-sm transition-transform active:scale-95"
       >
         {isMuted ? (
           <VolumeX className="size-5" aria-hidden="true" />
@@ -499,7 +499,7 @@ export function ReelPlayer({
         type="button"
         onClick={() => setSpeed(WATCH_SPEEDS[(WATCH_SPEEDS.indexOf(speed) + 1) % WATCH_SPEEDS.length])}
         aria-label={`Tezlik: ${speed}x`}
-        className="absolute top-16 right-4 rounded-full bg-black/40 px-2.5 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition-transform active:scale-95"
+        className="tap-target absolute top-16 right-4 rounded-full bg-black/40 px-2.5 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition-transform active:scale-95"
       >
         {`${speed}x`}
       </button>
@@ -511,7 +511,7 @@ export function ReelPlayer({
           onClick={onToggleLike}
           aria-pressed={post.isLiked}
           aria-label={post.isLiked ? 'Yoqtirishni olib tashlash' : 'Yoqtirish'}
-          className="flex flex-col items-center gap-1 text-white transition-transform active:scale-90"
+          className="tap-target flex flex-col items-center gap-1 text-white transition-transform active:scale-90"
         >
           <Heart
             className={cn('size-7 drop-shadow', post.isLiked && 'fill-red-500 text-red-500')}
@@ -523,7 +523,7 @@ export function ReelPlayer({
         <Link
           href={`/feed/${post.id}`}
           aria-label="Izohlar"
-          className="flex flex-col items-center gap-1 text-white transition-transform active:scale-90"
+          className="tap-target flex flex-col items-center gap-1 text-white transition-transform active:scale-90"
         >
           <MessageCircle className="size-7 drop-shadow" aria-hidden="true" />
           <span className="text-xs font-medium tabular-nums drop-shadow">{commentText || '0'}</span>
@@ -540,7 +540,7 @@ export function ReelPlayer({
           type="button"
           onClick={() => setIsShareOpen(true)}
           aria-label="Ulashish"
-          className="flex flex-col items-center gap-1 text-white transition-transform active:scale-90"
+          className="tap-target flex flex-col items-center gap-1 text-white transition-transform active:scale-90"
         >
           <Share2 className="size-7 drop-shadow" aria-hidden="true" />
           <span className="text-xs font-medium tabular-nums drop-shadow">{shareText || '0'}</span>
@@ -551,7 +551,7 @@ export function ReelPlayer({
           onClick={onToggleSave}
           aria-pressed={post.isSaved}
           aria-label={post.isSaved ? 'Saqlanganlardan olib tashlash' : 'Saqlash'}
-          className="flex flex-col items-center gap-1 text-white transition-transform active:scale-90"
+          className="tap-target flex flex-col items-center gap-1 text-white transition-transform active:scale-90"
         >
           <Bookmark
             className={cn('size-7 drop-shadow', post.isSaved && 'fill-white')}
@@ -577,7 +577,7 @@ export function ReelPlayer({
         className="absolute inset-x-0 bottom-0 space-y-3 p-4"
         style={{ paddingBottom: 'calc(2.5rem + env(safe-area-inset-bottom))' }}
       >
-        <Link href={`/u/${post.author.username}`} className="flex items-center gap-2.5">
+        <Link href={`/u/${post.author.username}`} className="tap-target tap-target-y flex items-center gap-2.5">
           <Avatar src={post.author.avatarUrl} name={post.author.fullName} size="sm" />
 
           <span className="flex items-center gap-1.5">

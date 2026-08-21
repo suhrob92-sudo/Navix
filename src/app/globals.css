@@ -427,3 +427,59 @@
     --chat-pattern: oklch(0.7 0.1 265 / 0.2);
   }
 }
+
+/*
+  BOSILADIGAN maydonni kattalashtirish — ko'rinishga tegmasdan.
+
+  ── Muammo ────────────────────────────────────────────────────────────
+  Lentadagi "Yoqtirish", "Ulashish" kabi tugmalar 28 piksel balandlikda
+  edi. Barmoq uchi esa ekranda ~44 piksel joyni egallaydi va odam
+  barmoq ostini KO'RMAYDI — birinchi urinishda tegmaydi.
+
+  ── Nima uchun tugmaning O'ZI kattalashtirilmaydi ─────────────────────
+  Bu belgilar ataylab kichik: ular postning matni va rasmini bosib
+  ketmasligi kerak. Ularni 44px qilsak, lenta belgilar to'plamiga
+  aylanardi.
+
+  ── Yechim ────────────────────────────────────────────────────────────
+  Ko'rinmas qatlam (`::after`) tugmadan tashqariga chiqadi va
+  bosilishni o'ziga oladi. Belgi joyida qoladi, bosiladigan maydon
+  esa kengayadi.
+
+  `min-width`/`min-height` bilan qo'yiladi: tugma allaqachon
+  kattaroq bo'lsa, qatlam uni KICHRAYTIRMAYDI.
+*/
+@layer utilities {
+  .tap-target {
+    position: relative;
+  }
+
+  .tap-target::after {
+    content: '';
+    position: absolute;
+    /*
+      Markazdan cho'ziladi: tugma qayerda bo'lsa ham, kengaygan
+      maydon uning ustida turadi va yon tomonga siljib ketmaydi.
+    */
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    min-width: 44px;
+    min-height: 44px;
+    width: 100%;
+    height: 100%;
+  }
+
+  /*
+    Yonma-yon turgan tugmalar uchun.
+
+    Ikkita tugma bir-biriga yaqin bo'lsa, kengaygan maydonlar
+    KESISHADI va ustidagisi pastdagisini yopib qo'yadi. Bunday
+    joyda faqat BALANDLIK kengaytiriladi: qator ichida yuqoriga va
+    pastga bo'sh joy bor, yon tomonda esa yo'q.
+  */
+  .tap-target-y::after {
+    min-width: 0;
+    width: 100%;
+  }
+}

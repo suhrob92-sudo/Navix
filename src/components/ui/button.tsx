@@ -41,7 +41,18 @@ const buttonVariants = cva(
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
-        sm: 'h-9 px-3 text-xs',
+        /*
+          Kichik tugma KO'RINISHDA 36px, lekin BOSILADIGAN maydoni
+          44px (`tap-target` — `globals.css` da izohi bor).
+
+          Uni ko'rinishda ham 44px qilish mumkin edi, lekin u holda
+          "kichik" o'lchamning ma'nosi qolmasdi: u zich joylarda —
+          kartochka ichida, sarlavha yonida — ishlatiladi.
+
+          Faqat BALANDLIK kengaytiriladi: bunday tugmalar ko'pincha
+          yonma-yon turadi va eni kengaysa bir-birini yeb qo'yardi.
+        */
+        sm: 'tap-target tap-target-y h-9 px-3 text-xs',
         md: 'h-11 px-5',
         lg: 'h-13 px-7 text-base',
         icon: 'size-11',

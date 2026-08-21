@@ -62,7 +62,7 @@ export function FeedHeader({ title, showSearch = true }: FeedHeaderProps) {
           <Link
             href="/dashboard"
             aria-label="Bosh sahifaga qaytish"
-            className="text-muted-foreground hover:bg-secondary/60 hover:text-foreground -ml-2 inline-flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors"
+            className="tap-target text-muted-foreground hover:bg-secondary/60 hover:text-foreground -ml-2 inline-flex size-9 shrink-0 items-center justify-center rounded-lg transition-colors"
           >
             <ChevronLeft className="size-5" aria-hidden="true" />
           </Link>

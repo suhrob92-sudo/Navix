@@ -252,7 +252,7 @@ function WatchBody({ startId }: WatchContentProps) {
       <Link
         href="/feed/videos"
         aria-label="Videolarga qaytish"
-        className="absolute top-4 left-4 z-10 rounded-full bg-black/40 p-2.5 text-white backdrop-blur-sm transition-transform active:scale-95"
+        className="tap-target absolute top-4 left-4 z-10 rounded-full bg-black/40 p-2.5 text-white backdrop-blur-sm transition-transform active:scale-95"
       >
         <ArrowLeft className="size-5" aria-hidden="true" />
       </Link>

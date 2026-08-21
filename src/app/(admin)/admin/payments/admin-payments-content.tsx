@@ -118,7 +118,7 @@ function PaymentsBody() {
               }}
               aria-pressed={status === tab.value}
               className={cn(
-                'shrink-0 snap-start rounded-full border px-4 py-2 text-sm font-medium transition-colors',
+                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
                 status === tab.value
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-border hover:bg-secondary',

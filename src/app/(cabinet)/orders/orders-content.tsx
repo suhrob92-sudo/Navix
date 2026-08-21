@@ -160,7 +160,7 @@ function FilterChip({ label, isActive, isSmall = false, onClick }: FilterChipPro
       onClick={onClick}
       aria-pressed={isActive}
       className={cn(
-        'shrink-0 rounded-full font-medium transition-colors',
+        'inline-flex min-h-11 shrink-0 items-center rounded-full font-medium transition-colors',
         isSmall ? 'px-3 py-1.5 text-xs' : 'px-4 py-2 text-sm',
         isActive
           ? 'bg-primary text-primary-foreground'

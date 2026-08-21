@@ -80,7 +80,7 @@ export function AppHeader({ title, showBack = false, backHref, onBack, className
                 else router.back();
               }}
               aria-label="Orqaga"
-              className="hover:bg-secondary/60 focus-visible:ring-ring -ml-2 inline-flex size-10 shrink-0 items-center justify-center rounded-lg transition-colors focus-visible:ring-2"
+              className="tap-target hover:bg-secondary/60 focus-visible:ring-ring -ml-2 inline-flex size-10 shrink-0 items-center justify-center rounded-lg transition-colors focus-visible:ring-2"
             >
               <ArrowLeft className="size-5" aria-hidden="true" />
             </button>
