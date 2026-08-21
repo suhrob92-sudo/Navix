@@ -1,12 +1,12 @@
 'use client';
 
 import { Link2, MapPin, Megaphone, Scissors, Send, Sparkles, Video, X } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { LocationPicker } from '@/components/feed/location-picker';
-import { AttachmentPicker, type PickedAttachment } from '@/components/feed/attachment-picker';
-import { CtaPicker, type PickedCta } from '@/components/feed/cta-picker';
-import { VideoEditor, type VideoEdit } from '@/components/feed/video-editor';
+import type { PickedAttachment } from '@/components/feed/attachment-picker';
+import type { PickedCta } from '@/components/feed/cta-picker';
+import type { VideoEdit } from '@/components/feed/video-editor';
 import { POST_CATEGORIES } from '@/config/feed-nav';
 import { ImageAttach } from '@/components/upload/image-attach';
 import { Alert } from '@/components/ui/alert';
@@ -29,6 +29,44 @@ import { POST_CTA_CONFIG } from '@/config/post-cta';
 import { MAX_VIDEO_SECONDS, formatDuration } from '@/modules/upload/upload.types';
 
 /** Yuborilayotgan postning to'liq tarkibi. */
+/**
+ * Oynalar DANGASA yuklanadi.
+ *
+ * ── Nima uchun (O'LCHANGAN muammo) ────────────────────────────────────
+ * Post yozish oynasi to'rtta tanlagichni va video muharririni ichiga
+ * oladi. Ular oddiy `import` bilan bog'langanda, lentaga kirgan HAR
+ * BIR odam ularni yuklab olardi — hatto post yozmasa ham.
+ *
+ * O'lchov: `/feed` sahifasi 1227 KB JavaScript yuklardi. Sekin
+ * internetda bu bir necha soniya bo'sh ekran degani.
+ *
+ * `dynamic` bilan ular oyna OCHILGANDA yuklanadi. Odam tugmani
+ * bosgan payt esa u allaqachon kutishga tayyor.
+ *
+ * ── Nima uchun `ssr: false` ───────────────────────────────────────────
+ * Bu oynalar faqat bosilgandan keyin paydo bo'ladi — serverda
+ * chizishning ma'nosi yo'q. Ular brauzer imkoniyatlariga
+ * (fayl tanlash, kamera) tayanadi va serverda baribir ishlamaydi.
+ */
+const LocationPicker = dynamic(
+  () => import('@/components/feed/location-picker').then((m) => m.LocationPicker),
+  { ssr: false },
+);
+
+const AttachmentPicker = dynamic(
+  () => import('@/components/feed/attachment-picker').then((m) => m.AttachmentPicker),
+  { ssr: false },
+);
+
+const CtaPicker = dynamic(() => import('@/components/feed/cta-picker').then((m) => m.CtaPicker), {
+  ssr: false,
+});
+
+const VideoEditor = dynamic(
+  () => import('@/components/feed/video-editor').then((m) => m.VideoEditor),
+  { ssr: false },
+);
+
 export interface ComposerDraft {
   body: string;
   imageUrl: string | null;

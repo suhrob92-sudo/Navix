@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
+import { cacheKey, cached, getRedis } from '@/lib/redis';
 import { invalidateRecommendations } from '@/modules/feed/recommend.cache';
 import type { PostCategoryName } from '@/modules/feed/feed.types';
 import type { FeedSettingsInput } from '@/modules/feed/settings.schemas';
@@ -82,10 +84,42 @@ function toView(row: SettingsRow): FeedSettingsView {
  * qator yaratish shart emas: millionlab foydalanuvchida bu millionlab
  * keraksiz qator degani.
  */
-export async function getFeedSettings(userId: string): Promise<FeedSettingsView> {
-  const row = await prisma.feedSettings.findUnique({ where: { userId }, select: SELECT });
+/**
+ * Sozlamalar keshda qancha yashaydi.
+ *
+ * ── Nima uchun kesh KERAK edi ─────────────────────────────────────────
+ * Bu yozuv lentaning HAR BIR so'rovida o'qiladi — filtrlar undan
+ * quriladi. Lentani aylantirgan odam daqiqada o'nlab marta bir xil
+ * qatorni so'rardi.
+ *
+ * ── Nima uchun muddat QISQA ───────────────────────────────────────────
+ * Har bir yozish keshni darhol tozalaydi. Muddat faqat Redis yozuvi
+ * xato berganda ishlaydi — ya'ni u xavfsizlik to'ri, asosiy
+ * mexanizm emas.
+ */
+const SETTINGS_CACHE_TTL_SECONDS = 5 * 60;
 
-  return row ? toView(row) : { ...DEFAULT_FEED_SETTINGS };
+/**
+ * Sozlamalar keshini tozalaydi.
+ *
+ * Sozlama o'zgargach lenta DARHOL o'zgarishi kerak: odam "Restoranlar
+ * qizig'i emas" desa va lenta yana restoran ko'rsatsa, u tugma
+ * ishlamadi deb o'ylardi.
+ */
+async function clearSettingsCache(userId: string): Promise<void> {
+  try {
+    await getRedis().del(cacheKey.feedSettings(userId));
+  } catch (error) {
+    logger.warn({ err: error, userId }, "Sozlama keshini tozalab bo'lmadi");
+  }
+}
+
+export async function getFeedSettings(userId: string): Promise<FeedSettingsView> {
+  return cached(cacheKey.feedSettings(userId), SETTINGS_CACHE_TTL_SECONDS, async () => {
+    const row = await prisma.feedSettings.findUnique({ where: { userId }, select: SELECT });
+
+    return row ? toView(row) : { ...DEFAULT_FEED_SETTINGS };
+  });
 }
 
 /**
@@ -149,6 +183,7 @@ export async function updateFeedSettings(
    * qaytganda o'sha postlarni yana ko'rardi va sozlama ishlamayapti
    * deb o'ylardi.
    */
+  await clearSettingsCache(userId);
   await invalidateRecommendations(userId);
 
   return toView(row);
@@ -199,6 +234,7 @@ export async function resetRecommendations(userId: string): Promise<FeedSettings
    * qaytganda o'sha postlarni yana ko'rardi va sozlama ishlamayapti
    * deb o'ylardi.
    */
+  await clearSettingsCache(userId);
   await invalidateRecommendations(userId);
 
   return toView(row);
@@ -240,6 +276,7 @@ export async function completeFeedOnboarding(
    * qaytganda o'sha postlarni yana ko'rardi va sozlama ishlamayapti
    * deb o'ylardi.
    */
+  await clearSettingsCache(userId);
   await invalidateRecommendations(userId);
 
   return toView(row);

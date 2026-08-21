@@ -1,17 +1,38 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 import { CreateMenu } from '@/components/feed/create-menu';
-import { PostComposer, type ComposerDraft } from '@/components/feed/post-composer';
-import { StoryComposer } from '@/components/story/story-composer';
+import type { ComposerDraft } from '@/components/feed/post-composer';
 import { Alert } from '@/components/ui/alert';
 import { useApiClient } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import type { PostView } from '@/modules/feed/feed.types';
 
 export type PostedHandler = (post: PostView) => void;
+
+/**
+ * Yozish oynalari DANGASA yuklanadi.
+ *
+ * ── Nima uchun (O'LCHANGAN muammo) ────────────────────────────────────
+ * Bu qolip lentaning HAR BIR sahifasida turadi. Oddiy `import` bilan
+ * post oynasi va uning ichidagi beshta tanlagich lentaga kirgan har
+ * bir odamga yuklanardi — hatto hech narsa yozmasa ham.
+ *
+ * Post yozish esa kamdan-kam bo'ladigan amal: odam lentani o'nlab
+ * marta ochadi, post esa haftada bir marta yozadi.
+ */
+const PostComposer = dynamic(
+  () => import('@/components/feed/post-composer').then((m) => m.PostComposer),
+  { ssr: false },
+);
+
+const StoryComposer = dynamic(
+  () => import('@/components/story/story-composer').then((m) => m.StoryComposer),
+  { ssr: false },
+);
 
 export interface FeedCreateContextValue {
   /** "Nima joylaysiz?" oynasini ochadi. */

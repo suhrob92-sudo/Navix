@@ -59,6 +59,20 @@ export const cacheKey = {
   callAlive: (callId: string) => `navix:call:alive:${callId}`,
   /** Foydalanuvchi hozir qaysi suhbatni ochib turgani. */
   viewing: (userId: string) => `navix:viewing:${userId}`,
+  /**
+   * Bloklangan odamlar ro'yxati.
+   *
+   * ── Nima uchun keshlanadi ───────────────────────────────────────────
+   * Bu ro'yxat lentaning HAR BIR so'rovida o'qiladi: qidiruvda,
+   * mavzu sahifasida, mahsulot sahifasidagi videolarda ham. Ya'ni
+   * bitta ekranni ochish bir necha marta bir xil so'rovni yuboradi.
+   *
+   * Ro'yxat esa deyarli o'zgarmaydi — odam kuniga bir marta ham
+   * bloklamaydi.
+   */
+  blockedIds: (userId: string) => `navix:blocked:${userId}`,
+  /** Lenta sozlamalari — har bir lenta so'rovida o'qiladi. */
+  feedSettings: (userId: string) => `navix:feed:settings:${userId}`,
 } as const;
 
 /**

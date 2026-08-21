@@ -7,6 +7,7 @@ import { Prisma } from '@/generated/prisma/client';
 import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/api/errors';
 import { AuditAction, recordAudit } from '@/lib/audit';
 import { logger } from '@/lib/logger';
+import { cacheKey, cached, getRedis } from '@/lib/redis';
 import { prisma } from '@/lib/prisma';
 import type {
   AdminReportQuery,
@@ -186,6 +187,8 @@ export async function blockUser(blockerId: string, username: string): Promise<vo
     },
   });
 
+  await clearBlockCache(blockerId, blockedId);
+
   logger.info({ blockerId, blockedId }, 'Foydalanuvchi bloklandi');
 }
 
@@ -199,6 +202,8 @@ export async function unblockUser(blockerId: string, username: string): Promise<
    * natija muhim: blok yo'q.
    */
   await prisma.userBlock.deleteMany({ where: { blockerId, blockedId } });
+
+  await clearBlockCache(blockerId, blockedId);
 
   logger.info({ blockerId, blockedId }, 'Blok olib tashlandi');
 }
@@ -240,19 +245,55 @@ export async function listBlocked(userId: string): Promise<BlockedUserView[]> {
  *
  * Qidiruv va ro'yxatlarda ularni chiqarib tashlash uchun ishlatiladi.
  */
-export async function blockedUserIds(userId: string): Promise<string[]> {
-  const rows = await prisma.userBlock.findMany({
-    where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
-    select: { blockerId: true, blockedId: true },
-  });
+/**
+ * Ro'yxat qancha keshda yashaydi.
+ *
+ * ── Nima uchun bu son AHAMIYATSIZ ko'rinadi, lekin emas ───────────────
+ * Bloklash va blokdan chiqarish keshni DARHOL tozalaydi (pastdagi
+ * `clearBlockCache`). Ya'ni bu muddat faqat BITTA holatda ishlaydi:
+ * Redis yozuvi xato bergan bo'lsa.
+ *
+ * Shuning uchun u qisqa: eng yomon holatda odam besh daqiqa
+ * ortiqcha kutadi, cheksiz emas.
+ */
+const BLOCK_CACHE_TTL_SECONDS = 5 * 60;
 
-  const ids = new Set<string>();
-
-  for (const row of rows) {
-    ids.add(row.blockerId === userId ? row.blockedId : row.blockerId);
+/**
+ * Ikkala tomonning keshini tozalaydi.
+ *
+ * ── Nima uchun IKKALASI ───────────────────────────────────────────────
+ * Ro'yxat ikki tomonlama: A B ni bloklasa, B ham A ni ko'rmaydi.
+ * Faqat bloklaganning keshini tozalasak, bloklangan odam yana besh
+ * daqiqa A ning postlarini ko'rib turardi — va u buni "blok
+ * ishlamadi" deb tushunardi.
+ *
+ * ── Nima uchun xato YUTILADI ──────────────────────────────────────────
+ * Redis yiqilsa ham bloklash bazaga yozilgan. Kesh tozalanmagani
+ * eng yomoni — qaror besh daqiqadan keyin kuchga kiradi.
+ */
+async function clearBlockCache(...userIds: string[]): Promise<void> {
+  try {
+    await getRedis().del(...userIds.map((id) => cacheKey.blockedIds(id)));
+  } catch (error) {
+    logger.warn({ err: error, userIds }, "Blok keshini tozalab bo'lmadi");
   }
+}
 
-  return [...ids];
+export async function blockedUserIds(userId: string): Promise<string[]> {
+  return cached(cacheKey.blockedIds(userId), BLOCK_CACHE_TTL_SECONDS, async () => {
+    const rows = await prisma.userBlock.findMany({
+      where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
+      select: { blockerId: true, blockedId: true },
+    });
+
+    const ids = new Set<string>();
+
+    for (const row of rows) {
+      ids.add(row.blockerId === userId ? row.blockedId : row.blockerId);
+    }
+
+    return [...ids];
+  });
 }
 
 export async function reportUser(reporterId: string, username: string, input: ReportUserInput): Promise<void> {

@@ -18,12 +18,13 @@ import {
   X,
 } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useEffect, useRef, useState } from 'react';
 
 import { AttachmentButton } from '@/components/feed/attachment-button';
 import { PostCtaButton } from '@/components/feed/post-cta-button';
 import { RichText } from '@/components/feed/rich-text';
-import { ShareSheet } from '@/components/feed/share-sheet';
+
 import { SponsoredBadge } from '@/components/feed/sponsored-badge';
 import { Avatar } from '@/components/ui/avatar';
 import { useTrimmedVideo } from '@/hooks/use-trimmed-video';
@@ -38,6 +39,18 @@ import {
 } from '@/modules/feed/feed.types';
 import { readTrim } from '@/modules/feed/video-trim';
 import { formatDuration } from '@/modules/upload/upload.types';
+
+/**
+ * Ulashish oynasi DANGASA yuklanadi.
+ *
+ * Lentada o'nlab kartochka bo'ladi, ulashish esa bittasida va
+ * kamdan-kam bosiladi. Oddiy `import` bilan uning kodi lentaga
+ * kirgan har bir odamga yuklanardi.
+ */
+const ShareSheet = dynamic(
+  () => import('@/components/feed/share-sheet').then((m) => m.ShareSheet),
+  { ssr: false },
+);
 
 export interface ReelPlayerProps {
   post: PostView;
@@ -410,7 +423,14 @@ export function ReelPlayer({
         */
         loop={!isLong}
         playsInline
-        preload={isActive ? 'auto' : 'metadata'}
+        /*
+          Ko'rinmayotgan video: muqova bo'lsa — UMUMAN yuklanmaydi.
+
+          Ilgari `metadata` edi va tasmadagi har bir video kamida
+          bitta so'rov yuborardi. Muqova bor bo'lsa uning ma'nosi
+          yo'q: ekranda baribir o'sha kadr turadi.
+        */
+        preload={isActive ? 'auto' : post.videoPosterUrl ? 'none' : 'metadata'}
         className="h-full w-full object-contain"
         onClick={handleTap}
       />

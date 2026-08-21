@@ -3,12 +3,13 @@
 
 import { BadgeCheck, Bookmark, Clapperboard, EyeOff, Flag, FolderPlus, Heart, MapPin, MessageCircle, MoreHorizontal, Pencil, Pin, PinOff, Share2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { useRef, useState } from 'react';
 
 import { AttachmentButton } from '@/components/feed/attachment-button';
 import { PostCtaButton } from '@/components/feed/post-cta-button';
 import { RichText } from '@/components/feed/rich-text';
-import { ShareSheet } from '@/components/feed/share-sheet';
+
 import { SponsoredBadge } from '@/components/feed/sponsored-badge';
 import { ReportDialog } from '@/components/moderation/report-dialog';
 import { Avatar } from '@/components/ui/avatar';
@@ -29,6 +30,18 @@ import {
   type PostView,
 } from '@/modules/feed/feed.types';
 import type { ReportReasonName } from '@/modules/moderation/moderation.types';
+
+/**
+ * Ulashish oynasi DANGASA yuklanadi.
+ *
+ * Lentada o'nlab kartochka bo'ladi, ulashish esa bittasida va
+ * kamdan-kam bosiladi. Oddiy `import` bilan uning kodi lentaga
+ * kirgan har bir odamga yuklanardi.
+ */
+const ShareSheet = dynamic(
+  () => import('@/components/feed/share-sheet').then((m) => m.ShareSheet),
+  { ssr: false },
+);
 
 export interface PostCardProps {
   post: PostView;
@@ -531,7 +544,23 @@ export function PostCard({
             controls
             muted
             playsInline
-            preload="metadata"
+            /*
+              Muqova bo'lsa video OLDINDAN yuklanmaydi.
+
+              ── Nima uchun (mobil internet) ─────────────────────────
+              `metadata` har bir video uchun alohida so'rov yuboradi
+              va MP4 sarlavhasini tortib oladi. Lentada o'nta video
+              bo'lsa — o'nta so'rov, hech biri ko'rilmasa ham.
+
+              Muqova esa allaqachon rasm sifatida ko'rinib turibdi:
+              odam nimani ko'rayotganini biladi va "o'ynatish"
+              bosilganda video yuklanadi.
+
+              Muqovasiz videoda `metadata` QOLADI — aks holda qora
+              to'rtburchak ko'rinardi va odam u nima ekanini
+              bilmasdi.
+            */
+            preload={post.videoPosterUrl ? 'none' : 'metadata'}
             className="border-border max-h-96 w-full rounded-xl border bg-black"
           />
 
@@ -576,6 +605,7 @@ export function PostCard({
             src={post.imageUrl}
             alt=""
             loading="lazy"
+            decoding="async"
             className="border-border max-h-96 w-full rounded-xl border object-cover"
           />
 

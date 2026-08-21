@@ -53,6 +53,24 @@ export function Avatar({ src, name, size = 'md', className }: AvatarProps) {
         <img
           src={src ?? ''}
           alt={name ?? 'Foydalanuvchi rasmi'}
+          /*
+            Avatar EKRANGA kirganda yuklanadi.
+
+            ── Nima uchun (o'lchangan) ───────────────────────────────
+            Avatar ilovaning eng ko'p takrorlanadigan rasmi: har bir
+            post, har bir izoh, har bir ro'yxat qatorida turadi.
+            Uzun lentada ular yuzlab bo'ladi.
+
+            Barchasi birdan yuklansa, brauzer ulanishlari band bo'lib
+            qoladi va ASOSIY mazmun (post rasmi, video muqovasi)
+            navbat kutadi.
+
+            O'lcham CSS bilan qat'iy belgilangan, shuning uchun
+            kechroq yuklanishi sahifani sakratmaydi.
+          */
+          loading="lazy"
+          /* Rasm asosiy oqimni to'xtatmasdan ochiladi. */
+          decoding="async"
           className="size-full object-cover"
           onError={() => setHasFailed(true)}
         />
