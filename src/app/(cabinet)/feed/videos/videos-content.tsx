@@ -45,12 +45,12 @@ export function VideosContent() {
     <>
       <FeedHeader title="Videolar" />
 
-      <div className="space-y-4 px-4 pt-4 pb-tabbar">
+      <div className="pb-tabbar space-y-4 px-4 pt-4">
         {/* Filtrlar — gorizontal, telefonga sig'ishi uchun. */}
         <div
           role="tablist"
           aria-label="Video turlari"
-          className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden"
         >
           {VIDEO_FILTERS.map((item) => (
             <button

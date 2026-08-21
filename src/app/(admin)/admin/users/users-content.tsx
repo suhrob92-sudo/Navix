@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +17,6 @@ import { Permission } from '@/config/rbac';
 import { useApiQuery } from '@/hooks/use-api';
 import { formatTiyin } from '@/lib/money';
 import { formatUzPhone } from '@/lib/phone';
-import { cn } from '@/lib/utils';
 import { USER_STATUS_LABELS, USER_STATUS_VARIANTS, type AdminUsersResponse } from '@/modules/admin/admin.types';
 import { RequireAdmin } from '@/modules/admin/require-admin';
 
@@ -81,20 +81,12 @@ function UsersBody() {
 
         <div className="-mx-4 mt-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {STATUS_TABS.map((tab) => (
-            <button
+            <FilterChip
               key={tab.value}
-              type="button"
+              label={tab.label}
+              active={status === tab.value}
               onClick={() => changeStatus(tab.value)}
-              aria-pressed={status === tab.value}
-              className={cn(
-                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                status === tab.value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {tab.label}
-            </button>
+            />
           ))}
         </div>
 

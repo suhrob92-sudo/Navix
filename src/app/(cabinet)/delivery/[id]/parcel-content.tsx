@@ -15,11 +15,7 @@ import { formatUzDateTime } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
 import { formatUzPhone } from '@/lib/phone';
 import { cn } from '@/lib/utils';
-import {
-  DELIVERY_FLOW,
-  DELIVERY_STATUS_LABELS,
-  DELIVERY_STATUS_VARIANTS,
-} from '@/modules/courier/courier.types';
+import { DELIVERY_FLOW, DELIVERY_STATUS_LABELS, DELIVERY_STATUS_VARIANTS } from '@/modules/courier/courier.types';
 import { canCancelParcel, formatWeight, type ParcelResponse } from '@/modules/parcel/parcel.types';
 
 export interface ParcelContentProps {
@@ -93,9 +89,7 @@ export function ParcelContent({ id }: ParcelContentProps) {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-mono text-sm">{parcel.parcelNumber}</p>
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    {formatUzDateTime(parcel.createdAt)}
-                  </p>
+                  <p className="text-muted-foreground mt-1 text-xs">{formatUzDateTime(parcel.createdAt)}</p>
                 </div>
 
                 <Badge variant={DELIVERY_STATUS_VARIANTS[parcel.status]}>
@@ -197,12 +191,7 @@ export function ParcelContent({ id }: ParcelContentProps) {
             )}
 
             {canCancelParcel(parcel.status) && (
-              <Button
-                variant="outline"
-                fullWidth
-                onClick={() => setIsCancelOpen(true)}
-                disabled={isCancelling}
-              >
+              <Button variant="outline" fullWidth onClick={() => setIsCancelOpen(true)} disabled={isCancelling}>
                 Bekor qilish va pulni qaytarish
               </Button>
             )}

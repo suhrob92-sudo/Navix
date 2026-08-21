@@ -127,11 +127,7 @@ export function OrdersContent() {
         )}
 
         {!isLoading && !error && orders.length === 0 && (
-          <EmptyState
-            icon={ClipboardList}
-            title="Buyurtma yo'q"
-            description={emptyOrdersText(filter, kind)}
-          />
+          <EmptyState icon={ClipboardList} title="Buyurtma yo'q" description={emptyOrdersText(filter, kind)} />
         )}
 
         {orders.length > 0 && (

@@ -12,10 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { APPEAL_HINT, APPEAL_SUBJECT_PREFIX } from '@/config/moderation-reasons';
 import { useApiQuery } from '@/hooks/use-api';
 import { formatUzDate } from '@/lib/date';
-import type {
-  ContentRemovalListResponse,
-  ContentRemovalView,
-} from '@/modules/moderation/moderation.types';
+import type { ContentRemovalListResponse, ContentRemovalView } from '@/modules/moderation/moderation.types';
 
 /**
  * "Yozuvlarim va qoidalar" — muallif uchun qarorlar ro'yxati.
@@ -38,9 +35,7 @@ import type {
  * qo'yish demak edi.
  */
 export function ModerationContent() {
-  const { data, isLoading, error } = useApiQuery<ContentRemovalListResponse>(
-    '/api/v1/moderation/removals',
-  );
+  const { data, isLoading, error } = useApiQuery<ContentRemovalListResponse>('/api/v1/moderation/removals');
 
   const removals = data?.removals ?? [];
 

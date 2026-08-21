@@ -622,7 +622,7 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
   const video = normalizeVideo(data);
   const cta = normalizeCta(data);
 
-  const row = await prisma.$transaction(async (tx) => {
+  const postId = await prisma.$transaction(async (tx) => {
     const created = await tx.post.create({
       data: {
         authorId,
@@ -644,7 +644,33 @@ export async function createPost(authorId: string, data: CreatePostData): Promis
 
     await syncHashtags(tx, created.id, data.body);
 
-    return tx.post.findUniqueOrThrow({ where: { id: created.id }, select: postSelect(authorId) });
+    return created.id;
+  });
+
+  /*
+    To'liq post TRANZAKSIYADAN TASHQARIDA o'qiladi.
+
+    ── HAQIQIY XATO, sinov topgan ──────────────────────────────────────
+    Ilgari bu o'qish tranzaksiya ICHIDA edi. `postSelect` esa yengil
+    emas: u biriktirmalarni, ularning mahsulot/taom/restoran/ish/
+    mehmonxona ma'lumotlarini, mavzularni, muallifni va ko'ruvchining
+    yoqtirish-saqlash belgisini oladi — bir necha alohida so'rov.
+
+    Natijada tranzaksiya 5 soniyalik chegaradan oshib ketardi:
+
+        Transaction API error: A commit cannot be executed on an
+        expired transaction ... 7639 ms passed
+
+    Foydalanuvchi uchun bu "Serverda kutilmagan xatolik" — video
+    yuklab bo'lgandan KEYIN. Vercel va Neon orasida har bir so'rov
+    tarmoq safari bo'lgani uchun u yerda bu xato tez-tez uchrardi.
+
+    O'qishning tranzaksiyada bo'lishi SHART EMAS: post allaqachon
+    yozilgan va uni o'qish hech nimani buzmaydi.
+  */
+  const row = await prisma.post.findUniqueOrThrow({
+    where: { id: postId },
+    select: postSelect(authorId),
   });
 
   logger.info(
@@ -721,7 +747,7 @@ export async function updatePost(
     throw new ConflictError("Post bo'sh qololmaydi: matn yozing yoki postni o'chiring.");
   }
 
-  const row = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     await tx.post.update({
       where: { id: postId },
       data: {
@@ -749,8 +775,12 @@ export async function updatePost(
 
     // Matn o'zgardi — mavzular ham qayta hisoblanadi.
     await syncHashtags(tx, postId, body);
+  });
 
-    return tx.post.findUniqueOrThrow({ where: { id: postId }, select: postSelect(userId) });
+  /* To'liq post tranzaksiyadan tashqarida — sababi `createPost` da. */
+  const row = await prisma.post.findUniqueOrThrow({
+    where: { id: postId },
+    select: postSelect(userId),
   });
 
   logger.info({ userId, postId }, 'Post tahrirlandi');
@@ -850,14 +880,23 @@ export async function deletePost(postId: string, userId: string): Promise<void> 
  * millionlab qator degani va bu ma'lumot hech kimga kerak emas:
  * sotuvchiga SON kerak — "videomni necha kishi ko'rdi".
  *
- * ── Nima uchun takrorlanish TEKSHIRILMAYDI ────────────────────────────
- * Bir odam videoni ikki marta ko'rsa, sanoq ikki marta oshadi. Buni
- * to'xtatish uchun har bir ko'rish yozib borilishi kerak bo'lardi —
- * ya'ni yuqoridagi millionlab qator.
+ * ── Nima uchun HAR ODAM BIR MARTA sanaladi ────────────────────────────
+ * Bir odam videoni o'n marta ochsa ham, sanoq bir marta oshadi.
  *
- * Instagram va TikTok ham xuddi shunday sanaydi: bu "ko'rishlar",
- * "ko'rgan odamlar" emas. Brauzer tomonida esa bitta video bitta
- * ochilishda BIR MARTA sanaladi.
+ * Sabab: bu son sotuvchi uchun QAROR asosi ("reklama ishladimi?").
+ * Takrorlarni sanasak, o'z videosini qayta-qayta ochgan odam sonni
+ * ko'tarib qo'yardi va son yolg'on bo'lardi.
+ *
+ * ── Nima uchun bu QIMMAT emas ─────────────────────────────────────────
+ * Takrorni to'xtatish uchun "kim ko'rdi" ni bilish kerak. Bu qator
+ * (`PostSeen`) SHUNDOQ HAM yoziladi — u "ko'rganlarim" ro'yxati
+ * uchun kerak. Ya'ni qo'shimcha xarajat yo'q, faqat o'sha qatordan
+ * foydalaniladi.
+ *
+ * ── Eslatma ───────────────────────────────────────────────────────────
+ * Ilgari bu izohda "takrorlanish tekshirilmaydi" deb yozilgan edi —
+ * kod esa boshidan beri tekshirardi. Izoh xato edi va shu sababli
+ * sinov ham noto'g'ri narsani kutardi.
  */
 export async function markVideoViewed(postId: string, viewerId: string): Promise<void> {
   /**

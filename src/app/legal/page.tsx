@@ -10,7 +10,7 @@ import { formatUzDate } from '@/lib/date';
 export const metadata: Metadata = {
   title: 'Huquqiy hujjatlar',
   description:
-    "Foydalanish shartlari, maxfiylik siyosati va ommaviy oferta — ilovadan foydalanish va xarid qilish qoidalari.",
+    'Foydalanish shartlari, maxfiylik siyosati va ommaviy oferta — ilovadan foydalanish va xarid qilish qoidalari.',
   alternates: { canonical: '/legal' },
 };
 

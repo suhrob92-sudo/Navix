@@ -2,7 +2,7 @@ import { SellerProductsContent } from '@/app/(seller)/seller/products/[id]/selle
 
 export const metadata = {
   title: "Ombor — Do'kon",
-  description: "Mahsulotlar, narx va zaxirani boshqarish.",
+  description: 'Mahsulotlar, narx va zaxirani boshqarish.',
 };
 
 export default async function SellerProductsPage({ params }: { params: Promise<{ id: string }> }) {

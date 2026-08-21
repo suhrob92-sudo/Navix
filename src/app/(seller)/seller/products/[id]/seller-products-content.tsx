@@ -188,7 +188,7 @@ function ProductsBody({ shopId }: SellerProductsContentProps) {
                     <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                       <span className="text-sm tabular-nums">{formatTiyin(product.price)}</span>
                       {product.oldPrice !== null && (
-                        <span className="text-muted-foreground text-xs line-through tabular-nums">
+                        <span className="text-muted-foreground text-xs tabular-nums line-through">
                           {formatTiyin(product.oldPrice)}
                         </span>
                       )}
@@ -205,7 +205,9 @@ function ProductsBody({ shopId }: SellerProductsContentProps) {
                       {stockLabel(product.stock)}
                     </Badge>
 
-                    {!product.isActive && <span className="text-muted-foreground text-[0.625rem]">Sotuvda emas</span>}
+                    {!product.isActive && (
+                      <span className="text-muted-foreground text-[0.625rem]">Sotuvda emas</span>
+                    )}
                   </div>
                 </div>
 

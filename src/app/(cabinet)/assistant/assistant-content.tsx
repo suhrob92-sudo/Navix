@@ -69,8 +69,8 @@ const WELCOME_GREETING: ChatMessage = {
   author: 'assistant',
   text:
     "Tanishganimizdan xursandman! Endi birgalikda sinab ko'ramiz.\n\n" +
-    "Pastdagi tugmalardan birini bosing yoki mikrofonni bosib gapiring — " +
-    "masalan \"Navix, ovqat buyur\" deng.",
+    'Pastdagi tugmalardan birini bosing yoki mikrofonni bosib gapiring — ' +
+    'masalan "Navix, ovqat buyur" deng.',
 };
 
 /** Yangi foydalanuvchiga ko'rsatiladigan birinchi qadamlar. */
@@ -89,7 +89,9 @@ export function AssistantContent() {
   const isWelcome = useSearchParams().get('welcome') === '1';
 
   const [messages, setMessages] = useState<ChatMessage[]>([isWelcome ? WELCOME_GREETING : GREETING]);
-  const [suggestions, setSuggestions] = useState<string[]>(isWelcome ? [...WELCOME_PROMPTS] : [...STARTER_PROMPTS]);
+  const [suggestions, setSuggestions] = useState<string[]>(
+    isWelcome ? [...WELCOME_PROMPTS] : [...STARTER_PROMPTS],
+  );
   const [state, setState] = useState<AssistantState>({ slots: {} });
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
@@ -214,18 +216,15 @@ export function AssistantContent() {
          */
         // Javob `{ order: ... }` ichida keladi — savat sahifasi ham
         // xuddi shu endpointdan xuddi shunday o'qiydi.
-        const { order } = await request<{ order: { id: string; orderNumber: string } }>(
-          '/api/v1/food/orders',
-          {
-            method: 'POST',
-            body: {
-              restaurantId: action.restaurantId,
-              addressId: action.addressId,
-              items: [{ menuItemId: action.menuItemId, quantity: action.quantity }],
-              idempotencyKey,
-            },
+        const { order } = await request<{ order: { id: string; orderNumber: string } }>('/api/v1/food/orders', {
+          method: 'POST',
+          body: {
+            restaurantId: action.restaurantId,
+            addressId: action.addressId,
+            items: [{ menuItemId: action.menuItemId, quantity: action.quantity }],
+            idempotencyKey,
           },
-        );
+        });
 
         finish('done', `Buyurtma qabul qilindi: ${order.orderNumber}`);
 
@@ -245,18 +244,15 @@ export function AssistantContent() {
          * Narx, ZAXIRA va eng kam buyurtma serverda qaytadan
          * tekshiriladi — yordamchi ularni chetlab o'ta olmaydi.
          */
-        const { order } = await request<{ order: { id: string; orderNumber: string } }>(
-          '/api/v1/market/orders',
-          {
-            method: 'POST',
-            body: {
-              shopId: action.shopId,
-              addressId: action.addressId,
-              items: [{ productId: action.productId, quantity: action.quantity }],
-              idempotencyKey,
-            },
+        const { order } = await request<{ order: { id: string; orderNumber: string } }>('/api/v1/market/orders', {
+          method: 'POST',
+          body: {
+            shopId: action.shopId,
+            addressId: action.addressId,
+            items: [{ productId: action.productId, quantity: action.quantity }],
+            idempotencyKey,
           },
-        );
+        });
 
         finish('done', `Buyurtma qabul qilindi: ${order.orderNumber}`);
 
@@ -382,7 +378,7 @@ export function AssistantContent() {
           type="text"
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder={speech.isSupported ? "Yozing yoki mikrofonni bosing..." : 'Xabar yozing...'}
+          placeholder={speech.isSupported ? 'Yozing yoki mikrofonni bosing...' : 'Xabar yozing...'}
           aria-label="Xabar matni"
           className="bg-card border-border focus-visible:border-ring focus-visible:ring-ring h-12 min-w-0 flex-1 rounded-full border px-5 text-base outline-none focus-visible:ring-2"
         />

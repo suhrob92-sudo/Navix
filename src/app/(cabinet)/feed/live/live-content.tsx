@@ -62,8 +62,7 @@ function LiveBody() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { data, isLoading, error: loadError, reload, setData } =
-    useApiQuery<StreamsResponse>('/api/v1/live');
+  const { data, isLoading, error: loadError, reload, setData } = useApiQuery<StreamsResponse>('/api/v1/live');
 
   const streams = data?.streams ?? [];
   const isEmpty = !isLoading && !loadError && streams.length === 0;
@@ -71,9 +70,7 @@ function LiveBody() {
   /** Ro'yxatdagi bitta efirni serverga murojaat qilmasdan yangilaydi. */
   function patch(streamId: string, changes: Partial<LiveStreamView>) {
     setData((current) => ({
-      streams: (current?.streams ?? []).map((item) =>
-        item.id === streamId ? { ...item, ...changes } : item,
-      ),
+      streams: (current?.streams ?? []).map((item) => (item.id === streamId ? { ...item, ...changes } : item)),
     }));
   }
 
@@ -130,7 +127,7 @@ function LiveBody() {
     <>
       <AppHeader title="Jonli efirlar" showBack backHref="/feed" />
 
-      <div className="space-y-4 px-4 pt-4 pb-tabbar">
+      <div className="pb-tabbar space-y-4 px-4 pt-4">
         {/*
           Halol ogohlantirish — ENG TEPADA.
 
@@ -142,8 +139,8 @@ function LiveBody() {
           ishonchni saqlaydi.
         */}
         <Alert variant="info" title="Efir e'lonlari">
-          Hozircha efirning o&apos;zi Navix ichida ko&apos;rsatilmaydi: bu bo&apos;lim e&apos;lon qilish va
-          eslatma uchun. Efir vaqti kelganda sizga xabar keladi.
+          Hozircha efirning o&apos;zi Navix ichida ko&apos;rsatilmaydi: bu bo&apos;lim e&apos;lon qilish va eslatma
+          uchun. Efir vaqti kelganda sizga xabar keladi.
         </Alert>
 
         {error && <Alert variant="error">{error}</Alert>}
@@ -216,12 +213,7 @@ function StreamCard({
   const isOver = stream.status === 'ENDED' || stream.status === 'CANCELLED';
 
   return (
-    <div
-      className={cn(
-        'bg-card border-border rounded-2xl border p-4',
-        isLive && 'border-destructive/40',
-      )}
-    >
+    <div className={cn('bg-card border-border rounded-2xl border p-4', isLive && 'border-destructive/40')}>
       <div className="flex items-start gap-3">
         <Link href={`/u/${stream.host.username}`} className="shrink-0">
           <Avatar src={stream.host.avatarUrl} name={stream.host.fullName} size="md" />
@@ -229,10 +221,7 @@ function StreamCard({
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <Link
-              href={`/u/${stream.host.username}`}
-              className="truncate text-sm font-semibold hover:underline"
-            >
+            <Link href={`/u/${stream.host.username}`} className="truncate text-sm font-semibold hover:underline">
               {authorDisplayName(stream.host)}
             </Link>
 
@@ -257,15 +246,11 @@ function StreamCard({
           <p className="mt-1 text-sm leading-relaxed font-medium break-words">{stream.title}</p>
 
           {stream.description && (
-            <p className="text-muted-foreground mt-1 text-xs leading-relaxed break-words">
-              {stream.description}
-            </p>
+            <p className="text-muted-foreground mt-1 text-xs leading-relaxed break-words">{stream.description}</p>
           )}
 
           <p className="text-muted-foreground mt-2 text-xs">
-            {isOver
-              ? LIVE_STATUS_LABELS[stream.status]
-              : formatUzDateTime(stream.scheduledAt, 'long')}
+            {isOver ? LIVE_STATUS_LABELS[stream.status] : formatUzDateTime(stream.scheduledAt, 'long')}
             {stream.reminderCount > 0 && ` · ${stream.reminderCount} ta eslatma`}
           </p>
         </div>
@@ -279,7 +264,12 @@ function StreamCard({
           o'zi boshlaydi va o'ziga xabar kelishi keraksiz.
         */}
         {!stream.isMine && !isOver && (
-          <Button variant={stream.isReminded ? 'outline' : 'primary'} size="sm" disabled={isBusy} onClick={onToggleReminder}>
+          <Button
+            variant={stream.isReminded ? 'outline' : 'primary'}
+            size="sm"
+            disabled={isBusy}
+            onClick={onToggleReminder}
+          >
             {stream.isReminded ? (
               <BellOff className="size-4" aria-hidden="true" />
             ) : (

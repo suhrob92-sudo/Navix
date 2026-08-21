@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
-import { FilterChip } from '@/components/admin/filter-chip';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { ProviderIcon } from '@/components/payments/provider-icon';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';

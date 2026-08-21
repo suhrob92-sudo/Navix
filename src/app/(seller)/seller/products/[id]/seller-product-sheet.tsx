@@ -51,7 +51,10 @@ function toSomInput(tiyin: number | null): string {
   return tiyin === null ? '' : String(Math.round(tiyin / 100));
 }
 
-function buildInitialState(product: SellerProduct | undefined, categories: readonly SellerCategoryOption[]): FormState {
+function buildInitialState(
+  product: SellerProduct | undefined,
+  categories: readonly SellerCategoryOption[],
+): FormState {
   if (!product) {
     return {
       name: '',
@@ -266,7 +269,7 @@ export function SellerProductSheet({ shopId, categories, product, onSaved, onClo
                 label={form.isActive ? 'Sotuvda' : 'Sotuvdan olingan'}
                 description={
                   form.isActive
-                    ? 'Mahsulot katalogda va qidiruvda ko\'rinadi'
+                    ? "Mahsulot katalogda va qidiruvda ko'rinadi"
                     : "Mahsulot katalogdan yashiriladi, eski buyurtmalar o'zgarmaydi"
                 }
               />

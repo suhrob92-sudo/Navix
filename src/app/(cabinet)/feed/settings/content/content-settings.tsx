@@ -43,7 +43,7 @@ export function ContentSettingsContent() {
     <>
       <AppHeader title="Kontent sozlamalari" showBack backHref="/feed/settings" />
 
-      <div className="space-y-6 px-4 pt-4 pb-tabbar">
+      <div className="pb-tabbar space-y-6 px-4 pt-4">
         {error && <Alert variant="error">{error}</Alert>}
 
         {isLoading && <Skeleton className="h-40 rounded-2xl" />}
@@ -53,8 +53,7 @@ export function ContentSettingsContent() {
             <section className="space-y-2">
               <h2 className="text-sm font-semibold">Qiziqish mavzulari</h2>
               <p className="text-muted-foreground text-xs">
-                Tanlangan bo&apos;limlar lentangizda ko&apos;rinadi. Hech biri tanlanmasa — hammasi
-                ko&apos;rinadi.
+                Tanlangan bo&apos;limlar lentangizda ko&apos;rinadi. Hech biri tanlanmasa — hammasi ko&apos;rinadi.
               </p>
 
               <div className="flex flex-wrap gap-2 pt-1">

@@ -52,9 +52,12 @@ export function SellerOrderDetailContent({ orderId }: SellerOrderDetailContentPr
 function OrderBody({ orderId }: SellerOrderDetailContentProps) {
   const request = useApiClient();
 
-  const { data, isLoading, error, setData } = useApiQuery<SellerOrderResponse>(`/api/v1/seller/orders/${orderId}`, {
-    refreshIntervalMs: 25_000,
-  });
+  const { data, isLoading, error, setData } = useApiQuery<SellerOrderResponse>(
+    `/api/v1/seller/orders/${orderId}`,
+    {
+      refreshIntervalMs: 25_000,
+    },
+  );
 
   const [isSaving, setIsSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -220,7 +223,9 @@ function OrderBody({ orderId }: SellerOrderDetailContentProps) {
         open={isAdvanceOpen}
         title={order ? SELLER_ORDER_ACTION_LABELS[order.status] : ''}
         description={
-          next ? `Buyurtma "${MARKET_ORDER_STATUS_LABELS[next]}" holatiga o'tadi va xaridorga xabar yuboriladi.` : ''
+          next
+            ? `Buyurtma "${MARKET_ORDER_STATUS_LABELS[next]}" holatiga o'tadi va xaridorga xabar yuboriladi.`
+            : ''
         }
         confirmLabel="Tasdiqlash"
         isLoading={isSaving}

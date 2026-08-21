@@ -5,13 +5,13 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { TransactionRow } from '@/components/wallet/transaction-row';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiQuery } from '@/hooks/use-api';
-import { cn } from '@/lib/utils';
 import { TRANSACTION_TYPE_FILTERS } from '@/modules/wallet/wallet.schemas';
 import type { TransactionsResponse } from '@/modules/wallet/wallet.types';
 
@@ -42,20 +42,12 @@ export function WalletHistoryContent() {
         {/* Filtr tugmalari */}
         <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {TRANSACTION_TYPE_FILTERS.map((option) => (
-            <button
+            <FilterChip
               key={option.value}
-              type="button"
+              label={option.label}
+              active={filter === option.value}
               onClick={() => changeFilter(option.value)}
-              aria-pressed={filter === option.value}
-              className={cn(
-                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                filter === option.value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {option.label}
-            </button>
+            />
           ))}
         </div>
 

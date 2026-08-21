@@ -34,7 +34,7 @@ export function PrivacySettingsContent() {
     <>
       <AppHeader title="Maxfiylik" showBack backHref="/feed/settings" />
 
-      <div className="space-y-6 px-4 pt-4 pb-tabbar">
+      <div className="pb-tabbar space-y-6 px-4 pt-4">
         {error && <Alert variant="error">{error}</Alert>}
 
         {isLoading && <Skeleton className="h-64 rounded-2xl" />}

@@ -121,7 +121,7 @@ export function DashboardContent() {
             href="/wallet"
             className="bg-card border-border block rounded-2xl border p-4 transition-transform active:scale-[0.98]"
           >
-            <span className="bg-emerald-100 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-400 inline-flex size-9 items-center justify-center rounded-lg">
+            <span className="inline-flex size-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-400">
               <Wallet className="size-4.5" aria-hidden="true" />
             </span>
             <p className="text-muted-foreground mt-3 text-xs">Hamyon balansi</p>
@@ -139,7 +139,7 @@ export function DashboardContent() {
             href="/addresses"
             className="bg-card border-border block rounded-2xl border p-4 transition-transform active:scale-[0.98]"
           >
-            <span className="bg-blue-100 text-blue-600 dark:bg-blue-400/15 dark:text-blue-400 inline-flex size-9 items-center justify-center rounded-lg">
+            <span className="inline-flex size-9 items-center justify-center rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-400/15 dark:text-blue-400">
               <MapPin className="size-4.5" aria-hidden="true" />
             </span>
             <p className="text-muted-foreground mt-3 text-xs">Standart manzil</p>
@@ -147,9 +147,7 @@ export function DashboardContent() {
             {addresses.isLoading ? (
               <Skeleton className="mt-1 h-5 w-20" />
             ) : (
-              <p className="mt-0.5 truncate text-base font-semibold">
-                {defaultAddress?.label ?? "Qo'shilmagan"}
-              </p>
+              <p className="mt-0.5 truncate text-base font-semibold">{defaultAddress?.label ?? "Qo'shilmagan"}</p>
             )}
           </Link>
         </div>

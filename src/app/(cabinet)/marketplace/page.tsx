@@ -2,7 +2,7 @@ import { MarketplaceContent } from '@/app/(cabinet)/marketplace/marketplace-cont
 
 export const metadata = {
   title: 'Marketplace',
-  description: "Minglab sotuvchilar bitta savdo maydonchasida.",
+  description: 'Minglab sotuvchilar bitta savdo maydonchasida.',
 };
 
 export default function MarketplacePage() {

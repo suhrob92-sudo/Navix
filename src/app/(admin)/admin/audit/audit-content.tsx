@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -78,23 +79,15 @@ function AuditBody() {
 
         <div className="-mx-4 mt-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {AUDIT_FILTER_GROUPS.map((tab) => (
-            <button
+            <FilterChip
               key={tab.value}
-              type="button"
+              label={tab.label}
+              active={group === tab.value}
               onClick={() => {
                 setGroup(tab.value);
                 setPage(1);
               }}
-              aria-pressed={group === tab.value}
-              className={cn(
-                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                group === tab.value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {tab.label}
-            </button>
+            />
           ))}
         </div>
 

@@ -133,7 +133,7 @@ export function VacancyContent({ slug }: VacancyContentProps) {
               <p className="text-muted-foreground border-border/60 mt-3 flex items-center gap-1.5 border-t pt-3 text-xs">
                 <Users className="size-3.5 shrink-0" aria-hidden="true" />
                 {vacancy.applicationCount === 0
-                  ? 'Hali hech kim ariza yubormagan — birinchi bo\'ling'
+                  ? "Hali hech kim ariza yubormagan — birinchi bo'ling"
                   : `${vacancy.applicationCount} ta nomzod ariza yuborgan`}
               </p>
             </section>

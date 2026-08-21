@@ -17,7 +17,12 @@ import { useDebouncedValue } from '@/hooks/use-debounced-value';
 import { usePostActions } from '@/hooks/use-post-actions';
 import { cn } from '@/lib/utils';
 import { MIN_SEARCH_LENGTH } from '@/modules/feed/discover.types';
-import { SEARCH_SCOPES, SEARCH_SCOPE_LABELS, type FeedSearchResult, type SearchScope } from '@/modules/feed/discover.types';
+import {
+  SEARCH_SCOPES,
+  SEARCH_SCOPE_LABELS,
+  type FeedSearchResult,
+  type SearchScope,
+} from '@/modules/feed/discover.types';
 
 /**
  * Feed qidiruvi — modulning 4-sahifasi.
@@ -127,7 +132,7 @@ export function FeedSearchContent() {
     <>
       <FeedHeader title="Qidirish" showSearch={false} />
 
-      <div className="space-y-5 px-4 pt-4 pb-tabbar">
+      <div className="pb-tabbar space-y-5 px-4 pt-4">
         <div className="relative">
           <Search
             className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4.5 -translate-y-1/2"
@@ -224,7 +229,7 @@ export function FeedSearchContent() {
           chalkashtirardi.
         */}
         {isSearching && (
-          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 [&::-webkit-scrollbar]:hidden">
             {SEARCH_SCOPES.map((value) => (
               <button
                 key={value}
@@ -265,16 +270,14 @@ export function FeedSearchContent() {
             description={
               isSearching
                 ? "Boshqacha yozib ko'ring yoki xeshteg bilan qidiring."
-                : "Birinchi videolar joylangach, shu yerda mashhurlari chiqadi."
+                : 'Birinchi videolar joylangach, shu yerda mashhurlari chiqadi.'
             }
           />
         )}
 
         {hashtags.length > 0 && (
           <section className="space-y-2">
-            <h2 className="text-sm font-semibold">
-              {isSearching ? 'Tegishli xeshteglar' : 'Mashhur mavzular'}
-            </h2>
+            <h2 className="text-sm font-semibold">{isSearching ? 'Tegishli xeshteglar' : 'Mashhur mavzular'}</h2>
 
             <div className="flex flex-wrap gap-2">
               {hashtags.map((item) => (
@@ -294,9 +297,7 @@ export function FeedSearchContent() {
 
         {creators.length > 0 && (
           <section className="space-y-2">
-            <h2 className="text-sm font-semibold">
-              {isSearching ? 'Yaratuvchilar' : 'Siz uchun yaratuvchilar'}
-            </h2>
+            <h2 className="text-sm font-semibold">{isSearching ? 'Yaratuvchilar' : 'Siz uchun yaratuvchilar'}</h2>
 
             <ul className="space-y-2">
               {creators.map((creator) => (
@@ -310,9 +311,7 @@ export function FeedSearchContent() {
 
         {videos.length > 0 && (
           <section className="space-y-2">
-            <h2 className="text-sm font-semibold">
-              {isSearching ? 'Videolar' : 'Mashhur videolar'}
-            </h2>
+            <h2 className="text-sm font-semibold">{isSearching ? 'Videolar' : 'Mashhur videolar'}</h2>
 
             <VideoGrid posts={videos} />
           </section>

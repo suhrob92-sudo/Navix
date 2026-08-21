@@ -142,8 +142,8 @@ function StatsBody() {
 
         {videos.length > 0 && (
           <p className="text-muted-foreground pb-2 text-xs leading-relaxed">
-            Buyurtma videoga bog&apos;lanadi, agar xaridor mahsulotni AYNAN shu videodan ochgan bo&apos;lsa
-            va 7 kun ichida sotib olsa. Bekor qilingan buyurtmalar sanalmaydi.
+            Buyurtma videoga bog&apos;lanadi, agar xaridor mahsulotni AYNAN shu videodan ochgan bo&apos;lsa va 7
+            kun ichida sotib olsa. Bekor qilingan buyurtmalar sanalmaydi.
           </p>
         )}
       </div>
@@ -151,15 +151,7 @@ function StatsBody() {
   );
 }
 
-function Metric({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: typeof Eye;
-  label: string;
-  value: string;
-}) {
+function Metric({ icon: Icon, label, value }: { icon: typeof Eye; label: string; value: string }) {
   return (
     <div className="bg-secondary/40 rounded-xl p-3">
       <p className="text-muted-foreground flex items-center gap-1.5 text-xs">
@@ -202,9 +194,7 @@ function VideoRow({ video }: { video: VideoStatRow }) {
           </p>
 
           {video.attachmentNames.length > 0 && (
-            <p className="text-muted-foreground mt-1 truncate text-xs">
-              {video.attachmentNames.join(', ')}
-            </p>
+            <p className="text-muted-foreground mt-1 truncate text-xs">{video.attachmentNames.join(', ')}</p>
           )}
         </div>
       </div>

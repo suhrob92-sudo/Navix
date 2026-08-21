@@ -107,7 +107,7 @@ export function FeedProfileContent() {
     <>
       <FeedHeader title="Profil" />
 
-      <div className="space-y-5 px-4 pt-4 pb-tabbar">
+      <div className="pb-tabbar space-y-5 px-4 pt-4">
         {profile.error && (
           <Alert variant="error" title="Profilni yuklab bo'lmadi">
             {profile.error}
@@ -185,10 +185,7 @@ export function FeedProfileContent() {
         {list.isLoading && (
           <div className={cn(isGrid ? 'grid grid-cols-3 gap-1' : 'space-y-3')}>
             {Array.from({ length: isGrid ? 6 : 3 }, (_, index) => (
-              <Skeleton
-                key={index}
-                className={cn(isGrid ? 'aspect-[9/16] rounded-lg' : 'h-40 rounded-2xl')}
-              />
+              <Skeleton key={index} className={cn(isGrid ? 'aspect-[9/16] rounded-lg' : 'h-40 rounded-2xl')} />
             ))}
           </div>
         )}

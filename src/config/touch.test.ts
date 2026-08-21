@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -37,5 +38,39 @@ describe('MIN_TOUCH_SIZE', () => {
       bitta birlik 4px — ya'ni 11 × 4 = 44.
     */
     expect(11 * 4).toBe(MIN_TOUCH_SIZE);
+  });
+});
+
+describe('FilterChip', () => {
+  it('yagona komponent 44px balandlikni kafolatlaydi', () => {
+    /*
+      Bu tugma ilovaning o'ttizdan ortiq joyida ishlatiladi.
+      Ilgari u har joyda QO'LDA nusxa ko'chirilgan edi va
+      24-bosqichda balandlikni tuzatish uchun yigirma ikkita
+      faylni tahrirlash kerak bo'ldi.
+
+      Endi o'zgarish bitta joyda — sinov ham shu joyni qo'riqlaydi.
+    */
+    const source = readFileSync('src/components/ui/filter-chip.tsx', 'utf8');
+
+    expect(source).toContain('min-h-11');
+  });
+
+  it('eski nusxalar QAYTIB kelmadi', () => {
+    /*
+      Nusxa ko'chirish jimgina qaytishi mumkin: kimdir yangi
+      sahifada eski kodni nusxalaydi. Bu sinov shuni ushlaydi.
+    */
+    const files = readdirSync('src/app', { recursive: true, encoding: 'utf8' })
+      .filter((name) => name.endsWith('.tsx'))
+      .map((name) => join('src/app', name));
+
+    const copies = files.filter((file) =>
+      readFileSync(file, 'utf8').includes(
+        'shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium',
+      ),
+    );
+
+    expect(copies).toEqual([]);
   });
 });

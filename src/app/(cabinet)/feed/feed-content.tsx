@@ -86,9 +86,7 @@ export function FeedContent() {
       ? null
       : `/api/v1/feed?tab=${isGrid ? 'VIDEO' : query.tab}` +
         (query.category ? `&category=${query.category}` : '') +
-        (isNearby && location.point
-          ? `&lat=${location.point.latitude}&lng=${location.point.longitude}`
-          : '');
+        (isNearby && location.point ? `&lat=${location.point.latitude}&lng=${location.point.longitude}` : '');
 
   const list = useCursorList<PostView>(path, 'posts');
   const actions = usePostActions(list.setItems);
@@ -127,7 +125,7 @@ export function FeedContent() {
     <>
       <FeedHeader title="Feed" />
 
-      <div className="space-y-4 px-4 pt-4 pb-tabbar">
+      <div className="pb-tabbar space-y-4 px-4 pt-4">
         <StoryTray />
 
         <CategoryRow value={filter} onChange={setFilter} />
@@ -158,7 +156,11 @@ export function FeedContent() {
                 isGrid ? 'bg-secondary text-foreground' : 'hover:bg-secondary text-muted-foreground',
               )}
             >
-              {isGrid ? <List className="size-5" aria-hidden="true" /> : <LayoutGrid className="size-5" aria-hidden="true" />}
+              {isGrid ? (
+                <List className="size-5" aria-hidden="true" />
+              ) : (
+                <LayoutGrid className="size-5" aria-hidden="true" />
+              )}
             </button>
 
             <button
@@ -186,10 +188,7 @@ export function FeedContent() {
         {list.isLoading && (
           <div className={cn(isGrid ? 'grid grid-cols-3 gap-1' : 'space-y-3')}>
             {Array.from({ length: isGrid ? 6 : 3 }, (_, index) => (
-              <Skeleton
-                key={index}
-                className={cn(isGrid ? 'aspect-[9/16] rounded-lg' : 'h-40 rounded-2xl')}
-              />
+              <Skeleton key={index} className={cn(isGrid ? 'aspect-[9/16] rounded-lg' : 'h-40 rounded-2xl')} />
             ))}
           </div>
         )}
@@ -270,12 +269,7 @@ export function FeedContent() {
             mavzu va profil sahifalarida post odamning aniq
             so'rovi bo'yicha turibdi.
           */
-          <PostList
-            posts={list.items}
-            actions={actions}
-            viewerPoint={isNearby ? location.point : null}
-            canHide
-          />
+          <PostList posts={list.items} actions={actions} viewerPoint={isNearby ? location.point : null} canHide />
         )}
 
         {list.hasMore && (

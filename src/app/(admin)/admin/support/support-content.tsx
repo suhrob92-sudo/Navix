@@ -4,7 +4,7 @@ import { Check, ChevronRight, LifeBuoy, Send, X } from 'lucide-react';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
-import { FilterChip } from '@/components/admin/filter-chip';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -122,7 +122,11 @@ function SupportBody() {
         )}
 
         {!isLoading && !error && tickets.length === 0 && (
-          <EmptyState icon={LifeBuoy} title="Murojaat yo'q" description="Bu filtr bo'yicha hech narsa topilmadi." />
+          <EmptyState
+            icon={LifeBuoy}
+            title="Murojaat yo'q"
+            description="Bu filtr bo'yicha hech narsa topilmadi."
+          />
         )}
 
         <ul className="space-y-2 pb-4">
@@ -291,7 +295,12 @@ function TicketThread({
               />
 
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" isLoading={busy} disabled={message.trim().length === 0} onClick={() => void send()}>
+                <Button
+                  size="sm"
+                  isLoading={busy}
+                  disabled={message.trim().length === 0}
+                  onClick={() => void send()}
+                >
                   <Send className="size-4" aria-hidden="true" />
                   Javob berish
                 </Button>

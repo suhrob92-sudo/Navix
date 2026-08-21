@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -84,23 +85,15 @@ function TransactionsBody() {
 
         <div className="-mx-4 mt-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {TYPE_TABS.map((tab) => (
-            <button
+            <FilterChip
               key={tab.value}
-              type="button"
+              label={tab.label}
+              active={type === tab.value}
               onClick={() => {
                 setType(tab.value);
                 setPage(1);
               }}
-              aria-pressed={type === tab.value}
-              className={cn(
-                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                type === tab.value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {tab.label}
-            </button>
+            />
           ))}
         </div>
 

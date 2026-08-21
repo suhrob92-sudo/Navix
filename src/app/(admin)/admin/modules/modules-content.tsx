@@ -220,11 +220,7 @@ function ModulesBody() {
                         Vaqtincha yopish
                       </Button>
                     ) : (
-                      <Button
-                        size="sm"
-                        isLoading={isBusy}
-                        onClick={() => void apply(item.moduleId, true)}
-                      >
+                      <Button size="sm" isLoading={isBusy} onClick={() => void apply(item.moduleId, true)}>
                         <Power className="size-4" aria-hidden="true" />
                         Qayta ochish
                       </Button>

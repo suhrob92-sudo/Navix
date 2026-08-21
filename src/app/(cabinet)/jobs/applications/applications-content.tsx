@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { ServiceIcon } from '@/components/app/service-icon';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatRelativeUz } from '@/lib/date';
-import { cn } from '@/lib/utils';
 import {
   APPLICATION_STATUS_LABELS,
   APPLICATION_STATUS_VARIANTS,
@@ -75,20 +75,12 @@ export function ApplicationsContent() {
       <div className="px-4 pt-4">
         <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {FILTERS.map((item) => (
-            <button
+            <FilterChip
               key={item.id}
-              type="button"
+              label={item.label}
+              active={filter === item.id}
               onClick={() => setFilter(item.id)}
-              aria-pressed={filter === item.id}
-              className={cn(
-                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                filter === item.id
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {item.label}
-            </button>
+            />
           ))}
         </div>
 
@@ -115,7 +107,7 @@ export function ApplicationsContent() {
         {!isLoading && !error && applications.length === 0 && (
           <EmptyState
             icon={ClipboardList}
-            title={filter === 'ALL' ? "Hali ariza yubormagansiz" : 'Bu bo\'limda ariza yo\'q'}
+            title={filter === 'ALL' ? 'Hali ariza yubormagansiz' : "Bu bo'limda ariza yo'q"}
             description="Vakansiyalarni ko'rib chiqing va mos kelganiga ariza yuboring."
             action={
               <Button asChild variant="outline">

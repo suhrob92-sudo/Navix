@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { ProviderIcon } from '@/components/payments/provider-icon';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,20 +51,12 @@ export function PaymentHistoryContent() {
       <div className="px-4 pt-4">
         <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {STATUS_FILTERS.map((option) => (
-            <button
+            <FilterChip
               key={option.value}
-              type="button"
+              label={option.label}
+              active={status === option.value}
               onClick={() => changeStatus(option.value)}
-              aria-pressed={status === option.value}
-              className={cn(
-                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                status === option.value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {option.label}
-            </button>
+            />
           ))}
         </div>
 

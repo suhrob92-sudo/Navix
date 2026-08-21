@@ -4,7 +4,7 @@ import { Briefcase, Eye, EyeOff, FileText, Package, UtensilsCrossed } from 'luci
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
-import { FilterChip } from '@/components/admin/filter-chip';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -140,7 +140,12 @@ function ContentBody() {
 
         <div className="-mx-4 mt-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {KIND_TABS.map((tab) => (
-            <FilterChip key={tab.value} label={tab.label} active={kind === tab.value} onClick={() => setKind(tab.value)} />
+            <FilterChip
+              key={tab.value}
+              label={tab.label}
+              active={kind === tab.value}
+              onClick={() => setKind(tab.value)}
+            />
           ))}
         </div>
 
@@ -176,7 +181,11 @@ function ContentBody() {
         )}
 
         {!isLoading && !error && items.length === 0 && (
-          <EmptyState icon={FileText} title="Hech narsa topilmadi" description="Filtrni yoki qidiruv so'zini o'zgartiring." />
+          <EmptyState
+            icon={FileText}
+            title="Hech narsa topilmadi"
+            description="Filtrni yoki qidiruv so'zini o'zgartiring."
+          />
         )}
 
         <ul className="space-y-2 pb-4">
@@ -261,7 +270,7 @@ function ContentBody() {
                           hint={
                             CONTENT_REMOVAL_REASON_CONFIG[reason].needsNote
                               ? 'Bu sabab uchun izoh majburiy'
-                              : 'Ixtiyoriy — u ham muallifga ko\'rinadi'
+                              : "Ixtiyoriy — u ham muallifga ko'rinadi"
                           }
                           required={CONTENT_REMOVAL_REASON_CONFIG[reason].needsNote}
                         >

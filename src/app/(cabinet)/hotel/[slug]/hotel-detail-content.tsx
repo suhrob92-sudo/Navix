@@ -164,7 +164,7 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
                 )}
               </div>
 
-              <p className="text-amber-500 mt-3 text-sm">{formatStars(hotel.stars)}</p>
+              <p className="mt-3 text-sm text-amber-500">{formatStars(hotel.stars)}</p>
               <p className="mt-2 text-sm leading-relaxed">{hotel.description}</p>
 
               <div className="border-border/60 mt-3 flex flex-wrap gap-2 border-t pt-3">
@@ -221,10 +221,7 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
                   return (
                     <li
                       key={room.id}
-                      className={cn(
-                        'bg-card border-border rounded-2xl border p-4',
-                        isSoldOut && 'opacity-60',
-                      )}
+                      className={cn('bg-card border-border rounded-2xl border p-4', isSoldOut && 'opacity-60')}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -344,8 +341,7 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
             </div>
 
             <p className="text-muted-foreground mt-4 text-xs leading-relaxed">
-              To&apos;lov hamyoningizdan yechiladi. Kirish kunigacha bekor qilib, pulni qaytarib olishingiz
-              mumkin.
+              To&apos;lov hamyoningizdan yechiladi. Kirish kunigacha bekor qilib, pulni qaytarib olishingiz mumkin.
             </p>
 
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

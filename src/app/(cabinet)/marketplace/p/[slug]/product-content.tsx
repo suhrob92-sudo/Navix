@@ -89,7 +89,7 @@ export function ProductContent({ slug }: ProductContentProps) {
                 <span className="text-2xl font-semibold tabular-nums">{formatTiyin(product.price)}</span>
 
                 {product.oldPrice !== null && product.oldPrice > product.price && (
-                  <span className="text-muted-foreground text-sm line-through tabular-nums">
+                  <span className="text-muted-foreground text-sm tabular-nums line-through">
                     {formatTiyin(product.oldPrice)}
                   </span>
                 )}
@@ -99,7 +99,10 @@ export function ProductContent({ slug }: ProductContentProps) {
                 <Badge variant={isOut ? 'destructive' : state === 'low' ? 'warning' : 'success'}>
                   {stockLabel(product.stock)}
                 </Badge>
-                <Link href={`/marketplace/c/${product.category.slug}`} className="text-primary text-xs font-medium">
+                <Link
+                  href={`/marketplace/c/${product.category.slug}`}
+                  className="text-primary text-xs font-medium"
+                >
                   {product.category.name}
                 </Link>
               </div>
@@ -142,7 +145,7 @@ export function ProductContent({ slug }: ProductContentProps) {
                 />
 
                 <Button fullWidth size="lg" onClick={handleAdd}>
-                  {added ? 'Savatga qo\'shildi' : "Savatga qo'shish"}
+                  {added ? "Savatga qo'shildi" : "Savatga qo'shish"}
                 </Button>
               </div>
             )}

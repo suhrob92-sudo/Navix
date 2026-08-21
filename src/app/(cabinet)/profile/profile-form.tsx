@@ -77,7 +77,9 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
   const [collabNote, setCollabNote] = useState(profile.collabNote ?? '');
   const [gender, setGender] = useState(profile.gender ?? '');
   const [messagePrivacy, setMessagePrivacy] = useState(profile.messagePrivacy);
-  const [chatWallpaper, setChatWallpaper] = useState<ChatWallpaperName>(resolveWallpaper(profile.chatWallpaper).value);
+  const [chatWallpaper, setChatWallpaper] = useState<ChatWallpaperName>(
+    resolveWallpaper(profile.chatWallpaper).value,
+  );
 
   /**
    * Serverdan kelgan OXIRGI javob.
@@ -436,8 +438,8 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
             <div>
               <h3 className="text-sm font-semibold">Ijodkor uchun</h3>
               <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-                Tarmoqlaringiz profilingizda havola bo&apos;lib turadi. Faqat nom kiriting —
-                manzilni ilova o&apos;zi yasaydi.
+                Tarmoqlaringiz profilingizda havola bo&apos;lib turadi. Faqat nom kiriting — manzilni ilova
+                o&apos;zi yasaydi.
               </p>
             </div>
 
@@ -491,8 +493,8 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
               <span className="min-w-0">
                 <span className="block text-sm font-medium">Hamkorlikka ochiqman</span>
                 <span className="text-muted-foreground block text-xs leading-relaxed">
-                  Profilingizda belgi paydo bo&apos;ladi. Biznes &quot;bu odam reklama qiladimi?&quot;
-                  degan savolga javob topadi va yozadi.
+                  Profilingizda belgi paydo bo&apos;ladi. Biznes &quot;bu odam reklama qiladimi?&quot; degan
+                  savolga javob topadi va yozadi.
                 </span>
               </span>
             </label>

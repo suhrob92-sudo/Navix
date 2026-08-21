@@ -132,7 +132,12 @@ function WaitlistBody() {
 
         {entries.length > 0 && (
           <div className="flex items-center justify-between gap-3 py-4">
-            <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage((value) => value - 1)}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page === 1}
+              onClick={() => setPage((value) => value - 1)}
+            >
               Oldingi
             </Button>
 

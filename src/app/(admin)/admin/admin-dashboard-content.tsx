@@ -48,9 +48,7 @@ function DashboardBody() {
    * Bu — QULAYLIK. Haqiqiy himoya serverda: har bir manzil o'z
    * ruxsatini talab qiladi.
    */
-  const visibleSections = ADMIN_SECTIONS.filter((section) =>
-    hasPermission(user?.roles ?? [], section.permission),
-  );
+  const visibleSections = ADMIN_SECTIONS.filter((section) => hasPermission(user?.roles ?? [], section.permission));
 
   /**
    * Har 60 soniyada yangilanadi: admin panel ochiq turganda raqamlar
@@ -179,10 +177,7 @@ function DashboardBody() {
               <Link
                 key={section.href}
                 href={section.href}
-                className={cn(
-                  'flex items-center gap-3 p-4',
-                  index > 0 && 'border-border/60 border-t',
-                )}
+                className={cn('flex items-center gap-3 p-4', index > 0 && 'border-border/60 border-t')}
               >
                 <span className="bg-secondary text-muted-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
                   <Icon className="size-4.5" aria-hidden="true" />
@@ -190,9 +185,7 @@ function DashboardBody() {
 
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-medium">{section.label}</span>
-                  <span className="text-muted-foreground block text-xs">
-                    {section.description}
-                  </span>
+                  <span className="text-muted-foreground block text-xs">{section.description}</span>
                 </span>
 
                 <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />

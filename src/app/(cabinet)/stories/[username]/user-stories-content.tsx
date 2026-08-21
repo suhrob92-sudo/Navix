@@ -73,7 +73,5 @@ function UserStoriesBody({ username }: UserStoriesContentProps) {
     );
   }
 
-  return (
-    <StoryViewer groups={[data.group]} startIndex={0} onClose={() => router.push(`/u/${username}`)} />
-  );
+  return <StoryViewer groups={[data.group]} startIndex={0} onClose={() => router.push(`/u/${username}`)} />;
 }

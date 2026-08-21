@@ -9,7 +9,7 @@ import { CourierTabBar } from '@/components/courier/courier-tab-bar';
 export default function CourierLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <div className="mx-auto w-full max-w-lg flex-1 pb-tabbar">{children}</div>
+      <div className="pb-tabbar mx-auto w-full max-w-lg flex-1">{children}</div>
 
       <CourierTabBar />
     </>

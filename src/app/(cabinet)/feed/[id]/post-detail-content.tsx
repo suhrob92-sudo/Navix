@@ -6,12 +6,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { CommentItem } from '@/components/feed/comment-item';
-import {
-  COMMENT_SORTS,
-  COMMENT_SORT_LABELS,
-  DEFAULT_COMMENT_SORT,
-  type CommentSort,
-} from '@/config/comments';
+import { COMMENT_SORTS, COMMENT_SORT_LABELS, DEFAULT_COMMENT_SORT, type CommentSort } from '@/config/comments';
 import { PostCard } from '@/components/feed/post-card';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -53,10 +48,7 @@ export function PostDetailContent({ postId }: PostDetailContentProps) {
    */
   const [sort, setSort] = useState<CommentSort>(DEFAULT_COMMENT_SORT);
 
-  const comments = useCursorList<CommentView>(
-    `/api/v1/posts/${postId}/comments?sort=${sort}`,
-    'comments',
-  );
+  const comments = useCursorList<CommentView>(`/api/v1/posts/${postId}/comments?sort=${sort}`, 'comments');
 
   const [body, setBody] = useState('');
   const [isSending, setIsSending] = useState(false);

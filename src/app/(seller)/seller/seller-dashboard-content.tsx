@@ -1,14 +1,6 @@
 'use client';
 
-import {
-  ChevronRight,
-  Clapperboard,
-  ClipboardList,
-  PackageX,
-  ShoppingBag,
-  Store,
-  TrendingUp,
-} from 'lucide-react';
+import { ChevronRight, Clapperboard, ClipboardList, PackageX, ShoppingBag, Store, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -247,8 +239,8 @@ function DashboardBody() {
 
         <p className="text-muted-foreground mt-6 flex items-start gap-2 text-xs leading-relaxed">
           <PackageX className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-          Buyurtmani rad etsangiz, xaridorga pul TO&apos;LIQ qaytariladi va mahsulot omborga tiklanadi. Shuning uchun rad
-          etishdan oldin zaxirani tekshiring.
+          Buyurtmani rad etsangiz, xaridorga pul TO&apos;LIQ qaytariladi va mahsulot omborga tiklanadi. Shuning
+          uchun rad etishdan oldin zaxirani tekshiring.
         </p>
       </div>
     </>

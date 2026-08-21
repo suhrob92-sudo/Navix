@@ -2,7 +2,7 @@ import { EmployerVacanciesContent } from '@/app/(employer)/employer/vacancies/em
 
 export const metadata = {
   title: "E'lonlarim",
-  description: "Vakansiyalarni joylash, tahrirlash va yopish.",
+  description: 'Vakansiyalarni joylash, tahrirlash va yopish.',
 };
 
 export default function EmployerVacanciesPage() {

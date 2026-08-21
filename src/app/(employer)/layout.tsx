@@ -10,7 +10,7 @@ import { RequireEmployer } from '@/modules/employer/require-employer';
 export default function EmployerLayout({ children }: { children: React.ReactNode }) {
   return (
     <RequireEmployer>
-      <div className="mx-auto w-full max-w-lg flex-1 pb-tabbar">{children}</div>
+      <div className="pb-tabbar mx-auto w-full max-w-lg flex-1">{children}</div>
 
       <EmployerTabBar />
     </RequireEmployer>

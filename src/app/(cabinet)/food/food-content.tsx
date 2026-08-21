@@ -7,13 +7,13 @@ import { useState } from 'react';
 import { AppHeader } from '@/components/app/app-header';
 import { CartBar } from '@/components/food/cart-bar';
 import { RestaurantCard } from '@/components/food/restaurant-card';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CUISINES } from '@/config/restaurants';
 import { useApiQuery } from '@/hooks/use-api';
-import { cn } from '@/lib/utils';
 import type { RestaurantsResponse } from '@/modules/food/food.types';
 
 const CUISINE_TABS = [{ value: '', label: 'Hammasi' }, ...CUISINES.map((c) => ({ value: c, label: c }))];
@@ -53,20 +53,12 @@ export function FoodContent() {
 
         <div className="-mx-4 mt-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {CUISINE_TABS.map((tab) => (
-            <button
+            <FilterChip
               key={tab.value || 'all'}
-              type="button"
+              label={tab.label}
+              active={cuisine === tab.value}
               onClick={() => setCuisine(tab.value)}
-              aria-pressed={cuisine === tab.value}
-              className={cn(
-                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                cuisine === tab.value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {tab.label}
-            </button>
+            />
           ))}
         </div>
 

@@ -45,94 +45,90 @@ export default async function PostOpengraphImage({ params }: Props) {
   const body = preview?.description ?? siteConfig.tagline;
 
   return new ImageResponse(
-    (
-      <div
-        style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
-          padding: '72px',
-          background: 'linear-gradient(135deg, #314df5 0%, #7c3aed 100%)',
-          color: '#ffffff',
-          fontFamily: 'sans-serif',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '72px',
-              height: '72px',
-              borderRadius: '22px',
-              background: 'rgba(255, 255, 255, 0.16)',
-              fontSize: '42px',
-              fontWeight: 700,
-            }}
-          >
-            N
-          </div>
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        padding: '72px',
+        background: 'linear-gradient(135deg, #314df5 0%, #7c3aed 100%)',
+        color: '#ffffff',
+        fontFamily: 'sans-serif',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '72px',
+            height: '72px',
+            borderRadius: '22px',
+            background: 'rgba(255, 255, 255, 0.16)',
+            fontSize: '42px',
+            fontWeight: 700,
+          }}
+        >
+          N
+        </div>
 
-          <div style={{ display: 'flex', fontSize: '34px', fontWeight: 600, opacity: 0.92 }}>
-            {siteConfig.name}
-          </div>
+        <div style={{ display: 'flex', fontSize: '34px', fontWeight: 600, opacity: 0.92 }}>{siteConfig.name}</div>
 
-          {/*
+        {/*
             Video belgisi — kartochkada DARHOL ko'rinadi.
 
             Odam havolani bosishdan oldin nima kutayotganini bilishi
             kerak: matn o'qishmi yoki video ko'rishmi. Bu ikki xil
             holat va ikki xil vaqt.
           */}
-          {preview?.isVideo && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                borderRadius: '999px',
-                background: 'rgba(255, 255, 255, 0.18)',
-                padding: '8px 22px',
-                fontSize: '26px',
-              }}
-            >
-              Video
-            </div>
-          )}
-        </div>
+        {preview?.isVideo && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: '999px',
+              background: 'rgba(255, 255, 255, 0.18)',
+              padding: '8px 22px',
+              fontSize: '26px',
+            }}
+          >
+            Video
+          </div>
+        )}
+      </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', fontSize: '56px', fontWeight: 700 }}>{heading}</div>
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', fontSize: '56px', fontWeight: 700 }}>{heading}</div>
 
-          {/*
+        {/*
             Matn UCH QATORGA cheklangan.
 
             `ImageResponse` da matn o'zi kesilmaydi: uzun matn
             rasmning pastidan chiqib ketardi va oxiri butunlay
             ko'rinmasdi.
           */}
-          <div
-            style={{
-              display: 'flex',
-              fontSize: '36px',
-              marginTop: '20px',
-              opacity: 0.9,
-              lineHeight: 1.4,
-              maxHeight: '160px',
-              overflow: 'hidden',
-            }}
-          >
-            {body}
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', fontSize: '26px', opacity: 0.75 }}>
-          Ko&apos;rish uchun Navix&apos;ga kiring
+        <div
+          style={{
+            display: 'flex',
+            fontSize: '36px',
+            marginTop: '20px',
+            opacity: 0.9,
+            lineHeight: 1.4,
+            maxHeight: '160px',
+            overflow: 'hidden',
+          }}
+        >
+          {body}
         </div>
       </div>
-    ),
+
+      <div style={{ display: 'flex', fontSize: '26px', opacity: 0.75 }}>
+        Ko&apos;rish uchun Navix&apos;ga kiring
+      </div>
+    </div>,
     size,
   );
 }

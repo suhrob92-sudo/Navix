@@ -2,7 +2,7 @@ import { TripDetailContent } from '@/app/(cabinet)/travel/[scheduleId]/trip-deta
 
 export const metadata = {
   title: 'Reys',
-  description: "Reys tafsilotlari va chipta olish.",
+  description: 'Reys tafsilotlari va chipta olish.',
 };
 
 interface TripPageProps {

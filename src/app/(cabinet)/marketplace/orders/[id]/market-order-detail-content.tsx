@@ -103,9 +103,7 @@ export function MarketOrderDetailContent({ orderId }: MarketOrderDetailContentPr
                 <p className="text-lg font-semibold tabular-nums">{formatTiyin(order.total)}</p>
               </div>
 
-              <p className="text-muted-foreground mt-2 text-xs">
-                {formatUzDateTime(order.createdAt, 'long')}
-              </p>
+              <p className="text-muted-foreground mt-2 text-xs">{formatUzDateTime(order.createdAt, 'long')}</p>
 
               {order.cancelReason && (
                 <p className="text-muted-foreground mt-2 text-xs">
@@ -217,9 +215,7 @@ export function MarketOrderDetailContent({ orderId }: MarketOrderDetailContentPr
         open={isDialogOpen}
         title="Buyurtmani bekor qilamizmi?"
         description={
-          order
-            ? `${formatTiyin(order.total)} hamyoningizga qaytariladi. Amalni orqaga qaytarib bo'lmaydi.`
-            : ''
+          order ? `${formatTiyin(order.total)} hamyoningizga qaytariladi. Amalni orqaga qaytarib bo'lmaydi.` : ''
         }
         confirmLabel="Bekor qilish"
         isLoading={isCancelling}

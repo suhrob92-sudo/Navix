@@ -93,9 +93,7 @@ export function HotelContent() {
 
           <p className="text-muted-foreground mt-2 flex items-center gap-1.5 text-xs">
             <CalendarDays className="size-3.5 shrink-0" aria-hidden="true" />
-            {hasValidDates
-              ? formatNights(nights)
-              : "Chiqish sanasi kirishdan keyin bo'lishi kerak"}
+            {hasValidDates ? formatNights(nights) : "Chiqish sanasi kirishdan keyin bo'lishi kerak"}
           </p>
         </section>
 
@@ -129,7 +127,9 @@ export function HotelContent() {
           >
             <SlidersHorizontal className="size-4" aria-hidden="true" />
             Shahar
-            {city && <span className="bg-primary text-primary-foreground ml-1 rounded-full px-1.5 text-xs">1</span>}
+            {city && (
+              <span className="bg-primary text-primary-foreground ml-1 rounded-full px-1.5 text-xs">1</span>
+            )}
           </Button>
 
           <div className="ml-auto flex gap-1">

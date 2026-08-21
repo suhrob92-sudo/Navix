@@ -6,11 +6,11 @@ import { useState } from 'react';
 import { AppHeader } from '@/components/app/app-header';
 import { MarketCartBar } from '@/components/market/market-cart-bar';
 import { ProductCard } from '@/components/market/product-card';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiQuery } from '@/hooks/use-api';
-import { cn } from '@/lib/utils';
 import type { ProductQuery } from '@/modules/market/market.schemas';
 import type { ProductsResponse } from '@/modules/market/market.types';
 
@@ -33,9 +33,7 @@ export function CategoryContent({ slug }: CategoryContentProps) {
   const query = new URLSearchParams({ category: slug, sort, pageSize: '30' });
   if (onlyInStock) query.set('inStock', 'true');
 
-  const { data, isLoading, error } = useApiQuery<ProductsResponse>(
-    `/api/v1/market/products?${query.toString()}`,
-  );
+  const { data, isLoading, error } = useApiQuery<ProductsResponse>(`/api/v1/market/products?${query.toString()}`);
 
   const products = data?.products ?? [];
   const categoryName = products[0]?.category.name ?? 'Toifa';
@@ -47,35 +45,19 @@ export function CategoryContent({ slug }: CategoryContentProps) {
       <div className="px-4 pt-4 pb-4">
         <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {SORTS.map((item) => (
-            <button
+            <FilterChip
               key={item.value}
-              type="button"
+              label={item.label}
+              active={sort === item.value}
               onClick={() => setSort(item.value)}
-              aria-pressed={sort === item.value}
-              className={cn(
-                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                sort === item.value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {item.label}
-            </button>
+            />
           ))}
 
-          <button
-            type="button"
+          <FilterChip
+            label={'Faqat mavjud'}
+            active={onlyInStock}
             onClick={() => setOnlyInStock((current) => !current)}
-            aria-pressed={onlyInStock}
-            className={cn(
-              'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-              onlyInStock
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border hover:bg-secondary',
-            )}
-          >
-            Faqat mavjud
-          </button>
+          />
         </div>
 
         {isLoading && (

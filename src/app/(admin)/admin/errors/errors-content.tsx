@@ -4,6 +4,7 @@ import { Bug, Check, RotateCcw, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,6 @@ import { Permission } from '@/config/rbac';
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzDateTime } from '@/lib/date';
-import { cn } from '@/lib/utils';
 import { RequireAdmin } from '@/modules/admin/require-admin';
 import {
   ERROR_SOURCE_LABELS,
@@ -131,26 +131,22 @@ function ErrorsBody() {
       <div className="px-4 pt-4">
         <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {STATUS_TABS.map((tab) => (
-            <button
+            <FilterChip
               key={tab.value}
-              type="button"
+              label={
+                <>
+                  {tab.label}
+                  {tab.value === 'OPEN' && (data?.openCount ?? 0) > 0 && (
+                    <span className="ml-1.5 tabular-nums">{data?.openCount}</span>
+                  )}
+                </>
+              }
+              active={status === tab.value}
               onClick={() => {
                 setStatus(tab.value);
                 setPage(1);
               }}
-              aria-pressed={status === tab.value}
-              className={cn(
-                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                status === tab.value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {tab.label}
-              {tab.value === 'OPEN' && (data?.openCount ?? 0) > 0 && (
-                <span className="ml-1.5 tabular-nums">{data?.openCount}</span>
-              )}
-            </button>
+            />
           ))}
         </div>
 

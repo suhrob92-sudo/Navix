@@ -420,9 +420,7 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
                 links={profile.links}
                 isOpenToCollab={profile.isOpenToCollab}
                 collabNote={profile.collabNote}
-                {...(profile.isOwn || profile.isBlocked
-                  ? {}
-                  : { onOffer: () => setIsOfferOpen(true) })}
+                {...(profile.isOwn || profile.isBlocked ? {} : { onOffer: () => setIsOfferOpen(true) })}
               />
 
               {/*
@@ -454,9 +452,7 @@ export function PublicProfileContent({ username }: PublicProfileContentProps) {
 
                 {profile.videoViewCount > 0 && (
                   <div className="text-center">
-                    <p className="text-lg font-semibold tabular-nums">
-                      {formatCount(profile.videoViewCount)}
-                    </p>
+                    <p className="text-lg font-semibold tabular-nums">{formatCount(profile.videoViewCount)}</p>
                     <p className="text-muted-foreground text-xs">Ko&apos;rishlar</p>
                   </div>
                 )}

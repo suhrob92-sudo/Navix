@@ -88,11 +88,7 @@ export function MarketCartContent() {
   const hasEnoughMoney = balance >= total;
 
   const canSubmit =
-    lines.length > 0 &&
-    !isBelowMinimum &&
-    shortLines.length === 0 &&
-    hasEnoughMoney &&
-    selectedAddressId !== null;
+    lines.length > 0 && !isBelowMinimum && shortLines.length === 0 && hasEnoughMoney && selectedAddressId !== null;
 
   async function submit() {
     if (!cart.shopId || !selectedAddressId) return;

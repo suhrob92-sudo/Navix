@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
 import { ServiceIcon } from '@/components/app/service-icon';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,7 +22,6 @@ import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatRelativeUz } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
-import { cn } from '@/lib/utils';
 import type { FieldErrors } from '@/lib/api/errors';
 import { ApiClientError } from '@/lib/api-client';
 import {
@@ -125,20 +125,12 @@ export function EmployerVacanciesContent() {
 
         <div className="-mx-4 mt-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {STATUS_FILTERS.map((item) => (
-            <button
+            <FilterChip
               key={item.value}
-              type="button"
+              label={item.label}
+              active={status === item.value}
               onClick={() => setStatus(item.value)}
-              aria-pressed={status === item.value}
-              className={cn(
-                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                status === item.value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {item.label}
-            </button>
+            />
           ))}
         </div>
 
@@ -276,14 +268,7 @@ interface VacancyFormProps {
  * ularni yolg'on raqam yozishga majbur qilardi. Bo'sh qoldirilsa
  * e'londa "Kelishilgan" deb chiqadi — bu ham halol javob.
  */
-function VacancyForm({
-  vacancy,
-  companies,
-  categories,
-  defaultCompanyId,
-  onClose,
-  onSaved,
-}: VacancyFormProps) {
+function VacancyForm({ vacancy, companies, categories, defaultCompanyId, onClose, onSaved }: VacancyFormProps) {
   const request = useApiClient();
   const isEdit = vacancy !== null;
 
@@ -292,12 +277,8 @@ function VacancyForm({
   const [title, setTitle] = useState(vacancy?.title ?? '');
   const [description, setDescription] = useState(vacancy?.description ?? '');
   const [city, setCity] = useState(vacancy?.city ?? '');
-  const [employmentType, setEmploymentType] = useState<EmploymentTypeName>(
-    vacancy?.employmentType ?? 'FULL_TIME',
-  );
-  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevelName>(
-    vacancy?.experienceLevel ?? 'NONE',
-  );
+  const [employmentType, setEmploymentType] = useState<EmploymentTypeName>(vacancy?.employmentType ?? 'FULL_TIME');
+  const [experienceLevel, setExperienceLevel] = useState<ExperienceLevelName>(vacancy?.experienceLevel ?? 'NONE');
   // Maosh SO'MDA kiritiladi — tiyin foydalanuvchi uchun tushunarsiz.
   const [salaryMin, setSalaryMin] = useState(vacancy?.salaryMin ? String(vacancy.salaryMin / 100) : '');
   const [salaryMax, setSalaryMax] = useState(vacancy?.salaryMax ? String(vacancy.salaryMax / 100) : '');
@@ -369,9 +350,7 @@ function VacancyForm({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-4">
       <div className="bg-card animate-scale-in max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl p-6 sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold tracking-tight">
-            {isEdit ? "E'lonni tahrirlash" : "Yangi e'lon"}
-          </h2>
+          <h2 className="text-lg font-semibold tracking-tight">{isEdit ? "E'lonni tahrirlash" : "Yangi e'lon"}</h2>
           <Button variant="ghost" size="sm" onClick={onClose} aria-label="Yopish">
             <X className="size-4" aria-hidden="true" />
           </Button>

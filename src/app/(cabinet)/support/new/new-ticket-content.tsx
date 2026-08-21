@@ -45,9 +45,7 @@ export function NewTicketContent() {
  * ko'rinardi va yuborish tugmasi sababsiz ishlamasdi.
  */
 function asCategory(value: string | null): SupportCategoryName | null {
-  return SUPPORT_CATEGORIES.some((item) => item.value === value)
-    ? (value as SupportCategoryName)
-    : null;
+  return SUPPORT_CATEGORIES.some((item) => item.value === value) ? (value as SupportCategoryName) : null;
 }
 
 function NewTicketBody() {
@@ -68,9 +66,7 @@ function NewTicketBody() {
    */
   const params = useSearchParams();
 
-  const [category, setCategory] = useState<SupportCategoryName | null>(
-    asCategory(params.get('category')),
-  );
+  const [category, setCategory] = useState<SupportCategoryName | null>(asCategory(params.get('category')));
   const [subject, setSubject] = useState(params.get('subject') ?? '');
   const [message, setMessage] = useState(params.get('message') ?? '');
 
@@ -145,9 +141,7 @@ function NewTicketBody() {
                 aria-pressed={category === item.value}
                 className={cn(
                   'rounded-xl border p-3 text-left transition-colors',
-                  category === item.value
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border hover:bg-secondary/50',
+                  category === item.value ? 'border-primary bg-primary/5' : 'border-border hover:bg-secondary/50',
                 )}
               >
                 <span className="block text-sm font-medium">{item.label}</span>
@@ -194,8 +188,8 @@ function NewTicketBody() {
         </Button>
 
         <p className="text-muted-foreground text-center text-xs leading-relaxed">
-          Javob ilovada va bildirishnomada keladi. Parol yoki tasdiqlash kodini HECH QACHON yozmang — biz
-          ularni so&apos;ramaymiz.
+          Javob ilovada va bildirishnomada keladi. Parol yoki tasdiqlash kodini HECH QACHON yozmang — biz ularni
+          so&apos;ramaymiz.
         </p>
       </form>
     </>

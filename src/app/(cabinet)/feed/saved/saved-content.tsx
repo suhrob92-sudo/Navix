@@ -152,7 +152,7 @@ function SavedBody() {
           <div
             role="tablist"
             aria-label="To'plamlar"
-            className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="-mx-4 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden"
           >
             <FilterChip
               label={COLLECTION_ALL_LABEL}
@@ -238,7 +238,7 @@ function SavedBody() {
             title={active ? `"${active.name}" bo'sh` : 'Hali hech narsa saqlamagansiz'}
             description={
               active
-                ? "Saqlangan postdagi uch nuqtani bosing va \"To'plamga solish\" ni tanlang."
+                ? 'Saqlangan postdagi uch nuqtani bosing va "To\'plamga solish" ni tanlang.'
                 : "Postdagi xatcho'p belgisini bosing — u shu yerda turadi va uni faqat siz ko'rasiz."
             }
             action={
@@ -312,8 +312,7 @@ function SavedBody() {
               ko'chirilgan post turib qolardi.
             */
             if (filter !== COLLECTION_FILTER_ALL) {
-              const stays =
-                filter === COLLECTION_FILTER_NONE ? collectionId === null : collectionId === filter;
+              const stays = filter === COLLECTION_FILTER_NONE ? collectionId === null : collectionId === filter;
 
               if (!stays) {
                 list.setItems((current) => current.filter((item) => item.id !== movedId));

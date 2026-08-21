@@ -6,13 +6,13 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { ProviderIcon } from '@/components/payments/provider-icon';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SERVICE_CATEGORIES } from '@/config/service-providers';
 import { useApiQuery } from '@/hooks/use-api';
 import { formatTiyin } from '@/lib/money';
-import { cn } from '@/lib/utils';
 import type { ProvidersResponse, SavedAccountsResponse } from '@/modules/payment/payment.types';
 import type { WalletSummary } from '@/modules/wallet/wallet.types';
 
@@ -94,20 +94,12 @@ export function PaymentsContent() {
         {/* Toifa tugmalari */}
         <div className="-mx-4 mt-6 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {CATEGORY_TABS.map((tab) => (
-            <button
+            <FilterChip
               key={tab.value}
-              type="button"
+              label={tab.label}
+              active={category === tab.value}
               onClick={() => setCategory(tab.value)}
-              aria-pressed={category === tab.value}
-              className={cn(
-                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                category === tab.value
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {tab.label}
-            </button>
+            />
           ))}
         </div>
 

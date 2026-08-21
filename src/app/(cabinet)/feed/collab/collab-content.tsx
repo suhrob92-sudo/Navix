@@ -47,9 +47,12 @@ export function CollabContent() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { data, isLoading, error: loadError, setData } = useApiQuery<CollabOffersResponse>(
-    `/api/v1/collab/offers?box=${box}`,
-  );
+  const {
+    data,
+    isLoading,
+    error: loadError,
+    setData,
+  } = useApiQuery<CollabOffersResponse>(`/api/v1/collab/offers?box=${box}`);
 
   const offers = data?.offers ?? [];
 
@@ -86,7 +89,7 @@ export function CollabContent() {
     <>
       <AppHeader title="Hamkorlik" showBack backHref="/feed/profile" />
 
-      <div className="space-y-4 px-4 pt-4 pb-tabbar">
+      <div className="pb-tabbar space-y-4 px-4 pt-4">
         <div role="tablist" aria-label="Takliflar" className="border-border flex gap-1 border-b">
           {BOXES.map((item) => (
             <button
@@ -131,7 +134,7 @@ export function CollabContent() {
             title={box === 'IN' ? "Hozircha taklif yo'q" : 'Taklif yubormagansiz'}
             description={
               box === 'IN'
-                ? "Profilingizda «Hamkorlikka ochiqman» ni belgilasangiz, biznes sizni katalogda topadi."
+                ? 'Profilingizda «Hamkorlikka ochiqman» ni belgilasangiz, biznes sizni katalogda topadi.'
                 : 'Ijodkorlar katalogidan mos blogerni tanlab, taklif yuboring.'
             }
             action={
@@ -180,9 +183,7 @@ export function CollabContent() {
                   <span
                     className={cn(
                       'shrink-0 rounded-full px-2.5 py-1 text-xs',
-                      isPending
-                        ? 'bg-primary/10 text-primary font-medium'
-                        : 'bg-secondary text-muted-foreground',
+                      isPending ? 'bg-primary/10 text-primary font-medium' : 'bg-secondary text-muted-foreground',
                     )}
                   >
                     {COLLAB_STATUS_LABELS[offer.status]}
@@ -212,11 +213,7 @@ export function CollabContent() {
 
                 {isPending && offer.isIncoming && (
                   <div className="mt-3 flex gap-2">
-                    <Button
-                      className="flex-1"
-                      isLoading={isBusy}
-                      onClick={() => void respond(offer, 'ACCEPT')}
-                    >
+                    <Button className="flex-1" isLoading={isBusy} onClick={() => void respond(offer, 'ACCEPT')}>
                       <Check className="size-4" aria-hidden="true" />
                       Qabul qilish
                     </Button>

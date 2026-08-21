@@ -2,7 +2,7 @@ import { ContentSettingsContent } from '@/app/(cabinet)/feed/settings/content/co
 
 export const metadata = {
   title: 'Kontent sozlamalari',
-  description: "Qiziqish mavzulari va hassos kontent filtri.",
+  description: 'Qiziqish mavzulari va hassos kontent filtri.',
 };
 
 export default function ContentSettingsPage() {

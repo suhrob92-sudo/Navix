@@ -115,9 +115,7 @@ function TicketBody({ ticketId }: { ticketId: string }) {
                   key={entry.id}
                   className={cn(
                     'animate-fade-up rounded-2xl border p-3',
-                    entry.isStaff
-                      ? 'border-primary/30 bg-primary/5'
-                      : 'bg-card border-border',
+                    entry.isStaff ? 'border-primary/30 bg-primary/5' : 'bg-card border-border',
                   )}
                 >
                   <div className="mb-1.5 flex items-center justify-between gap-2">

@@ -56,7 +56,7 @@ export function FeedSettingsContent() {
   async function handleReset() {
     await reset();
     setIsResetOpen(false);
-    setNotice('Tavsiyalar tiklandi. Lenta endi noldan o\'rganadi.');
+    setNotice("Tavsiyalar tiklandi. Lenta endi noldan o'rganadi.");
   }
 
   function onAction(item: FeedSettingsItem) {
@@ -75,7 +75,7 @@ export function FeedSettingsContent() {
     <>
       <AppHeader title="Sozlamalar" showBack backHref="/feed/profile" />
 
-      <div className="space-y-4 px-4 pt-4 pb-tabbar">
+      <div className="pb-tabbar space-y-4 px-4 pt-4">
         {error && <Alert variant="error">{error}</Alert>}
         {notice && <Alert variant="success">{notice}</Alert>}
 

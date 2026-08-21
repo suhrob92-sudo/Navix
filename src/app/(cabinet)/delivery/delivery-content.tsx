@@ -294,7 +294,14 @@ export function DeliveryContent() {
           )}
         </section>
 
-        <Button fullWidth size="lg" onClick={send} isLoading={isSending} loadingText="Yuborilmoqda..." disabled={!canSubmit}>
+        <Button
+          fullWidth
+          size="lg"
+          onClick={send}
+          isLoading={isSending}
+          loadingText="Yuborilmoqda..."
+          disabled={!canSubmit}
+        >
           <Send className="size-4" aria-hidden="true" />
           Jo&apos;natish
         </Button>

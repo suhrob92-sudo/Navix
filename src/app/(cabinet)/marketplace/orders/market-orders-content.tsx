@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useApiQuery } from '@/hooks/use-api';
 import { formatRelativeUz } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
-import { cn } from '@/lib/utils';
 import {
   MARKET_ORDER_STATUS_LABELS,
   MARKET_ORDER_STATUS_VARIANTS,
@@ -45,20 +45,12 @@ export function MarketOrdersContent() {
       <div className="px-4 pt-4 pb-4">
         <div className="-mx-4 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {FILTERS.map((item) => (
-            <button
+            <FilterChip
               key={item.id}
-              type="button"
+              label={item.label}
+              active={filter === item.id}
               onClick={() => setFilter(item.id)}
-              aria-pressed={filter === item.id}
-              className={cn(
-                'inline-flex min-h-11 shrink-0 snap-start items-center rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                filter === item.id
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border hover:bg-secondary',
-              )}
-            >
-              {item.label}
-            </button>
+            />
           ))}
         </div>
 
