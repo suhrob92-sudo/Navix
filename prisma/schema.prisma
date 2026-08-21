@@ -786,6 +786,10 @@ model FoodOrder {
 
   @@index([userId, createdAt])
   @@index([status])
+  /// Restoran kabineti O'Z buyurtmalarini so'raydi — indekssiz butun jadval o'qilardi.
+  @@index([restaurantId])
+  /// Manzil o'chirilganda unga bog'langan buyurtmalar tekshiriladi.
+  @@index([addressId])
   @@map("food_orders")
 }
 
@@ -812,6 +816,8 @@ model FoodOrderItem {
   menuItem MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
+  /// Taom o'chirilganda unga bog'langan qatorlar tekshiriladi.
+  @@index([menuItemId])
   @@map("food_order_items")
 }
 
@@ -912,6 +918,8 @@ model SavedAccount {
   /// Bir xil provayderga bir xil raqam ikki marta saqlanmasin.
   @@unique([userId, providerId, accountNumber])
   @@index([userId, deletedAt])
+  /// Provayder o'chirilganda saqlangan hisoblar tekshiriladi.
+  @@index([providerId])
   @@map("saved_accounts")
 }
 
@@ -961,6 +969,8 @@ model ServicePayment {
 
   @@index([userId, createdAt])
   @@index([status])
+  /// Provayder sahifasida uning to'lovlari ro'yxati.
+  @@index([providerId])
   @@map("service_payments")
 }
 
@@ -1177,6 +1187,8 @@ model MarketOrder {
   @@index([userId, createdAt])
   @@index([shopId, status])
   @@index([status])
+  /// Manzil o'chirilganda tekshiriladi.
+  @@index([addressId])
   @@map("market_orders")
 }
 
@@ -1211,6 +1223,8 @@ model MarketOrderItem {
   @@index([orderId])
   /// "Shu videodan nechta buyurtma keldi" so'rovi uchun.
   @@index([sourcePostId])
+  /// Mahsulot o'chirilganda va 'shu mahsulot necha marta sotilgan' hisobida.
+  @@index([productId])
   @@map("market_order_items")
 }
 
@@ -2108,6 +2122,8 @@ model Conversation {
   calls    Call[]
 
   @@index([lastMessageAt])
+  /// Biznes profili o'chirilganda suhbatlari tekshiriladi.
+  @@index([businessProfileId])
   @@map("conversations")
 }
 
@@ -2204,6 +2220,14 @@ model Message {
   reactions MessageReaction[]
 
   @@index([conversationId, createdAt])
+  /// Eng tez o'sadigan jadval. Hisob o'chirilganda indekssiz butun jadval o'qilardi.
+  @@index([senderId])
+  /// Xabar o'chirilganda unga JAVOB bo'lganlari qidiriladi.
+  ///
+  /// Indeks bazada allaqachon bor edi (qo'lda yozilgan migratsiyada,
+  /// `messages_reply_idx` nomi bilan), lekin sxemada YOZILMAGAN edi.
+  /// `map` o'sha mavjud indeksni ko'rsatadi — ikkinchisi yaratilmaydi.
+  @@index([replyToId], map: "messages_reply_idx")
   @@map("messages")
 }
 
@@ -2243,6 +2267,8 @@ model MessageReaction {
   /// odam sanoqda ikki marta hisoblanardi.
   @@unique([messageId, userId])
   @@index([messageId])
+  /// Hisob o'chirilganda reaksiyalari tekshiriladi.
+  @@index([userId])
   @@map("message_reactions")
 }
 
@@ -2591,6 +2617,12 @@ model UserReport {
   /// Moderator ro'yxati uchun: yangi shikoyatlar birinchi.
   @@index([status, createdAt])
   @@index([targetId])
+  /// Lentaning 'hassos filtri' HAR BIR so'rovda shu bog'lanishni tekshiradi.
+  @@index([postId])
+  /// Izoh o'chirilganda shikoyatlari tekshiriladi.
+  @@index([commentId])
+  /// Hikoya o'chirilganda shikoyatlari tekshiriladi.
+  @@index([storyId])
   @@map("user_reports")
 }
 
@@ -3074,6 +3106,8 @@ model Story {
   /// Indekssiz `SetNull` butun jadvalni ko'zdan kechirardi va post
   /// o'chirish sekinlashardi.
   @@index([postId])
+  /// Mahsulot o'chirilganda unga bog'langan hikoyalar tekshiriladi.
+  @@index([productId])
   @@map("stories")
 }
 
@@ -3168,6 +3202,8 @@ model PostSeen {
   @@unique([userId, postId])
   /// "Oxirgi ko'rganlarim" — tavsiya uchun signal yig'ishda.
   @@index([userId, seenAt])
+  /// ENG TEZ o'sadigan jadval. Post o'chirilganda indekssiz millionlab qator o'qilardi.
+  @@index([postId])
   @@map("post_seen")
 }
 
@@ -3199,6 +3235,8 @@ model PostHidden {
   @@unique([userId, postId])
   /// Tavsiyaga manfiy signal yig'ishda — so'nggi yashirishlar bo'yicha.
   @@index([userId, createdAt])
+  /// Post o'chirilganda tekshiriladi.
+  @@index([postId])
   @@map("post_hidden")
 }
 
@@ -3290,6 +3328,8 @@ model PostComment {
   @@index([postId, pinnedAt])
   /// Bitta izohning javoblari.
   @@index([parentId, createdAt])
+  /// 'Mening izohlarim' va hisob o'chirilishi.
+  @@index([authorId])
   @@map("post_comments")
 }
 
@@ -3435,6 +3475,8 @@ model PostSave {
   /// Bitta to'plam ichidagi ro'yxat — indekssiz butun saqlanganlar
   /// o'qilib, keyin ortiqchasi tashlab yuborilardi.
   @@index([userId, collectionId, createdAt])
+  /// To'plam o'chirilganda ichidagi saqlanganlar tekshiriladi.
+  @@index([collectionId])
   @@map("post_saves")
 }
 
@@ -3627,6 +3669,8 @@ model ModuleSwitch {
 
   updatedAt DateTime @updatedAt
 
+  /// Xodim hisobi o'chirilganda tekshiriladi.
+  @@index([updatedById])
   @@map("module_switches")
 }
 
@@ -3713,6 +3757,8 @@ model SupportTicket {
   @@index([status, lastMessageAt])
   /// Foydalanuvchi o'z murojaatlarini ko'radi.
   @@index([userId, lastMessageAt])
+  /// Xodimning O'Z murojaatlari ro'yxati.
+  @@index([assigneeId])
   @@map("support_tickets")
 }
 
@@ -3740,6 +3786,8 @@ model SupportMessage {
   createdAt DateTime @default(now())
 
   @@index([ticketId, createdAt])
+  /// Hisob o'chirilganda xabarlari tekshiriladi.
+  @@index([authorId])
   @@map("support_messages")
 }
 
@@ -3810,6 +3858,8 @@ model ContentRemoval {
   @@index([ownerId, createdAt])
   /// "Shu yozuvning amaldagi sababi" — sahifa har ochilganda so'raladi.
   @@index([kind, contentId, restoredAt])
+  /// Moderator hisobi o'chirilganda qarorlari tekshiriladi.
+  @@index([moderatorId])
   @@map("content_removals")
 }
 

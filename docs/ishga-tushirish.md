@@ -153,7 +153,48 @@ tekshiradi.
 
 ---
 
-## 4. Doim yodda tutiladigan qoidalar
+## 4. Tekshirilgan — hech narsa qilish shart emas
+
+Quyidagilar 28-bosqichda **haqiqatan tekshirildi** (taxmin emas). Ular
+allaqachon joyida va sizdan hech narsa talab qilmaydi.
+
+| Nima | Holati |
+|---|---|
+| Kalitlar Git'ga tushmagan | `.env*` `.gitignore` da; repoda sir topilmadi |
+| Xavfsizlik sarlavhalari | `X-Frame-Options`, `nosniff`, HSTS — `next.config.ts` da |
+| Muhit o'zgaruvchilari tekshiruvi | JWT kalitlari kamida 32 belgi, majburiylari nomi bilan tekshiriladi |
+| Baza indekslari | Barcha tashqi kalitlar indekslangan (0 ta bo'shliq) |
+| Salomatlik yo'li | `/api/health` baza va Redis holatini qaytaradi |
+| Xatolar jurnali | `/api/v1/client-errors` va admin paneli ishlaydi |
+| Huquqiy hujjatlar | Shartlar, maxfiylik va oferta yozilgan |
+| Kirish cheklovlari | Login, ro'yxatdan o'tish, OTP va parol tiklash cheklangan |
+| Pul amallari | Kirish talab qiladi, `idempotencyKey` majburiy, soatiga 20 marta cheklangan |
+
+### 4.1. `npm audit` uchta ogohlantirish beradi — bu MUAMMO emas
+
+`npm audit` uchta "high" darajali ogohlantirish ko'rsatadi:
+
+```
+deepmerge-ts <8.0.0  →  @prisma/config  →  prisma
+```
+
+**Nima uchun tuzatilmaydi:**
+
+1. `prisma` — bu **buyruq qatori vositasi** (`devDependencies`). U
+   migratsiya va kod yaratish uchun kerak, ishlab chiqarish serverida
+   umuman yo'q. Ilovada `@prisma/client` ishlaydi va u toza.
+2. Zaiflik "rekursiv obyektni birlashtirganda stek to'lib ketishi" —
+   u Prisma **sozlama faylini** o'qiyotganda yuz berishi mumkin. O'sha
+   faylni biz yozamiz, tashqaridan hech kim o'zgartira olmaydi.
+3. `npm audit fix --force` Prisma'ni **7 dan 6 ga tushiradi** — bu
+   butun ma'lumotlar qatlamini buzadigan o'zgarish.
+
+**Xulosa:** Prisma yangilanishini kutamiz. Ogohlantirishni ko'rganda
+xavotirlanmang.
+
+---
+
+## 5. Doim yodda tutiladigan qoidalar
 
 - **Parol, token va kalitni hech kimga yubormang** — jumladan yordam
   so'ralayotgan odamga. Faqat xato MATNINI yuboring.

@@ -268,6 +268,23 @@ export const PUBLIC_RATE_LIMITS = {
    * (xato tizimga kirgunga qadar ham yuz berishi mumkin).
    */
   clientError: { limit: 30, windowSeconds: 60 },
+  /**
+   * PUL amallari: bitta foydalanuvchi uchun soatiga 20 marta.
+   *
+   * ── Nima uchun kerak ────────────────────────────────────────────────
+   * Hamyon amallarida `idempotencyKey` bor — u ALOQA UZILGANDA
+   * takrorlanishdan saqlaydi. Lekin u ATAYLAB yuborilgan yuzlab
+   * so'rovni to'xtatmaydi: har biri boshqa kalit bilan keladi.
+   *
+   * Chegara odam uchun bemalol: kuniga bir-ikki marta to'ldirish yoki
+   * o'tkazish odatiy hol. Soatiga yigirmata esa allaqachon shubhali.
+   *
+   * ── Nima uchun chegara QATTIQROQ emas ───────────────────────────────
+   * Pul amali muvaffaqiyatsiz tugashi mumkin (mablag' yetmadi). Odam
+   * qayta urinadi va bu ham chegaraga kiradi. Juda qattiq chegara
+   * halol odamni bloklab qo'yardi.
+   */
+  moneyAction: { limit: 20, windowSeconds: 60 * 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;
