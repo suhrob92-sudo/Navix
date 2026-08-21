@@ -108,7 +108,15 @@ export function MarketplaceContent() {
                 >
                   <CategoryIcon name={category.icon} />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium">{category.name}</span>
+                    {/*
+                      Nom IKKI qatorga sig'adi.
+
+                      Bir qatorda "Telefon va ga…" bo'lib kesilardi va
+                      odam bo'lim nima haqidaligini bilmasdi. Belgi bilan
+                      yonma-yon turgani uchun joy tor — ikkinchi qator
+                      buni hal qiladi.
+                    */}
+                    <span className="line-clamp-2 text-sm leading-snug font-medium">{category.name}</span>
                     <span className="text-muted-foreground block text-xs">
                       {`${category.productCount} ta mahsulot`}
                     </span>
