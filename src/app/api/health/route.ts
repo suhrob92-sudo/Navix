@@ -2,6 +2,8 @@ import type { NextRequest } from 'next/server';
 
 import { withApiHandler } from '@/lib/api/handler';
 import { apiSuccess } from '@/lib/api/response';
+import { isProduction } from '@/lib/env';
+import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { getRedis } from '@/lib/redis';
 
@@ -58,26 +60,42 @@ function resolveVersion(): string {
   return sha ? sha.slice(0, 7) : 'local';
 }
 
-/** Bitta bog'liqlikni tekshiradi va javob vaqtini o'lchaydi. */
-async function checkDependency(probe: () => Promise<unknown>): Promise<DependencyCheck> {
+/**
+ * Bitta bog'liqlikni tekshiradi va javob vaqtini o'lchaydi.
+ *
+ * ── Nima uchun xato matni PRODUCTION'da yashiriladi ───────────────────
+ * Bu manzil ochiq: uni istalgan odam ochib ko'ra oladi (monitoring
+ * tizimlari token bilan murojaat qila olmaydi).
+ *
+ * Baza ishlamay qolganda esa xato matni ichida ichki manzil turadi:
+ * "Can't reach database server at ep-xxxx.eu-central-1.aws.neon.tech".
+ * Ya'ni saytimiz eng zaif paytida biz o'z bazamiz manzilini butun
+ * dunyoga aytib qo'yardik.
+ *
+ * Sabab log'da qoladi — u yerda to'liq matn bor va u faqat bizga
+ * ko'rinadi.
+ */
+async function checkDependency(name: string, probe: () => Promise<unknown>): Promise<DependencyCheck> {
   const startedAt = performance.now();
 
   try {
     await probe();
     return { status: 'ok', latencyMs: Math.round(performance.now() - startedAt) };
   } catch (error) {
+    logger.error({ err: error, dependency: name }, 'Salomatlik tekshiruvi muvaffaqiyatsiz');
+
     return {
       status: 'error',
       latencyMs: Math.round(performance.now() - startedAt),
-      error: error instanceof Error ? error.message : "Noma'lum xatolik",
+      error: isProduction() ? "Ulanib bo'lmadi" : error instanceof Error ? error.message : "Noma'lum xatolik",
     };
   }
 }
 
 export const GET = withApiHandler(async (_request: NextRequest, { requestId }) => {
   const [database, redisCheck] = await Promise.all([
-    checkDependency(() => prisma.$queryRaw`SELECT 1`),
-    checkDependency(() => getRedis().ping()),
+    checkDependency('database', () => prisma.$queryRaw`SELECT 1`),
+    checkDependency('redis', () => getRedis().ping()),
   ]);
 
   const isHealthy = database.status === 'ok' && redisCheck.status === 'ok';

@@ -42,8 +42,19 @@ const eslintConfig = defineConfig([
   },
 
   {
-    // Testlar va skriptlarda console ishlatishga ruxsat.
-    files: ['**/*.test.{ts,tsx}', 'prisma/**/*.ts', 'vitest.setup.ts'],
+    /**
+     * Testlar va skriptlarda console ishlatishga ruxsat.
+     *
+     * ── Nima uchun `scripts/**` ham ────────────────────────────────
+     * Skriptlar terminalda ishlaydi va ularning YAGONA vazifasi —
+     * natijani ekranga yozish. U yerda `console` o'rniga jurnal
+     * (`logger`) ishlatish natijani JSON qatorlariga aylantirardi va
+     * telefonda o'qib bo'lmasdi.
+     *
+     * Izohda avvaldan "skriptlarda" deb yozilgan edi, lekin ro'yxatga
+     * qo'shilmagan ekan.
+     */
+    files: ['**/*.test.{ts,tsx}', 'prisma/**/*.ts', 'scripts/**', 'vitest.setup.ts'],
     rules: {
       'no-console': 'off',
     },

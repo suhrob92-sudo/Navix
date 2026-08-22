@@ -1,5 +1,6 @@
 import type { NextConfig } from 'next';
 
+import { ENFORCED_CSP, REPORT_ONLY_CSP } from './src/config/csp';
 import { protectedPathPatterns } from './src/config/protected-routes';
 
 /**
@@ -30,6 +31,21 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'camera=(self), microphone=(self), geolocation=(self)' },
   // Faqat HTTPS orqali ulanishni majburlaydi (1 yil).
   { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+  /**
+   * Xavfsiz qism — MAJBURIY.
+   *
+   * Izohi `src/config/csp.ts` da. Qisqasi: bu qoidalar loyihada
+   * ishlatilmaydigan narsalarni to'sadi, shuning uchun hech narsani
+   * buzmaydi.
+   */
+  { key: 'Content-Security-Policy', value: ENFORCED_CSP },
+  /**
+   * Qattiq qism — faqat KUZATUV.
+   *
+   * Brauzer hech narsani to'smaydi, faqat mos kelmagan joylar haqida
+   * xabar yuboradi. Xabarlar /admin/errors ga tushadi.
+   */
+  { key: 'Content-Security-Policy-Report-Only', value: REPORT_ONLY_CSP },
 ];
 
 const nextConfig: NextConfig = {

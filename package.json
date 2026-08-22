@@ -37,6 +37,7 @@
     "company:assign": "tsx scripts/assign-company.ts",
     "env:setup": "node scripts/env-setup.mjs",
     "deploy:check": "node scripts/deploy-check.mjs",
+    "smoke": "node scripts/smoke.mjs",
     "deploy:db": "node scripts/deploy-db.mjs",
     "deploy:vars": "node scripts/deploy-vars.mjs",
     "deploy:push-env": "node scripts/deploy-push-env.mjs",

@@ -4,7 +4,9 @@ Bu — Navix'ni haqiqiy foydalanuvchilarga ochishdan **oldin** bajariladigan
 ishlar ro'yxati. Har bir band yonida "nima uchun" yozilgan: shunda qaysi
 birini keyinga qoldirish mumkinligini o'zingiz hal qilasiz.
 
-Tekshiruvning katta qismini bitta buyruq bajaradi:
+Tekshiruvni **ikkita** buyruq bajaradi.
+
+**Chiqarishdan OLDIN** — sozlamalar to'g'rimi:
 
 ```bash
 npm run deploy:check
@@ -13,6 +15,25 @@ npm run deploy:check
 U `.env.production` faylini o'qiydi (bo'lmasa `.env`). Ya'ni production
 qiymatlarini alohida faylga yozib, lokal ishingizni buzmasdan
 tekshirasiz.
+
+**Chiqarishdan KEYIN** — sayt rostdan ishlayaptimi:
+
+```bash
+npm run smoke -- https://sizning-domeningiz
+```
+
+U haqiqiy manzilga murojaat qiladi va 24 ta narsani tekshiradi:
+sahifalar ochiladimi, baza ulanganmi, himoya ishlayaptimi, xavfsizlik
+sarlavhalari joyidami, xato javobida ichki tafsilot chiqib
+ketmayaptimi.
+
+Skript faqat **o'qiydi** — hisob yaratmaydi, xabar yubormaydi. Uni
+ishlab turgan saytda istalgan paytda bemalol bajarish mumkin.
+
+**Nima uchun ikkitasi:** sozlama to'g'ri bo'lib, sayt baribir
+ochilmasligi mumkin — migratsiya bajarilmagan, Blob ulanmagan yoki
+domen boshqa loyihaga qarab turgan bo'lishi mumkin. Birinchi buyruq
+buni ko'rmaydi, ikkinchisi ko'radi.
 
 ---
 
@@ -115,7 +136,13 @@ uchraydi. TURN — bu holatdagi yagona yo'l.
 
 ### 3.1. Hammasi tirikmi
 
-Telefondan oching:
+Eng tez yo'l:
+
+```bash
+npm run smoke -- https://<sizning-domeningiz>
+```
+
+Yoki telefondan brauzerda oching:
 
 ```
 https://<sizning-domeningiz>/api/health
@@ -170,6 +197,15 @@ allaqachon joyida va sizdan hech narsa talab qilmaydi.
 | Kirish cheklovlari | Login, ro'yxatdan o'tish, OTP va parol tiklash cheklangan |
 | Pul amallari | Kirish talab qiladi, `idempotencyKey` majburiy, soatiga 20 marta cheklangan |
 
+33-bosqichda qo'shilganlar:
+
+| Nima | Holati |
+|---|---|
+| Tashqi tekshiruv | `npm run smoke` — 24 ta tekshiruv, lokal manzilda sinaldi |
+| CSP (xavfsiz qism) | `frame-ancestors`, `base-uri`, `form-action`, `object-src` — **majburiy** |
+| CSP (qattiq qism) | Kuzatuv rejimida; buzilishlar `/admin/errors` ga tushadi |
+| Salomatlik yo'li | Xato matni endi production'da yashiriladi (ichki manzil chiqib ketmaydi) |
+
 ### 4.1. `npm audit` uchta ogohlantirish beradi — bu MUAMMO emas
 
 `npm audit` uchta "high" darajali ogohlantirish ko'rsatadi:
@@ -191,6 +227,29 @@ deepmerge-ts <8.0.0  →  @prisma/config  →  prisma
 
 **Xulosa:** Prisma yangilanishini kutamiz. Ogohlantirishni ko'rganda
 xavotirlanmang.
+
+### 4.2. `/admin/errors` da "CSP" turidagi yozuvlar chiqadi — bu ham MUAMMO emas
+
+Xatolar jurnalida `CSP` deb belgilangan yozuvlarni ko'rasiz, masalan:
+
+```
+CSP   script-src-elem — inline   /feed
+```
+
+**Bu xato emas.** Sayt to'liq ishlayapti va foydalanuvchi hech narsani
+sezmaydi.
+
+Nima bo'lyapti: brauzerga ikkita qoidalar to'plami yuboriladi.
+Birinchisi — **majburiy** va u faqat loyihada umuman ishlatilmaydigan
+narsalarni to'sadi. Ikkinchisi — **kuzatuv**: brauzer hech narsani
+to'smaydi, faqat "bu qoidaga to'g'ri kelmadi" deb xabar beradi.
+
+Bu yozuvlar aynan o'sha xabarlar. Ular kelajakda qattiq qoidani yoqish
+uchun ro'yxat yig'ib beradi.
+
+O'lchangan natija (22-avgust): ikki xil xabar keladi — Next.js'ning o'z
+ichki skripti va tekshiruv kutubxonasining tezlashtirish urinishi.
+Ikkalasi ham xavfsiz. Batafsil izoh `src/config/csp.ts` da.
 
 ---
 
