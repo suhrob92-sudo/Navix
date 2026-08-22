@@ -30,6 +30,15 @@ export type StartCallInput = z.infer<typeof startCallSchema>;
 export const callSignalSchema = z
   .object({
     type: z.enum(['offer', 'answer', 'candidate']),
+    /**
+     * Signal KIMGA yuborilishi — faqat guruh qo'ng'irog'ida.
+     *
+     * Ikki kishilik suhbatda bu maydon kerak emas: server ikkinchi
+     * tomonni o'zi biladi. Guruhda esa har bir juftlik alohida
+     * ulanadi va manzilsiz signal qaysi ulanishga tegishli ekani
+     * noma'lum bo'lardi.
+     */
+    to: z.uuid("Manzil noto'g'ri").optional(),
     sdp: z.string().max(20_000).optional(),
     /**
      * Tarmoq manzili — brauzer bergan obyekt shundayligicha uzatiladi.

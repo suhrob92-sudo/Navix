@@ -302,6 +302,7 @@ model User {
   messageReactions  MessageReaction[]
   outgoingCalls     Call[]               @relation("CallCaller")
   incomingCalls     Call[]               @relation("CallCallee")
+  callParticipation CallParticipant[]
   pushSubscriptions PushSubscription[]
   blocksMade        UserBlock[]          @relation("BlocksMade")
   blocksReceived    UserBlock[]          @relation("BlocksReceived")
@@ -2110,6 +2111,56 @@ enum ConversationKind {
   GROUP
 }
 
+/// Guruh qo'ng'irog'idagi ishtirokchining holati.
+///
+/// Izohi `config/group-call.ts` da.
+enum CallParticipantStatus {
+  /// Chaqirildi, hali javob bermagan (telefoni chalinmoqda).
+  INVITED
+  /// Suhbatda.
+  JOINED
+  /// Suhbatdan chiqdi.
+  LEFT
+  /// Chaqiruvni rad etdi.
+  DECLINED
+}
+
+/// Guruh qo'ng'irog'idagi bitta ishtirokchi.
+///
+/// ── Nima uchun ALOHIDA jadval ─────────────────────────────────────────
+/// Ikki kishilik qo'ng'iroqda ikkala tomon `calls` jadvalidagi ikkita
+/// ustunda turadi. Guruhda esa ishtirokchilar soni oldindan noma'lum
+/// va ular suhbat davomida kirib-chiqib turadi — ustunlar bilan buni
+/// ifodalab bo'lmaydi.
+model CallParticipant {
+  id String @id @default(uuid()) @db.Uuid
+
+  callId String @db.Uuid
+  userId String @db.Uuid
+
+  status CallParticipantStatus @default(INVITED)
+
+  /// Suhbatga qo'shilgan payt.
+  joinedAt DateTime?
+  /// Suhbatdan chiqqan payt.
+  leftAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Bir odam bitta qo'ng'iroqda BITTA marta bo'ladi.
+  ///
+  /// Chaqiruv tugmasi ikki marta bosilsa yoki ikkita qurilmadan bir
+  /// vaqtda javob berilsa, ikkita yozuv paydo bo'lardi va odam
+  /// ro'yxatda ikki marta ko'rinardi.
+  @@unique([callId, userId])
+  /// "Bu odam hozir qaysi suhbatda" — indekssiz butun jadval o'qilardi.
+  @@index([userId, status])
+  @@map("call_participants")
+}
+
 /// Guruhdagi a'zoning darajasi.
 ///
 /// Izohi va huquqlar jadvali `config/group-chat.ts` da.
@@ -2414,8 +2465,29 @@ model Call {
 
   /// Kim qo'ng'iroq qildi.
   callerId String @db.Uuid
+
   /// Kimga qo'ng'iroq qilindi.
-  calleeId String @db.Uuid
+  ///
+  /// ── Nima uchun BO'SH bo'lishi mumkin ───────────────────────────────
+  /// Ikki kishilik qo'ng'iroqda "kimga" — bitta aniq odam va u shu
+  /// yerda turadi.
+  ///
+  /// Guruh qo'ng'irog'ida esa "kimga" degan savolning bitta javobi
+  /// yo'q: ishtirokchilar ko'p va ular kirib-chiqib turadi. Ular
+  /// alohida jadvalda (`CallParticipant`) saqlanadi, bu ustun esa
+  /// bo'sh qoladi.
+  ///
+  /// Bu bo'shliq TASODIFIY emas: `calls_one_live_per_callee` indeksi
+  /// bo'sh qiymatlarni e'tiborsiz qoldiradi, ya'ni bir vaqtda bir
+  /// nechta guruh suhbati bo'lishi mumkin — bu to'g'ri.
+  calleeId String? @db.Uuid
+
+  /// Guruh qo'ng'irog'imi.
+  ///
+  /// `calleeId` bo'sh ekanidan ham bilsa bo'lardi, lekin bayroq
+  /// so'rovlarni aniq va tez qiladi: "jonli guruh suhbatlari" ni
+  /// izlashda indeks ishlatiladi.
+  isGroup Boolean @default(false)
 
   kind   CallKind
   status CallStatus @default(RINGING)
@@ -2437,7 +2509,9 @@ model Call {
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   caller       User         @relation("CallCaller", fields: [callerId], references: [id], onDelete: Cascade)
-  callee       User         @relation("CallCallee", fields: [calleeId], references: [id], onDelete: Cascade)
+  callee       User?        @relation("CallCallee", fields: [calleeId], references: [id], onDelete: Cascade)
+
+  participants CallParticipant[]
 
   @@index([conversationId, startedAt])
   @@index([calleeId, status])

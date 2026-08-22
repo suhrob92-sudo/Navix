@@ -1,4 +1,5 @@
 import { CALL_ALIVE_TTL_SECONDS, MAX_CALL_SECONDS, RING_TIMEOUT_SECONDS, STUN_SERVERS } from '@/config/calls';
+import { maxParticipants, type CallParticipantStatusName } from '@/config/group-call';
 import { CallKind, CallStatus, ConversationKind, Prisma } from '@/generated/prisma/client';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/api/errors';
 import { isCallAlive, pushCallEvent, touchCallAlive } from '@/lib/call-signal';
@@ -33,12 +34,42 @@ const CALL_SELECT = {
   conversationId: true,
   callerId: true,
   calleeId: true,
+  isGroup: true,
   kind: true,
   status: true,
   startedAt: true,
   answeredAt: true,
   endedAt: true,
   durationSeconds: true,
+  /**
+   * Guruh nomi va rasmi — chaqiruv ekranida ko'rsatish uchun.
+   *
+   * Ikki kishilik qo'ng'iroqda ular bo'sh bo'ladi va ishlatilmaydi.
+   */
+  conversation: { select: { title: true, imageUrl: true, kind: true } },
+  /**
+   * Ishtirokchilar — FAQAT guruh qo'ng'irog'ida to'ldiriladi.
+   *
+   * Ikki kishilik qo'ng'iroqda bu ro'yxat bo'sh va tomonlar
+   * `caller`/`callee` ustunlaridan olinadi.
+   */
+  participants: {
+    select: {
+      userId: true,
+      status: true,
+      joinedAt: true,
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          avatarUrl: true,
+          profile: { select: { username: true } },
+        },
+      },
+    },
+    orderBy: { createdAt: 'asc' as const },
+  },
   caller: {
     select: {
       id: true,
@@ -63,7 +94,18 @@ type CallRow = Prisma.CallGetPayload<{ select: typeof CALL_SELECT }>;
 
 type PersonRow = CallRow['caller'];
 
-function toPeer(person: PersonRow): CallView['peer'] {
+function toPeer(person: PersonRow | null): CallView['peer'] {
+  /**
+   * Odam topilmasligi mumkin: hisob o'chirilgan yoki bu GURUH
+   * qo'ng'irog'i (u yerda aniq "ikkinchi tomon" yo'q).
+   *
+   * Bo'sh qaytarish o'rniga umumiy yozuv beriladi — ekranda bo'sh
+   * joy qolmasligi kerak.
+   */
+  if (!person) {
+    return { userId: '', name: 'Foydalanuvchi', avatarUrl: null, username: '' };
+  }
+
   const fullName = [person.firstName, person.lastName].filter(Boolean).join(' ');
   const username = person.profile?.username ?? '';
 
@@ -84,8 +126,29 @@ function toCallView(row: CallRow, viewerId: string): CallView {
     kind: row.kind,
     status: row.status,
     isOutgoing,
-    // Ikkinchi tomon — men chaqiruvchi bo'lsam qabul qiluvchi, aksincha.
-    peer: toPeer(isOutgoing ? row.callee : row.caller),
+    isGroup: row.isGroup,
+    /**
+     * Guruhda "ikkinchi tomon" — guruhning O'ZI.
+     *
+     * Chaqiruv ekranida odam nomi emas, guruh nomi ko'rinishi kerak:
+     * "Oila sizni chaqirmoqda". Kim boshlagani ishtirokchilar
+     * ro'yxatidan ko'rinadi.
+     */
+    peer: row.isGroup
+      ? {
+          userId: '',
+          name: row.conversation.title ?? 'Guruh',
+          avatarUrl: row.conversation.imageUrl,
+          username: '',
+        }
+      : // Ikkinchi tomon — men chaqiruvchi bo'lsam qabul qiluvchi, aksincha.
+        toPeer(isOutgoing ? row.callee : row.caller),
+    participants: row.participants.map((participant) => ({
+      ...toPeer(participant.user),
+      status: participant.status as CallParticipantStatusName,
+      joinedAt: participant.joinedAt?.toISOString() ?? null,
+      isMe: participant.userId === viewerId,
+    })),
     startedAt: row.startedAt.toISOString(),
     answeredAt: row.answeredAt?.toISOString() ?? null,
     endedAt: row.endedAt?.toISOString() ?? null,
@@ -126,8 +189,29 @@ async function expireStaleCalls(userIds: string[]): Promise<void> {
   const activeBefore = new Date(now - MAX_CALL_SECONDS * 1_000);
 
   const mine: Prisma.CallWhereInput = {
-    OR: [{ callerId: { in: userIds } }, { calleeId: { in: userIds } }],
+    OR: [
+      { callerId: { in: userIds } },
+      { calleeId: { in: userIds } },
+      { participants: { some: { userId: { in: userIds } } } },
+    ],
   };
+
+  /**
+   * Muddati o'tganlarning ID'lari OLDIN o'qiladi.
+   *
+   * `updateMany` faqat sonini qaytaradi. Ularsiz ishtirokchilarni
+   * bo'shatish uchun qaysi qo'ng'iroqlar yopilganini bilib bo'lmasdi.
+   */
+  const expiring = await prisma.call.findMany({
+    where: {
+      ...mine,
+      OR: [
+        { status: CallStatus.RINGING, startedAt: { lt: ringingBefore } },
+        { status: CallStatus.ACTIVE, startedAt: { lt: activeBefore } },
+      ],
+    },
+    select: { id: true },
+  });
 
   await prisma.$transaction([
     prisma.call.updateMany({
@@ -139,6 +223,8 @@ async function expireStaleCalls(userIds: string[]): Promise<void> {
       data: { status: CallStatus.ENDED, endedAt: new Date() },
     }),
   ]);
+
+  await releaseParticipants(expiring.map((row) => row.id));
 
   await closeAbandonedCalls(mine);
 }
@@ -164,6 +250,21 @@ async function closeAbandonedCalls(scope: Prisma.CallWhereInput): Promise<void> 
 
   const now = Date.now();
   const graceMs = CALL_ALIVE_TTL_SECONDS * 1_000;
+
+  /**
+   * HAQIQATDA yopilgan qo'ng'iroqlar.
+   *
+   * ── Nima uchun alohida ro'yxat (topilgan xato) ────────────────────
+   * Avval ishtirokchilar `rows` bo'yicha bo'shatilardi — ya'ni
+   * TEKSHIRILGAN barcha qo'ng'iroqlar bo'yicha. Lekin `rows` ichida
+   * hali TIRIK qo'ng'iroqlar ham bor: quyidagi halqa ularni
+   * `continue` bilan o'tkazib yuboradi.
+   *
+   * Natijada har bir holat so'rovi ketayotgan suhbatning
+   * ishtirokchilarini "chiqib ketgan" deb belgilab qo'yardi va suhbat
+   * bir necha soniyada o'z-o'zidan tarqalardi.
+   */
+  const closedIds: string[] = [];
 
   for (const row of rows) {
     const since = (row.answeredAt ?? row.startedAt).getTime();
@@ -191,8 +292,18 @@ async function closeAbandonedCalls(scope: Prisma.CallWhereInput): Promise<void> 
       },
     });
 
+    closedIds.push(row.id);
+
     logger.info({ callId: row.id }, "Tashlab ketilgan qo'ng'iroq yopildi");
   }
+
+  /**
+   * Yopilgan qo'ng'iroqlarning ishtirokchilari ham bo'shatiladi.
+   *
+   * Usiz odamlar "suhbatda" holatida qolib, keyingi qo'ng'iroqqa
+   * umuman kira olmasdi (sababi `releaseParticipants` da).
+   */
+  await releaseParticipants(closedIds);
 }
 
 /**
@@ -203,7 +314,20 @@ async function closeAbandonedCalls(scope: Prisma.CallWhereInput): Promise<void> 
  */
 async function requireParticipant(callId: string, userId: string): Promise<CallRow> {
   const row = await prisma.call.findFirst({
-    where: { id: callId, OR: [{ callerId: userId }, { calleeId: userId }] },
+    where: {
+      id: callId,
+      OR: [
+        { callerId: userId },
+        { calleeId: userId },
+        /**
+         * Guruhda ishtirokchilar alohida jadvalda.
+         *
+         * Chiqib ketganlar ham HISOBGA olinadi: ularning ekranida
+         * suhbat tugagani ko'rinishi va tarixni ocha olishi kerak.
+         */
+        { participants: { some: { userId } } },
+      ],
+    },
     select: CALL_SELECT,
   });
 
@@ -214,9 +338,50 @@ async function requireParticipant(callId: string, userId: string): Promise<CallR
   return row;
 }
 
-/** Qo'ng'iroqdagi ikkinchi tomonning ID'si. */
-function otherSide(row: CallRow, userId: string): string {
+/**
+ * Ikki kishilik qo'ng'iroqdagi ikkinchi tomonning ID'si.
+ *
+ * Guruhda bunday savol yo'q — u yerda signal aniq manzilga
+ * yuboriladi (`relaySignal` ga qarang).
+ */
+function otherSide(row: CallRow, userId: string): string | null {
   return row.callerId === userId ? row.calleeId : row.callerId;
+}
+
+/**
+ * Tugagan qo'ng'iroqning ishtirokchilarini BO'SHATADI.
+ *
+ * ── Nima uchun MAJBURIY ───────────────────────────────────────────────
+ * `call_participants_one_live_per_user` indeksi bir odam bir vaqtda
+ * faqat bitta suhbatda bo'lishini ta'minlaydi. Qo'ng'iroq tugaganda
+ * ishtirokchilar "suhbatda" holatida qolib ketsa, o'sha odamlar
+ * KEYINGI qo'ng'iroqqa umuman kira olmasdi — indeks ularni to'sardi.
+ *
+ * Ya'ni bitta tugallanmagan tozalash butun qo'ng'iroq tizimini
+ * o'sha odamlar uchun abadiy o'chirib qo'yardi.
+ */
+async function releaseParticipants(callIds: readonly string[]): Promise<void> {
+  if (callIds.length === 0) return;
+
+  await prisma.callParticipant.updateMany({
+    where: { callId: { in: [...callIds] }, status: { in: ['INVITED', 'JOINED'] } },
+    data: {
+      /**
+       * Javob bermaganlar "rad etdi" emas, "chiqdi" deb yoziladi:
+       * ular rad etmagan, suhbat ularsiz tugagan.
+       */
+      status: 'LEFT',
+      leftAt: new Date(),
+    },
+  });
+}
+
+/** Hozir suhbatda turgan yoki chaqirilgan ishtirokchilarning ID'lari. */
+function liveParticipantIds(row: CallRow, exceptUserId?: string): string[] {
+  return row.participants
+    .filter((participant) => participant.status === 'INVITED' || participant.status === 'JOINED')
+    .map((participant) => participant.userId)
+    .filter((id) => id !== exceptUserId);
 }
 
 /** Chaqiruvchining ko'rinadigan ismi. */
@@ -227,13 +392,31 @@ function callerName(row: CallRow): string {
   return fullName || (person.profile?.username ? `@${person.profile.username}` : 'Foydalanuvchi');
 }
 
-/** Kelayotgan qo'ng'iroq haqida telefonga turtki yuboradi. */
-async function notifyIncomingCall(row: CallRow): Promise<void> {
+/**
+ * Kelayotgan qo'ng'iroq haqida telefonga turtki yuboradi.
+ *
+ * Guruhda bir nechta odamga yuboriladi, shuning uchun qabul
+ * qiluvchilar ro'yxati TASHQARIDAN beriladi.
+ */
+async function notifyIncomingCall(row: CallRow, recipientIds: readonly string[]): Promise<void> {
   const isVideo = row.kind === CallKind.VIDEO;
 
-  await sendPush(row.calleeId, {
+  const body = row.isGroup
+    ? `${callerName(row)} «${row.conversation.title ?? 'Guruh'}» da qo'ng'iroq boshladi.`
+    : `${callerName(row)} sizga qo'ng'iroq qilmoqda.`;
+
+  await Promise.all(recipientIds.map((recipientId) => notifyOneIncoming(row, recipientId, isVideo, body)));
+}
+
+async function notifyOneIncoming(
+  row: CallRow,
+  recipientId: string,
+  isVideo: boolean,
+  body: string,
+): Promise<void> {
+  await sendPush(recipientId, {
     title: `${isVideo ? 'Video qo' : 'Qo'}'ng'iroq`,
-    body: `${callerName(row)} sizga qo'ng'iroq qilmoqda.`,
+    body,
     url: `/messages/${row.conversationId}`,
     /**
      * Nishon barcha qo'ng'iroqlar uchun BIR XIL.
@@ -262,20 +445,51 @@ async function notifyIncomingCall(row: CallRow): Promise<void> {
  * qilganini bilishi shart.
  */
 async function notifyMissedCall(row: CallRow, wasDeclined: boolean): Promise<void> {
-  await notifyUser(row.calleeId, 'call.missed', {
-    conversationId: row.conversationId,
-    callerName: callerName(row),
-    wasDeclined,
-    isVideo: row.kind === CallKind.VIDEO,
-  });
+  /**
+   * Guruhda javobsiz qo'ng'iroq HAR BIR javob bermaganga yoziladi.
+   *
+   * Chaqiruvchining o'ziga yozilmaydi — u qo'ng'iroqni boshlagan
+   * odam, unga "sizni chaqirishdi" deb aytish mantiqsiz.
+   */
+  const recipients = row.isGroup
+    ? row.participants
+        .filter((participant) => participant.status === 'INVITED' && participant.userId !== row.callerId)
+        .map((participant) => participant.userId)
+    : row.calleeId
+      ? [row.calleeId]
+      : [];
+
+  await Promise.all(
+    recipients.map((recipientId) =>
+      notifyUser(recipientId, 'call.missed', {
+        conversationId: row.conversationId,
+        callerName: callerName(row),
+        wasDeclined,
+        isVideo: row.kind === CallKind.VIDEO,
+      }),
+    ),
+  );
 }
 
-/** Ikkala tomonga ham holat o'zgarganini bildiradi. */
+/**
+ * Barcha tomonlarga holat o'zgarganini bildiradi.
+ *
+ * Ikki kishilik qo'ng'iroqda ikkitasiga, guruhda esa hamma
+ * ishtirokchiga — jumladan chiqib ketganlarga ham: ularning ekranida
+ * ham suhbat tugagani ko'rinishi kerak.
+ */
 async function broadcastState(row: CallRow): Promise<void> {
-  await Promise.all([
-    pushCallEvent(row.callerId, { kind: 'state', call: toCallView(row, row.callerId) }),
-    pushCallEvent(row.calleeId, { kind: 'state', call: toCallView(row, row.calleeId) }),
-  ]);
+  const recipients = new Set<string>([row.callerId]);
+
+  if (row.calleeId) recipients.add(row.calleeId);
+
+  for (const participant of row.participants) {
+    recipients.add(participant.userId);
+  }
+
+  await Promise.all(
+    [...recipients].map((userId) => pushCallEvent(userId, { kind: 'state', call: toCallView(row, userId) })),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -300,6 +514,18 @@ export async function startCall(callerId: string, input: StartCallInput): Promis
    * qo'yish "qo'ng'iroq ketdi, lekin hech kim ko'tarmadi" degan yolg'on
    * taassurot berardi.
    */
+  /**
+   * Guruh bo'lsa — boshqa yo'l bilan.
+   *
+   * ── Nima uchun ayni SHU YERDA ─────────────────────────────────────
+   * Brauzer "qo'ng'iroq qilaman" deydi va suhbat turini bilishi shart
+   * emas. Turni server aniqlaydi: shunda brauzerda "bu guruhmi?"
+   * degan shart takrorlanmaydi va u eskirmaydi ham.
+   */
+  if (conversation.kind === ConversationKind.GROUP) {
+    return startGroupCall(callerId, input);
+  }
+
   if (conversation.kind !== ConversationKind.DIRECT) {
     throw new ValidationError("Kompaniyaga qo'ng'iroq qilib bo'lmaydi. Xabar yozing.");
   }
@@ -377,7 +603,7 @@ export async function startCall(callerId: string, input: StartCallInput): Promis
    * mumkin. Chaqiruvchi esa "chalinmoqda" ekranini DARHOL ko'rishi
    * kerak.
    */
-  void notifyIncomingCall(row);
+  void notifyIncomingCall(row, [calleeId]);
 
   logger.info({ callId: row.id, callerId, calleeId, kind: input.kind }, "Qo'ng'iroq boshlandi");
 
@@ -452,11 +678,24 @@ export async function endCall(
     ? Math.max(0, Math.round((endedAt.getTime() - existing.answeredAt.getTime()) / 1_000))
     : 0;
 
-  const row = await prisma.call.update({
+  await prisma.call.update({
     where: { id: callId },
     data: { status, endedAt, durationSeconds },
-    select: CALL_SELECT,
+    select: { id: true },
   });
+
+  /**
+   * Ishtirokchilar bo'shatiladi — sababi `releaseParticipants` da.
+   *
+   * Bu qator qo'ng'iroq yopilgandan KEYIN va holat tarqatilishidan
+   * OLDIN turadi: tarqatilgan ma'lumotda ishtirokchilar allaqachon
+   * to'g'ri holatda bo'lishi kerak.
+   */
+  if (existing.isGroup) {
+    await releaseParticipants([callId]);
+  }
+
+  const row = await prisma.call.findUniqueOrThrow({ where: { id: callId }, select: CALL_SELECT });
 
   await broadcastState(row);
 
@@ -473,6 +712,239 @@ export async function endCall(
   logger.info({ callId, status, durationSeconds }, "Qo'ng'iroq tugadi");
 
   return toCallView(row, userId);
+}
+
+/**
+ * Guruhda qo'ng'iroq boshlaydi.
+ *
+ * ── Nima uchun ALOHIDA funksiya ───────────────────────────────────────
+ * `startCall` ikki tomonni qat'iy nazarda tutadi: kim chaqirdi, kimga.
+ * Unga guruh mantiqini qo'shish har bir qatorda "bu guruhmi?" degan
+ * shart qo'shishni talab qilardi va ikkala yo'l ham o'qib bo'lmas
+ * holga kelardi.
+ *
+ * Umumiy narsalar (osilib qolganlarni tozalash, band tekshiruvi,
+ * signal uzatish) baribir birga ishlatiladi.
+ */
+export async function startGroupCall(callerId: string, input: StartCallInput): Promise<CallView> {
+  const conversation = await prisma.conversation.findFirst({
+    where: { id: input.conversationId, kind: ConversationKind.GROUP, members: { some: { userId: callerId } } },
+    select: {
+      id: true,
+      title: true,
+      members: { select: { userId: true } },
+    },
+  });
+
+  if (!conversation) {
+    throw new NotFoundError('Guruh');
+  }
+
+  const limit = maxParticipants(input.kind);
+
+  /**
+   * Chegara GURUH a'zolari soni bo'yicha tekshiriladi, chaqirilganlar
+   * bo'yicha emas.
+   *
+   * Aks holda 20 kishilik guruhda qo'ng'iroq boshlansa, birinchi
+   * to'rttasi kirib, qolgani "joy yo'q" degan javobni suhbat
+   * o'rtasida ko'rardi. Buni oldindan aytish halolroq.
+   */
+  if (conversation.members.length > limit) {
+    throw new ValidationError(
+      `${input.kind === 'VIDEO' ? 'Video' : 'Ovozli'} suhbatda eng ko'pi ${limit} kishi bo'lishi mumkin. ` +
+        `Bu guruhda ${conversation.members.length} a'zo bor.`,
+    );
+  }
+
+  const memberIds = conversation.members.map((member) => member.userId);
+
+  await expireStaleCalls(memberIds);
+
+  /**
+   * Chaqiruvchi boshqa qo'ng'iroqda emasligi tekshiriladi.
+   *
+   * Qolgan a'zolar tekshirilmaydi: ular band bo'lsa, shunchaki
+   * qo'shilmaydi. Butun qo'ng'iroqni bitta band odam uchun bekor
+   * qilish noto'g'ri bo'lardi.
+   */
+  const busy = await prisma.call.findFirst({
+    where: {
+      status: { in: [CallStatus.RINGING, CallStatus.ACTIVE] },
+      OR: [
+        { callerId },
+        { calleeId: callerId },
+        { participants: { some: { userId: callerId, status: { in: ['INVITED', 'JOINED'] } } } },
+      ],
+    },
+    select: { id: true },
+  });
+
+  if (busy) {
+    throw new ConflictError("Sizda tugallanmagan qo'ng'iroq bor.");
+  }
+
+  let row: CallRow;
+
+  try {
+    row = await prisma.call.create({
+      data: {
+        conversationId: conversation.id,
+        callerId,
+        /**
+         * "Kimga" ustuni BO'SH: guruhda aniq bitta qabul qiluvchi
+         * yo'q (sababi sxemadagi izohda).
+         */
+        calleeId: null,
+        isGroup: true,
+        kind: input.kind,
+        status: CallStatus.ACTIVE,
+        /**
+         * Guruh qo'ng'irog'i darhol "ketmoqda" holatida boshlanadi.
+         *
+         * ── Nima uchun "chalinmoqda" emas ─────────────────────────────
+         * Ikki kishilikda qo'ng'iroq javob berilgandagina boshlanadi.
+         * Guruhda esa boshlovchi hech kimni kutmasdan kirib turadi va
+         * qolganlari birin-ketin qo'shiladi — xuddi haqiqiy xonaga
+         * kirgandek.
+         *
+         * "Chalinmoqda" qilinsa, birinchi javob bergunicha boshlovchi
+         * bo'sh ekranga qarab o'tirardi.
+         */
+        answeredAt: new Date(),
+        participants: {
+          create: [
+            { userId: callerId, status: 'JOINED', joinedAt: new Date() },
+            ...memberIds
+              .filter((id) => id !== callerId)
+              .map((userId) => ({ userId, status: 'INVITED' as const })),
+          ],
+        },
+      },
+      select: CALL_SELECT,
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new ConflictError("Qo'ng'iroq allaqachon boshlangan.");
+    }
+
+    throw error;
+  }
+
+  const invited = liveParticipantIds(row, callerId);
+
+  await Promise.all(
+    invited.map((userId) => pushCallEvent(userId, { kind: 'ring', call: toCallView(row, userId) })),
+  );
+
+  void notifyIncomingCall(row, invited);
+
+  logger.info({ callId: row.id, callerId, invited: invited.length, kind: input.kind }, 'Guruh suhbati boshlandi');
+
+  return toCallView(row, callerId);
+}
+
+/**
+ * Guruh suhbatiga qo'shiladi.
+ *
+ * ── Nima uchun "javob berish" emas, "qo'shilish" ──────────────────────
+ * Ikki kishilikda javob berish bir martalik hodisa: qo'ng'iroq
+ * chalinadi, odam ko'taradi.
+ *
+ * Guruhda esa suhbat ochiq xona kabi: odam chiqib ketib, keyin
+ * qaytishi mumkin. Shuning uchun bu amal takrorlanadigan.
+ */
+export async function joinGroupCall(callId: string, userId: string): Promise<CallView> {
+  const existing = await requireParticipant(callId, userId);
+
+  if (!existing.isGroup) {
+    throw new ValidationError("Bu guruh qo'ng'irog'i emas.");
+  }
+
+  if (existing.status !== CallStatus.ACTIVE) {
+    throw new ConflictError("Qo'ng'iroq tugagan.");
+  }
+
+  const joined = existing.participants.filter((participant) => participant.status === 'JOINED');
+  const alreadyIn = joined.some((participant) => participant.userId === userId);
+
+  if (!alreadyIn && joined.length >= maxParticipants(existing.kind)) {
+    throw new ConflictError(
+      `Suhbat to'lgan: eng ko'pi ${maxParticipants(existing.kind)} kishi bo'lishi mumkin.`,
+    );
+  }
+
+  /**
+   * `updateMany` — `update` emas.
+   *
+   * Ikkita qurilmadan bir vaqtda qo'shilishga urinilsa, ikkinchisi
+   * "qator topilmadi" xatosi bilan tugardi.
+   */
+  await prisma.callParticipant.updateMany({
+    where: { callId, userId },
+    data: { status: 'JOINED', joinedAt: new Date(), leftAt: null },
+  });
+
+  const row = await requireParticipant(callId, userId);
+
+  await broadcastState(row);
+
+  logger.info({ callId, userId }, 'Guruh suhbatiga qo\'shildi');
+
+  return toCallView(row, userId);
+}
+
+/**
+ * Guruh suhbatidan chiqadi.
+ *
+ * ── Nima uchun qo'ng'iroq TUGAMAYDI ───────────────────────────────────
+ * Ikki kishilikda bir tomon chiqsa, suhbat tugaydi — gaplashadigan
+ * odam qolmaydi.
+ *
+ * Guruhda esa qolganlar davom etaveradi. Suhbat faqat OXIRGI odam
+ * chiqqanda yopiladi.
+ */
+export async function leaveGroupCall(callId: string, userId: string): Promise<CallView> {
+  const existing = await requireParticipant(callId, userId);
+
+  if (!existing.isGroup) {
+    throw new ValidationError("Bu guruh qo'ng'irog'i emas.");
+  }
+
+  const wasInvited = existing.participants.find((participant) => participant.userId === userId)?.status;
+
+  await prisma.callParticipant.updateMany({
+    where: { callId, userId },
+    data: {
+      /**
+       * Javob bermasdan chiqqan odam "rad etdi" deb yoziladi.
+       *
+       * Farqi tarixda muhim: "qatnashmadi" va "rad etdi" boshqa-boshqa
+       * narsa.
+       */
+      status: wasInvited === 'INVITED' ? 'DECLINED' : 'LEFT',
+      leftAt: new Date(),
+    },
+  });
+
+  const after = await requireParticipant(callId, userId);
+  const stillIn = after.participants.filter((participant) => participant.status === 'JOINED');
+
+  /**
+   * Oxirgi odam chiqdi — suhbat yopiladi.
+   *
+   * Aks holda bo'sh suhbat "ketmoqda" holatida qolib, hamma uchun
+   * "band" belgisini yoqib turardi.
+   */
+  if (stillIn.length === 0 && after.status === CallStatus.ACTIVE) {
+    return endCall(callId, userId);
+  }
+
+  await broadcastState(after);
+
+  logger.info({ callId, userId, remaining: stillIn.length }, 'Guruh suhbatidan chiqdi');
+
+  return toCallView(after, userId);
 }
 
 /** Tugatishda qaysi holat yozilishini aniqlaydi. */
@@ -504,9 +976,37 @@ export async function relaySignal(callId: string, userId: string, input: CallSig
     throw new ConflictError("Qo'ng'iroq tugagan.");
   }
 
-  const signal: CallSignal = { type: input.type, sdp: input.sdp, candidate: input.candidate };
+  /**
+   * Signalga YUBORUVCHI qo'shiladi.
+   *
+   * Guruhda bir vaqtda uchta turli ulanish muzokarasi ketadi va
+   * qabul qiluvchi signal qaysi ulanishga tegishli ekanini bilishi
+   * shart (sababi `call.types.ts` dagi `from` izohida).
+   */
+  const signal: CallSignal = { type: input.type, sdp: input.sdp, candidate: input.candidate, from: userId };
 
-  await pushCallEvent(otherSide(row, userId), { kind: 'signal', callId, signal });
+  /**
+   * Manzil: guruhda so'rovda ko'rsatiladi, ikki kishilikda esa u
+   * o'z-o'zidan ma'lum.
+   */
+  const targetId = row.isGroup ? input.to : otherSide(row, userId);
+
+  if (!targetId) {
+    throw new ValidationError("Signal kimga yuborilishi ko'rsatilmagan.");
+  }
+
+  /**
+   * Manzil HAQIQATAN shu qo'ng'iroqda turganmi.
+   *
+   * Tekshiruvsiz begona odamning ID'sini yozib, unga signal yuborish
+   * mumkin bo'lardi — ya'ni qo'ng'iroq tizimini boshqa odamlarga
+   * xabar yuborish yo'liga aylantirish.
+   */
+  if (row.isGroup && !liveParticipantIds(row).includes(targetId)) {
+    throw new ValidationError("Bu odam qo'ng'iroqda yo'q.");
+  }
+
+  await pushCallEvent(targetId, { kind: 'signal', callId, signal });
 }
 
 /**
@@ -546,7 +1046,17 @@ export async function getLiveCall(userId: string): Promise<CallView | null> {
   const row = await prisma.call.findFirst({
     where: {
       status: { in: [CallStatus.RINGING, CallStatus.ACTIVE] },
-      OR: [{ callerId: userId }, { calleeId: userId }],
+      OR: [
+        { callerId: userId },
+        { calleeId: userId },
+        /**
+         * Guruhda faqat HALI CHIQMAGANLAR qaytariladi.
+         *
+         * Chiqib ketgan odamning ekranida suhbat qaytadan ochilib
+         * qolmasligi kerak — u ataylab chiqqan.
+         */
+        { participants: { some: { userId, status: { in: ['INVITED', 'JOINED'] } } } },
+      ],
     },
     select: CALL_SELECT,
     orderBy: { startedAt: 'desc' },

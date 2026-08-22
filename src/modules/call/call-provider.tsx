@@ -7,6 +7,7 @@ import { useApiClient } from '@/hooks/use-api';
 import { useCallStream } from '@/hooks/use-call-stream';
 import { toUserMessage } from '@/lib/api-client';
 import { useAuth } from '@/modules/auth/auth-context';
+import { GroupMesh } from '@/modules/call/group-mesh';
 import {
   isCallOver,
   type CallEvent,
@@ -54,13 +55,21 @@ export interface CallContextValue {
    * (kamera almashtirilganda) ekran qayta chizilishi kerak.
    */
   localStream: MediaStream | null;
-  /** Suhbatdoshdan kelayotgan tasvir va ovoz. */
+  /** Suhbatdoshdan kelayotgan tasvir va ovoz (ikki kishilik suhbatda). */
   remoteStream: MediaStream | null;
+  /**
+   * Guruh suhbatida har bir ishtirokchining oqimi.
+   *
+   * Kalit — foydalanuvchi ID'si. Ikki kishilik suhbatda bo'sh.
+   */
+  remoteStreams: Map<string, MediaStream>;
 
   /** Suhbatdoshga qo'ng'iroq qiladi. */
   start: (conversationId: string, kind?: CallKindName) => Promise<void>;
   /** Kelayotgan qo'ng'iroqni ko'taradi. */
   accept: () => Promise<void>;
+  /** Guruh suhbatiga qo'shiladi. */
+  joinGroup: () => Promise<void>;
   /** Qo'ng'iroqni tugatadi (rad etish ham shu). */
   hangUp: () => Promise<void>;
   toggleMute: () => void;
@@ -74,6 +83,17 @@ const CallContext = createContext<CallContextValue | null>(null);
 
 /** Tugagan qo'ng'iroq ekranda shuncha turadi, keyin yo'qoladi. */
 const ENDED_LINGER_MS = 1_500;
+
+/**
+ * Hozir suhbatda turgan ishtirokchilarning ID'lari (o'zimdan tashqari).
+ *
+ * To'r shu ro'yxatga qarab ulanish ochadi va yopadi.
+ */
+function activePeerIds(call: CallView): string[] {
+  return call.participants
+    .filter((participant) => participant.status === 'JOINED' && !participant.isMe)
+    .map((participant) => participant.userId);
+}
 
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const request = useApiClient();
@@ -89,6 +109,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [isBackCamera, setIsBackCamera] = useState(false);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  /**
+   * Guruhdagi oqimlar.
+   *
+   * ── Nima uchun YANGI Map yaratiladi ─────────────────────────────────
+   * React o'zgarishni havola bo'yicha aniqlaydi. Mavjud Map ichiga
+   * yozilsa, havola o'zgarmaydi va ekran qayta chizilmasdi — yangi
+   * odam qo'shilgani ko'rinmasdi.
+   */
+  const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(() => new Map());
 
   /**
    * Hozirgi qo'ng'iroq — HAVOLADA ham saqlanadi.
@@ -100,6 +129,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const callRef = useRef<CallView | null>(null);
 
   const peerRef = useRef<RTCPeerConnection | null>(null);
+
+  /**
+   * Guruh suhbatidagi ulanishlar to'ri.
+   *
+   * Ikki kishilik qo'ng'iroqda BO'SH qoladi va yuqoridagi `peerRef`
+   * ishlatiladi — ikkala yo'l bir-biriga tegmaydi.
+   */
+  const meshRef = useRef<GroupMesh | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -130,6 +167,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     peerRef.current?.close();
     peerRef.current = null;
 
+    meshRef.current?.close();
+    meshRef.current = null;
+
     /**
      * Mikrofon ALBATTA o'chiriladi.
      *
@@ -150,13 +190,19 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     setIsBackCamera(false);
     setLocalStream(null);
     setRemoteStream(null);
+    setRemoteStreams(new Map());
   }, []);
 
-  /** Signalni ikkinchi tomonga yuboradi. */
+  /**
+   * Signalni ikkinchi tomonga yuboradi.
+   *
+   * Guruhda `to` maydoni bilan aniq manzil ko'rsatiladi; ikki
+   * kishilikda u bo'sh qoladi va server manzilni o'zi biladi.
+   */
   const postSignal = useCallback(
-    async (callId: string, signal: CallSignal): Promise<void> => {
+    async (callId: string, signal: CallSignal, to?: string): Promise<void> => {
       try {
-        await request(`/api/v1/calls/${callId}/signal`, { method: 'POST', body: signal });
+        await request(`/api/v1/calls/${callId}/signal`, { method: 'POST', body: { ...signal, to } });
       } catch {
         /**
          * Bitta signal yetmasa ham ulanish odatda o'rnatiladi: brauzer
@@ -280,9 +326,71 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     [hangUp, postSignal],
   );
 
+  /**
+   * Guruh suhbati uchun to'rni yaratadi va mikrofonni oladi.
+   *
+   * ── Nima uchun `createPeer` dan alohida ─────────────────────────────
+   * `createPeer` bitta ulanish yasaydi va uni `peerRef` ga yozadi.
+   * Guruhda esa ulanishlar ko'p va ular `GroupMesh` ichida turadi —
+   * ikkalasini bitta funksiyaga sig'dirish har bir qatorda "bu
+   * guruhmi?" degan shartni talab qilardi.
+   */
+  const createMesh = useCallback(
+    async (callId: string, selfId: string, iceServers: IceServerConfig[], kind: CallKindName): Promise<GroupMesh> => {
+      const media = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: kind === 'VIDEO' ? { ...VIDEO_CONSTRAINTS, facingMode: 'user' } : false,
+      });
+
+      localStreamRef.current = media;
+      setLocalStream(media);
+
+      const mesh = new GroupMesh({
+        selfId,
+        iceServers,
+        localStream: media,
+        sendSignal: (to, signal) => {
+          void postSignal(callId, signal, to);
+        },
+        onStream: (peerId, stream) => {
+          setRemoteStreams((current) => {
+            const next = new Map(current);
+
+            if (stream) {
+              next.set(peerId, stream);
+            } else {
+              next.delete(peerId);
+            }
+
+            return next;
+          });
+        },
+      });
+
+      meshRef.current = mesh;
+      setIsConnecting(false);
+
+      return mesh;
+    },
+    [postSignal],
+  );
+
   /** Ikkinchi tomondan kelgan ulanish ma'lumotini qo'llaydi. */
   const applySignal = useCallback(
     async (callId: string, signal: CallSignal): Promise<void> => {
+      /**
+       * Guruh signali TO'RGA topshiriladi.
+       *
+       * `from` — signal kimdan kelgani; usiz signalni qaysi ulanishga
+       * berishni bilib bo'lmasdi (sababi `call.types.ts` da).
+       */
+      const mesh = meshRef.current;
+
+      if (mesh && signal.from) {
+        await mesh.handleSignal(signal.from, signal);
+        return;
+      }
+
       const peer = peerRef.current;
 
       if (signal.type === 'offer') {
@@ -381,7 +489,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
         if (isCallOver(event.call.status)) {
           teardown();
+          return;
         }
+
+        /**
+         * Guruhda ishtirokchilar ro'yxati o'zgardi — to'r yangilanadi.
+         *
+         * Yangi kirganlar bilan ulanish ochiladi, chiqib ketganlarniki
+         * yopiladi. `sync` takrorga chidamli, shuning uchun uni har
+         * bir hodisada chaqirish xavfsiz.
+         */
+        meshRef.current?.sync(activePeerIds(event.call));
 
         return;
       }
@@ -404,7 +522,24 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
        * yo'li sahifa bilan birga uzilib bo'lgan va uni tiklab
        * bo'lmaydi. Uni "davom etyapti" deb ko'rsatish yolg'on bo'lardi.
        */
-      if (!live || live.status !== 'RINGING' || live.isOutgoing) return;
+      if (!live) return;
+
+      /**
+       * Guruhda TAKLIF tiklanadi.
+       *
+       * Guruh suhbati serverda darhol "ketmoqda" holatida bo'ladi, ya'ni
+       * yuqoridagi "faqat chalinayotgani" qoidasi uni butunlay
+       * o'tkazib yuborardi. Natijada sahifani yangilagan odam
+       * guruhdagi suhbatni umuman ko'rmasdi.
+       *
+       * Tiklanadigan narsa — faqat TAKLIF (men hali kirmaganman).
+       * Kirgan odamning ovoz yo'li sahifa bilan birga uzilgan va uni
+       * tiklab bo'lmaydi: unga qaytadan "qo'shilish" kerak.
+       */
+      const me = live.participants.find((participant) => participant.isMe);
+      const isGroupInvite = live.isGroup && me?.status === 'INVITED';
+
+      if (!isGroupInvite && (live.status !== 'RINGING' || live.isOutgoing)) return;
 
       if (callRef.current && !isCallOver(callRef.current.status)) return;
 
@@ -430,6 +565,22 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         setCall(result.call);
         setIsConnecting(true);
 
+        /**
+         * Guruhda taklif YUBORILMAYDI.
+         *
+         * Boshlovchi hozircha yolg'iz: chaqirilganlar hali
+         * qo'shilmagan. Ulanishlar ular kirgan sayin ochiladi
+         * (`sync` orqali).
+         */
+        if (result.call.isGroup) {
+          const me = result.call.participants.find((participant) => participant.isMe);
+
+          const mesh = await createMesh(result.call.id, me?.userId ?? '', result.iceServers, kind);
+
+          mesh.sync(activePeerIds(result.call));
+          return;
+        }
+
         const peer = await createPeer(result.call.id, result.iceServers, kind);
 
         const offer = await peer.createOffer();
@@ -443,7 +594,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         await hangUp(true);
       }
     },
-    [createPeer, hangUp, postSignal, request, setCall],
+    [createMesh, createPeer, hangUp, postSignal, request, setCall],
   );
 
   const accept = useCallback(async (): Promise<void> => {
@@ -489,6 +640,41 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       await hangUp(true);
     }
   }, [applySignal, createPeer, hangUp, request, setCall]);
+
+  /**
+   * Guruh suhbatiga qo'shiladi.
+   *
+   * ── Nima uchun `accept` dan alohida ─────────────────────────────────
+   * `accept` chaqiruvga javob beradi va bitta ulanish yasaydi.
+   * Bu yerda esa "xonaga kirish": to'r yasaladi va u yerda allaqachon
+   * turganlarning HAMMASI bilan ulanish ochiladi.
+   */
+  const joinGroup = useCallback(async (): Promise<void> => {
+    const current = callRef.current;
+
+    if (!current?.isGroup || isCallOver(current.status)) return;
+
+    setError(null);
+    setIsConnecting(true);
+
+    try {
+      const result = await request<StartCallResponse>(`/api/v1/calls/${current.id}/join`, {
+        method: 'POST',
+        body: {},
+      });
+
+      setCall(result.call);
+
+      const me = result.call.participants.find((participant) => participant.isMe);
+
+      const mesh = await createMesh(result.call.id, me?.userId ?? '', result.iceServers, result.call.kind);
+
+      mesh.sync(activePeerIds(result.call));
+    } catch (caught) {
+      setError(toMediaMessage(caught));
+      await hangUp(true);
+    }
+  }, [createMesh, hangUp, request, setCall]);
 
   const toggleMute = useCallback(() => {
     const tracks = localStreamRef.current?.getAudioTracks() ?? [];
@@ -704,8 +890,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     isBackCamera,
     localStream,
     remoteStream,
+    remoteStreams,
     start,
     accept,
+    joinGroup,
     hangUp,
     toggleMute,
     toggleCamera,

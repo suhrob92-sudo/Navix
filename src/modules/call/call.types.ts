@@ -4,6 +4,8 @@ import { CALL_STATUS_LABELS } from '@/config/calls';
  * Qo'ng'iroq moduli — brauzer va server uchun umumiy turlar.
  */
 
+import type { CallParticipantStatusName } from '@/config/group-call';
+
 export type CallKindName = 'AUDIO' | 'VIDEO';
 
 export type CallStatusName = 'RINGING' | 'ACTIVE' | 'DECLINED' | 'MISSED' | 'ENDED' | 'FAILED';
@@ -16,6 +18,15 @@ export interface CallPeer {
   username: string;
 }
 
+/** Guruh qo'ng'irog'idagi bitta ishtirokchi. */
+export interface CallParticipantView extends CallPeer {
+  status: CallParticipantStatusName;
+  /** Suhbatga qo'shilgan payt — ISO. Hali qo'shilmagan bo'lsa `null`. */
+  joinedAt: string | null;
+  /** Bu MENMI. */
+  isMe: boolean;
+}
+
 export interface CallView {
   id: string;
   conversationId: string;
@@ -23,7 +34,30 @@ export interface CallView {
   status: CallStatusName;
   /** Qo'ng'iroqni MEN boshladimmi. */
   isOutgoing: boolean;
+  /**
+   * Guruh qo'ng'irog'imi.
+   *
+   * Rost bo'lsa `peer` — bu GURUHNING o'zi (nomi va rasmi), aniq odam
+   * emas. Odamlar `participants` ro'yxatida turadi.
+   */
+  isGroup: boolean;
+  /**
+   * Ikkinchi tomon: ikki kishilik suhbatda — odam, guruhda — guruh.
+   *
+   * ── Nima uchun guruhda ham TO'LDIRILADI ─────────────────────────────
+   * Chaqiruv ekrani, bildirishnoma va tarix bir xil uchta narsani
+   * so'raydi: nom, rasm va ID. Guruh uchun ham xuddi shu uchtasi bor.
+   * Maydonni bo'sh qoldirish har bir joyda "bu guruhmi?" degan
+   * shartni takrorlashga majbur qilardi.
+   */
   peer: CallPeer;
+  /**
+   * Guruhdagi ishtirokchilar. Ikki kishilik qo'ng'iroqda BO'SH.
+   *
+   * Ro'yxatda chiqib ketganlar ham qoladi — suhbat tugagach "kim
+   * qatnashdi" degan savolga javob kerak.
+   */
+  participants: CallParticipantView[];
   startedAt: string;
   answeredAt: string | null;
   endedAt: string | null;
@@ -59,6 +93,20 @@ export interface CallSignal {
   sdp?: string;
   /** Tarmoq manzili (`candidate` uchun). */
   candidate?: unknown;
+  /**
+   * Signal KIMDAN kelgani.
+   *
+   * ── Nima uchun guruhda ZARUR ────────────────────────────────────────
+   * Ikki kishilik suhbatda bu savol tug'ilmaydi: kim yuborgan bo'lsa,
+   * u ikkinchi tomon.
+   *
+   * Guruhda esa har bir telefon boshqa HAR BIR telefon bilan alohida
+   * ulanadi (izohi `config/group-call.ts` da). Ya'ni bir vaqtda uchta
+   * turli ulanish muzokarasi ketadi va signal qaysi ulanishga
+   * tegishli ekanini bilish shart. Aks holda birovning javobi
+   * boshqasining ulanishiga berilib, hech biri ishlamasdi.
+   */
+  from?: string;
 }
 
 /**

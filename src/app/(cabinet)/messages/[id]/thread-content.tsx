@@ -598,8 +598,13 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
 
   const peer = thread?.peer ?? null;
 
-  /** Qo'ng'iroq faqat odam bilan suhbatda va suhbat yuklangach mumkin. */
-  const canCall = peer?.kind === 'DIRECT';
+  /**
+   * Qo'ng'iroq odam bilan ham, GURUHDA ham mumkin.
+   *
+   * Kompaniya suhbatida esa yo'q: u yerda ikkinchi tomon — jadval
+   * yozuvi, telefoni bor odam emas.
+   */
+  const canCall = peer?.kind === 'DIRECT' || peer?.kind === 'GROUP';
 
   /**
    * Tugma nima uchun o'chirilgani — ekranni o'quvchi dastur uchun.
@@ -608,8 +613,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
    * kimga qo'ng'iroq qilish noaniq. "Mumkin emas" deb qo'ya qolish
    * ko'r odamni javobsiz qoldirardi.
    */
-  const noCallReason =
-    peer?.kind === 'GROUP' ? "Guruhga qo'ng'iroq qilib bo'lmaydi" : "Kompaniyaga qo'ng'iroq qilib bo'lmaydi";
+  const noCallReason = "Kompaniyaga qo'ng'iroq qilib bo'lmaydi";
 
   const wallpaper = resolveWallpaper(thread?.wallpaper);
 

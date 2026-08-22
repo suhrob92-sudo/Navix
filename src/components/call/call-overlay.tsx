@@ -6,7 +6,9 @@ import { useEffect, useRef } from 'react';
 import { Avatar } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { useCall } from '@/modules/call/call-provider';
+import { participantCountText } from '@/config/group-call';
 import { callStatusText, formatCallDuration, isCallOver } from '@/modules/call/call.types';
+import type { CallParticipantView } from '@/modules/call/call.types';
 
 /**
  * Qo'ng'iroq ekrani.
@@ -30,7 +32,9 @@ export function CallOverlay() {
     error,
     localStream,
     remoteStream,
+    remoteStreams,
     accept,
+    joinGroup,
     hangUp,
     toggleMute,
     toggleCamera,
@@ -39,25 +43,56 @@ export function CallOverlay() {
 
   if (!call) return null;
 
-  const isIncomingRing = call.status === 'RINGING' && !call.isOutgoing;
+  const isGroup = call.isGroup;
+
+  /**
+   * Guruhda "chalinmoqda" holati BOSHQACHA aniqlanadi.
+   *
+   * Guruh suhbati serverda darhol "ketmoqda" bo'ladi (u xona kabi
+   * ochiladi). Chaqirilgan odam uchun esa u baribir chaqiruv —
+   * buni uning O'Z holati aytadi: "chaqirildi, hali kirmagan".
+   */
+  const me = call.participants.find((participant) => participant.isMe);
+  const isGroupInvite = isGroup && me?.status === 'INVITED' && !isCallOver(call.status);
+
+  const isIncomingRing = (call.status === 'RINGING' && !call.isOutgoing) || isGroupInvite;
   const isOutgoingRing = call.status === 'RINGING' && call.isOutgoing;
-  const isActive = call.status === 'ACTIVE';
+  const isActive = call.status === 'ACTIVE' && !isGroupInvite;
   const isOver = isCallOver(call.status);
   const isVideo = call.kind === 'VIDEO';
+
+  /** Guruhda hozir suhbatda turganlar (o'zimdan tashqari). */
+  const joined = call.participants.filter(
+    (participant) => participant.status === 'JOINED' && !participant.isMe,
+  );
 
   /** Suhbatdoshning tasviri chinakam kelayotganini bildiradi. */
   const hasRemoteVideo = isVideo && isActive && !isConnecting && remoteStream !== null;
 
+  /** Guruh video suhbatida hech bo'lmasa bitta tasvir keldimi. */
+  const hasGroupVideo = isGroup && isVideo && isActive && remoteStreams.size > 0;
+
   const statusLine = isOutgoingRing
     ? 'Chalinmoqda...'
     : isIncomingRing
-      ? isVideo
-        ? "Kiruvchi video qo'ng'iroq"
-        : "Kiruvchi qo'ng'iroq"
+      ? isGroup
+        ? 'Guruhda suhbat ketyapti'
+        : isVideo
+          ? "Kiruvchi video qo'ng'iroq"
+          : "Kiruvchi qo'ng'iroq"
       : isActive
         ? isConnecting
           ? 'Ulanmoqda...'
-          : formatCallDuration(elapsedSeconds)
+          : isGroup
+            ? /**
+               * Guruhda vaqt o'rniga ODAMLAR SONI ko'rsatiladi.
+               *
+               * Suhbat davomiyligi bu yerda kam ma'no beradi: odamlar
+               * kirib-chiqib turadi va "5 daqiqa" kim uchun ekani
+               * noaniq. Kim borligi esa har doim muhim.
+               */
+              `${participantCountText(joined.length + 1)} · ${formatCallDuration(elapsedSeconds)}`
+            : formatCallDuration(elapsedSeconds)
         : callStatusText(call.status);
 
   return (
@@ -68,16 +103,58 @@ export function CallOverlay() {
       className={cn(
         'pb-safe fixed inset-0 z-[100] flex flex-col',
         // Video kelayotganda fon qora: rasm atrofidagi rang uni buzmasligi kerak.
-        hasRemoteVideo ? 'bg-black' : 'bg-background/95 backdrop-blur-xl',
+        hasRemoteVideo || hasGroupVideo ? 'bg-black' : 'bg-background/95 backdrop-blur-xl',
       )}
     >
-      {/* Suhbatdoshning tasviri */}
+      {/* Suhbatdoshning tasviri (ikki kishilik suhbat) */}
       {hasRemoteVideo && (
         <StreamVideo
           stream={remoteStream}
           className="absolute inset-0 size-full object-cover"
           aria-label="Suhbatdosh tasviri"
         />
+      )}
+
+      {/*
+        Guruhdagi tasvirlar — panjara ko'rinishida.
+
+        ── Nima uchun ikki ustun ────────────────────────────────────────
+        Telefon ekrani tor. Uch ustunda har bir oyna shu qadar kichrayib
+        ketardiki, odamning yuzini ajratib bo'lmasdi. Ikki ustun esa
+        to'rt kishigacha (chegara) qulay joylashadi.
+      */}
+      {hasGroupVideo && (
+        <div className="absolute inset-0 grid auto-rows-fr grid-cols-2 gap-0.5">
+          {joined.map((participant) => {
+            const stream = remoteStreams.get(participant.userId) ?? null;
+
+            return (
+              <div key={participant.userId} className="relative overflow-hidden bg-neutral-900">
+                {stream ? (
+                  <StreamVideo
+                    stream={stream}
+                    className="size-full object-cover"
+                    aria-label={`${participant.name} tasviri`}
+                  />
+                ) : (
+                  /*
+                    Tasvir hali kelmadi — odam ulanmoqda.
+
+                    Bo'sh qora kvadrat o'rniga avatar turishi kerak:
+                    aks holda "kim bu?" degan savol qoladi.
+                  */
+                  <div className="flex size-full items-center justify-center">
+                    <Avatar src={participant.avatarUrl} name={participant.name} size="lg" />
+                  </div>
+                )}
+
+                <span className="absolute bottom-1 left-1 max-w-[90%] truncate rounded-md bg-black/50 px-1.5 py-0.5 text-xs text-white">
+                  {participant.name}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
 
       {/*
@@ -119,10 +196,10 @@ export function CallOverlay() {
       <div
         className={cn(
           'relative z-10 flex flex-1 flex-col items-center px-8 text-center',
-          hasRemoteVideo ? 'justify-start pt-10' : 'justify-center gap-5',
+          hasRemoteVideo || hasGroupVideo ? 'justify-start pt-10' : 'justify-center gap-5',
         )}
       >
-        {!hasRemoteVideo && (
+        {!hasRemoteVideo && !hasGroupVideo && (
           <div className="relative">
             {/*
               Chalinayotganda avatar atrofida to'lqin — ovozsiz rejimda
@@ -142,8 +219,18 @@ export function CallOverlay() {
           </div>
         )}
 
-        <div className={cn('space-y-1.5', hasRemoteVideo && 'rounded-2xl bg-black/40 px-4 py-2 backdrop-blur-sm')}>
-          <h1 className={cn('text-2xl font-semibold tracking-tight', hasRemoteVideo && 'text-white')}>
+        <div
+          className={cn(
+            'space-y-1.5',
+            (hasRemoteVideo || hasGroupVideo) && 'rounded-2xl bg-black/40 px-4 py-2 backdrop-blur-sm',
+          )}
+        >
+          <h1
+            className={cn(
+              'text-2xl font-semibold tracking-tight',
+              (hasRemoteVideo || hasGroupVideo) && 'text-white',
+            )}
+          >
             {call.peer.name}
           </h1>
 
@@ -172,11 +259,38 @@ export function CallOverlay() {
           )}
         </div>
 
+        {/*
+          Guruhda kim borligi — ovozli suhbatda ham ko'rinishi kerak.
+
+          Ovozli suhbatda tasvir yo'q, ya'ni odam kim bilan
+          gaplashayotganini boshqa hech qayerdan bilmasdi.
+        */}
+        {isGroup && !hasGroupVideo && !isOver && joined.length > 0 && (
+          <ul className="mt-2 flex flex-wrap items-center justify-center gap-3" aria-label="Suhbatdagilar">
+            {joined.map((participant) => (
+              <li key={participant.userId} className="flex flex-col items-center gap-1">
+                <Avatar src={participant.avatarUrl} name={participant.name} size="md" />
+                <span className="text-muted-foreground max-w-20 truncate text-xs">{participant.name}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/*
+          Chaqirilgan, lekin hali kirmaganlar — kulrang.
+
+          Ular hali telefoniga qaramagan bo'lishi mumkin: "hech kim
+          yo'q" degan taassurot bermaslik kerak.
+        */}
+        {isGroup && !hasGroupVideo && !isOver && (
+          <GroupWaitingList participants={call.participants} />
+        )}
+
         {error && (
           <p
             className={cn(
               'mt-3 max-w-xs text-sm leading-relaxed',
-              hasRemoteVideo ? 'text-white' : 'text-destructive',
+              hasRemoteVideo || hasGroupVideo ? 'text-white' : 'text-destructive',
             )}
           >
             {error}
@@ -191,7 +305,7 @@ export function CallOverlay() {
             onClick={toggleMute}
             label={isMuted ? 'Mikrofonni yoqish' : "Mikrofonni o'chirish"}
             isPressed={isMuted}
-            onDark={hasRemoteVideo}
+            onDark={hasRemoteVideo || hasGroupVideo}
           >
             {isMuted ? (
               <MicOff className="size-6" aria-hidden="true" />
@@ -207,7 +321,7 @@ export function CallOverlay() {
               onClick={toggleCamera}
               label={isCameraOff ? 'Kamerani yoqish' : "Kamerani o'chirish"}
               isPressed={isCameraOff}
-              onDark={hasRemoteVideo}
+              onDark={hasRemoteVideo || hasGroupVideo}
             >
               {isCameraOff ? (
                 <VideoOff className="size-6" aria-hidden="true" />
@@ -220,7 +334,7 @@ export function CallOverlay() {
               onClick={() => void switchCamera()}
               label="Kamerani almashtirish"
               isPressed={false}
-              onDark={hasRemoteVideo}
+              onDark={hasRemoteVideo || hasGroupVideo}
             >
               <SwitchCamera className="size-6" aria-hidden="true" />
             </ControlButton>
@@ -230,7 +344,7 @@ export function CallOverlay() {
         {isIncomingRing && (
           <button
             type="button"
-            onClick={() => void accept()}
+            onClick={() => void (isGroup ? joinGroup() : accept())}
             aria-label="Javob berish"
             className="flex size-16 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white transition-transform active:scale-95"
           >
@@ -250,6 +364,30 @@ export function CallOverlay() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Hali javob bermaganlar ro'yxati.
+ *
+ * ── Nima uchun KERAK ──────────────────────────────────────────────────
+ * Guruhda birinchi kirgan odam yolg'iz qoladi va "hech kim
+ * qo'shilmadi shekilli" deb chiqib ketishi mumkin. Aslida qolganlar
+ * hali telefoniga qaramagan bo'ladi.
+ *
+ * Bu ro'yxat aynan shu savolga javob beradi.
+ */
+function GroupWaitingList({ participants }: { participants: CallParticipantView[] }) {
+  const waiting = participants.filter((participant) => participant.status === 'INVITED');
+
+  if (waiting.length === 0) return null;
+
+  return (
+    <p className="text-muted-foreground mt-3 max-w-xs text-xs leading-relaxed">
+      {waiting.length === 1
+        ? `${waiting[0].name} kutilmoqda...`
+        : `${waiting.length} kishi kutilmoqda...`}
+    </p>
   );
 }
 
