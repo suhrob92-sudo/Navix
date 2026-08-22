@@ -1,6 +1,6 @@
 'use client';
 
-import { BadgeCheck, MessageCircle, Search, Store } from 'lucide-react';
+import { BadgeCheck, MessageCircle, Search, Store, Users, UsersRound } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
@@ -60,25 +60,39 @@ export function MessagesContent() {
       <AppHeader title="Xabarlar" />
 
       <div className="px-4 pt-4">
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            setSearch(searchInput.trim());
-          }}
-          className="relative"
-        >
-          <Search
-            className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2"
-            aria-hidden="true"
-          />
-          <Input
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Xabar yoki foydalanuvchi qidirish"
-            aria-label="Xabar yoki foydalanuvchi qidirish"
-            className="pl-10"
-          />
-        </form>
+        <div className="flex items-center gap-2">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              setSearch(searchInput.trim());
+            }}
+            className="relative min-w-0 flex-1"
+          >
+            <Search
+              className="text-muted-foreground pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2"
+              aria-hidden="true"
+            />
+            <Input
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Xabar yoki foydalanuvchi qidirish"
+              aria-label="Xabar yoki foydalanuvchi qidirish"
+              className="pl-10"
+            />
+          </form>
+
+          {/*
+            "Yangi guruh" tugmasi qidiruv YONIDA.
+
+            Yuqori panelga qo'yish mumkin edi, lekin u umumiy komponent:
+            u yerga qo'shilgan tugma barcha sahifalarda paydo bo'lardi.
+          */}
+          <Button asChild variant="outline" size="icon" className="shrink-0">
+            <Link href="/messages/new-group" aria-label="Yangi guruh yaratish">
+              <Users className="size-5" aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
 
         <div className="-mx-4 mt-3 mb-4 flex snap-x gap-2 overflow-x-auto px-4 pb-1">
           {CHAT_FILTERS.map((item) => (
@@ -133,7 +147,24 @@ export function MessagesContent() {
                 {item.peer.kind === 'BUSINESS' && item.peer.color ? (
                   <ServiceIcon icon={Store} color={item.peer.color} size="md" />
                 ) : (
-                  <Avatar src={item.peer.avatarUrl} name={item.peer.name} size="md" />
+                  <div className="relative shrink-0">
+                    <Avatar src={item.peer.avatarUrl} name={item.peer.name} size="md" />
+
+                    {/*
+                      Guruh belgisi avatar ustida.
+
+                      Usiz ro'yxatda guruh odamdan farq qilmasdi: ikkalasi
+                      ham dumaloq rasm va ism bo'lib ko'rinardi.
+                    */}
+                    {item.peer.kind === 'GROUP' && (
+                      <span
+                        className="bg-secondary text-secondary-foreground ring-background absolute -right-0.5 -bottom-0.5 flex size-4.5 items-center justify-center rounded-full ring-2"
+                        aria-label="Guruh"
+                      >
+                        <UsersRound className="size-2.5" aria-hidden="true" />
+                      </span>
+                    )}
+                  </div>
                 )}
 
                 <div className="min-w-0 flex-1">

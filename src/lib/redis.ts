@@ -53,6 +53,20 @@ export const cacheKey = {
   presence: (userId: string) => `navix:presence:${userId}`,
   /** Kim qaysi suhbatda yozayotgani. */
   typing: (conversationId: string, userId: string) => `navix:typing:${conversationId}:${userId}`,
+  /**
+   * Guruhda hozir kim yozayotgani — BITTA to'plamda.
+   *
+   * ── Nima uchun alohida kalit ──────────────────────────────────────
+   * Yuqoridagi `typing` har bir odam uchun alohida kalit yasaydi.
+   * Ikki kishilik suhbatda bu yetarli: bitta tekshiruv kifoya.
+   * 200 a'zoli guruhda esa har bir yangilanishda 199 ta tekshiruv
+   * kerak bo'lardi — bu Redis'ni har 1.5 soniyada minglab so'rov
+   * bilan ko'mib tashlardi.
+   *
+   * To'plamda esa a'zolar soni qanday bo'lishidan qat'i nazar
+   * BITTA so'rov bilan o'qiladi.
+   */
+  groupTyping: (conversationId: string) => `navix:typing:group:${conversationId}`,
   /** Foydalanuvchiga kelgan qo'ng'iroq signallari navbati. */
   callInbox: (userId: string) => `navix:call:inbox:${userId}`,
   /** Qo'ng'iroq hali tirikmi (brauzer yopilib qolmadimi). */

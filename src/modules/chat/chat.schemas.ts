@@ -11,7 +11,7 @@ import { isOwnImageUrl, MAX_VOICE_SECONDS } from '@/modules/upload/upload.types'
 
 /** GET /api/v1/chat/conversations */
 export const conversationQuerySchema = paginationQuerySchema.extend({
-  filter: z.enum(['ALL', 'UNREAD', 'BUSINESS', 'DIRECT']).default('ALL'),
+  filter: z.enum(['ALL', 'UNREAD', 'GROUP', 'BUSINESS', 'DIRECT']).default('ALL'),
   search: z.string().trim().min(1).max(80).optional(),
 });
 

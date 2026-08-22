@@ -120,6 +120,25 @@ export const PUBLIC_RATE_LIMITS = {
    */
   chatOpen: { limit: 60, windowSeconds: 60 * 60 },
   /**
+   * Guruh yaratish: soatiga 10 ta.
+   *
+   * ── Nima uchun bunchalik qattiq ─────────────────────────────────────
+   * Guruh yaratish — bu boshqa odamlarni SO'RAMASDAN suhbatga
+   * qo'shish. Cheklovsiz bitta hisob soatiga yuzlab guruh yasab,
+   * har biriga o'nlab odamni tortib, ularning ekranini reklama
+   * bilan to'ldira olardi.
+   *
+   * Kuniga o'nta guruh yasaydigan haqiqiy odam yo'q.
+   */
+  groupCreate: { limit: 10, windowSeconds: 60 * 60 },
+  /**
+   * Guruhni boshqarish (nom, rasm, a'zolar, daraja): daqiqasiga 30 ta.
+   *
+   * Bu amallarning har biri suhbatga hodisa yozuvi qo'shadi —
+   * cheklovsiz guruh tarixini bir zumda ko'mib tashlash mumkin edi.
+   */
+  groupManage: { limit: 30, windowSeconds: 60 },
+  /**
    * Xabar yuborish: daqiqasiga 60 ta.
    *
    * Odam uchun bemalol (soniyasiga bitta), skript uchun esa spam

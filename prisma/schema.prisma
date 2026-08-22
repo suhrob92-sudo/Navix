@@ -297,6 +297,7 @@ model User {
   followers         Follow[]             @relation("Followers")
   businessFollows   BusinessFollow[]
   chatMemberships   ConversationMember[]
+  createdGroups     Conversation[]       @relation("GroupCreator")
   sentMessages      Message[]
   messageReactions  MessageReaction[]
   outgoingCalls     Call[]               @relation("CallCaller")
@@ -2105,6 +2106,36 @@ enum ConversationKind {
   DIRECT
   /// Foydalanuvchi va biznes o'rtasida.
   BUSINESS
+  /// Uch va undan ortiq foydalanuvchi o'rtasida.
+  GROUP
+}
+
+/// Guruhdagi a'zoning darajasi.
+///
+/// Izohi va huquqlar jadvali `config/group-chat.ts` da.
+enum GroupRole {
+  /// Guruhni yaratgan (yoki unga topshirilgan) bitta odam.
+  OWNER
+  /// Nom, rasm va a'zolarni boshqara oladi.
+  ADMIN
+  /// Faqat yozadi va o'zi chiqib ketadi.
+  MEMBER
+}
+
+/// Guruhda sodir bo'lgan hodisa turi.
+///
+/// Oddiy xabarda bu ustun BO'SH bo'ladi. Hodisa xabarlari suhbat
+/// tarixida markazda, kulrang yozuv bo'lib turadi.
+enum SystemMessageKind {
+  GROUP_CREATED
+  MEMBER_ADDED
+  MEMBER_REMOVED
+  MEMBER_LEFT
+  TITLE_CHANGED
+  IMAGE_CHANGED
+  ADMIN_GRANTED
+  ADMIN_REVOKED
+  OWNER_CHANGED
 }
 
 /// Suhbat.
@@ -2115,6 +2146,26 @@ model Conversation {
 
   /// Biznes suhbati bo'lsa — qaysi biznes bilan.
   businessProfileId String? @db.Uuid
+
+  /// Guruh nomi. Faqat GROUP turida to'ldiriladi.
+  ///
+  /// DIRECT va BUSINESS suhbatlarida nom suhbatdoshdan olinadi,
+  /// shuning uchun bu ustun ularda BO'SH qoladi.
+  title String? @db.VarChar(60)
+
+  /// Guruh rasmi. Tanlanmagan bo'lsa harfli avatar ko'rsatiladi.
+  imageUrl String? @db.VarChar(500)
+
+  /// Guruhni yaratgan odam.
+  ///
+  /// ── Nima uchun bu EGALIK emas ─────────────────────────────────────
+  /// Egalik `ConversationMember.role` da turadi va boshqasiga
+  /// o'tishi mumkin. Bu ustun esa o'zgarmas tarix: guruhni kim
+  /// boshlagani.
+  ///
+  /// `onDelete: SetNull` — yaratuvchi hisobini o'chirsa, guruh
+  /// qolgan a'zolar uchun YASHAB qoladi.
+  createdById String? @db.Uuid
 
   /// Suhbatni bir qiymatli aniqlaydigan kalit.
   ///
@@ -2140,14 +2191,17 @@ model Conversation {
 
   createdAt DateTime @default(now())
 
-  business BusinessProfile?     @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
-  members  ConversationMember[]
-  messages Message[]
-  calls    Call[]
+  business  BusinessProfile?     @relation(fields: [businessProfileId], references: [id], onDelete: Cascade)
+  createdBy User?                @relation("GroupCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  members   ConversationMember[]
+  messages  Message[]
+  calls     Call[]
 
   @@index([lastMessageAt])
   /// Biznes profili o'chirilganda suhbatlari tekshiriladi.
   @@index([businessProfileId])
+  /// Hisob o'chirilganda u yaratgan guruhlar tekshiriladi.
+  @@index([createdById])
   @@map("conversations")
 }
 
@@ -2167,6 +2221,12 @@ model ConversationMember {
   lastReadAt DateTime?
 
   joinedAt DateTime @default(now())
+
+  /// Guruhdagi daraja.
+  ///
+  /// DIRECT va BUSINESS suhbatlarida hamma MEMBER bo'ladi va bu
+  /// ustun ishlatilmaydi — u yerda daraja tushunchasi yo'q.
+  role GroupRole @default(MEMBER)
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2227,6 +2287,18 @@ model Message {
   /// haqiqatda olganini bildiradi. Telefoni o'chiq odamga xabar
   /// yuborilgan, lekin yetkazilmagan bo'ladi.
   deliveredAt DateTime?
+
+  /// Hodisa turi — guruhdagi voqealar uchun.
+  ///
+  /// ── Nima uchun XABAR jadvalida ────────────────────────────────────
+  /// "Ali guruhga qo'shildi" yozuvi suhbat tarixida o'z VAQTIDA,
+  /// xabarlar orasida turishi kerak. Alohida jadvalda saqlansa, uni
+  /// ko'rsatish uchun ikki ro'yxatni vaqt bo'yicha qo'lda
+  /// aralashtirish kerak bo'lardi — sahifalash esa deyarli
+  /// imkonsiz bo'lib qolardi.
+  ///
+  /// Oddiy xabarda BO'SH.
+  systemKind SystemMessageKind?
 
   /// O'chirilgan xabar.
   ///

@@ -1,4 +1,5 @@
 import type { ChatWallpaperName } from '@/config/chat-wallpapers';
+import type { GroupRoleName, SystemMessageKindName } from '@/config/group-chat';
 import { REACTIONS } from '@/config/reactions';
 import type { ServiceColor } from '@/config/modules';
 import type { CallView } from '@/modules/call/call.types';
@@ -7,9 +8,17 @@ import type { CallView } from '@/modules/call/call.types';
  * Chat moduli — brauzer va server uchun umumiy turlar.
  */
 
-export type ConversationKindName = 'DIRECT' | 'BUSINESS';
+export type ConversationKindName = 'DIRECT' | 'BUSINESS' | 'GROUP';
 
-/** Suhbatdagi ikkinchi tomon — odam yoki biznes. */
+/**
+ * Suhbatning "ikkinchi tomoni" — odam, biznes yoki GURUHNING O'ZI.
+ *
+ * ── Nima uchun guruh ham shu turda ────────────────────────────────────
+ * Suhbatlar ro'yxati va suhbat sarlavhasi uchta narsani biladi: nom,
+ * rasm va bosilganda qayerga o'tish. Guruh uchun ham xuddi shu uchtasi
+ * kerak. Alohida tur kiritilsa, ro'yxatning har bir joyida "bu guruhmi
+ * yoki odammi" degan shart takrorlanardi.
+ */
 export interface ChatPeer {
   kind: ConversationKindName;
   /** Odamda `username`, bizneda `slug`. */
@@ -92,6 +101,37 @@ export interface MessageView {
   /** Holat faqat O'Z xabarlarimda ma'noga ega. */
   status: MessageStatus;
   isDeleted: boolean;
+  /**
+   * Hodisa turi — guruhdagi voqealar uchun ("Ali guruhga qo'shdi").
+   *
+   * Oddiy xabarda `null`. To'ldirilgan bo'lsa, xabar pufakcha emas,
+   * markazdagi kulrang yozuv bo'lib ko'rsatiladi.
+   */
+  systemKind: SystemMessageKindName | null;
+  /**
+   * Yuboruvchining ismi — FAQAT guruhda to'ldiriladi.
+   *
+   * ── Nima uchun ikki kishilik suhbatda YO'Q ──────────────────────────
+   * U yerda ikki tomon bor va pufakchaning qaysi tomonda turgani
+   * kimligini allaqachon aytadi. Ismni takrorlash ekranni behuda
+   * to'ldirardi va har bir xabarni og'irlashtirardi.
+   */
+  senderName: string | null;
+  /** Yuboruvchining rasmi — FAQAT guruhda. */
+  senderAvatarUrl: string | null;
+  /**
+   * Yuboruvchining ID'si — FAQAT guruhda.
+   *
+   * ── Nima uchun ism yetarli EMAS ─────────────────────────────────────
+   * Ketma-ket kelgan xabarlarda ism va rasm bir marta ko'rsatiladi.
+   * Ularni ISM bo'yicha solishtirish xato bo'lardi: bir xil ismli ikki
+   * odam guruhda bo'lishi mumkin va ularning xabarlari bitta odamning
+   * gapiday ko'rinardi.
+   *
+   * Ikki kishilik suhbatda `null` — u yerda guruhlash ham, ism ham
+   * ko'rsatilmaydi.
+   */
+  senderId: string | null;
 }
 
 /** Bitta emoji va uni qo'yganlar soni. */
@@ -124,6 +164,17 @@ export interface ThreadView {
   isPeerOnline: boolean;
   /** Ikkinchi tomon hozir yozmoqdami. */
   isPeerTyping: boolean;
+  /**
+   * Guruhda hozir kim yozayotgani.
+   *
+   * Ikki kishilik suhbatda ism kerak emas (`isPeerTyping` yetarli),
+   * guruhda esa "kimdir yozmoqda" foydasiz xabar bo'lardi.
+   */
+  typingNames: string[];
+  /** Guruhdagi a'zolar soni. Boshqa suhbatlarda `null`. */
+  memberCount: number | null;
+  /** Mening guruhdagi darajam. Boshqa suhbatlarda `null`. */
+  myRole: GroupRoleName | null;
   messages: MessageView[];
   /**
    * Suhbat oynasining foni — SHU foydalanuvchi tanlagani.
@@ -178,6 +229,7 @@ export interface OpenConversationResponse {
 export const CHAT_FILTERS = [
   { value: 'ALL', label: 'Barchasi' },
   { value: 'UNREAD', label: "O'qilmagan" },
+  { value: 'GROUP', label: 'Guruhlar' },
   { value: 'BUSINESS', label: 'Kompaniyalar' },
   { value: 'DIRECT', label: 'Foydalanuvchilar' },
 ] as const;
@@ -335,6 +387,36 @@ export function peerStatusText(isOnline: boolean, isTyping: boolean): string {
   if (isTyping) return 'yozmoqda...';
 
   return isOnline ? 'Onlayn' : 'Oflayn';
+}
+
+/**
+ * Guruh sarlavhasi ostidagi qator.
+ *
+ * ── Nima uchun "onlayn" YO'Q ──────────────────────────────────────────
+ * Guruhda "kim onlayn" degan savolning bitta javobi yo'q. "3 ta onlayn"
+ * ko'rsatish uchun har bir a'zoni tekshirish kerak bo'lardi — bu esa
+ * har yangilanishda o'nlab so'rov degani.
+ *
+ * A'zolar soni esa har doim foydali va tekin.
+ */
+export function groupStatusText(memberCount: number, typingNames: string[]): string {
+  if (typingNames.length > 0) return typingText(typingNames);
+
+  return `${memberCount} a'zo`;
+}
+
+/**
+ * Guruhda kim yozayotgani.
+ *
+ * Uchtadan ko'p bo'lsa ismlar sanalmaydi: qator sarlavha ostiga
+ * sig'masdi va har soniyada uzunligi o'zgarib "sakrab" turardi.
+ */
+export function typingText(names: string[]): string {
+  if (names.length === 0) return '';
+  if (names.length === 1) return `${names[0]} yozmoqda...`;
+  if (names.length === 2) return `${names[0]} va ${names[1]} yozmoqda...`;
+
+  return `${names.length} kishi yozmoqda...`;
 }
 
 /**

@@ -46,10 +46,12 @@ import { ReactionChips } from '@/components/chat/reaction-chips';
 import {
   canReactToMessage,
   DELETED_MESSAGE_TEXT,
+  groupStatusText,
   peerStatusText,
   PENDING_ID_PREFIX,
   quotePreview,
   statusMark,
+  typingText,
   type MessageReactionView,
   type MessageView,
   type ReactionsResponse,
@@ -526,6 +528,16 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
       createdAt: new Date().toISOString(),
       status: 'SENT',
       isDeleted: false,
+      // Vaqtinchalik xabar hech qachon hodisa bo'lmaydi.
+      systemKind: null,
+      /**
+       * O'z xabarimda ism ko'rsatilmaydi — guruhda ham.
+       *
+       * Pufakcha o'ng tomonda turadi, bu esa kimligini o'zi aytadi.
+       */
+      senderName: null,
+      senderAvatarUrl: null,
+      senderId: null,
     };
 
     setPending((current) => [...current, temporary]);
@@ -588,6 +600,16 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
 
   /** Qo'ng'iroq faqat odam bilan suhbatda va suhbat yuklangach mumkin. */
   const canCall = peer?.kind === 'DIRECT';
+
+  /**
+   * Tugma nima uchun o'chirilgani — ekranni o'quvchi dastur uchun.
+   *
+   * Sabab ikki xil: kompaniyada telefoni bor odam yo'q, guruhda esa
+   * kimga qo'ng'iroq qilish noaniq. "Mumkin emas" deb qo'ya qolish
+   * ko'r odamni javobsiz qoldirardi.
+   */
+  const noCallReason =
+    peer?.kind === 'GROUP' ? "Guruhga qo'ng'iroq qilib bo'lmaydi" : "Kompaniyaga qo'ng'iroq qilib bo'lmaydi";
 
   const wallpaper = resolveWallpaper(thread?.wallpaper);
 
@@ -665,13 +687,16 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
                 <span
                   className={cn(
                     'block truncate text-xs',
-                    thread?.isPeerTyping ? 'text-primary' : 'text-muted-foreground',
+                    thread?.isPeerTyping || (thread?.typingNames.length ?? 0) > 0
+                      ? 'text-primary'
+                      : 'text-muted-foreground',
                   )}
                   aria-live="polite"
                 >
-                  {peer.kind === 'BUSINESS'
-                    ? 'Kompaniya'
-                    : peerStatusText(thread?.isPeerOnline ?? false, thread?.isPeerTyping ?? false)}
+                  {peer.kind === 'BUSINESS' && 'Kompaniya'}
+                  {peer.kind === 'GROUP' && groupStatusText(thread?.memberCount ?? 0, thread?.typingNames ?? [])}
+                  {peer.kind === 'DIRECT' &&
+                    peerStatusText(thread?.isPeerOnline ?? false, thread?.isPeerTyping ?? false)}
                 </span>
               </span>
             </Link>
@@ -694,7 +719,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
             size="icon"
             disabled={!canCall}
             onClick={() => void start(conversationId, 'AUDIO')}
-            aria-label={canCall ? "Ovozli qo'ng'iroq" : "Kompaniyaga qo'ng'iroq qilib bo'lmaydi"}
+            aria-label={canCall ? "Ovozli qo'ng'iroq" : noCallReason}
           >
             <Phone className="size-5" aria-hidden="true" />
           </Button>
@@ -704,7 +729,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
             size="icon"
             disabled={!canCall}
             onClick={() => void start(conversationId, 'VIDEO')}
-            aria-label={canCall ? "Video qo'ng'iroq" : "Kompaniyaga qo'ng'iroq qilib bo'lmaydi"}
+            aria-label={canCall ? "Video qo'ng'iroq" : noCallReason}
           >
             <Video className="size-5" aria-hidden="true" />
           </Button>
@@ -743,7 +768,7 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
           )}
 
           <ul className="space-y-2" aria-label="Xabarlar">
-            {timeline.map((item) => {
+            {timeline.map((item, index) => {
               if (item.type === 'day') {
                 return (
                   <li key={`day-${item.key}`} className="flex justify-center py-2">
@@ -777,10 +802,32 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
                 );
               }
 
+              /*
+                Hodisa xabari — pufakcha EMAS.
+
+                "Ali guruhga qo'shdi" degan yozuv kimningdir gapi
+                emas: uni hech kim yozmagan. Uni pufakka solish
+                suhbatda yolg'on ovoz yaratardi — go'yo Ali shu
+                gapni aytgandek.
+              */
+              if (item.message.systemKind) {
+                return (
+                  <li key={item.message.id} className="flex justify-center py-1">
+                    <span className="glass text-muted-foreground max-w-[85%] rounded-full px-3 py-1 text-center text-xs leading-relaxed">
+                      {item.message.body}
+                    </span>
+                  </li>
+                );
+              }
+
               return (
                 <MessageBubble
                   key={item.message.id}
                   message={item.message}
+                  showSender={isFirstOfRun(timeline, index)}
+                  reserveSenderSpace={
+                    item.message.senderId !== null && !item.message.isMine && !isFirstOfRun(timeline, index)
+                  }
                   isHighlighted={highlightId === item.message.id}
                   onOpenActions={() => setActionsFor(item.message)}
                   onQuoteClick={jumpToMessage}
@@ -793,6 +840,12 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
           {thread?.isPeerTyping && (
             <p className="text-muted-foreground mt-2 text-xs" aria-live="polite">
               {`${thread.peer.name} yozmoqda...`}
+            </p>
+          )}
+
+          {(thread?.typingNames.length ?? 0) > 0 && (
+            <p className="text-muted-foreground mt-2 text-xs" aria-live="polite">
+              {typingText(thread?.typingNames ?? [])}
             </p>
           )}
 
@@ -1080,6 +1133,35 @@ function buildTimeline(messages: MessageView[], calls: CallView[]): TimelineItem
   return result;
 }
 
+/**
+ * Ketma-ket kelgan xabarlarda ism va rasm BIR MARTA ko'rsatiladi.
+ *
+ * ── Nima uchun ─────────────────────────────────────────────────────────
+ * Bitta odam beshta xabar yozsa, ism ham, rasm ham besh marta
+ * takrorlanardi. Ekranning yarmi bir xil ismga ketardi va suhbatni
+ * o'qish qiyinlashardi.
+ *
+ * Solishtirish ID bo'yicha: bir xil ismli ikki odam guruhda bo'lishi
+ * mumkin va ularning gaplari qo'shilib ketmasligi kerak.
+ */
+function isFirstOfRun(items: TimelineItem[], index: number): boolean {
+  const item = items[index];
+
+  if (item.type !== 'message') return false;
+
+  // Guruh emas yoki o'z xabarim — ism umuman ko'rsatilmaydi.
+  if (item.message.senderId === null || item.message.isMine) return false;
+
+  const previous = items[index - 1];
+
+  if (!previous || previous.type !== 'message') return true;
+
+  // Hodisa xabari zanjirni UZADI: undan keyin ism qaytadan ko'rsatiladi.
+  if (previous.message.systemKind !== null) return true;
+
+  return previous.message.senderId !== item.message.senderId;
+}
+
 /** Element vaqt chizig'idagi o'rnini belgilaydigan vaqt. */
 function itemTime(item: TimelineItem): string {
   if (item.type === 'message') return item.message.createdAt;
@@ -1090,6 +1172,20 @@ function itemTime(item: TimelineItem): string {
 
 interface MessageBubbleProps {
   message: MessageView;
+  /**
+   * Yuboruvchining ismi va rasmi ko'rsatilsinmi.
+   *
+   * Faqat guruhda va faqat BEGONA xabarda: o'z xabarim o'ng tomonda
+   * turadi, bu esa kimligini o'zi aytadi.
+   */
+  showSender: boolean;
+  /**
+   * Ism ko'rsatilmasa ham, rasm o'rni BO'SH qoldirilsinmi.
+   *
+   * Aks holda ketma-ket xabarlarning ikkinchisi chapga surilib,
+   * ustun "sinib" ko'rinardi.
+   */
+  reserveSenderSpace: boolean;
   isHighlighted: boolean;
   onOpenActions: () => void;
   onQuoteClick: (messageId: string) => void;
@@ -1099,6 +1195,8 @@ interface MessageBubbleProps {
 /** Bitta xabar puffagi. */
 function MessageBubble({
   message,
+  showSender,
+  reserveSenderSpace,
   isHighlighted,
   onOpenActions,
   onQuoteClick,
@@ -1123,108 +1221,130 @@ function MessageBubble({
       data-message-id={message.id}
       className={cn('flex scroll-mt-4 flex-col', message.isMine ? 'items-end' : 'items-start')}
     >
-      <div
-        {...(isReady ? longPress : {})}
-        className={cn(
-          'max-w-[80%] rounded-2xl px-3.5 py-2 transition-shadow',
-          message.isMine
-            ? 'bg-primary text-primary-foreground rounded-br-md'
-            : 'bg-secondary text-secondary-foreground rounded-bl-md',
-          // Iqtibosdan o'tilganda xabar qisqa vaqt ajralib turadi.
-          isHighlighted && 'ring-primary ring-2 ring-offset-2 ring-offset-transparent',
-        )}
-      >
+      <div className={cn('flex max-w-full items-end gap-2', message.isMine && 'flex-row-reverse')}>
         {/*
+          Guruhda yuboruvchining rasmi puffak YONIDA turadi.
+
+          Ichkariga qo'yilsa, u matn kengligini yeb qo'yardi va uzun
+          xabarlar tor ustunga siqilardi.
+        */}
+        {showSender && (
+          <Avatar src={message.senderAvatarUrl} name={message.senderName} size="sm" className="mb-5 shrink-0" />
+        )}
+
+        {reserveSenderSpace && <span className="size-8 shrink-0" aria-hidden="true" />}
+
+        <div
+          {...(isReady ? longPress : {})}
+          className={cn(
+            'max-w-[80%] rounded-2xl px-3.5 py-2 transition-shadow',
+            message.isMine
+              ? 'bg-primary text-primary-foreground rounded-br-md'
+              : 'bg-secondary text-secondary-foreground rounded-bl-md',
+            // Iqtibosdan o'tilganda xabar qisqa vaqt ajralib turadi.
+            isHighlighted && 'ring-primary ring-2 ring-offset-2 ring-offset-transparent',
+          )}
+        >
+          {showSender && (
+            <span className="text-primary mb-0.5 block text-[0.6875rem] font-semibold">{message.senderName}</span>
+          )}
+
+          {/*
           Iqtibos — javob berilgan xabar.
 
           Bosilganda asl xabarga o'tadi. Bu WhatsApp va Telegram'da ham
           shunday va odamlar buni kutadi.
         */}
-        {message.replyTo && (
-          <button
-            type="button"
-            onClick={() => onQuoteClick(message.replyTo!.id)}
-            className={cn(
-              'mb-1.5 block w-full rounded-lg border-l-2 px-2 py-1 text-left',
-              message.isMine ? 'border-white/60 bg-white/15' : 'border-primary bg-background/60',
-            )}
-          >
-            <span
+          {message.replyTo && (
+            <button
+              type="button"
+              onClick={() => onQuoteClick(message.replyTo!.id)}
               className={cn(
-                'block text-[0.6875rem] font-semibold',
-                message.isMine ? 'text-white/90' : 'text-primary',
+                'mb-1.5 block w-full rounded-lg border-l-2 px-2 py-1 text-left',
+                message.isMine ? 'border-white/60 bg-white/15' : 'border-primary bg-background/60',
               )}
             >
-              {message.replyTo.authorName}
-            </span>
-            <span
-              className={cn(
-                'block truncate text-xs',
-                message.isMine ? 'text-white/75' : 'text-muted-foreground',
-                message.replyTo.isDeleted && 'italic',
-              )}
-            >
-              {message.replyTo.preview}
-            </span>
-          </button>
-        )}
+              <span
+                className={cn(
+                  'block text-[0.6875rem] font-semibold',
+                  message.isMine ? 'text-white/90' : 'text-primary',
+                )}
+              >
+                {message.replyTo.authorName}
+              </span>
+              <span
+                className={cn(
+                  'block truncate text-xs',
+                  message.isMine ? 'text-white/75' : 'text-muted-foreground',
+                  message.replyTo.isDeleted && 'italic',
+                )}
+              >
+                {message.replyTo.preview}
+              </span>
+            </button>
+          )}
 
-        {message.voiceUrl && message.voiceSeconds !== null && (
-          <VoicePlayer url={message.voiceUrl} seconds={message.voiceSeconds} isMine={message.isMine} />
-        )}
+          {message.voiceUrl && message.voiceSeconds !== null && (
+            <VoicePlayer url={message.voiceUrl} seconds={message.voiceSeconds} isMine={message.isMine} />
+          )}
 
-        {message.imageUrl && (
-          /*
+          {message.imageUrl && (
+            /*
             Rasm puffak ichida — matn bilan bir xil kenglikda. Balandligi
             cheklangan: baland rasm butun ekranni egallab, suhbatni
             aylantirishni qiyinlashtirardi.
           */
-          <img
-            src={message.imageUrl}
-            alt=""
-            loading="lazy"
-            className={cn('max-h-72 w-full rounded-xl object-cover', message.body && 'mb-2')}
-          />
-        )}
+            <img
+              src={message.imageUrl}
+              alt=""
+              loading="lazy"
+              className={cn('max-h-72 w-full rounded-xl object-cover', message.body && 'mb-2')}
+            />
+          )}
 
-        {(message.body.length > 0 || message.isDeleted) && (
+          {(message.body.length > 0 || message.isDeleted) && (
+            <p
+              className={cn(
+                'text-sm leading-relaxed break-words whitespace-pre-wrap',
+                message.isDeleted && 'italic opacity-70',
+              )}
+            >
+              {message.isDeleted ? DELETED_MESSAGE_TEXT : message.body}
+            </p>
+          )}
+
           <p
             className={cn(
-              'text-sm leading-relaxed break-words whitespace-pre-wrap',
-              message.isDeleted && 'italic opacity-70',
+              'mt-1 flex items-center justify-end gap-1 text-[0.6875rem]',
+              message.isMine ? 'text-primary-foreground/70' : 'text-muted-foreground',
             )}
           >
-            {message.isDeleted ? DELETED_MESSAGE_TEXT : message.body}
-          </p>
-        )}
-
-        <p
-          className={cn(
-            'mt-1 flex items-center justify-end gap-1 text-[0.6875rem]',
-            message.isMine ? 'text-primary-foreground/70' : 'text-muted-foreground',
-          )}
-        >
-          {/*
+            {/*
             "tahrirlangan" belgisi — MAJBURIY.
 
             Usiz matnni bilinmasdan o'zgartirish mumkin bo'lardi va
             suhbatdosh o'zi o'qigan gapga ishonch yo'qotardi.
           */}
-          {message.editedAt && !message.isDeleted && <span>tahrirlangan</span>}
+            {message.editedAt && !message.isDeleted && <span>tahrirlangan</span>}
 
-          {formatUzTime(message.createdAt)}
+            {formatUzTime(message.createdAt)}
 
-          {message.isMine && (
-            <span
-              aria-label={
-                message.status === 'SEEN' ? "O'qildi" : message.status === 'DELIVERED' ? 'Yetkazildi' : 'Yuborildi'
-              }
-              className={cn(message.status === 'SEEN' && 'text-sky-300')}
-            >
-              {statusMark(message.status)}
-            </span>
-          )}
-        </p>
+            {message.isMine && (
+              <span
+                aria-label={
+                  message.status === 'SEEN'
+                    ? "O'qildi"
+                    : message.status === 'DELIVERED'
+                      ? 'Yetkazildi'
+                      : 'Yuborildi'
+                }
+                className={cn(message.status === 'SEEN' && 'text-sky-300')}
+              >
+                {statusMark(message.status)}
+              </span>
+            )}
+          </p>
+        </div>
       </div>
 
       {/*

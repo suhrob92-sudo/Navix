@@ -2,13 +2,14 @@ import { ConversationKind, Prisma } from '@/generated/prisma/client';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { logger } from '@/lib/logger';
-import { isOnline, isTyping, isViewing, markTyping } from '@/lib/presence';
+import { groupTypingUserIds, isOnline, isTyping, isViewing, markGroupTyping, markTyping } from '@/lib/presence';
 import { prisma } from '@/lib/prisma';
 import { listCallsForConversation } from '@/modules/call/call.service';
 import { requireCanMessage } from '@/modules/moderation/moderation.service';
 import { sendPush } from '@/modules/notification/push.service';
 import { deleteImageByUrl } from '@/modules/upload/upload.service';
 import { resolveWallpaper, type ChatWallpaperName } from '@/config/chat-wallpapers';
+import type { GroupRoleName, SystemMessageKindName } from '@/config/group-chat';
 import type { ServiceColor } from '@/config/modules';
 import { aggregateReactions, messageKindText, quotePreview } from '@/modules/chat/chat.types';
 import type {
@@ -55,6 +56,9 @@ function buildBusinessKey(userId: string, businessProfileId: string): string {
 const CONVERSATION_SELECT = {
   id: true,
   kind: true,
+  /** Guruh nomi va rasmi — boshqa turlarda bo'sh. */
+  title: true,
+  imageUrl: true,
   lastMessageAt: true,
   createdAt: true,
   business: {
@@ -69,6 +73,7 @@ const CONVERSATION_SELECT = {
     select: {
       userId: true,
       lastReadAt: true,
+      role: true,
       user: {
         select: {
           id: true,
@@ -89,7 +94,7 @@ const CONVERSATION_SELECT = {
   },
   messages: {
     where: { deletedAt: null },
-    select: { body: true, imageUrl: true, voiceUrl: true, senderId: true, createdAt: true },
+    select: { body: true, imageUrl: true, voiceUrl: true, senderId: true, createdAt: true, systemKind: true },
     orderBy: { createdAt: 'desc' as const },
     take: 1,
   },
@@ -104,6 +109,30 @@ type ConversationRow = Prisma.ConversationGetPayload<{ select: typeof CONVERSATI
  * suhbatida esa boshqa a'zo.
  */
 function resolvePeer(row: ConversationRow, viewerId: string): ChatPeer {
+  /**
+   * Guruhda "ikkinchi tomon" — guruhning O'ZI.
+   *
+   * Bosilganda profilga emas, guruh ma'lumoti sahifasiga o'tiladi:
+   * u yerda a'zolar, administratorlar va "guruhdan chiqish" turadi.
+   */
+  if (row.kind === ConversationKind.GROUP) {
+    return {
+      kind: 'GROUP',
+      handle: '',
+      name: row.title ?? 'Guruh',
+      avatarUrl: row.imageUrl,
+      color: null,
+      /**
+       * Guruhda tasdiq belgisi YO'Q.
+       *
+       * Belgi hisobning haqiqiyligini bildiradi. Guruhni esa istalgan
+       * odam yasay oladi — unga belgi qo'yish yolg'on ishonch berardi.
+       */
+      isVerified: false,
+      profileUrl: `/messages/${row.id}/info`,
+    };
+  }
+
   if (row.kind === ConversationKind.BUSINESS) {
     const entity = row.business?.restaurant ?? row.business?.shop;
 
@@ -171,6 +200,15 @@ async function countUnread(
       deletedAt: null,
       // O'z xabarim o'qilmagan hisoblanmaydi.
       senderId: { not: viewerId },
+      /**
+       * Hodisalar o'qilmagan SANALMAYDI.
+       *
+       * Aks holda guruhga besh kishi qo'shilgani suhbatda "5 ta yangi
+       * xabar" bo'lib ko'rinardi. Odam ochadi — hech kim hech narsa
+       * yozmagan. Bir-ikki marta shunday bo'lgach, u nishonga
+       * ishonishni butunlay to'xtatardi.
+       */
+      systemKind: null,
       OR: conditions,
     },
     _count: { _all: true },
@@ -198,6 +236,7 @@ export async function listConversations(
     members: { some: { userId: viewerId } },
     ...(query.filter === 'BUSINESS' ? { kind: ConversationKind.BUSINESS } : {}),
     ...(query.filter === 'DIRECT' ? { kind: ConversationKind.DIRECT } : {}),
+    ...(query.filter === 'GROUP' ? { kind: ConversationKind.GROUP } : {}),
   };
 
   const [rows, total] = await Promise.all([
@@ -240,7 +279,14 @@ export async function listConversations(
        */
       lastMessage: lastMessage ? lastMessage.body : null,
       lastMessageKind: resolveMessageKind(lastMessage),
-      lastMessageIsMine: lastMessage?.senderId === viewerId,
+      /**
+       * Hodisada "Siz:" prefiksi QO'YILMAYDI.
+       *
+       * "Siz: Siz guruhni yaratdingiz" degan takror kelib chiqardi —
+       * hodisa matni allaqachon kimligini o'zi aytadi.
+       */
+      lastMessageIsMine:
+        lastMessage !== null && lastMessage.systemKind === null && lastMessage.senderId === viewerId,
       lastMessageAt: (row.lastMessageAt ?? row.createdAt).toISOString(),
       unreadCount: unread.get(row.id) ?? 0,
     };
@@ -472,6 +518,24 @@ const MESSAGE_SELECT = {
   deliveredAt: true,
   deletedAt: true,
   editedAt: true,
+  /** Hodisa turi — guruhdagi voqealar uchun. Oddiy xabarda bo'sh. */
+  systemKind: true,
+  /**
+   * Yuboruvchining ismi va rasmi — GURUH uchun.
+   *
+   * ── Nima uchun har doim olinadi ─────────────────────────────────────
+   * `select` — o'zgarmas ta'rif: uni suhbat turiga qarab ikkiga
+   * bo'lish ikkita deyarli bir xil ro'yxatni qo'lda bir joyda
+   * ushlab turishni talab qilardi va ertaga bittasi eskirardi.
+   *
+   * Qo'shimcha yuk kichik: bu indeksli tashqi kalit bo'yicha bitta
+   * qo'shilish, xabarlar soni esa `MAX_THREAD_MESSAGES` bilan
+   * cheklangan. Ikki kishilik suhbatda esa qiymat javobga UMUMAN
+   * qo'shilmaydi.
+   */
+  sender: {
+    select: { firstName: true, lastName: true, avatarUrl: true, profile: { select: { username: true } } },
+  },
   /**
    * Javob berilgan xabar — FAQAT ko'rsatish uchun kerakli maydonlar.
    *
@@ -515,7 +579,12 @@ function quoteAuthorName(
   return fullName || (sender.profile?.username ? `@${sender.profile.username}` : 'Foydalanuvchi');
 }
 
-function toMessageView(row: MessageRow, viewerId: string, peerLastReadAt: Date | null): MessageView {
+function toMessageView(
+  row: MessageRow,
+  viewerId: string,
+  peerLastReadAt: Date | null,
+  isGroup = false,
+): MessageView {
   return {
     id: row.id,
     // O'chirilgan xabar MATNI yuborilmaydi — u brauzerda ko'rinib qolmasligi kerak.
@@ -549,19 +618,70 @@ function toMessageView(row: MessageRow, viewerId: string, peerLastReadAt: Date |
     createdAt: row.createdAt.toISOString(),
     status: resolveStatus(row, viewerId, peerLastReadAt),
     isDeleted: row.deletedAt !== null,
+    systemKind: (row.systemKind as SystemMessageKindName | null) ?? null,
+    /**
+     * Ism va rasm FAQAT guruhda yuboriladi.
+     *
+     * Ikki kishilik suhbatda ular hech qayerda ko'rsatilmaydi — ularni
+     * baribir yuborish har bir xabarni behuda kattalashtirardi.
+     */
+    senderName: isGroup ? quoteAuthorName(row.sender, row.senderId, viewerId) : null,
+    senderAvatarUrl: isGroup ? row.sender.avatarUrl : null,
+    senderId: isGroup ? row.senderId : null,
   };
 }
 
 /** Suhbatdagi ikkinchi tomonning foydalanuvchi ID'si (biznesda `null`). */
 function peerUserId(row: ConversationRow, viewerId: string): string | null {
-  if (row.kind === ConversationKind.BUSINESS) return null;
+  /**
+   * Guruhda "ikkinchi tomon" yo'q: a'zolar ko'p.
+   *
+   * `null` qaytishi butun modulga bir narsani aytadi — "onlayn",
+   * "yozmoqda" va blok tekshiruvi bu yerda ishlamaydi. Guruhning
+   * o'z yo'llari bor.
+   */
+  if (row.kind !== ConversationKind.DIRECT) return null;
 
   return row.members.find((member) => member.userId !== viewerId)?.userId ?? null;
 }
 
-/** Ikkinchi tomon suhbatni qachon o'qigani. */
+/** Guruhdagi a'zolar soni (boshqa turlarda `null`). */
+function groupMemberCount(row: ConversationRow): number | null {
+  return row.kind === ConversationKind.GROUP ? row.members.length : null;
+}
+
+/** Mening guruhdagi darajam (boshqa turlarda `null`). */
+function viewerRole(row: ConversationRow, viewerId: string): GroupRoleName | null {
+  if (row.kind !== ConversationKind.GROUP) return null;
+
+  return (row.members.find((member) => member.userId === viewerId)?.role as GroupRoleName | undefined) ?? null;
+}
+
+/**
+ * Ikkinchi tomon suhbatni qachon o'qigani.
+ *
+ * ── Guruhda "o'qildi" nimani anglatadi ────────────────────────────────
+ * Guruhda o'ndan bir odam xabarni o'qigan bo'lishi mumkin. Shunda
+ * "o'qildi" belgisini qo'yish yolg'on bo'lardi: yuboruvchi hamma
+ * ko'rgan deb o'ylardi.
+ *
+ * Shuning uchun guruhda ENG ORQADAGI a'zoning vaqti olinadi — belgi
+ * faqat HAMMA o'qiganda paydo bo'ladi. Bittasi hali o'qimagan bo'lsa
+ * (`lastReadAt` bo'sh), belgi umuman qo'yilmaydi.
+ */
 function peerLastRead(row: ConversationRow, viewerId: string): Date | null {
-  return row.members.find((member) => member.userId !== viewerId)?.lastReadAt ?? null;
+  const others = row.members.filter((member) => member.userId !== viewerId);
+
+  if (others.length === 0) return null;
+
+  let earliest: Date | null = others[0].lastReadAt;
+
+  for (const member of others) {
+    if (!member.lastReadAt) return null;
+    if (!earliest || member.lastReadAt < earliest) earliest = member.lastReadAt;
+  }
+
+  return earliest;
 }
 
 /** Ko'ruvchi tanlagan suhbat foni. */
@@ -582,8 +702,9 @@ export async function getThread(conversationId: string, viewerId: string): Promi
   });
 
   const otherId = peerUserId(row, viewerId);
+  const isGroup = row.kind === ConversationKind.GROUP;
 
-  const [online, typing, calls] = await Promise.all([
+  const [online, typing, calls, typingIds] = await Promise.all([
     otherId ? isOnline(otherId) : Promise.resolve(false),
     otherId ? isTyping(conversationId, otherId) : Promise.resolve(false),
     /**
@@ -593,16 +714,37 @@ export async function getThread(conversationId: string, viewerId: string): Promi
      * qo'ng'iroq faqat sahifa yangilangandan keyin ko'rinardi.
      */
     listCallsForConversation(conversationId, viewerId),
+    /**
+     * Guruhda yozayotganlar BITTA so'rov bilan olinadi.
+     *
+     * Har bir a'zoni alohida tekshirish 200 kishilik guruhda har 1.5
+     * soniyada 199 ta Redis so'rovi degani bo'lardi.
+     */
+    isGroup ? groupTypingUserIds(conversationId, viewerId) : Promise.resolve([]),
   ]);
 
   const lastRead = peerLastRead(row, viewerId);
+
+  /**
+   * Yozayotganlarning ismi a'zolar ro'yxatidan olinadi.
+   *
+   * Ro'yxat allaqachon o'qilgan (`CONVERSATION_SELECT`), shuning
+   * uchun qo'shimcha baza so'rovi kerak emas.
+   */
+  const typingNames = typingIds
+    .map((id) => row.members.find((member) => member.userId === id))
+    .filter((member) => member !== undefined)
+    .map((member) => [member.user.firstName, member.user.lastName].filter(Boolean).join(' ') || 'Foydalanuvchi');
 
   return {
     id: row.id,
     peer: resolvePeer(row, viewerId),
     isPeerOnline: online,
     isPeerTyping: typing,
-    messages: messages.map((message) => toMessageView(message, viewerId, lastRead)),
+    typingNames,
+    memberCount: groupMemberCount(row),
+    myRole: viewerRole(row, viewerId),
+    messages: messages.map((message) => toMessageView(message, viewerId, lastRead, isGroup)),
     wallpaper: viewerWallpaper(row, viewerId),
     calls,
   };
@@ -721,17 +863,73 @@ export async function sendMessage(
    * bir necha yuz millisekund olishi mumkin. Xabar esa yuboruvchining
    * ekranida DARHOL paydo bo'lishi kerak.
    */
-  if (otherId) {
-    /**
-     * Matnsiz xabarda push'da turining nomi ko'rinadi
-     * ("Rasm", "Ovozli xabar") — bo'sh bildirishnoma foydasiz.
-     */
-    const preview = body || messageKindText(voiceUrl ? 'VOICE' : imageUrl ? 'IMAGE' : 'TEXT');
+  /**
+   * Matnsiz xabarda push'da turining nomi ko'rinadi
+   * ("Rasm", "Ovozli xabar") — bo'sh bildirishnoma foydasiz.
+   */
+  const preview = body || messageKindText(voiceUrl ? 'VOICE' : imageUrl ? 'IMAGE' : 'TEXT');
 
+  if (otherId) {
     void notifyNewMessage(otherId, conversationId, senderId, preview);
+  } else if (row.kind === ConversationKind.GROUP) {
+    void notifyGroupMessage(row, senderId, preview);
   }
 
-  return toMessageView(message, senderId, peerLastRead(row, senderId));
+  return toMessageView(message, senderId, peerLastRead(row, senderId), row.kind === ConversationKind.GROUP);
+}
+
+/**
+ * Guruhdagi yangi xabar haqida QOLGAN a'zolarga push yuboradi.
+ *
+ * ── Nima uchun a'zolar ro'yxati QAYTA o'qilmaydi ──────────────────────
+ * U allaqachon `requireMembership` javobida keldi. Qayta so'rash har
+ * bir xabarga bitta ortiqcha baza murojaati qo'shardi.
+ *
+ * ── Nima uchun ketma-ket EMAS ─────────────────────────────────────────
+ * 200 ta push'ni birin-ketin yuborish o'n soniyagacha cho'zilishi
+ * mumkin. Ular birgalikda yuboriladi va HECH BIRI kutilmaydi: xabar
+ * yuboruvchining ekranida darhol paydo bo'lishi kerak.
+ */
+async function notifyGroupMessage(row: ConversationRow, senderId: string, body: string): Promise<void> {
+  try {
+    const sender = row.members.find((member) => member.userId === senderId);
+    const senderName =
+      [sender?.user.firstName, sender?.user.lastName].filter(Boolean).join(' ') || 'Foydalanuvchi';
+    const title = row.title ?? 'Guruh';
+
+    await Promise.all(
+      row.members
+        .filter((member) => member.userId !== senderId)
+        .map(async (member) => {
+          // Guruhni ochib o'tirgan odamga push kerak emas.
+          if (await isViewing(member.userId, row.id)) return;
+
+          await sendPush(member.userId, {
+            title,
+            /**
+             * Guruhda KIM yozgani matn ichida ko'rsatiladi.
+             *
+             * Sarlavhada guruh nomi turishi shart: aks holda odam
+             * bildirishnomani ko'rib qaysi guruhdan kelganini
+             * bilmasdi.
+             */
+            body: groupPushBody(senderName, body),
+            url: `/messages/${row.id}`,
+            tag: `chat-${row.id}`,
+            ttlSeconds: 60 * 60 * 24,
+          });
+        }),
+    );
+  } catch (error) {
+    logger.warn({ err: error, conversationId: row.id }, "Guruh xabari haqida push yuborib bo'lmadi");
+  }
+}
+
+/** Guruh push'ining matni: "Ism: xabar", umumiy uzunligi cheklangan. */
+function groupPushBody(senderName: string, body: string): string {
+  const text = `${senderName}: ${body}`;
+
+  return text.length > 120 ? `${text.slice(0, 120)}…` : text;
 }
 
 /**
@@ -830,7 +1028,7 @@ export async function editMessage(
 
   logger.info({ conversationId, messageId, userId }, 'Xabar tahrirlandi');
 
-  return toMessageView(updated, userId, peerLastRead(row, userId));
+  return toMessageView(updated, userId, peerLastRead(row, userId), row.kind === ConversationKind.GROUP);
 }
 
 /**
@@ -846,11 +1044,7 @@ export async function editMessage(
  * kim ko'rgan-ko'rmaganini alohida saqlashni talab qiladi. Odam esa
  * odatda "u ko'rmasin" deb o'chiradi — ya'ni kerakli xulq aynan shu.
  */
-export async function deleteMessage(
-  conversationId: string,
-  messageId: string,
-  userId: string,
-): Promise<void> {
+export async function deleteMessage(conversationId: string, messageId: string, userId: string): Promise<void> {
   await requireMembership(conversationId, userId);
 
   const message = await prisma.message.findFirst({
@@ -1005,7 +1199,8 @@ async function notifyReaction(
      * Faqat "Aziz 👍 qo'ydi" deb yozilsa, o'nlab xabarli suhbatda
      * qaysi biriga ekani noma'lum qolardi.
      */
-    const preview = message.body || messageKindText(message.voiceUrl ? 'VOICE' : message.imageUrl ? 'IMAGE' : 'TEXT');
+    const preview =
+      message.body || messageKindText(message.voiceUrl ? 'VOICE' : message.imageUrl ? 'IMAGE' : 'TEXT');
 
     await sendPush(recipientId, {
       title: name,
@@ -1039,6 +1234,20 @@ export async function markRead(conversationId: string, userId: string): Promise<
  *
  * Jonli ulanish xabarlarni uzatganda chaqiriladi: aynan shu payt
  * xabar qurilmaga yetib boradi.
+ *
+ * ── Guruhda bu nimani anglatadi ───────────────────────────────────────
+ * "Yetkazildi" xabarning O'ZIDA saqlanadi, ya'ni bitta belgi butun
+ * guruhga tegishli. Shuning uchun guruhda u "kamida bitta a'zoga
+ * yetdi" degani.
+ *
+ * Har bir a'zo uchun alohida belgi qo'yish mumkin edi, lekin buning
+ * uchun har xabarga a'zolar soniga teng qator kerak bo'lardi — ya'ni
+ * 200 kishilik guruhda bitta xabar 200 ta yozuv.
+ *
+ * "O'qildi" belgisi esa qattiqroq: u HAMMA o'qigandagina qo'yiladi
+ * (`peerLastRead` ga qarang). Ikkalasi ham yolg'on ishonch bermaydi:
+ * kuchsizroq belgi ("yetkazildi") kamroq narsani, kuchliroq belgi
+ * ("o'qildi") ko'proq narsani va'da qiladi.
  */
 export async function markDelivered(conversationId: string, viewerId: string): Promise<number> {
   const result = await prisma.message.updateMany({
@@ -1051,7 +1260,19 @@ export async function markDelivered(conversationId: string, viewerId: string): P
 
 /** "Yozmoqda" belgisini qo'yadi (a'zolikni tekshirib). */
 export async function setTyping(conversationId: string, userId: string): Promise<void> {
-  await requireMembership(conversationId, userId);
+  const row = await requireMembership(conversationId, userId);
+
+  /**
+   * Guruhda boshqa saqlash usuli ishlatiladi: to'plam.
+   *
+   * Sababi `lib/redis.ts` dagi `groupTyping` izohida — qisqasi,
+   * a'zolar soni qancha bo'lishidan qat'i nazar o'qish bitta
+   * so'rovda tugashi kerak.
+   */
+  if (row.kind === ConversationKind.GROUP) {
+    await markGroupTyping(conversationId, userId);
+    return;
+  }
 
   await markTyping(conversationId, userId);
 }

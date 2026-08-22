@@ -298,6 +298,10 @@ function message(overrides: Partial<MessageView> = {}): MessageView {
     createdAt: '2026-08-11T10:00:00.000Z',
     status: 'SENT',
     isDeleted: false,
+    systemKind: null,
+    senderName: null,
+    senderAvatarUrl: null,
+    senderId: null,
     ...overrides,
   };
 }
@@ -314,7 +318,7 @@ describe('quotePreview', () => {
     expect(preview).toBe(`${'a'.repeat(QUOTE_PREVIEW_LENGTH)}…`);
   });
 
-  it("chegaradagi matn qisqartirilmaydi", () => {
+  it('chegaradagi matn qisqartirilmaydi', () => {
     const exact = 'a'.repeat(QUOTE_PREVIEW_LENGTH);
 
     expect(quotePreview(exact, 'TEXT', false)).toBe(exact);
@@ -376,7 +380,7 @@ describe('sendMessageSchema — javob', () => {
 });
 
 describe('editMessageSchema', () => {
-  it("matnni tozalab qabul qiladi", () => {
+  it('matnni tozalab qabul qiladi', () => {
     expect(editMessageSchema.parse({ body: '  Tuzatildi  ' }).body).toBe('Tuzatildi');
   });
 
@@ -392,7 +396,7 @@ describe('editMessageSchema', () => {
     expect(editMessageSchema.safeParse({ body: 'a'.repeat(4001) }).success).toBe(false);
   });
 
-  it("tahrir vaqtini mijozdan qabul qilmaydi", () => {
+  it('tahrir vaqtini mijozdan qabul qilmaydi', () => {
     // Aks holda "tahrirlangan" belgisini aylanib o'tish mumkin bo'lardi.
     expect(editMessageSchema.parse({ body: 'ha', editedAt: null })).not.toHaveProperty('editedAt');
   });
@@ -481,7 +485,7 @@ describe('aggregateReactions', () => {
 });
 
 describe('canReactToMessage', () => {
-  it('oddiy xabarga reaksiya qo\'yiladi', () => {
+  it("oddiy xabarga reaksiya qo'yiladi", () => {
     expect(canReactToMessage(message())).toBe(true);
   });
 
@@ -490,7 +494,7 @@ describe('canReactToMessage', () => {
     expect(canReactToMessage(message({ isDeleted: true }))).toBe(false);
   });
 
-  it('hali yuborilmagan xabarga qo\'yilmaydi', () => {
+  it("hali yuborilmagan xabarga qo'yilmaydi", () => {
     // Uning ID si haqiqiy emas — so'rov "topilmadi" bilan tugardi.
     expect(canReactToMessage(message({ id: `${PENDING_ID_PREFIX}1` }))).toBe(false);
   });

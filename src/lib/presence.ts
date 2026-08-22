@@ -109,6 +109,67 @@ export async function markTyping(conversationId: string, userId: string): Promis
   }
 }
 
+/**
+ * Guruhda "yozmoqda" belgisini qo'yadi.
+ *
+ * Yozuvlar TARTIBLANGAN to'plamda saqlanadi, ball sifatida esa vaqt
+ * turadi. Shu sababli eskirganlarini o'chirish uchun alohida vazifa
+ * kerak emas: o'qiyotganda vaqt oralig'i bo'yicha kesib olinadi.
+ */
+export async function markGroupTyping(conversationId: string, userId: string): Promise<void> {
+  try {
+    const key = cacheKey.groupTyping(conversationId);
+    const now = Date.now();
+
+    await getRedis()
+      .multi()
+      .zadd(key, now, userId)
+      /**
+       * Eskirganlari SHU YERDA tozalanadi.
+       *
+       * Aks holda guruhdan chiqib ketgan odamning yozuvi to'plamda
+       * abadiy qolardi va to'plam cheksiz o'sardi.
+       */
+      .zremrangebyscore(key, 0, now - TYPING_TTL_SECONDS * 1000)
+      /**
+       * Kalitning o'ziga ham muddat qo'yiladi: guruhda uzoq vaqt
+       * hech kim yozmasa, kalit butunlay yo'qoladi.
+       */
+      .expire(key, TYPING_TTL_SECONDS * 4)
+      .exec();
+  } catch (error) {
+    logger.warn({ err: error, conversationId }, "Guruhda yozmoqda belgisini yozib bo'lmadi");
+  }
+}
+
+/**
+ * Guruhda hozir yozayotganlarning ID'lari (o'zimdan tashqari).
+ *
+ * @param limit Eng ko'pi bilan nechta ism kerak. Ekranda uchtadan
+ *   ortig'i baribir sig'maydi.
+ */
+export async function groupTypingUserIds(conversationId: string, viewerId: string, limit = 3): Promise<string[]> {
+  try {
+    const since = Date.now() - TYPING_TTL_SECONDS * 1000;
+
+    const ids = await getRedis().zrangebyscore(cacheKey.groupTyping(conversationId), since, '+inf');
+
+    return ids.filter((id) => id !== viewerId).slice(0, limit);
+  } catch (error) {
+    logger.warn({ err: error, conversationId }, "Guruhda yozmoqda belgisini o'qib bo'lmadi");
+    return [];
+  }
+}
+
+/** Guruhdan chiqqan odamning "yozmoqda" belgisini olib tashlaydi. */
+export async function clearGroupTyping(conversationId: string, userId: string): Promise<void> {
+  try {
+    await getRedis().zrem(cacheKey.groupTyping(conversationId), userId);
+  } catch (error) {
+    logger.warn({ err: error, conversationId }, "Guruhda yozmoqda belgisini o'chirib bo'lmadi");
+  }
+}
+
 /** Suhbatdagi BOSHQA odam yozmoqdami. */
 export async function isTyping(conversationId: string, otherUserId: string): Promise<boolean> {
   try {
