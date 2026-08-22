@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { PhoneInput, toE164 } from '@/components/ui/phone-input';
 import { PRIVACY_POLICY, TERMS_OF_USE, legalHref } from '@/config/legal';
+import { clearPendingReferral, readPendingReferral } from '@/lib/pending-referral';
 import { ApiClientError, apiRequest, toUserMessage } from '@/lib/api-client';
 import { registerFormSchema } from '@/modules/auth/auth.schemas';
 import type { FieldErrors } from '@/lib/api/errors';
@@ -69,6 +70,15 @@ export function RegisterForm() {
 
     setIsSubmitting(true);
 
+    /*
+      Kod AYNAN yuborish paytida o'qiladi.
+
+      Chizish paytida o'qisak, server va brauzer boshqa natija
+      berardi. Bu yerda esa u faqat bosilgandan keyin kerak.
+    */
+    const referral = readPendingReferral();
+
+
     try {
       await apiRequest<RegisterResponse>('/api/v1/auth/register', {
         method: 'POST',
@@ -77,8 +87,23 @@ export function RegisterForm() {
           firstName: parsed.data.firstName,
           lastName: parsed.data.lastName,
           password: parsed.data.password,
+          /*
+            Taklif kodi — havoladan kelgan bo'lsa.
+
+            U `/i/KOD` sahifasida saqlangan. Bo'lmasa maydon
+            umuman yuborilmaydi.
+          */
+          ...(referral ? { referralCode: referral } : {}),
         },
       });
+
+      /*
+        Kod ISHLATILDI — o'chiriladi.
+
+        Qoldirsak, keyin boshqa odam shu telefonda ro'yxatdan
+        o'tsa, u ham o'sha odamning taklifi deb hisoblanardi.
+      */
+      clearPendingReferral();
 
       // Kod yuborildi — tasdiqlash sahifasiga o'tamiz.
       router.push(`/auth/verify?phone=${encodeURIComponent(parsed.data.phone)}`);

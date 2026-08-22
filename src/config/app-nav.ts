@@ -14,6 +14,7 @@ import {
   ShieldOff,
   Smartphone,
   User,
+  UserPlus,
   Receipt,
 } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
@@ -107,6 +108,22 @@ export const PROFILE_MENU: readonly ProfileMenuItem[] = [
     label: 'Bloklanganlar',
     description: 'Siz bloklagan foydalanuvchilar',
     icon: ShieldOff,
+  },
+  /**
+   * Do'stlarni taklif qilish.
+   *
+   * ── Nima uchun menyuning YUQORI qismida ────────────────────────────
+   * Bu bo'lim ilova uchun eng foydali harakat: yangi odam
+   * keltiradi. Uni pastga tashlasak, hech kim topmasdi.
+   *
+   * Lekin eng tepada ham emas: odam avval o'z ishini (buyurtma,
+   * hamyon) qilishga keladi.
+   */
+  {
+    href: '/profile/invite',
+    label: "Do'stlarni taklif qilish",
+    description: 'Shaxsiy havolangiz va taklif qilganlaringiz',
+    icon: UserPlus,
   },
   /**
    * Moderatsiya qarorlari — bloklanganlardan KEYIN.

@@ -236,8 +236,29 @@ model User {
   id String @id @default(uuid()) @db.Uuid
 
   /// E.164 formatidagi telefon raqami (+998901234567) — asosiy identifikator.
-  phone         String     @unique @db.VarChar(20)
+  phone         String    @unique @db.VarChar(20)
   phoneVerified DateTime?
+
+  /// Shaxsiy TAKLIF kodi ("ACDE234").
+  ///
+  /// ── Nima uchun `null` bo'lishi mumkin ────────────────────────────
+  /// Kod birinchi marta kerak bo'lganda yasaladi. Hammaga oldindan
+  /// yasash mumkin edi, lekin ko'p foydalanuvchi hech qachon
+  /// hech kimni taklif qilmaydi — ularga kod yasash bekorga
+  /// joy egallardi.
+  referralCode String? @unique @db.VarChar(12)
+
+  /// Bu odamni KIM taklif qilgan.
+  ///
+  /// ── Nima uchun `SetNull` ─────────────────────────────────────────
+  /// Taklif qilgan odam hisobini o'chirsa, taklif qilingan odam
+  /// hisobi qolishi kerak — u mustaqil foydalanuvchi.
+  referredById String? @db.Uuid
+  referredBy   User?   @relation("Referral", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals    User[]  @relation("Referral")
+
+  /// Qachon taklif bo'yicha kelgani.
+  referredAt    DateTime?
   email         String?    @unique @db.VarChar(255)
   emailVerified DateTime?
   /// Argon2/bcrypt hash. Ochiq parol hech qachon saqlanmaydi.
@@ -309,6 +330,9 @@ model User {
 
   @@index([status])
   @@index([createdAt])
+  /// "Men kimlarni taklif qilganman" — ro'yxat shu bo'yicha o'qiladi.
+  /// Indekssiz u butun jadvalni o'qirdi (28-bosqichdagi qoida).
+  @@index([referredById, createdAt])
   @@map("users")
 }
 

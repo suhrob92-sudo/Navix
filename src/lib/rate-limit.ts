@@ -285,6 +285,20 @@ export const PUBLIC_RATE_LIMITS = {
    * halol odamni bloklab qo'yardi.
    */
   moneyAction: { limit: 20, windowSeconds: 60 * 60 },
+  /**
+   * Taklif kodini tekshirish: bir IP'dan daqiqasiga 20 marta.
+   *
+   * ── Nima uchun kerak ────────────────────────────────────────────────
+   * Bu yo'l KIRISHSIZ ochiq (havolani ochgan odam hali ro'yxatdan
+   * o'tmagan). Ochiq yo'lni kod taxmin qilishga ishlatish mumkin.
+   *
+   * Kod 8 milliard variantdan iborat — taxmin qilish amalda
+   * imkonsiz. Lekin urinishning o'zi bazani bekorga ishlatardi.
+   *
+   * Yigirmata — odam uchun bemalol (havolani bir necha marta
+   * ochish, sahifani yangilash), skript uchun esa foydasiz.
+   */
+  referralLookup: { limit: 20, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;

@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { maskUzPhone } from '@/lib/phone';
 import { prisma } from '@/lib/prisma';
 import { enforceRateLimit, resetRateLimit } from '@/lib/rate-limit';
+import { attachReferrer } from '@/modules/referral/referral.service';
 import type { RoleValue } from '@/config/rbac';
 import type { LoginInput, RegisterInput, ResetPasswordInput, VerifyOtpInput } from '@/modules/auth/auth.schemas';
 import { OtpPurpose, issueOtp, verifyOtp } from '@/modules/auth/otp.service';
@@ -125,6 +126,28 @@ export async function register(input: RegisterInput, context: AuditContext): Pro
         },
         select: { id: true },
       });
+
+  /*
+    Taklif bog'lanadi — RO'YXATDAN O'TISHDA.
+
+    ── Nima uchun aynan bu yerda ───────────────────────────────────────
+    Kod brauzerda saqlanadi va serverga faqat shu so'rov bilan
+    keladi. Tasdiqlashgacha (OTP) kutsak, uni yana bir joyda
+    saqlab yurish kerak bo'lardi.
+
+    Hisob esa STATISTIKAGA faqat tasdiqlangandan keyin kiradi
+    (`referral.service.ts` da faqat `ACTIVE` sanaladi) — ya'ni
+    tasdiqlanmagan hisoblar sonni ko'tarib yubormaydi.
+
+    ── Nima uchun xato YUTILADI ────────────────────────────────────────
+    Taklif — qo'shimcha imkoniyat. Uning xatosi tufayli odam
+    ro'yxatdan o'ta olmay qolishi mumkin emas.
+  */
+  try {
+    await attachReferrer(user.id, input.referralCode);
+  } catch (error) {
+    logger.warn({ err: error, userId: user.id }, "Taklifni bog'lab bo'lmadi");
+  }
 
   const otp = await issueOtp(input.phone, OtpPurpose.PHONE_VERIFICATION);
 

@@ -1,3 +1,4 @@
+import { isReferralCode } from '@/config/referral';
 import { z } from 'zod';
 
 import { normalizeUzPhone } from '@/lib/phone';
@@ -59,6 +60,25 @@ export const registerSchema = z.object({
   password: passwordSchema,
   firstName: nameSchema,
   lastName: nameSchema.optional(),
+  /**
+   * Taklif kodi — kim taklif qilgani.
+   *
+   * ── Nima uchun IXTIYORIY va yumshoq tekshiriladi ────────────────────
+   * Kod noto'g'ri bo'lsa ham ro'yxatdan o'tish DAVOM ETISHI kerak.
+   * Odam eski yoki buzilgan havola bilan kelgan bo'lishi mumkin va
+   * u bunda aybdor emas — uni "kod noto'g'ri" deb qaytarib
+   * yuborish eng yomon birinchi taassurot bo'lardi.
+   *
+   * Shuning uchun bu yerda faqat SHAKL tekshiriladi. Kod haqiqatan
+   * mavjudmi degan savolga xizmat javob beradi va topilmasa
+   * jimgina e'tiborsiz qoldiradi.
+   */
+  referralCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .refine(isReferralCode, "Taklif kodi noto'g'ri")
+    .optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
