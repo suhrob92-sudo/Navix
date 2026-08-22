@@ -118,6 +118,47 @@ export const PUBLIC_RATE_LIMITS = {
    * Har bir yangi suhbat BEGONA odamning ro'yxatida paydo bo'ladi,
    * shuning uchun chegara obunadan qattiqroq.
    */
+  /**
+   * Kirish urinishlari BITTA MANZILDAN: soatiga 30 marta.
+   *
+   * ── Nima uchun telefon bo'yicha cheklov YETARLI EMAS ────────────────
+   * `login` cheklovi telefon raqami bo'yicha ishlaydi va bitta hisobni
+   * yaxshi himoya qiladi. Lekin hujum boshqacha bo'ladi:
+   *
+   *   hujumchi 10 000 ta telefon raqamini oladi va HAR BIRIGA bittadan
+   *   eng ommabop parolni sinaydi ("12345678", "parol123").
+   *
+   * Har bir raqamga bitta urinish tushadi — telefon bo'yicha cheklov
+   * hech qachon ishga tushmaydi. Lekin 10 000 hisobning bir nechtasi
+   * ochiladi. Bu "credential stuffing" deb ataladi va bugungi kunda
+   * eng ko'p uchraydigan hujum.
+   *
+   * Manzil bo'yicha cheklov aynan shu yo'lni yopadi.
+   *
+   * ── Nima uchun 30 ta ────────────────────────────────────────────────
+   * Bir uydan yoki bir ofisdan bir necha odam kirishi mumkin va ular
+   * parolni bir necha marta xato yozishi tabiiy. 30 ta — ularga
+   * yetadi, hujumga esa yetmaydi.
+   */
+  loginByIp: { limit: 30, windowSeconds: 60 * 60 },
+  /**
+   * OCHIQ katalog: daqiqasiga 120 marta bitta manzildan.
+   *
+   * ── Nima uchun kerak ────────────────────────────────────────────────
+   * Mehmonxonalar, reyslar, vakansiyalar va modullar ro'yxati kirishsiz
+   * ochiladi — bu to'g'ri, ular ommaviy ma'lumot.
+   *
+   * Lekin chegarasiz ochiq manzil ikki narsani beradi:
+   *  · butun bazani skript bilan varaqlab yig'ib olish (raqobatchi
+   *    bir kechada barcha narxlarni ko'chirib oladi);
+   *  · bitta arzon skript bilan bazani yuklab, saytni sekinlashtirish.
+   *
+   * ── Nima uchun 120 ta ───────────────────────────────────────────────
+   * Odam bir daqiqada 120 marta sahifa varaqlay olmaydi. Skript esa
+   * bemalol qiladi. Bu chegara haqiqiy foydalanuvchiga umuman
+   * sezilmaydi.
+   */
+  publicCatalog: { limit: 120, windowSeconds: 60 },
   chatOpen: { limit: 60, windowSeconds: 60 * 60 },
   /**
    * Guruh yaratish: soatiga 10 ta.

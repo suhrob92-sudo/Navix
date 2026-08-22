@@ -5,7 +5,7 @@ import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 import { maskUzPhone } from '@/lib/phone';
 import { prisma } from '@/lib/prisma';
-import { enforceRateLimit, resetRateLimit } from '@/lib/rate-limit';
+import { enforcePublicRateLimit, enforceRateLimit, resetRateLimit } from '@/lib/rate-limit';
 import { attachReferrer } from '@/modules/referral/referral.service';
 import type { RoleValue } from '@/config/rbac';
 import type { LoginInput, RegisterInput, ResetPasswordInput, VerifyOtpInput } from '@/modules/auth/auth.schemas';
@@ -267,6 +267,19 @@ export async function verifyPhone(input: VerifyOtpInput, context: AuditContext):
 /** Telefon raqami va parol bilan tizimga kiritadi. */
 export async function login(input: LoginInput, context: AuditContext): Promise<AuthSuccessResult> {
   await enforceRateLimit('login', input.phone);
+
+  /**
+   * IKKINCHI cheklov — manzil bo'yicha.
+   *
+   * Sababi `lib/rate-limit.ts` dagi `loginByIp` izohida: telefon
+   * bo'yicha cheklov minglab raqamga bittadan parol sinaydigan
+   * hujumni umuman ko'rmaydi.
+   *
+   * Manzil noma'lum bo'lsa, hammasi bitta "anonim" hisoblagichga
+   * tushadi. Bu qattiqroq, lekin xavfsizroq: manzilsiz so'rov odatda
+   * skriptdan keladi.
+   */
+  await enforcePublicRateLimit('loginByIp', context.ipAddress ?? 'anonim');
 
   const user = await prisma.user.findUnique({ where: { phone: input.phone }, select: USER_SELECT });
   const passwordMatches = await verifyPassword(input.password, user?.passwordHash ?? null);

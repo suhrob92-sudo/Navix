@@ -318,7 +318,19 @@ export async function rotateSession(
   });
 
   if (outcome.kind === 'theft') {
-    await prisma.session.update({ where: { id: sessionId }, data: { revokedAt: new Date() } });
+    /**
+     * `revokeSession` — to'g'ridan-to'g'ri `update` emas.
+     *
+     * ── HAQIQIY XATO, xavfsizlik tekshiruvida topilgan ────────────────
+     * Ilgari bu yerda faqat bazaga belgi qo'yilardi. Qora ro'yxatga
+     * esa yozilmasdi — ya'ni o'g'irlangan ACCESS token yana 15 daqiqa
+     * ishlab turardi.
+     *
+     * Eskirgan refresh token ishlatilishi — bu hisob o'g'irlanganining
+     * ENG KUCHLI belgisi. Aynan shu daqiqada kirishni darhol
+     * to'xtatish kerak, 15 daqiqadan keyin emas.
+     */
+    await revokeSession(sessionId);
     logger.warn({ sessionId, userId: outcome.userId }, 'Eskirgan refresh token ishlatildi, sessiya yopildi');
     throw new UnauthorizedError('Sessiya bekor qilindi. Qaytadan kiring.');
   }

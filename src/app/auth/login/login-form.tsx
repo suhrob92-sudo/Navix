@@ -11,6 +11,7 @@ import { Field } from '@/components/ui/field';
 import { PasswordInput } from '@/components/ui/password-input';
 import { PhoneInput, toE164 } from '@/components/ui/phone-input';
 import { ApiClientError, apiRequest, toUserMessage } from '@/lib/api-client';
+import { safeNextPath } from '@/lib/safe-redirect';
 import { loginSchema } from '@/modules/auth/auth.schemas';
 import { useAuth } from '@/modules/auth/auth-context';
 import type { FieldErrors } from '@/lib/api/errors';
@@ -28,8 +29,13 @@ export function LoginForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  /** Kirgandan keyin qaysi sahifaga o'tish kerak. */
-  const redirectTo = searchParams.get('next') ?? '/dashboard';
+  /**
+   * Kirgandan keyin qaysi sahifaga o'tish kerak.
+   *
+   * Qiymat TEKSHIRILADI: u havoladan keladi va tashqi manzil bo'lishi
+   * mumkin. Sababi `lib/safe-redirect.ts` da batafsil yozilgan.
+   */
+  const redirectTo = safeNextPath(searchParams.get('next'));
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

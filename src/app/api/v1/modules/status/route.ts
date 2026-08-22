@@ -1,6 +1,8 @@
 import type { NextRequest } from 'next/server';
 
 import { withApiHandler } from '@/lib/api/handler';
+import { enforcePublicRateLimit } from '@/lib/rate-limit';
+import { getRequestContext } from '@/lib/request-context';
 import { apiSuccess } from '@/lib/api/response';
 import { getDisabledModules } from '@/modules/admin/module-switch.service';
 import { getModuleById } from '@/config/modules';
@@ -19,7 +21,15 @@ import { getModuleById } from '@/config/modules';
  */
 export const dynamic = 'force-dynamic';
 
-export const GET = withApiHandler(async (_request: NextRequest, { requestId }) => {
+export const GET = withApiHandler(async (request: NextRequest, { requestId }) => {
+  /**
+   * Ochiq manzil — chegara MANZIL bo'yicha.
+   *
+   * Sababi `lib/rate-limit.ts` dagi `publicCatalog` izohida: chegarasiz
+   * ochiq katalogni skript bilan butunlay ko'chirib olish mumkin.
+   */
+  await enforcePublicRateLimit('publicCatalog', getRequestContext(request).ipAddress ?? 'anonim');
+
   const disabled = await getDisabledModules();
 
   const modules = [...disabled.entries()].map(([moduleId, reason]) => ({

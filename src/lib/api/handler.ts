@@ -7,6 +7,7 @@ import { ZodError, type ZodType } from 'zod';
 import {
   AppError,
   ErrorCode,
+  PayloadTooLargeError,
   RateLimitError,
   ServiceUnavailableError,
   ValidationError,
@@ -244,15 +245,64 @@ function handleRouteError(
   });
 }
 
+/**
+ * So'rov tanasining eng katta hajmi.
+ *
+ * ── HAQIQIY XAVF: xotirani to'ldirish ─────────────────────────────────
+ * Ilgari chegara umuman yo'q edi. Ya'ni istalgan manzilga 100 megabaytli
+ * JSON yuborish mumkin edi va server uni Zod tekshiruvidan OLDIN
+ * butunlay xotiraga o'qib olardi.
+ *
+ * Bir nechta shunday so'rov serverni xotiradan mahrum qilishi mumkin —
+ * hujum uchun na hisob, na maxsus bilim kerak.
+ *
+ * ── Nima uchun 256 KB ─────────────────────────────────────────────────
+ * Loyihadagi eng katta tana — qo'ng'iroq signali (`sdp` 20 000 belgi).
+ * Rasm va ovoz esa JSON orqali emas, alohida yo'l bilan yuboriladi.
+ * 256 KB — o'n barobar zaxira bilan.
+ */
+const MAX_JSON_BODY_BYTES = 256 * 1024;
+
 /** So'rov tanasini (JSON body) Zod sxemasi bo'yicha tekshiradi. */
 export async function parseJsonBody<TSchema extends ZodType>(
   request: NextRequest,
   schema: TSchema,
 ): Promise<TSchema['_output']> {
+  /**
+   * Avval E'LON QILINGAN hajm tekshiriladi.
+   *
+   * Bu eng arzon tekshiruv: tana hali o'qilmagan, ya'ni katta so'rov
+   * xotiraga umuman tushmaydi.
+   */
+  const declaredLength = Number(request.headers.get('content-length') ?? '0');
+
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_JSON_BODY_BYTES) {
+    throw new PayloadTooLargeError();
+  }
+
+  let text: string;
+
+  try {
+    text = await request.text();
+  } catch {
+    throw new ValidationError("So'rov tanasini o'qib bo'lmadi");
+  }
+
+  /**
+   * Haqiqiy hajm ham tekshiriladi.
+   *
+   * `content-length` sarlavhasi bo'lmasligi mumkin (bo'laklab
+   * yuborilgan so'rovda) yoki YOLG'ON bo'lishi mumkin — uni
+   * yuboruvchi yozadi.
+   */
+  if (text.length > MAX_JSON_BODY_BYTES) {
+    throw new PayloadTooLargeError();
+  }
+
   let raw: unknown;
 
   try {
-    raw = await request.json();
+    raw = JSON.parse(text);
   } catch {
     throw new ValidationError("So'rov tanasi yaroqli JSON emas");
   }

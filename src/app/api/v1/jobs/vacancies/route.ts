@@ -1,6 +1,8 @@
 import type { NextRequest } from 'next/server';
 
 import { parseSearchParams, withApiHandler } from '@/lib/api/handler';
+import { enforcePublicRateLimit } from '@/lib/rate-limit';
+import { getRequestContext } from '@/lib/request-context';
 import { apiSuccess, buildPagination } from '@/lib/api/response';
 import { optionalAuth } from '@/modules/auth/auth.guard';
 import { vacancyQuerySchema } from '@/modules/job/job.schemas';
@@ -20,6 +22,14 @@ import { listVacancies } from '@/modules/job/job.service';
 export const dynamic = 'force-dynamic';
 
 export const GET = withApiHandler(async (request: NextRequest, { requestId }) => {
+  /**
+   * Ochiq manzil — chegara MANZIL bo'yicha.
+   *
+   * Sababi `lib/rate-limit.ts` dagi `publicCatalog` izohida: chegarasiz
+   * ochiq katalogni skript bilan butunlay ko'chirib olish mumkin.
+   */
+  await enforcePublicRateLimit('publicCatalog', getRequestContext(request).ipAddress ?? 'anonim');
+
   const auth = await optionalAuth(request);
   const query = parseSearchParams(request, vacancyQuerySchema);
 

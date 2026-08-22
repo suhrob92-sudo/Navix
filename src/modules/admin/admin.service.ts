@@ -40,6 +40,7 @@ import type {
   AdminUserDetail,
   AdminUserItem,
 } from '@/modules/admin/admin.types';
+import { blockSessions } from '@/lib/session-block';
 import { revokeAllSessions } from '@/modules/auth/session.service';
 
 /**
@@ -664,7 +665,7 @@ export async function updateUserRole(
     throw new ConflictError(`"${input.role}" roli bazada yo'q. "npm run db:seed" bajaring.`);
   }
 
-  const revokedSessions = await prisma.$transaction(async (tx) => {
+  const revokedSessionIds = await prisma.$transaction(async (tx) => {
     if (input.action === 'grant') {
       await tx.userRoleAssignment.upsert({
         where: { userId_roleId: { userId, roleId: role.id } },
@@ -688,14 +689,49 @@ export async function updateUserRole(
       await tx.userRoleAssignment.deleteMany({ where: { userId, roleId: role.id } });
     }
 
-    // Rollar tokenda — eski token yangi holatni bilmaydi.
-    const result = await tx.session.updateMany({
+    /**
+     * Rollar TOKEN ichida yoziladi — eski token yangi holatni bilmaydi.
+     *
+     * ── HAQIQIY XATO, xavfsizlik tekshiruvida topilgan ────────────────
+     * Ilgari bu yerda faqat bazaga `revokedAt` yozilardi. Har so'rovda
+     * esa Redis'dagi qora ro'yxat tekshiriladi, bazaga qaralmaydi.
+     *
+     * Natijada administratorlik OLIB QO'YILGANDAN keyin ham o'sha odam
+     * 15 daqiqagacha (access token muddati) admin sifatida ishlashda
+     * davom eta olardi — foydalanuvchilarni bloklash, kontent
+     * o'chirish, boshqalarga rol berish.
+     *
+     * Aynan shu daqiqalarda esa u eng xavfli bo'ladi: roli olinganini
+     * ko'rgan odam zarar yetkazishga ulguradi.
+     *
+     * Endi sessiya ID'lari oldin o'qiladi va qora ro'yxatga yoziladi —
+     * bekor qilish DARHOL kuchga kiradi.
+     */
+    const sessions = await tx.session.findMany({
+      where: { userId, revokedAt: null },
+      select: { id: true },
+    });
+
+    if (sessions.length === 0) return [];
+
+    await tx.session.updateMany({
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
 
-    return result.count;
+    return sessions.map((session) => session.id);
   });
+
+  /**
+   * Qora ro'yxatga yozish TRANZAKSIYADAN TASHQARIDA.
+   *
+   * Redis tranzaksiyaga kirmaydi: u yiqilsa, butun rol o'zgarishi
+   * bekor bo'lib qolardi. Bu yerda esa eng yomon holat — bekor
+   * qilishning 15 daqiqa kechikishi, ya'ni avvalgi holat.
+   */
+  await blockSessions(revokedSessionIds);
+
+  const revokedSessions = revokedSessionIds.length;
 
   await recordAudit({
     actorId: actor.userId,

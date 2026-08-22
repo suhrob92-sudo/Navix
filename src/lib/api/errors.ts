@@ -13,6 +13,7 @@ export const ErrorCode = {
   NOT_FOUND: 'NOT_FOUND',
   CONFLICT: 'CONFLICT',
   RATE_LIMITED: 'RATE_LIMITED',
+  PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
 } as const;
@@ -85,6 +86,25 @@ export class RateLimitError extends AppError {
   constructor(retryAfterSeconds: number, message = "So'rovlar soni chegarasidan oshdi") {
     super(ErrorCode.RATE_LIMITED, 429, message);
     this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
+/**
+ * 413 — So'rov tanasi juda katta.
+ *
+ * ── Nima uchun ALOHIDA xato, "validatsiya" emas ───────────────────────
+ * Ikkalasi ham "so'rov noto'g'ri" degani, lekin sabab butunlay
+ * boshqacha va chaqiruvchining harakati ham boshqacha:
+ *
+ *  · validatsiya xatosi — maydonni TUZATISH kerak;
+ *  · hajm xatosi — so'rovni BO'LAKLARGA bo'lish yoki kamaytirish kerak.
+ *
+ * 413 — bu holatning standart raqami. Oraliqdagi xizmatlar (CDN,
+ * proksi) uni tanaga qaramasdan tushunadi va shunga qarab ish tutadi.
+ */
+export class PayloadTooLargeError extends AppError {
+  constructor(message = "So'rov hajmi juda katta") {
+    super(ErrorCode.PAYLOAD_TOO_LARGE, 413, message);
   }
 }
 

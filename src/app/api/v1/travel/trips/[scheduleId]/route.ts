@@ -2,6 +2,8 @@ import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 
 import { parseSearchParams, withApiHandler } from '@/lib/api/handler';
+import { enforcePublicRateLimit } from '@/lib/rate-limit';
+import { getRequestContext } from '@/lib/request-context';
 import { apiSuccess } from '@/lib/api/response';
 import { tripDetailQuerySchema } from '@/modules/travel/travel.schemas';
 import { getTrip } from '@/modules/travel/travel.service';
@@ -20,6 +22,14 @@ const paramsSchema = z.object({ scheduleId: z.uuid("Reys ID noto'g'ri") });
 type Params = { scheduleId: string };
 
 export const GET = withApiHandler<Params>(async (request: NextRequest, { requestId, params }) => {
+  /**
+   * Ochiq manzil — chegara MANZIL bo'yicha.
+   *
+   * Sababi `lib/rate-limit.ts` dagi `publicCatalog` izohida: chegarasiz
+   * ochiq katalogni skript bilan butunlay ko'chirib olish mumkin.
+   */
+  await enforcePublicRateLimit('publicCatalog', getRequestContext(request).ipAddress ?? 'anonim');
+
   const { scheduleId } = paramsSchema.parse(await params);
   const query = parseSearchParams(request, tripDetailQuerySchema);
 
