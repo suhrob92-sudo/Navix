@@ -8,9 +8,20 @@ import {
 } from '@/config/favorite';
 import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import { logger } from '@/lib/logger';
-import { tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
-import { THUMB_SELECT, toThumb } from '@/modules/catalog/catalog-image.select';
+import {
+  HOTEL_SUMMARY_SELECT,
+  MENU_ITEM_SUMMARY_SELECT,
+  PRODUCT_SUMMARY_SELECT,
+  RESTAURANT_SUMMARY_SELECT,
+  VACANCY_SUMMARY_SELECT,
+  hotelSummary,
+  menuItemSummary,
+  productSummary,
+  restaurantSummary,
+  vacancySummary,
+  type CatalogSummary,
+} from '@/modules/catalog/catalog-summary';
 import {
   emptyFavoriteIds,
   type FavoriteItem,
@@ -215,139 +226,61 @@ export async function listFavoriteIds(userId: string): Promise<Record<FavoriteTa
 /**
  * To'liq ro'yxat — sevimlilar sahifasi uchun.
  *
- * Beshta so'rov bir vaqtda yuboriladi: ketma-ket bo'lsa sahifa
- * besh marta kutardi.
+ * ── Nima uchun beshta so'rov BIR VAQTDA ───────────────────────────────
+ * Har bir turning ustunlari boshqacha, shuning uchun ularni bitta
+ * so'rov bilan olib bo'lmaydi. Ketma-ket yuborilsa, sahifa besh
+ * marta kutardi.
+ *
+ * ── Nima uchun o'girish kodi BU YERDA EMAS ────────────────────────────
+ * "Yaqinda ko'rilganlar" moduli ham aynan shu beshta turni aynan
+ * shunday ko'rsatadi. Kod ikki joyda takrorlansa, ertaga narx
+ * ko'rinishi o'zgarganda bittasi unutilardi.
+ *
+ * Shuning uchun o'girish `catalog-summary.ts` da, bitta joyda.
  */
 export async function listFavorites(userId: string): Promise<FavoritesResponse> {
   const [products, menuItems, restaurants, hotels, vacancies] = await Promise.all([
     prisma.favorite.findMany({
       where: { userId, productId: { not: null } },
       orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        createdAt: true,
-        product: {
-          select: {
-            id: true,
-            slug: true,
-            name: true,
-            price: true,
-            isActive: true,
-            stock: true,
-            shop: { select: { name: true } },
-            images: THUMB_SELECT,
-          },
-        },
-      },
+      select: { id: true, createdAt: true, product: { select: PRODUCT_SUMMARY_SELECT } },
     }),
     prisma.favorite.findMany({
       where: { userId, menuItemId: { not: null } },
       orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        createdAt: true,
-        menuItem: {
-          select: {
-            id: true,
-            name: true,
-            price: true,
-            isAvailable: true,
-            restaurant: { select: { name: true, slug: true } },
-            images: THUMB_SELECT,
-          },
-        },
-      },
+      select: { id: true, createdAt: true, menuItem: { select: MENU_ITEM_SUMMARY_SELECT } },
     }),
     prisma.favorite.findMany({
       where: { userId, restaurantId: { not: null } },
       orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        createdAt: true,
-        restaurant: {
-          select: {
-            id: true,
-            slug: true,
-            name: true,
-            cuisine: true,
-            isActive: true,
-            images: THUMB_SELECT,
-          },
-        },
-      },
+      select: { id: true, createdAt: true, restaurant: { select: RESTAURANT_SUMMARY_SELECT } },
     }),
     prisma.favorite.findMany({
       where: { userId, hotelId: { not: null } },
       orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        createdAt: true,
-        hotel: {
-          select: {
-            id: true,
-            slug: true,
-            name: true,
-            city: true,
-            isActive: true,
-            images: THUMB_SELECT,
-            rooms: {
-              where: { isActive: true },
-              select: { pricePerNight: true },
-              orderBy: { pricePerNight: 'asc' },
-              take: 1,
-            },
-          },
-        },
-      },
+      select: { id: true, createdAt: true, hotel: { select: HOTEL_SUMMARY_SELECT } },
     }),
     prisma.favorite.findMany({
       where: { userId, vacancyId: { not: null } },
       orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        createdAt: true,
-        vacancy: {
-          select: {
-            id: true,
-            slug: true,
-            title: true,
-            city: true,
-            salaryMin: true,
-            isActive: true,
-            company: { select: { name: true } },
-          },
-        },
-      },
+      select: { id: true, createdAt: true, vacancy: { select: VACANCY_SUMMARY_SELECT } },
     }),
   ]);
 
+  /**
+   * Bog'langan narsa `null` bo'lishi MUMKIN EMAS: baza uni
+   * o'chirilganda yozuvni ham o'chiradi.
+   *
+   * Lekin Prisma buni bilmaydi va turni "bo'lishi ham mumkin" deb
+   * belgilaydi. `flatMap` bo'sh yozuvni jimgina tashlab ketadi —
+   * bu qulash o'rniga eng xavfsiz xatti-harakat.
+   */
   const groups: FavoritesResponse['groups'] = [
     {
       target: 'PRODUCT',
       items: products.flatMap((row) =>
         row.product
-          ? [
-              {
-                id: row.id,
-                target: 'PRODUCT' as const,
-                targetId: row.product.id,
-                name: row.product.name,
-                href: `/marketplace/p/${row.product.slug}`,
-                subtitle: row.product.shop.name,
-                priceTiyin: tiyinToNumber(row.product.price),
-                pricePrefix: null,
-                image: toThumb(row.product.images),
-                /**
-                 * Zaxirasi tugagan mahsulot ham QOLADI.
-                 *
-                 * Uni o'chirib yuborsak, odam "men buni saqlagan
-                 * edim-ku" deb hayron bo'lardi. Xiralashgan
-                 * kartochka esa holatni aniq aytadi.
-                 */
-                isAvailable: row.product.isActive && row.product.stock > 0,
-                addedAt: row.createdAt.toISOString(),
-              },
-            ]
+          ? [toItem(row.id, 'PRODUCT', row.product.id, productSummary(row.product), row.createdAt)]
           : [],
       ),
     },
@@ -355,21 +288,7 @@ export async function listFavorites(userId: string): Promise<FavoritesResponse> 
       target: 'MENU_ITEM',
       items: menuItems.flatMap((row) =>
         row.menuItem
-          ? [
-              {
-                id: row.id,
-                target: 'MENU_ITEM' as const,
-                targetId: row.menuItem.id,
-                name: row.menuItem.name,
-                href: `/food/${row.menuItem.restaurant.slug}`,
-                subtitle: row.menuItem.restaurant.name,
-                priceTiyin: tiyinToNumber(row.menuItem.price),
-                pricePrefix: null,
-                image: toThumb(row.menuItem.images),
-                isAvailable: row.menuItem.isAvailable,
-                addedAt: row.createdAt.toISOString(),
-              },
-            ]
+          ? [toItem(row.id, 'MENU_ITEM', row.menuItem.id, menuItemSummary(row.menuItem), row.createdAt)]
           : [],
       ),
     },
@@ -378,19 +297,13 @@ export async function listFavorites(userId: string): Promise<FavoritesResponse> 
       items: restaurants.flatMap((row) =>
         row.restaurant
           ? [
-              {
-                id: row.id,
-                target: 'RESTAURANT' as const,
-                targetId: row.restaurant.id,
-                name: row.restaurant.name,
-                href: `/food/${row.restaurant.slug}`,
-                subtitle: row.restaurant.cuisine,
-                priceTiyin: null,
-                pricePrefix: null,
-                image: toThumb(row.restaurant.images),
-                isAvailable: row.restaurant.isActive,
-                addedAt: row.createdAt.toISOString(),
-              },
+              toItem(
+                row.id,
+                'RESTAURANT',
+                row.restaurant.id,
+                restaurantSummary(row.restaurant),
+                row.createdAt,
+              ),
             ]
           : [],
       ),
@@ -398,53 +311,14 @@ export async function listFavorites(userId: string): Promise<FavoritesResponse> 
     {
       target: 'HOTEL',
       items: hotels.flatMap((row) =>
-        row.hotel
-          ? [
-              {
-                id: row.id,
-                target: 'HOTEL' as const,
-                targetId: row.hotel.id,
-                name: row.hotel.name,
-                href: `/hotel/${row.hotel.slug}`,
-                subtitle: row.hotel.city,
-                /** Eng arzon xona narxi — "dan" belgisi bilan. */
-                priceTiyin: row.hotel.rooms[0]
-                  ? tiyinToNumber(row.hotel.rooms[0].pricePerNight)
-                  : null,
-                pricePrefix: row.hotel.rooms[0] ? 'dan' : null,
-                image: toThumb(row.hotel.images),
-                isAvailable: row.hotel.isActive,
-                addedAt: row.createdAt.toISOString(),
-              },
-            ]
-          : [],
+        row.hotel ? [toItem(row.id, 'HOTEL', row.hotel.id, hotelSummary(row.hotel), row.createdAt)] : [],
       ),
     },
     {
       target: 'VACANCY',
       items: vacancies.flatMap((row) =>
         row.vacancy
-          ? [
-              {
-                id: row.id,
-                target: 'VACANCY' as const,
-                targetId: row.vacancy.id,
-                name: row.vacancy.title,
-                href: `/jobs/${row.vacancy.slug}`,
-                subtitle: `${row.vacancy.company.name} · ${row.vacancy.city}`,
-                /**
-                 * Maosh "kelishilgan" bo'lishi mumkin.
-                 *
-                 * Nolni ko'rsatib bo'lmaydi: u "bepul ish" degan
-                 * ma'noni berardi.
-                 */
-                priceTiyin: row.vacancy.salaryMin === null ? null : tiyinToNumber(row.vacancy.salaryMin),
-                pricePrefix: row.vacancy.salaryMin === null ? null : 'dan',
-                image: null,
-                isAvailable: row.vacancy.isActive,
-                addedAt: row.createdAt.toISOString(),
-              },
-            ]
+          ? [toItem(row.id, 'VACANCY', row.vacancy.id, vacancySummary(row.vacancy), row.createdAt)]
           : [],
       ),
     },
@@ -453,6 +327,17 @@ export async function listFavorites(userId: string): Promise<FavoritesResponse> 
   const total = groups.reduce((sum, group) => sum + group.items.length, 0);
 
   return { groups, total };
+}
+
+/** Umumiy ko'rinishni ro'yxat yozuviga aylantiradi. */
+function toItem(
+  id: string,
+  target: FavoriteTarget,
+  targetId: string,
+  summary: CatalogSummary,
+  addedAt: Date,
+): FavoriteItem {
+  return { id, target, targetId, ...summary, addedAt: addedAt.toISOString() };
 }
 
 /** Turlar ro'yxati — sinovlar uchun ochiq. */

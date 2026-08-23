@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { AppHeader } from '@/components/app/app-header';
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
 import { FavoriteButton } from '@/components/favorite/favorite-button';
+import { RecentTracker } from '@/components/recent/recent-tracker';
 import { RatingStars } from '@/components/review/rating-stars';
 import { ReviewSection } from '@/components/review/review-section';
 import { LinkedPosts } from '@/components/feed/linked-posts';
@@ -216,6 +217,8 @@ export function RestaurantContent({ slug }: RestaurantContentProps) {
                 </ul>
               </section>
             ))}
+
+            <RecentTracker target="RESTAURANT" targetId={restaurant.id} />
 
             <ReviewSection
               target="RESTAURANT"

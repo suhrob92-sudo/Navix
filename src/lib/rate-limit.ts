@@ -192,6 +192,17 @@ export const PUBLIC_RATE_LIMITS = {
    * o'ylashni talab qiladi.
    */
   favorite: { limit: 60, windowSeconds: 60 },
+  /**
+   * Ko'rilganini belgilash: daqiqasiga 120 marta.
+   *
+   * ── Nima uchun eng yuqori chegara ───────────────────────────────────
+   * Bu so'rov HAR BIR mahsulot sahifasi ochilganda yuboriladi, ya'ni
+   * u ilovadagi eng tez-tez takrorlanadigan yozuv amali.
+   *
+   * Odam katalogni tez varaqlab, bir daqiqada o'nlab sahifani
+   * ochishi mumkin. Chegara esa faqat skriptni to'xtatadi.
+   */
+  recentView: { limit: 120, windowSeconds: 60 },
   chatOpen: { limit: 60, windowSeconds: 60 * 60 },
   /**
    * Guruh yaratish: soatiga 10 ta.

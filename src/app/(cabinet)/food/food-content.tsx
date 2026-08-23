@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { AppHeader } from '@/components/app/app-header';
 import { CartBar } from '@/components/food/cart-bar';
 import { RestaurantCard } from '@/components/food/restaurant-card';
+import { RecentRow } from '@/components/recent/recent-row';
 import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -83,6 +84,8 @@ export function FoodContent() {
             description="Boshqa so'z bilan qidiring yoki filtrni o'zgartiring."
           />
         )}
+
+        <RecentRow target="RESTAURANT" className="mb-5" />
 
         <ul className="space-y-3">
           {restaurants.map((restaurant, index) => (

@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { HotelCard } from '@/components/hotel/hotel-card';
+import { RecentRow } from '@/components/recent/recent-row';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -200,6 +201,8 @@ export function HotelContent() {
               }
             />
           )}
+
+          <RecentRow target="HOTEL" className="mb-5" />
 
           {!isLoading && !error && hotels.length > 0 && (
             <>

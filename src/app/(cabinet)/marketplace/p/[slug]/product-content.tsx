@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { CatalogGallery } from '@/components/catalog/catalog-gallery';
+import { RecentTracker } from '@/components/recent/recent-tracker';
 import { ReviewSection } from '@/components/review/review-section';
 import { LinkedPosts } from '@/components/feed/linked-posts';
 import { MarketCartBar } from '@/components/market/market-cart-bar';
@@ -160,6 +161,12 @@ export function ProductContent({ slug }: ProductContentProps) {
                 </Button>
               </div>
             )}
+
+            {/*
+              Ko'rilgani belgilanadi — sahifa buni KUTMAYDI.
+              Sabab `RecentTracker` da.
+            */}
+            <RecentTracker target="PRODUCT" targetId={product.id} />
 
             <ReviewSection target="PRODUCT" targetId={product.id} title="Xaridorlar bahosi" />
 

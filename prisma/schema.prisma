@@ -296,6 +296,8 @@ model User {
   reviewsWritten    Review[]        @relation("ReviewsWritten")
   /// "Keyin qaytaman" ro'yxati.
   favorites         Favorite[]
+  /// Yaqinda ko'rilganlar — o'zi to'ladi.
+  recentViews       RecentView[]
   tickets           TripBooking[]
   following         Follow[]             @relation("Following")
   followers         Follow[]             @relation("Followers")
@@ -714,6 +716,7 @@ model Restaurant {
   @@index([searchName])
   reviews    Review[]
   favorites  Favorite[]
+  recentViews RecentView[]
   @@map("restaurants")
 }
 
@@ -774,6 +777,7 @@ model MenuItem {
   /// AI yordamchi menyudan taom qidiradi — indekssiz bu butun jadvalni o'qirdi.
   @@index([searchName])
   favorites  Favorite[]
+  recentViews RecentView[]
   @@map("menu_items")
 }
 
@@ -1200,6 +1204,7 @@ model Product {
   /// Narx bo'yicha saralash va filtrlash uchun.
   @@index([isActive, price])
   favorites  Favorite[]
+  recentViews RecentView[]
   @@map("products")
 }
 
@@ -1392,6 +1397,70 @@ model CatalogImage {
   @@index([shopId, sortOrder])
   @@index([companyId, sortOrder])
   @@map("catalog_images")
+}
+
+/// Yaqinda ko'rilganlar.
+///
+/// ── Nima uchun kerak ──────────────────────────────────────────────────
+/// Odam mahsulotni ochadi, o'ylab ko'raman deb chiqib ketadi va
+/// ertaga uni TOPA OLMAYDI: yurakcha bosishni ham unutgan bo'ladi,
+/// qidiruvda nima deb yozganini ham eslamaydi.
+///
+/// Bu ro'yxat esa hech narsa talab qilmaydi — u O'ZI to'ladi.
+///
+/// ── Sevimlilardan FARQI ───────────────────────────────────────────────
+/// Sevimlilar — QAROR: odam ataylab belgilaydi va ataylab olib
+/// tashlaydi.
+///
+/// Bu ro'yxat esa qarorsiz to'ladi va eskisi o'zi tushib ketadi.
+/// Shuning uchun ular alohida jadval: bittasini o'chirish
+/// ikkinchisiga tegmasligi kerak.
+model RecentView {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+
+  /// ── Nimani: FAQAT BITTASI to'ldiriladi ─────────────────────────────
+  ///
+  /// Bazada CHECK cheklovi bor (`recent_views_single_target`).
+  productId    String? @db.Uuid
+  menuItemId   String? @db.Uuid
+  restaurantId String? @db.Uuid
+  hotelId      String? @db.Uuid
+  vacancyId    String? @db.Uuid
+
+  /// OXIRGI marta qachon ko'rilgan.
+  ///
+  /// Yangi yozuv qo'shilmaydi — mavjudining vaqti yangilanadi.
+  /// Aks holda bitta mahsulotni o'n marta ochgan odam ro'yxatini
+  /// o'sha mahsulot to'ldirib yuborardi.
+  viewedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  product    Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem?   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  hotel      Hotel?      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  vacancy    Vacancy?    @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+
+  /// Bitta narsa ro'yxatda BIR MARTA — takroriy ochish vaqtni yangilaydi.
+  @@unique([userId, productId])
+  @@unique([userId, menuItemId])
+  @@unique([userId, restaurantId])
+  @@unique([userId, hotelId])
+  @@unique([userId, vacancyId])
+
+  /// Ro'yxat: eng oxirgi ko'rilgani birinchi. Eskilarini o'chirish
+  /// ham shu indeks orqali boradi.
+  @@index([userId, viewedAt])
+
+  @@index([productId])
+  @@index([menuItemId])
+  @@index([restaurantId])
+  @@index([hotelId])
+  @@index([vacancyId])
+  @@map("recent_views")
 }
 
 /// Sevimlilar — "keyin qaytaman" ro'yxati.
@@ -1604,6 +1673,7 @@ model Hotel {
   @@index([searchName])
   reviews   Review[]
   favorites Favorite[]
+  recentViews RecentView[]
   @@map("hotels")
 }
 
@@ -1972,6 +2042,7 @@ model Vacancy {
   @@index([searchName])
   @@index([isActive, createdAt])
   favorites Favorite[]
+  recentViews RecentView[]
   @@map("vacancies")
 }
 

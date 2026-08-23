@@ -1,5 +1,5 @@
 import type { FavoriteTarget } from '@/config/favorite';
-import type { CatalogThumb } from '@/modules/catalog/catalog-image.types';
+import type { CatalogSummary } from '@/modules/catalog/catalog-summary';
 
 /**
  * Sevimlilar — brauzer va server uchun umumiy turlar.
@@ -8,35 +8,14 @@ import type { CatalogThumb } from '@/modules/catalog/catalog-image.types';
 /**
  * Sevimlilar ro'yxatidagi bitta yozuv.
  *
- * ── Nima uchun UMUMIY shakl ───────────────────────────────────────────
- * Mahsulot, taom, mehmonxona va vakansiya bir-biridan juda farq
- * qiladi: birida zaxira bor, birida maosh, birida yulduzlar.
- *
- * Lekin RO'YXATDA ularning hammasi bir xil ko'rinadi: rasm, nom,
- * bitta qator izoh va narx. Shuning uchun ular umumiy shaklga
- * keltiriladi va sahifa beshta boshqa-boshqa kartochka chizishga
- * majbur bo'lmaydi.
+ * Ko'rinish maydonlari (`CatalogSummary`) "yaqinda ko'rilganlar"
+ * bilan BAHAM ko'riladi: ikkalasi ham aynan bir xil kartochka
+ * chizadi.
  */
-export interface FavoriteItem {
+export interface FavoriteItem extends CatalogSummary {
   id: string;
   target: FavoriteTarget;
   targetId: string;
-  name: string;
-  /** Ilova ichidagi manzil — bosilganda o'sha sahifaga olib boradi. */
-  href: string;
-  /** Bitta qator izoh: do'kon nomi, shahar yoki kompaniya. */
-  subtitle: string | null;
-  /**
-   * Narx — TIYINDA. `null` bo'lishi mumkin:
-   * restoranning narxi yo'q, vakansiyada esa maosh kelishilgan
-   * bo'lishi mumkin.
-   */
-  priceTiyin: number | null;
-  /** Narx oldidagi belgi: "dan" yoki bo'sh. */
-  pricePrefix: string | null;
-  image: CatalogThumb | null;
-  /** Hali sotuvda/faolmi. Yo'q bo'lsa kartochka xiralashadi. */
-  isAvailable: boolean;
   addedAt: string;
 }
 

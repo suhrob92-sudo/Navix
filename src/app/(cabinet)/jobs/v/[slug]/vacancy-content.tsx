@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { LinkedPosts } from '@/components/feed/linked-posts';
+import { RecentTracker } from '@/components/recent/recent-tracker';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { VacancyCard } from '@/components/jobs/vacancy-card';
 import { Alert } from '@/components/ui/alert';
@@ -167,6 +168,8 @@ export function VacancyContent({ slug }: VacancyContentProps) {
                 Ariza yuborish
               </Button>
             )}
+
+            <RecentTracker target="VACANCY" targetId={vacancy.id} />
 
             <LinkedPosts kind="VACANCY" targetId={vacancy.id} />
 

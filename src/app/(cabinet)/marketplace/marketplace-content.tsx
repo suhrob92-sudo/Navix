@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { AppHeader } from '@/components/app/app-header';
 import { MarketCartBar } from '@/components/market/market-cart-bar';
 import { ProductCard } from '@/components/market/product-card';
+import { RecentRow } from '@/components/recent/recent-row';
 import { Alert } from '@/components/ui/alert';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
@@ -96,6 +97,15 @@ export function MarketplaceContent() {
         {/* ── Toifalar ── */}
         {!isSearching && !isLoading && !error && (
           <>
+            {/*
+              "Yaqinda ko'rgansiz" ENG YUQORIDA turadi.
+
+              Qaytib kelgan odam odatda o'zi ko'rgan narsani
+              izlaydi — toifalarni emas. Bo'sh bo'lsa bo'lim
+              umuman chizilmaydi.
+            */}
+            <RecentRow target="PRODUCT" className="mt-5" />
+
             <h2 className="mt-5 mb-3 text-sm font-semibold">Toifalar</h2>
 
             <div className="grid grid-cols-2 gap-3">
