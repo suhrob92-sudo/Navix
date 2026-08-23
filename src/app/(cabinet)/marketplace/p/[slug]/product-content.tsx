@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { CatalogGallery } from '@/components/catalog/catalog-gallery';
 import { LinkedPosts } from '@/components/feed/linked-posts';
 import { MarketCartBar } from '@/components/market/market-cart-bar';
 import { ProductCard } from '@/components/market/product-card';
@@ -82,6 +83,15 @@ export function ProductContent({ slug }: ProductContentProps) {
 
         {product && (
           <>
+            {/*
+              Galereya kartochkadan TASHQARIDA turadi.
+
+              Ichkarida bo'lsa, rasm atrofida chegara va bo'shliq
+              qolardi va u "kartochkadagi kichik rasm" bo'lib
+              ko'rinardi. Bu yerda esa u sahifaning bosh qismi.
+            */}
+            <CatalogGallery images={product.images} name={product.name} className="animate-fade-up" />
+
             <div className="bg-card border-border animate-fade-up rounded-2xl border p-4">
               <h1 className="text-base leading-snug font-semibold">{product.name}</h1>
 

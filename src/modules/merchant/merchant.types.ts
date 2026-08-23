@@ -1,4 +1,5 @@
 import type { ServiceColor } from '@/config/modules';
+import type { CatalogImageView } from '@/modules/catalog/catalog-image.types';
 import type { FoodOrderStatusName } from '@/modules/food/food.types';
 
 /**
@@ -61,6 +62,8 @@ export interface MerchantMenuItem {
   price: number;
   isAvailable: boolean;
   categoryName: string;
+  /** Taom rasmlari — kabinetda boshqariladi, shuning uchun butun galereya. */
+  images: CatalogImageView[];
 }
 
 export interface MerchantStats {

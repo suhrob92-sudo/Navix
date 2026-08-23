@@ -8,6 +8,7 @@ import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { toSearchText } from '@/lib/search';
 import { slugify } from '@/lib/utils';
+import { GALLERY_SELECT, toGallery } from '@/modules/catalog/catalog-image.select';
 import type { ServiceColor } from '@/config/modules';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { refundWallet } from '@/modules/wallet/wallet.service';
@@ -276,6 +277,7 @@ const PRODUCT_SELECT = {
   isActive: true,
   categoryId: true,
   category: { select: { name: true } },
+  images: GALLERY_SELECT,
 } as const;
 
 type ProductRow = Prisma.ProductGetPayload<{ select: typeof PRODUCT_SELECT }>;
@@ -292,6 +294,7 @@ function toSellerProduct(row: ProductRow): SellerProduct {
     isActive: row.isActive,
     categoryId: row.categoryId,
     categoryName: row.category.name,
+    images: toGallery(row.images),
   };
 }
 

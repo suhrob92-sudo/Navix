@@ -1,4 +1,5 @@
 import type { ServiceColor } from '@/config/modules';
+import type { CatalogThumb } from '@/modules/catalog/catalog-image.types';
 
 /**
  * Biznes profili — brauzer va server uchun umumiy turlar.
@@ -21,6 +22,8 @@ export interface BusinessCatalogItem {
   /** Narx — TIYINDA. */
   priceTiyin: number;
   categoryName: string | null;
+  /** Element rasmi. */
+  image: CatalogThumb | null;
 }
 
 export interface BusinessProfileView {
@@ -56,6 +59,9 @@ export interface BusinessProfileView {
   orderUrl: string;
 
   items: BusinessCatalogItem[];
+
+  /** Biznes rasmi (do'kon yoki restoran). */
+  image: CatalogThumb | null;
 }
 
 export interface BusinessProfileResponse {

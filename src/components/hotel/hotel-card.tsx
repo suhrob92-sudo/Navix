@@ -4,6 +4,7 @@ import { Building2, MapPin, Star } from 'lucide-react';
 import Link from 'next/link';
 
 import { ServiceIcon } from '@/components/app/service-icon';
+import { CatalogThumb } from '@/components/catalog/catalog-thumb';
 import { Badge } from '@/components/ui/badge';
 import { formatTiyin } from '@/lib/money';
 import { formatStars, type HotelListItem } from '@/modules/hotel/hotel.types';
@@ -33,7 +34,17 @@ export function HotelCard({ hotel, dates, index = 0 }: HotelCardProps) {
       style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}
     >
       <div className="flex items-start gap-3">
-        <ServiceIcon icon={Building2} color={hotel.color} size="md" />
+        {/* Rasm bor bo'lsa — rasm; yo'q bo'lsa rangli ikonka. */}
+        {hotel.image ? (
+          <CatalogThumb
+            image={hotel.image}
+            name={hotel.name}
+            eager={index < 3}
+            className="size-14 shrink-0 rounded-2xl"
+          />
+        ) : (
+          <ServiceIcon icon={Building2} color={hotel.color} size="md" />
+        )}
 
         <div className="min-w-0 flex-1">
           <p className="text-base leading-snug font-semibold text-balance">{hotel.name}</p>

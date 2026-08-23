@@ -16,6 +16,12 @@ import {
   refundWallet,
 } from '@/modules/wallet/wallet.service';
 import { canCancelBooking, countNights, toDateKey } from '@/modules/hotel/hotel.types';
+import {
+  GALLERY_SELECT,
+  THUMB_SELECT,
+  toGallery,
+  toThumb,
+} from '@/modules/catalog/catalog-image.select';
 import type { BookingView, HotelDetail, HotelListItem, HotelRoomView } from '@/modules/hotel/hotel.types';
 import type {
   BookingQuery,
@@ -66,9 +72,18 @@ const HOTEL_SELECT = {
   ratingCount: true,
   amenities: true,
   color: true,
+  images: THUMB_SELECT,
   rooms: {
     where: { isActive: true },
-    select: { id: true, name: true, description: true, capacity: true, pricePerNight: true, totalRooms: true },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      capacity: true,
+      pricePerNight: true,
+      totalRooms: true,
+      images: THUMB_SELECT,
+    },
     orderBy: { sortOrder: 'asc' as const },
   },
 } as const;
@@ -98,6 +113,7 @@ function toHotelListItem(row: HotelRow): HotelListItem {
     amenities: row.amenities,
     color: row.color as ServiceColor,
     fromPrice: cheapestPrice(row.rooms),
+    image: toThumb(row.images),
   };
 }
 
@@ -186,7 +202,17 @@ export async function getHotel(
   slug: string,
   dates: { checkIn?: string; checkOut?: string },
 ): Promise<HotelDetail> {
-  const row = await prisma.hotel.findFirst({ where: { slug, isActive: true }, select: HOTEL_SELECT });
+  /**
+   * Batafsil sahifada butun galereya olinadi.
+   *
+   * Ro'yxatdagi `HOTEL_SELECT` faqat bitta rasm oladi — u yerda
+   * ko'proq rasm bekorga trafik sarflardi. Bu yerda esa odam aynan
+   * rasmlarni ko'rish uchun kirgan.
+   */
+  const row = await prisma.hotel.findFirst({
+    where: { slug, isActive: true },
+    select: { ...HOTEL_SELECT, images: GALLERY_SELECT },
+  });
 
   if (!row) {
     throw new NotFoundError('Mehmonxona');
@@ -215,9 +241,14 @@ export async function getHotel(
      * foydalanuvchini chalg'itardi.
      */
     availableRooms: hasDates ? Math.max(0, room.totalRooms - (booked.get(room.id) ?? 0)) : null,
+    image: toThumb(room.images),
   }));
 
-  return { ...toHotelListItem(row), rooms };
+    /**
+   * Ro'yxat ko'rinishi asosiy rasmni kutadi, bu yerda esa butun
+   * galereya bor — birinchisi aynan asosiysi (tartib bo'yicha).
+   */
+  return { ...toHotelListItem({ ...row, images: row.images.slice(0, 1) }), rooms, images: toGallery(row.images) };
 }
 
 // ── Bandlovlar ────────────────────────────────────────────────────────

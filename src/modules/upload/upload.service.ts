@@ -101,6 +101,7 @@ function folderFor(purpose: UploadPurpose): string {
   if (purpose === 'CHAT') return 'chat';
   if (purpose === 'VOICE') return 'voice';
   if (purpose === 'VIDEO') return 'videos';
+  if (purpose === 'CATALOG') return 'catalog';
 
   return 'posts';
 }

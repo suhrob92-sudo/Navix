@@ -11,7 +11,7 @@
  * "chatdagi rasmlarni tozalash" kabi ish faqat maqsad ma'lum bo'lganda
  * bajarilishi mumkin.
  */
-export type UploadPurpose = 'AVATAR' | 'POST' | 'CHAT' | 'VOICE' | 'VIDEO';
+export type UploadPurpose = 'AVATAR' | 'POST' | 'CHAT' | 'VOICE' | 'VIDEO' | 'CATALOG';
 
 /** Qabul qilinadigan rasm turlari. */
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;

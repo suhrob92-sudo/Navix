@@ -1,4 +1,5 @@
 import type { ServiceColor } from '@/config/modules';
+import type { CatalogImageView } from '@/modules/catalog/catalog-image.types';
 import type { MarketOrderStatusName } from '@/modules/market/market.types';
 
 /**
@@ -46,6 +47,13 @@ export interface SellerProduct {
   isActive: boolean;
   categoryId: string;
   categoryName: string;
+  /**
+   * Mahsulot rasmlari — BUTUN galereya.
+   *
+   * Kabinetda sotuvchi ularni boshqaradi, ya'ni faqat asosiy rasm
+   * yetarli emas.
+   */
+  images: CatalogImageView[];
 }
 
 export interface SellerOrderItem {

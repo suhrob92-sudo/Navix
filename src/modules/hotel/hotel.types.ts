@@ -1,5 +1,6 @@
 import type { ServiceColor } from '@/config/modules';
 import { dateKeyFromToday, toDateKey } from '@/lib/date';
+import type { CatalogImageView, CatalogThumb } from '@/modules/catalog/catalog-image.types';
 
 /**
  * Mehmonxona moduli — brauzer tomonidagi turlar va SANA qoidalari.
@@ -28,6 +29,8 @@ export interface HotelRoomView {
    * `0` esa "band" degani va bu ikkalasi butunlay boshqa holat.
    */
   availableRooms: number | null;
+  /** Xona rasmi. */
+  image: CatalogThumb | null;
 }
 
 export interface HotelListItem {
@@ -44,10 +47,14 @@ export interface HotelListItem {
   color: ServiceColor;
   /** Eng arzon xona narxi — TIYINDA. Xona bo'lmasa `null`. */
   fromPrice: number | null;
+  /** Mehmonxona rasmi. */
+  image: CatalogThumb | null;
 }
 
 export interface HotelDetail extends HotelListItem {
   rooms: HotelRoomView[];
+  /** Batafsil sahifadagi butun galereya. */
+  images: CatalogImageView[];
 }
 
 export interface BookingView {

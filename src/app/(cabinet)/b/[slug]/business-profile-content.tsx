@@ -18,6 +18,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { ServiceIcon } from '@/components/app/service-icon';
+import { CatalogThumb } from '@/components/catalog/catalog-thumb';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -158,7 +159,17 @@ export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
           <>
             <section className="bg-card border-border animate-fade-up rounded-2xl border p-5">
               <div className="flex items-start gap-3">
-                <ServiceIcon icon={KindIcon} color={business.color} size="lg" />
+                {/* Rasm bor bo'lsa — rasm; yo'q bo'lsa rangli ikonka. */}
+                {business.image ? (
+                  <CatalogThumb
+                    image={business.image}
+                    name={business.name}
+                    eager
+                    className="size-16 shrink-0 rounded-2xl"
+                  />
+                ) : (
+                  <ServiceIcon icon={KindIcon} color={business.color} size="lg" />
+                )}
 
                 <div className="min-w-0 flex-1">
                   <h1 className="flex items-center gap-1.5 text-lg leading-snug font-semibold text-balance">
@@ -304,7 +315,15 @@ export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
                   business.items.map((item) => (
                     <div key={item.id} className="bg-card border-border rounded-2xl border p-4">
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                        {item.image && (
+                          <CatalogThumb
+                            image={item.image}
+                            name={item.name}
+                            className="size-14 shrink-0 rounded-xl"
+                          />
+                        )}
+
+                        <div className="min-w-0 flex-1">
                           <p className="font-medium">{item.name}</p>
                           {item.categoryName && (
                             <p className="text-muted-foreground mt-0.5 text-xs">{item.categoryName}</p>

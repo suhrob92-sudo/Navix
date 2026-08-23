@@ -7,6 +7,8 @@ import { useMemo, useState } from 'react';
 import { AppHeader } from '@/components/app/app-header';
 import { LinkedPosts } from '@/components/feed/linked-posts';
 import { ServiceIcon } from '@/components/app/service-icon';
+import { CatalogGallery } from '@/components/catalog/catalog-gallery';
+import { CatalogThumb } from '@/components/catalog/catalog-thumb';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -145,6 +147,12 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
 
         {hotel && (
           <>
+            {/*
+              Mehmonxonada rasm — asosiy qaror omili. Odam avval
+              xonani KO'RADI, keyin narxga qaraydi.
+            */}
+            <CatalogGallery images={hotel.images} name={hotel.name} className="animate-fade-up" />
+
             <section className="bg-card border-border animate-fade-up rounded-2xl border p-4">
               <div className="flex items-start gap-3">
                 <ServiceIcon icon={Building2} color={hotel.color} size="md" />
@@ -224,7 +232,15 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
                       className={cn('bg-card border-border rounded-2xl border p-4', isSoldOut && 'opacity-60')}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
+                        {room.image && (
+                          <CatalogThumb
+                            image={room.image}
+                            name={room.name}
+                            className="size-16 shrink-0 rounded-xl"
+                          />
+                        )}
+
+                        <div className="min-w-0 flex-1">
                           <p className="text-base font-semibold">{room.name}</p>
                           {room.description && (
                             <p className="text-muted-foreground mt-0.5 text-sm leading-relaxed">

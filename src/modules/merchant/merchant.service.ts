@@ -7,6 +7,7 @@ import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import type { ServiceColor } from '@/config/modules';
+import { GALLERY_SELECT, toGallery } from '@/modules/catalog/catalog-image.select';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { refundWallet } from '@/modules/wallet/wallet.service';
 import { canTransition, type FoodOrderStatusName } from '@/modules/food/food.types';
@@ -238,6 +239,7 @@ export async function listMerchantMenu(userId: string, restaurantId: string): Pr
       price: true,
       isAvailable: true,
       category: { select: { name: true, sortOrder: true } },
+      images: GALLERY_SELECT,
     },
     orderBy: [{ category: { sortOrder: 'asc' } }, { sortOrder: 'asc' }, { name: 'asc' }],
   });
@@ -249,6 +251,7 @@ export async function listMerchantMenu(userId: string, restaurantId: string): Pr
     price: tiyinToNumber(item.price),
     isAvailable: item.isAvailable,
     categoryName: item.category.name,
+    images: toGallery(item.images),
   }));
 }
 
@@ -285,6 +288,7 @@ export async function updateMerchantMenuItem(
       price: true,
       isAvailable: true,
       category: { select: { name: true } },
+      images: GALLERY_SELECT,
     },
   });
 
@@ -297,6 +301,7 @@ export async function updateMerchantMenuItem(
     price: tiyinToNumber(updated.price),
     isAvailable: updated.isAvailable,
     categoryName: updated.category.name,
+    images: toGallery(updated.images),
   };
 }
 

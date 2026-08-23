@@ -6,6 +6,7 @@ import { Clock, Star, UtensilsCrossed, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { CatalogThumb } from '@/components/catalog/catalog-thumb';
 import { LinkedPosts } from '@/components/feed/linked-posts';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { CartBar } from '@/components/food/cart-bar';
@@ -134,6 +135,22 @@ export function RestaurantContent({ slug }: RestaurantContentProps) {
                           !item.isAvailable && 'opacity-60',
                         )}
                       >
+                        {/*
+                          Taom rasmi menyuda ENG kuchli ta'sir
+                          qiladigan joy: rasmsiz odam faqat tanish
+                          nomlarni buyurtma qiladi.
+
+                          Rasmsiz taomda esa bo'sh joy qoldirilmaydi —
+                          qator baribir tekis turadi.
+                        */}
+                        {item.image && (
+                          <CatalogThumb
+                            image={item.image}
+                            name={item.name}
+                            className="size-16 shrink-0 rounded-xl"
+                          />
+                        )}
+
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <p className="truncate text-sm font-medium">{item.name}</p>

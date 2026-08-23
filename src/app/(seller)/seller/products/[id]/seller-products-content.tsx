@@ -19,6 +19,7 @@ import { LOW_STOCK_THRESHOLD, stockLabel, stockState } from '@/modules/market/ma
 import { RequireSeller } from '@/modules/seller/require-seller';
 import type { SellerProduct, SellerProductsResponse } from '@/modules/seller/seller.types';
 import { SellerProductSheet } from '@/app/(seller)/seller/products/[id]/seller-product-sheet';
+import { CatalogThumb } from '@/components/catalog/catalog-thumb';
 
 export interface SellerProductsContentProps {
   shopId: string;
@@ -182,6 +183,16 @@ function ProductsBody({ shopId }: SellerProductsContentProps) {
                 className={cn('bg-card border-border rounded-2xl border p-3', !product.isActive && 'opacity-60')}
               >
                 <div className="flex items-start justify-between gap-3">
+                  {/*
+                    Rasm sotuvchiga ham kerak: rasmsiz mahsulotni
+                    ro'yxatdan darhol ko'rish uchun.
+                  */}
+                  <CatalogThumb
+                    image={product.images[0] ?? null}
+                    name={product.name}
+                    className="size-14 shrink-0 rounded-xl"
+                  />
+
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{product.name}</p>
 
@@ -284,6 +295,14 @@ function ProductsBody({ shopId }: SellerProductsContentProps) {
           onSaved={(updated) => {
             replaceProduct(updated);
             setEditing(null);
+          }}
+          /*
+            Rasm o'zgarishi oynani YOPMAYDI: sotuvchi odatda bir
+            necha rasmni ketma-ket qo'shadi.
+          */
+          onImagesChanged={(images) => {
+            setEditing((current) => (current ? { ...current, images } : current));
+            replaceProduct({ ...editing, images });
           }}
         />
       )}

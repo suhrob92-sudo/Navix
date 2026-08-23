@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 
+import { CatalogThumb } from '@/components/catalog/catalog-thumb';
 import { Badge } from '@/components/ui/badge';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
@@ -38,6 +39,23 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
       )}
       style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}
     >
+      {/*
+        Rasm ENG YUQORIDA turadi.
+
+        Xaridor kartochkani o'qimaydi — u avval KO'RADI. Nom va narx
+        rasmdan keyin kelsa, ro'yxatni ko'z bilan tez varaqlash
+        mumkin bo'ladi.
+
+        Birinchi to'rtta rasm darhol yuklanadi: telefonda ekranga
+        odatda shuncha kartochka sig'adi.
+      */}
+      <CatalogThumb
+        image={product.image}
+        name={product.name}
+        eager={index < 4}
+        className="mb-2.5"
+      />
+
       <p className="line-clamp-2 text-sm leading-snug font-medium">{product.name}</p>
 
       {/*

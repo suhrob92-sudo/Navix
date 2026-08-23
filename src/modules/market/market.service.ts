@@ -8,6 +8,12 @@ import { formatTiyin, somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { toSearchText } from '@/lib/search';
 import type { ServiceColor } from '@/config/modules';
+import {
+  GALLERY_SELECT,
+  THUMB_SELECT,
+  toGallery,
+  toThumb,
+} from '@/modules/catalog/catalog-image.select';
 import { resolveVideoSources } from '@/modules/feed/video-stats.service';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { chargeWallet, getOrCreateWallet, refundWallet } from '@/modules/wallet/wallet.service';
@@ -70,6 +76,7 @@ const SHOP_SELECT = {
   ratingCount: true,
   color: true,
   _count: { select: { products: { where: { isActive: true } } } },
+  images: THUMB_SELECT,
 } as const;
 
 type ShopRow = Prisma.ShopGetPayload<{ select: typeof SHOP_SELECT }>;
@@ -88,6 +95,7 @@ function toShopItem(row: ShopRow): ShopListItem {
     ratingCount: row.ratingCount,
     color: row.color as ServiceColor,
     productCount: row._count.products,
+    image: toThumb(row.images),
   };
 }
 
@@ -161,6 +169,7 @@ const PRODUCT_SELECT = {
   stock: true,
   shop: { select: { id: true, slug: true, name: true, color: true, deliveryDays: true } },
   category: { select: { slug: true, name: true } },
+  images: THUMB_SELECT,
 } as const;
 
 type ProductRow = Prisma.ProductGetPayload<{ select: typeof PRODUCT_SELECT }>;
@@ -181,6 +190,7 @@ function toProductItem(row: ProductRow): ProductListItem {
       deliveryDays: row.shop.deliveryDays,
     },
     category: { slug: row.category.slug, name: row.category.name },
+    image: toThumb(row.images),
   };
 }
 
@@ -260,6 +270,7 @@ export async function getProduct(slug: string): Promise<{ product: ProductDetail
       description: true,
       categoryId: true,
       shop: { select: { id: true, slug: true, name: true, color: true, deliveryDays: true, deliveryFee: true, minOrder: true } },
+      images: GALLERY_SELECT,
     },
   });
 
@@ -284,6 +295,7 @@ export async function getProduct(slug: string): Promise<{ product: ProductDetail
     description: row.description,
     shopDeliveryFee: tiyinToNumber(row.shop.deliveryFee),
     shopMinOrder: tiyinToNumber(row.shop.minOrder),
+    images: toGallery(row.images),
   };
 
   return { product, related: related.map(toProductItem) };

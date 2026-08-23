@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { PackageSearch, Star, Truck, ChevronRight } from 'lucide-react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { CatalogThumb } from '@/components/catalog/catalog-thumb';
 import { MarketCartBar } from '@/components/market/market-cart-bar';
 import { ProductCard } from '@/components/market/product-card';
 import { Alert } from '@/components/ui/alert';
@@ -50,7 +51,18 @@ export function ShopContent({ slug }: ShopContentProps) {
         {shop && (
           <>
             <div className="bg-card border-border animate-fade-up rounded-2xl border p-4">
-              <p className="text-sm leading-relaxed">{shop.description}</p>
+              <div className="flex items-start gap-3">
+                {shop.image && (
+                  <CatalogThumb
+                    image={shop.image}
+                    name={shop.name}
+                    eager
+                    className="size-16 shrink-0 rounded-xl"
+                  />
+                )}
+
+                <p className="min-w-0 flex-1 text-sm leading-relaxed">{shop.description}</p>
+              </div>
 
               <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                 <span className="inline-flex items-center gap-1">

@@ -1,6 +1,7 @@
 import { Clock, Star, UtensilsCrossed } from 'lucide-react';
 
 import { ServiceIcon } from '@/components/app/service-icon';
+import { CatalogThumb } from '@/components/catalog/catalog-thumb';
 import { Badge } from '@/components/ui/badge';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
@@ -29,7 +30,23 @@ export function RestaurantCard({ restaurant, index = 0 }: RestaurantCardProps) {
       )}
       style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
     >
-      <ServiceIcon icon={UtensilsCrossed} color={restaurant.color} size="lg" />
+      {/*
+        Rasm bor bo'lsa — RASM, yo'q bo'lsa rangli ikonka.
+
+        Ikonka butunlay olib tashlanmaydi: rasmsiz restoranda
+        kartochka bo'shab qolardi, rangli ikonka esa uni tanib
+        olishga yordam beradi.
+      */}
+      {restaurant.image ? (
+        <CatalogThumb
+          image={restaurant.image}
+          name={restaurant.name}
+          eager={index < 3}
+          className="size-16 shrink-0 rounded-2xl"
+        />
+      ) : (
+        <ServiceIcon icon={UtensilsCrossed} color={restaurant.color} size="lg" />
+      )}
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">

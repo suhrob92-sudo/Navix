@@ -159,6 +159,18 @@ export const PUBLIC_RATE_LIMITS = {
    * sezilmaydi.
    */
   publicCatalog: { limit: 120, windowSeconds: 60 },
+  /**
+   * Katalog rasmlarini boshqarish: daqiqasiga 40 marta.
+   *
+   * ── Nima uchun yuklashdan ALOHIDA chegara ───────────────────────────
+   * `upload` chegarasi faylning O'ZINI yuborishni cheklaydi. Bu yerda
+   * esa faqat manzil biriktiriladi — ya'ni fayl yuklamasdan ham
+   * mingta yozuv yaratib, jadvalni to'ldirish mumkin edi.
+   *
+   * 40 ta — sotuvchi bir mahsulotga 8 ta rasm qo'yib, tartibini bir
+   * necha marta o'zgartirishiga bemalol yetadi.
+   */
+  catalogImage: { limit: 40, windowSeconds: 60 },
   chatOpen: { limit: 60, windowSeconds: 60 * 60 },
   /**
    * Guruh yaratish: soatiga 10 ta.

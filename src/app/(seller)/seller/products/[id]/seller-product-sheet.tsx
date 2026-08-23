@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import { CatalogImageManager } from '@/components/catalog/catalog-image-manager';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
@@ -11,6 +12,7 @@ import { Switch } from '@/components/ui/switch';
 import { useApiClient } from '@/hooks/use-api';
 import { ApiClientError, toUserMessage } from '@/lib/api-client';
 import type { FieldErrors } from '@/lib/api/errors';
+import type { CatalogImageView } from '@/modules/catalog/catalog-image.types';
 import type { SellerCategoryOption, SellerProduct } from '@/modules/seller/seller.types';
 
 /**
@@ -33,6 +35,17 @@ export interface SellerProductSheetProps {
   /** Berilsa — tahrirlash, berilmasa — yangi mahsulot. */
   product?: SellerProduct;
   onSaved: (product: SellerProduct) => void;
+  /**
+   * Rasmlar o'zgarganda chaqiriladi.
+   *
+   * ── Nima uchun `onSaved` dan ALOHIDA ────────────────────────────────
+   * `onSaved` oynani yopadi, chunki forma saqlangandan keyin uni ochiq
+   * qoldirishning ma'nosi yo'q.
+   *
+   * Rasm esa boshqacha: sotuvchi odatda 3-4 rasmni ketma-ket qo'shadi
+   * va har safar oyna yopilsa, uni qaytadan ochish kerak bo'lardi.
+   */
+  onImagesChanged?: (images: CatalogImageView[]) => void;
   onClose: () => void;
 }
 
@@ -94,11 +107,26 @@ function toNumber(value: string): number | null {
   return Number.isFinite(parsed) ? Math.trunc(parsed) : null;
 }
 
-export function SellerProductSheet({ shopId, categories, product, onSaved, onClose }: SellerProductSheetProps) {
+export function SellerProductSheet({
+  shopId,
+  categories,
+  product,
+  onSaved,
+  onImagesChanged,
+  onClose,
+}: SellerProductSheetProps) {
   const isEditing = product !== undefined;
   const request = useApiClient();
 
   const [form, setForm] = useState<FormState>(() => buildInitialState(product, categories));
+  /**
+   * Rasmlar formadan TASHQARIDA saqlanadi.
+   *
+   * Ular "Saqlash" tugmasini kutmaydi: rasm qo'shilishi bilan
+   * serverga yoziladi. Aks holda sotuvchi rasm qo'shib, oynani
+   * yopsa — rasm yo'qolardi.
+   */
+  const [images, setImages] = useState<CatalogImageView[]>(product?.images ?? []);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -259,6 +287,28 @@ export function SellerProductSheet({ shopId, categories, product, onSaved, onClo
               disabled={isSaving}
             />
           </Field>
+
+          {/*
+            Rasmlar faqat TAHRIRLASHDA ko'rinadi.
+
+            Yangi mahsulotda uning ID'si hali yo'q, ya'ni rasmni
+            biriktiradigan joy yo'q. Sotuvchi avval mahsulotni
+            saqlaydi, keyin rasm qo'shadi — bu ketma-ketlik
+            barcha savdo maydonchalarida bir xil.
+          */}
+          {isEditing && (
+            <div className="border-border/60 border-t pt-4">
+              <CatalogImageManager
+                owner="PRODUCT"
+                ownerId={product.id}
+                images={images}
+                onChange={(next) => {
+                  setImages(next);
+                  onImagesChanged?.(next);
+                }}
+              />
+            </div>
+          )}
 
           {isEditing && (
             <div className="border-border/60 border-t pt-4">

@@ -1,4 +1,5 @@
 import type { ServiceColor } from '@/config/modules';
+import type { CatalogImageView, CatalogThumb } from '@/modules/catalog/catalog-image.types';
 import type { OrderCourierView } from '@/modules/food/food.types';
 
 /**
@@ -32,6 +33,8 @@ export interface ShopListItem {
   ratingCount: number;
   color: ServiceColor;
   productCount: number;
+  /** Do'kon rasmi. Rasm qo'yilmagan bo'lsa `null`. */
+  image: CatalogThumb | null;
 }
 
 export interface ProductCategoryView {
@@ -64,6 +67,13 @@ export interface ProductListItem {
     slug: string;
     name: string;
   };
+  /**
+   * Ro'yxatda ko'rsatiladigan ASOSIY rasm.
+   *
+   * Butun galereya emas: 40 ta mahsulotli sahifada bu javobni
+   * bir necha barobar og'irlashtirardi.
+   */
+  image: CatalogThumb | null;
 }
 
 export interface ProductDetail extends ProductListItem {
@@ -71,6 +81,8 @@ export interface ProductDetail extends ProductListItem {
   /** Do'konning yetkazish sharti — mahsulot sahifasida ko'rsatiladi. */
   shopDeliveryFee: number;
   shopMinOrder: number;
+  /** Batafsil sahifadagi butun galereya. */
+  images: CatalogImageView[];
 }
 
 export interface MarketOrderItemView {

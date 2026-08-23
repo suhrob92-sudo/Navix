@@ -23,7 +23,7 @@ import {
  */
 export const dynamic = 'force-dynamic';
 
-const PURPOSES: readonly UploadPurpose[] = ['AVATAR', 'POST', 'CHAT', 'VOICE', 'VIDEO'];
+const PURPOSES: readonly UploadPurpose[] = ['AVATAR', 'POST', 'CHAT', 'VOICE', 'VIDEO', 'CATALOG'];
 
 export const POST = withApiHandler(async (request: NextRequest, { requestId }) => {
   const auth = await requireAuth(request);

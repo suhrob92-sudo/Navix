@@ -1,9 +1,12 @@
 'use client';
 
-import { UtensilsCrossed } from 'lucide-react';
+import { Image as ImageIcon, UtensilsCrossed } from 'lucide-react';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
+import { CatalogImageManager } from '@/components/catalog/catalog-image-manager';
+import { CatalogThumb } from '@/components/catalog/catalog-thumb';
+import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/alert';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,6 +48,8 @@ function MenuBody({ restaurantId }: MerchantMenuContentProps) {
   );
 
   const [savingId, setSavingId] = useState<string | null>(null);
+  /** Qaysi taomning rasmlari ochiq — bir vaqtda faqat bittasi. */
+  const [openImagesId, setOpenImagesId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const items = data?.items ?? [];
@@ -128,11 +133,52 @@ function MenuBody({ restaurantId }: MerchantMenuContentProps) {
                   className={cn('bg-card border-border rounded-2xl border p-3', !item.isAvailable && 'opacity-70')}
                 >
                   <div className="flex items-start justify-between gap-3">
+                    <CatalogThumb
+                      image={item.images[0] ?? null}
+                      name={item.name}
+                      className="size-14 shrink-0 rounded-xl"
+                    />
+
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{item.name}</p>
                       <p className="text-muted-foreground text-sm tabular-nums">{formatTiyin(item.price)}</p>
                     </div>
+
+                    {/*
+                      Rasmlar boshqaruvi YOPIQ turadi.
+
+                      Menyuda 40-50 taom bo'lishi mumkin va har birida
+                      ochiq galereya bo'lsa, sahifa cheksiz uzayib
+                      ketardi.
+                    */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0"
+                      aria-expanded={openImagesId === item.id}
+                      onClick={() => setOpenImagesId((current) => (current === item.id ? null : item.id))}
+                    >
+                      <ImageIcon className="size-4" aria-hidden="true" />
+                      <span className="tabular-nums">{item.images.length}</span>
+                    </Button>
                   </div>
+
+                  {openImagesId === item.id && (
+                    <div className="border-border/60 mt-2.5 border-t pt-2.5">
+                      <CatalogImageManager
+                        owner="MENU_ITEM"
+                        ownerId={item.id}
+                        images={item.images}
+                        onChange={(images) =>
+                          setData((current) => ({
+                            items: (current?.items ?? []).map((row) =>
+                              row.id === item.id ? { ...row, images } : row,
+                            ),
+                          }))
+                        }
+                      />
+                    </div>
+                  )}
 
                   <div className="border-border/60 mt-2.5 border-t pt-2.5">
                     <Switch

@@ -8,6 +8,7 @@ import { formatTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { toSearchText } from '@/lib/search';
 import type { ServiceColor } from '@/config/modules';
+import { THUMB_SELECT, toThumb } from '@/modules/catalog/catalog-image.select';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { chargeWallet, getOrCreateWallet, refundWallet } from '@/modules/wallet/wallet.service';
 import type {
@@ -59,6 +60,7 @@ const RESTAURANT_SELECT = {
   ratingCount: true,
   color: true,
   isOpen: true,
+  images: THUMB_SELECT,
 } as const;
 
 type RestaurantRow = Prisma.RestaurantGetPayload<{ select: typeof RESTAURANT_SELECT }>;
@@ -78,6 +80,7 @@ function toRestaurantItem(row: RestaurantRow): RestaurantListItem {
     ratingCount: row.ratingCount,
     color: row.color as ServiceColor,
     isOpen: row.isOpen,
+    image: toThumb(row.images),
   };
 }
 
@@ -137,7 +140,14 @@ export async function getRestaurant(slug: string): Promise<RestaurantDetail> {
           id: true,
           name: true,
           items: {
-            select: { id: true, name: true, description: true, price: true, isAvailable: true },
+            select: {
+              id: true,
+              name: true,
+              description: true,
+              price: true,
+              isAvailable: true,
+              images: THUMB_SELECT,
+            },
             orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
           },
         },
@@ -162,6 +172,7 @@ export async function getRestaurant(slug: string): Promise<RestaurantDetail> {
         description: item.description,
         price: tiyinToNumber(item.price),
         isAvailable: item.isAvailable,
+        image: toThumb(item.images),
       })),
     }));
 

@@ -703,6 +703,7 @@ model Restaurant {
   business   BusinessProfile?
 
   postLinks PostAttachment[]
+  images    CatalogImage[]
 
   @@index([isActive, sortOrder])
   @@index([ownerId])
@@ -753,6 +754,7 @@ model MenuItem {
   restaurant Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   category   MenuCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   orderItems FoodOrderItem[]
+  images     CatalogImage[]
 
   postLinks PostAttachment[]
 
@@ -1087,6 +1089,7 @@ model Shop {
   products Product[]
   orders   MarketOrder[]
   business BusinessProfile?
+  images   CatalogImage[]
 
   @@index([isActive, sortOrder])
   @@index([ownerId])
@@ -1159,6 +1162,7 @@ model Product {
   shop       Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
   category   ProductCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   orderItems MarketOrderItem[]
+  images     CatalogImage[]
   /// Shu mahsulot biriktirilgan videolar.
   postLinks  PostAttachment[]
   stories    Story[]           @relation("StoryProduct")
@@ -1294,6 +1298,72 @@ enum DeliveryStatus {
 // Mehmonxona (Hotel)
 // ---------------------------------------------------------------------------
 
+/// Katalog rasmi — mahsulot, taom, mehmonxona va boshqalar uchun.
+///
+/// ── Nima uchun BITTA jadval ────────────────────────────────────────────
+/// Yetti jadvalga bittadan `imageUrl` ustuni qo'shish oson edi, lekin
+/// unda galereya bo'lmasdi, tartibni o'zgartirib bo'lmasdi va rasm
+/// boshqaruvi kodi yetti marta takrorlanardi.
+///
+/// Sabab va tanlov `config/catalog-image.ts` da batafsil yozilgan.
+model CatalogImage {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Saqlangan rasm manzili.
+  url String @db.VarChar(500)
+
+  /// Rasm tavsifi — ekranni o'quvchi dastur shuni o'qiydi.
+  ///
+  /// Bo'sh qoldirilmaydi: bo'sh tavsif ko'zi ojiz odamga "rasm" deb
+  /// eshitiladi va hech qanday ma'lumot bermaydi. Berilmasa, nomdan
+  /// yasaladi.
+  alt String @db.VarChar(120)
+
+  /// Tartib raqami — kichigi birinchi turadi.
+  ///
+  /// Vaqt bo'yicha tartiblash yaramaydi: sotuvchi eng yaxshi rasmni
+  /// birinchi qilish uchun qolganlarini qaytadan yuklashi kerak
+  /// bo'lardi.
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  /// ── Egasi: FAQAT BITTASI to'ldiriladi ──────────────────────────────
+  ///
+  /// Bazada CHECK cheklovi bor: bir vaqtda bittadan ortiq ustun
+  /// to'ldirilsa, yozuv rad etiladi.
+  ///
+  /// Bu "umumiy" (polimorf) jadvaldan farqi: bu yerda har bir
+  /// bog'liqlik BAZA darajasida qulflangan. Mahsulot o'chirilsa,
+  /// uning rasmlari ham o'chadi — jadvalda yetim yozuv qolmaydi.
+  productId    String? @db.Uuid
+  menuItemId   String? @db.Uuid
+  hotelId      String? @db.Uuid
+  hotelRoomId  String? @db.Uuid
+  restaurantId String? @db.Uuid
+  shopId       String? @db.Uuid
+  companyId    String? @db.Uuid
+
+  product    Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem?   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  hotel      Hotel?      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  hotelRoom  HotelRoom?  @relation(fields: [hotelRoomId], references: [id], onDelete: Cascade)
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  shop       Shop?       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  company    Company?    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  /// Har bir tur uchun alohida indeks: ro'yxatda rasm tartib bo'yicha
+  /// o'qiladi va indekssiz butun jadval skanerlanardi.
+  @@index([productId, sortOrder])
+  @@index([menuItemId, sortOrder])
+  @@index([hotelId, sortOrder])
+  @@index([hotelRoomId, sortOrder])
+  @@index([restaurantId, sortOrder])
+  @@index([shopId, sortOrder])
+  @@index([companyId, sortOrder])
+  @@map("catalog_images")
+}
+
 /// Mehmonxona.
 model Hotel {
   id String @id @default(uuid()) @db.Uuid
@@ -1331,6 +1401,7 @@ model Hotel {
   rooms HotelRoom[]
 
   postLinks PostAttachment[]
+  images    CatalogImage[]
 
   @@index([city, isActive])
   @@index([searchName])
@@ -1367,6 +1438,7 @@ model HotelRoom {
 
   hotel    Hotel          @relation(fields: [hotelId], references: [id], onDelete: Cascade)
   bookings HotelBooking[]
+  images   CatalogImage[]
 
   @@index([hotelId, isActive])
   @@map("hotel_rooms")
@@ -1622,8 +1694,9 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  owner     User?     @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  owner     User?          @relation("CompanyOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   vacancies Vacancy[]
+  images    CatalogImage[]
 
   @@index([isActive, sortOrder])
   @@index([ownerId])

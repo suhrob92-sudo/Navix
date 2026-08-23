@@ -4,6 +4,7 @@ import { logger } from '@/lib/logger';
 import { tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import type { ServiceColor } from '@/config/modules';
+import { THUMB_SELECT, toThumb } from '@/modules/catalog/catalog-image.select';
 import type {
   BusinessCatalogItem,
   BusinessFollowResponse,
@@ -46,6 +47,7 @@ const BUSINESS_SELECT = {
       ratingCount: true,
       isOpen: true,
       ownerId: true,
+      images: THUMB_SELECT,
     },
   },
   shop: {
@@ -59,6 +61,7 @@ const BUSINESS_SELECT = {
       ratingCount: true,
       isOpen: true,
       ownerId: true,
+      images: THUMB_SELECT,
     },
   },
 } as const;
@@ -89,6 +92,7 @@ async function loadMenuItems(restaurantId: string): Promise<BusinessCatalogItem[
       description: true,
       price: true,
       category: { select: { name: true } },
+      images: THUMB_SELECT,
     },
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     take: MAX_CATALOG_ITEMS,
@@ -102,6 +106,7 @@ async function loadMenuItems(restaurantId: string): Promise<BusinessCatalogItem[
     description: row.description,
     priceTiyin: tiyinToNumber(row.price),
     categoryName: row.category?.name ?? null,
+    image: toThumb(row.images),
   }));
 }
 
@@ -116,6 +121,7 @@ async function loadProducts(shopId: string): Promise<BusinessCatalogItem[]> {
       description: true,
       price: true,
       category: { select: { name: true } },
+      images: THUMB_SELECT,
     },
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     take: MAX_CATALOG_ITEMS,
@@ -128,6 +134,7 @@ async function loadProducts(shopId: string): Promise<BusinessCatalogItem[]> {
     description: row.description,
     priceTiyin: tiyinToNumber(row.price),
     categoryName: row.category?.name ?? null,
+    image: toThumb(row.images),
   }));
 }
 
@@ -192,6 +199,7 @@ export async function getBusinessProfile(slug: string, viewerId: string): Promis
     isOwner: entity.ownerId !== null && entity.ownerId === viewerId,
     orderUrl: kind === 'RESTAURANT' ? `/food/${entity.slug}` : `/marketplace/s/${entity.slug}`,
     items,
+    image: toThumb(entity.images),
   };
 }
 

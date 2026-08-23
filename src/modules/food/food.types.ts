@@ -1,4 +1,5 @@
 import type { ServiceColor } from '@/config/modules';
+import type { CatalogThumb } from '@/modules/catalog/catalog-image.types';
 import type { DeliveryStatusName } from '@/modules/courier/courier.types';
 
 /**
@@ -24,6 +25,8 @@ export interface RestaurantListItem {
   ratingCount: number;
   color: ServiceColor;
   isOpen: boolean;
+  /** Restoran rasmi. Rasm qo'yilmagan bo'lsa `null`. */
+  image: CatalogThumb | null;
 }
 
 export interface MenuItemView {
@@ -33,6 +36,13 @@ export interface MenuItemView {
   /** Narx TIYINDA. */
   price: number;
   isAvailable: boolean;
+  /**
+   * Taom rasmi.
+   *
+   * Menyuda rasm eng kuchli ta'sir qiladigan joy: odam taomni
+   * ko'rmasa, tanish nomlarnigina buyurtma qiladi.
+   */
+  image: CatalogThumb | null;
 }
 
 export interface MenuCategoryView {
