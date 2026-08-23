@@ -6,12 +6,14 @@ import { PackageSearch, Star, Truck, ChevronRight } from 'lucide-react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
+import { ReviewSection } from '@/components/review/review-section';
 import { MarketCartBar } from '@/components/market/market-cart-bar';
 import { ProductCard } from '@/components/market/product-card';
 import { Alert } from '@/components/ui/alert';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiQuery } from '@/hooks/use-api';
+import { formatRating } from '@/config/review';
 import { formatTiyin } from '@/lib/money';
 import type { ShopResponse } from '@/modules/market/market.types';
 
@@ -67,7 +69,9 @@ export function ShopContent({ slug }: ShopContentProps) {
               <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
                 <span className="inline-flex items-center gap-1">
                   <Star className="size-3.5" aria-hidden="true" />
-                  {`${shop.rating.toFixed(1)} (${shop.ratingCount})`}
+                  {shop.ratingCount > 0
+                    ? `${formatRating(shop.rating, shop.ratingCount)} (${shop.ratingCount})`
+                    : formatRating(shop.rating, shop.ratingCount)}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Truck className="size-3.5" aria-hidden="true" />
@@ -100,6 +104,13 @@ export function ShopContent({ slug }: ShopContentProps) {
                 ))}
               </div>
             )}
+
+            <ReviewSection
+              target="SHOP"
+              targetId={shop.id}
+              title="Do'kon haqida"
+              className="mt-6"
+            />
           </>
         )}
       </div>

@@ -169,6 +169,8 @@ const PRODUCT_SELECT = {
   stock: true,
   shop: { select: { id: true, slug: true, name: true, color: true, deliveryDays: true } },
   category: { select: { slug: true, name: true } },
+  rating: true,
+  ratingCount: true,
   images: THUMB_SELECT,
 } as const;
 
@@ -190,6 +192,9 @@ function toProductItem(row: ProductRow): ProductListItem {
       deliveryDays: row.shop.deliveryDays,
     },
     category: { slug: row.category.slug, name: row.category.name },
+    // `Decimal` JSON'ga tushmaydi — songa o'giramiz (bu PUL emas).
+    rating: Number(row.rating),
+    ratingCount: row.ratingCount,
     image: toThumb(row.images),
   };
 }
@@ -319,7 +324,14 @@ const ORDER_SELECT = {
   cancelledAt: true,
   shop: { select: { id: true, slug: true, name: true, color: true, deliveryDays: true } },
   items: {
-    select: { id: true, name: true, unitPrice: true, quantity: true, lineTotal: true },
+    /**
+     * `productId` BAHO uchun kerak.
+     *
+     * U bo'sh bo'lishi mumkin: mahsulot katalogdan o'chirilgan
+     * bo'lsa ham buyurtma tarixi qoladi (nomi va narxi nusxa
+     * qilingan). Bunday qatorga baho qo'yib bo'lmaydi.
+     */
+    select: { id: true, name: true, unitPrice: true, quantity: true, lineTotal: true, productId: true },
     orderBy: { name: 'asc' as const },
   },
   delivery: {
@@ -381,6 +393,7 @@ function toOrderView(row: OrderRow): MarketOrderView {
       unitPrice: tiyinToNumber(item.unitPrice),
       quantity: item.quantity,
       lineTotal: tiyinToNumber(item.lineTotal),
+      productId: item.productId,
     })),
     courier: toCourierView(row.delivery),
   };

@@ -7,6 +7,8 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
+import { RatingStars } from '@/components/review/rating-stars';
+import { ReviewSection } from '@/components/review/review-section';
 import { LinkedPosts } from '@/components/feed/linked-posts';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { CartBar } from '@/components/food/cart-bar';
@@ -17,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiQuery } from '@/hooks/use-api';
+import { formatRating } from '@/config/review';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { MAX_ITEM_QUANTITY } from '@/modules/food/food.schemas';
@@ -83,8 +86,16 @@ export function RestaurantContent({ slug }: RestaurantContentProps) {
 
                 <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                   <span className="text-foreground inline-flex items-center gap-1 font-medium">
-                    <Star className="size-3.5 fill-current text-amber-500" aria-hidden="true" />
-                    {restaurant.rating.toFixed(1)}
+                    <Star
+                      className={cn(
+                        'size-3.5',
+                        restaurant.ratingCount > 0
+                          ? 'fill-current text-amber-500'
+                          : 'text-muted-foreground/40',
+                      )}
+                      aria-hidden="true"
+                    />
+                    {formatRating(restaurant.rating, restaurant.ratingCount)}
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <Clock className="size-3.5" aria-hidden="true" />
@@ -165,6 +176,16 @@ export function RestaurantContent({ slug }: RestaurantContentProps) {
                             <p className="text-muted-foreground truncate text-xs">{item.description}</p>
                           )}
 
+                          {/* Baho faqat bor bo'lganda — sabab `ProductCard` da. */}
+                          {item.ratingCount > 0 && (
+                            <span className="mt-1 flex items-center gap-1">
+                              <RatingStars value={item.rating} />
+                              <span className="text-muted-foreground text-xs tabular-nums">
+                                {`(${item.ratingCount})`}
+                              </span>
+                            </span>
+                          )}
+
                           <p className="mt-1 text-sm font-semibold tabular-nums">{formatTiyin(item.price)}</p>
                         </div>
 
@@ -193,6 +214,13 @@ export function RestaurantContent({ slug }: RestaurantContentProps) {
                 </ul>
               </section>
             ))}
+
+            <ReviewSection
+              target="RESTAURANT"
+              targetId={restaurant.id}
+              title="Restoran haqida"
+              className="mt-6"
+            />
 
             <div className="mt-6">
               <LinkedPosts kind="RESTAURANT" targetId={restaurant.id} />

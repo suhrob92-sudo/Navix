@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
 import { Badge } from '@/components/ui/badge';
+import { formatRating } from '@/config/review';
 import { formatTiyin } from '@/lib/money';
 import { formatStars, type HotelListItem } from '@/modules/hotel/hotel.types';
 
@@ -57,7 +58,7 @@ export function HotelCard({ hotel, dates, index = 0 }: HotelCardProps) {
         {hotel.ratingCount > 0 && (
           <Badge variant="secondary" className="shrink-0 gap-1">
             <Star className="size-3 fill-current" aria-hidden="true" />
-            {hotel.rating.toFixed(1)}
+            {formatRating(hotel.rating, hotel.ratingCount)}
           </Badge>
         )}
       </div>

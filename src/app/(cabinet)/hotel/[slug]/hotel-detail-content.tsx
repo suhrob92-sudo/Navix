@@ -8,6 +8,7 @@ import { AppHeader } from '@/components/app/app-header';
 import { LinkedPosts } from '@/components/feed/linked-posts';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { CatalogGallery } from '@/components/catalog/catalog-gallery';
+import { ReviewSection } from '@/components/review/review-section';
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -295,6 +296,8 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
                 })}
               </ul>
             </section>
+
+            <ReviewSection target="HOTEL" targetId={hotel.id} title="Mehmonlar bahosi" />
 
             <LinkedPosts kind="HOTEL" targetId={hotel.id} />
           </>

@@ -36,6 +36,9 @@ export interface MenuItemView {
   /** Narx TIYINDA. */
   price: number;
   isAvailable: boolean;
+  /** Sharhlardan hisoblangan reyting. `ratingCount` 0 bo'lsa baho yo'q. */
+  rating: number;
+  ratingCount: number;
   /**
    * Taom rasmi.
    *
@@ -62,6 +65,8 @@ export interface FoodOrderItemView {
   unitPrice: number;
   quantity: number;
   lineTotal: number;
+  /** Menyudagi taom — baho qo'yish uchun. Izohi `MarketOrderItemView` da. */
+  menuItemId: string | null;
 }
 
 export interface FoodOrderView {

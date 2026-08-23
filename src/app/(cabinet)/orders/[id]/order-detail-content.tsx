@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { AppHeader } from '@/components/app/app-header';
 import { OrderCourierCard } from '@/components/app/order-courier-card';
 import { ServiceIcon } from '@/components/app/service-icon';
+import { InlineReview } from '@/components/review/inline-review';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -119,14 +120,33 @@ export function OrderDetailContent({ orderId }: OrderDetailContentProps) {
 
               <ul className="mt-3 space-y-2.5">
                 {order.items.map((item) => (
-                  <li key={item.id} className="flex items-baseline justify-between gap-3 text-sm">
-                    <span className="min-w-0">
-                      <span className="block truncate">{item.name}</span>
-                      <span className="text-muted-foreground text-xs tabular-nums">
-                        {`${formatTiyin(item.unitPrice)} × ${item.quantity}`}
+                  <li key={item.id} className="text-sm">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0">
+                        <span className="block truncate">{item.name}</span>
+                        <span className="text-muted-foreground text-xs tabular-nums">
+                          {`${formatTiyin(item.unitPrice)} × ${item.quantity}`}
+                        </span>
                       </span>
-                    </span>
-                    <span className="shrink-0 tabular-nums">{formatTiyin(item.lineTotal)}</span>
+                      <span className="shrink-0 tabular-nums">{formatTiyin(item.lineTotal)}</span>
+                    </div>
+
+                    {/*
+                      Baho aynan SHU YERDA so'raladi: odam taomni
+                      yegandan keyin uni menyudan qidirib topib
+                      baho qo'yishga bormaydi.
+
+                      Menyudan o'chirilgan taomga (`menuItemId`
+                      bo'sh) baho qo'yib bo'lmaydi.
+                    */}
+                    {item.menuItemId && (
+                      <InlineReview
+                        target="MENU_ITEM"
+                        targetId={item.menuItemId}
+                        name={item.name}
+                        className="mt-1"
+                      />
+                    )}
                   </li>
                 ))}
               </ul>

@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { OrderCourierCard } from '@/components/app/order-courier-card';
+import { InlineReview } from '@/components/review/inline-review';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -149,14 +150,26 @@ export function MarketOrderDetailContent({ orderId }: MarketOrderDetailContentPr
 
               <ul className="mt-3 space-y-3">
                 {order.items.map((item) => (
-                  <li key={item.id} className="flex items-baseline justify-between gap-3">
-                    <span className="min-w-0">
-                      <span className="text-sm font-medium tabular-nums">{`${item.quantity} × `}</span>
-                      <span className="text-sm">{item.name}</span>
-                    </span>
-                    <span className="text-muted-foreground shrink-0 text-sm tabular-nums">
-                      {formatTiyin(item.lineTotal)}
-                    </span>
+                  <li key={item.id}>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0">
+                        <span className="text-sm font-medium tabular-nums">{`${item.quantity} × `}</span>
+                        <span className="text-sm">{item.name}</span>
+                      </span>
+                      <span className="text-muted-foreground shrink-0 text-sm tabular-nums">
+                        {formatTiyin(item.lineTotal)}
+                      </span>
+                    </div>
+
+                    {/* Baho buyurtma sahifasida so'raladi — sabab `InlineReview` da. */}
+                    {item.productId && (
+                      <InlineReview
+                        target="PRODUCT"
+                        targetId={item.productId}
+                        name={item.name}
+                        className="mt-1"
+                      />
+                    )}
                   </li>
                 ))}
               </ul>

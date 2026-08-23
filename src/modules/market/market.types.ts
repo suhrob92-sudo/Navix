@@ -67,6 +67,9 @@ export interface ProductListItem {
     slug: string;
     name: string;
   };
+  /** Sharhlardan hisoblangan reyting. `ratingCount` 0 bo'lsa baho yo'q. */
+  rating: number;
+  ratingCount: number;
   /**
    * Ro'yxatda ko'rsatiladigan ASOSIY rasm.
    *
@@ -92,6 +95,14 @@ export interface MarketOrderItemView {
   unitPrice: number;
   quantity: number;
   lineTotal: number;
+  /**
+   * Katalogdagi mahsulot — baho qo'yish uchun.
+   *
+   * `null` bo'lishi mumkin: mahsulot katalogdan o'chirilgan bo'lsa
+   * ham buyurtma tarixi qoladi (nomi va narxi nusxa qilingan).
+   * Bunday qatorga baho qo'yib bo'lmaydi.
+   */
+  productId: string | null;
 }
 
 export interface MarketOrderView {

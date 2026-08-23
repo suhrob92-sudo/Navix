@@ -171,6 +171,18 @@ export const PUBLIC_RATE_LIMITS = {
    * necha marta o'zgartirishiga bemalol yetadi.
    */
   catalogImage: { limit: 40, windowSeconds: 60 },
+  /**
+   * Baho qo'yish: daqiqasiga 20 marta.
+   *
+   * ── Nima uchun bunchalik past ───────────────────────────────────────
+   * Odam bir daqiqada yigirmata narsaga baho qo'ya olmaydi — u
+   * ularni sotib olgan ham bo'lmaydi.
+   *
+   * Chegara asosan takroriy bosishdan himoya qiladi: fikrini
+   * o'zgartirib, yulduzni bir necha marta bosgan odam ham
+   * bemalol sig'adi.
+   */
+  review: { limit: 20, windowSeconds: 60 },
   chatOpen: { limit: 60, windowSeconds: 60 * 60 },
   /**
    * Guruh yaratish: soatiga 10 ta.

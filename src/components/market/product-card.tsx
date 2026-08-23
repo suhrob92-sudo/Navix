@@ -3,7 +3,9 @@
 import Link from 'next/link';
 
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
+import { RatingStars } from '@/components/review/rating-stars';
 import { Badge } from '@/components/ui/badge';
+import { formatRating } from '@/config/review';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { stockLabel, stockState, type ProductListItem } from '@/modules/market/market.types';
@@ -72,6 +74,21 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           </span>
         )}
       </div>
+
+      {/*
+        Baho FAQAT bor bo'lganda ko'rinadi.
+
+        "0.0" yozuvi yangi mahsulotni eng yomon mahsulotdek
+        ko'rsatardi — holbuki unga hali hech kim baho qo'ymagan.
+      */}
+      {product.ratingCount > 0 && (
+        <span className="mt-1.5 flex items-center gap-1">
+          <RatingStars value={product.rating} />
+          <span className="text-muted-foreground text-xs tabular-nums">
+            {`${formatRating(product.rating, product.ratingCount)} (${product.ratingCount})`}
+          </span>
+        </span>
+      )}
 
       <p className="text-muted-foreground mt-1.5 truncate text-xs">{product.shop.name}</p>
 

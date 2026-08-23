@@ -146,6 +146,8 @@ export async function getRestaurant(slug: string): Promise<RestaurantDetail> {
               description: true,
               price: true,
               isAvailable: true,
+              rating: true,
+              ratingCount: true,
               images: THUMB_SELECT,
             },
             orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
@@ -172,6 +174,9 @@ export async function getRestaurant(slug: string): Promise<RestaurantDetail> {
         description: item.description,
         price: tiyinToNumber(item.price),
         isAvailable: item.isAvailable,
+        // `Decimal` JSON'ga tushmaydi — songa o'giramiz (bu PUL emas).
+        rating: Number(item.rating),
+        ratingCount: item.ratingCount,
         image: toThumb(item.images),
       })),
     }));
@@ -196,7 +201,8 @@ const ORDER_SELECT = {
   cancelledAt: true,
   restaurant: { select: { id: true, slug: true, name: true, color: true, deliveryMinutes: true } },
   items: {
-    select: { id: true, name: true, unitPrice: true, quantity: true, lineTotal: true },
+    /** `menuItemId` baho uchun. Izohi `market.service.ts` da. */
+    select: { id: true, name: true, unitPrice: true, quantity: true, lineTotal: true, menuItemId: true },
     orderBy: { name: 'asc' as const },
   },
   delivery: {
@@ -258,6 +264,7 @@ function toOrderView(row: OrderRow): FoodOrderView {
       unitPrice: tiyinToNumber(item.unitPrice),
       quantity: item.quantity,
       lineTotal: tiyinToNumber(item.lineTotal),
+      menuItemId: item.menuItemId,
     })),
     courier: toCourierView(row.delivery),
   };

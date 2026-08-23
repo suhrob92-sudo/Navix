@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { CatalogGallery } from '@/components/catalog/catalog-gallery';
+import { ReviewSection } from '@/components/review/review-section';
 import { LinkedPosts } from '@/components/feed/linked-posts';
 import { MarketCartBar } from '@/components/market/market-cart-bar';
 import { ProductCard } from '@/components/market/product-card';
@@ -159,6 +160,8 @@ export function ProductContent({ slug }: ProductContentProps) {
                 </Button>
               </div>
             )}
+
+            <ReviewSection target="PRODUCT" targetId={product.id} title="Xaridorlar bahosi" />
 
             <LinkedPosts kind="PRODUCT" targetId={product.id} />
 

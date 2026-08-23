@@ -19,6 +19,7 @@ import { useState } from 'react';
 import { AppHeader } from '@/components/app/app-header';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
+import { formatRating } from '@/config/review';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -194,10 +195,20 @@ export function BusinessProfileContent({ slug }: BusinessProfileContentProps) {
                 </div>
                 <div className="text-center">
                   <p className="flex items-center justify-center gap-1 text-base font-semibold tabular-nums">
-                    <Star className="size-3.5 fill-current text-amber-500" aria-hidden="true" />
-                    {business.rating.toFixed(1)}
+                    <Star
+                      className={cn(
+                        'size-3.5',
+                        business.ratingCount > 0
+                          ? 'fill-current text-amber-500'
+                          : 'text-muted-foreground/40',
+                      )}
+                      aria-hidden="true"
+                    />
+                    {formatRating(business.rating, business.ratingCount)}
                   </p>
-                  <p className="text-muted-foreground text-xs">{`${formatCount(business.ratingCount)} sharh`}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {business.ratingCount > 0 ? `${formatCount(business.ratingCount)} baho` : 'Baholar'}
+                  </p>
                 </div>
               </div>
 

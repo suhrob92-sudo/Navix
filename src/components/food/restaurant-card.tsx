@@ -3,6 +3,7 @@ import { Clock, Star, UtensilsCrossed } from 'lucide-react';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
 import { Badge } from '@/components/ui/badge';
+import { formatRating } from '@/config/review';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import type { RestaurantListItem } from '@/modules/food/food.types';
@@ -61,10 +62,22 @@ export function RestaurantCard({ restaurant, index = 0 }: RestaurantCardProps) {
         <p className="text-muted-foreground truncate text-xs">{restaurant.description}</p>
 
         <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+          {/*
+            Bahosi yo'q restoran "0.0" deb ko'rsatilsa, u ENG YOMON
+            restorandek ko'rinardi — holbuki u shunchaki yangi.
+          */}
           <span className="text-foreground inline-flex items-center gap-1 font-medium">
-            <Star className="size-3.5 fill-current text-amber-500" aria-hidden="true" />
-            {restaurant.rating.toFixed(1)}
-            <span className="text-muted-foreground font-normal">({restaurant.ratingCount})</span>
+            <Star
+              className={cn(
+                'size-3.5',
+                restaurant.ratingCount > 0 ? 'fill-current text-amber-500' : 'text-muted-foreground/40',
+              )}
+              aria-hidden="true"
+            />
+            {formatRating(restaurant.rating, restaurant.ratingCount)}
+            {restaurant.ratingCount > 0 && (
+              <span className="text-muted-foreground font-normal">({restaurant.ratingCount})</span>
+            )}
           </span>
 
           <span className="inline-flex items-center gap-1">

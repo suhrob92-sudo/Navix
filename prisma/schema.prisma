@@ -292,6 +292,8 @@ model User {
   applications      JobApplication[]
   parcels           Parcel[]
   bookings          HotelBooking[]
+  /// Yozgan baholari — hisob o'chirilsa ular ham o'chadi.
+  reviewsWritten    Review[]        @relation("ReviewsWritten")
   tickets           TripBooking[]
   following         Follow[]             @relation("Following")
   followers         Follow[]             @relation("Followers")
@@ -708,6 +710,7 @@ model Restaurant {
   @@index([isActive, sortOrder])
   @@index([ownerId])
   @@index([searchName])
+  reviews    Review[]
   @@map("restaurants")
 }
 
@@ -744,6 +747,10 @@ model MenuItem {
   /// Izohi `Restaurant.searchName` da.
   searchName String @db.VarChar(200)
 
+  /// Reyting — sharhlardan hisoblanadi. Izohi `Product.rating` da.
+  rating      Decimal @default(0) @db.Decimal(2, 1)
+  ratingCount Int     @default(0)
+
   /// Tugab qolgan bo'lsa `false` — menyuda ko'rinadi, lekin tanlab bo'lmaydi.
   isAvailable Boolean @default(true)
   sortOrder   Int     @default(100)
@@ -755,6 +762,7 @@ model MenuItem {
   category   MenuCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   orderItems FoodOrderItem[]
   images     CatalogImage[]
+  reviews    Review[]
 
   postLinks PostAttachment[]
 
@@ -818,6 +826,8 @@ model FoodOrder {
   @@index([restaurantId])
   /// Manzil o'chirilganda unga bog'langan buyurtmalar tekshiriladi.
   @@index([addressId])
+  /// Shu buyurtma tasdiqlagan sharhlar.
+  reviews    Review[]
   @@map("food_orders")
 }
 
@@ -1094,6 +1104,7 @@ model Shop {
   @@index([isActive, sortOrder])
   @@index([ownerId])
   @@index([searchName])
+  reviews  Review[]
   @@map("shops")
 }
 
@@ -1153,6 +1164,17 @@ model Product {
   /// oxirgi mahsulotni sotib olardi.
   stock Int @default(0)
 
+  /// ── Reyting — SHARHLARDAN hisoblanadi, qo'lda yozilmaydi ────────────
+  /// Bu ustunlar `reviews` jadvalidan olingan natijaning NUSXASI.
+  /// Ular bo'lmasa, katalogdagi har bir mahsulot uchun alohida
+  /// hisob-kitob so'rovi ketardi va 40 mahsulotli sahifa 40 marta
+  /// sanashga majbur bo'lardi.
+  ///
+  /// Nusxa har bir sharh yozilganda BIR TRANZAKSIYADA yangilanadi —
+  /// shuning uchun u haqiqatdan orqada qolmaydi.
+  rating      Decimal @default(0) @db.Decimal(2, 1)
+  ratingCount Int     @default(0)
+
   isActive  Boolean @default(true)
   sortOrder Int     @default(100)
 
@@ -1163,6 +1185,7 @@ model Product {
   category   ProductCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   orderItems MarketOrderItem[]
   images     CatalogImage[]
+  reviews    Review[]
   /// Shu mahsulot biriktirilgan videolar.
   postLinks  PostAttachment[]
   stories    Story[]           @relation("StoryProduct")
@@ -1219,6 +1242,8 @@ model MarketOrder {
   @@index([status])
   /// Manzil o'chirilganda tekshiriladi.
   @@index([addressId])
+  /// Shu buyurtma tasdiqlagan sharhlar.
+  reviews  Review[]
   @@map("market_orders")
 }
 
@@ -1364,6 +1389,106 @@ model CatalogImage {
   @@map("catalog_images")
 }
 
+/// Baho va sharh.
+///
+/// ── Modulning ASOSIY qoidasi: faqat HAQIQIY xaridor ───────────────────
+/// Baho qo'yish uchun odam shu narsani sotib olgan bo'lishi SHART.
+/// Ochiq baho tizimi bir hafta ichida buziladi: sotuvchi o'ziga
+/// o'nta hisob ochib 5 baho qo'yadi, raqobatchi ham o'nta hisob
+/// ochib 1 baho qo'yadi va reyting yana ma'nosiz songa aylanadi.
+///
+/// Sabab va qoidalar `src/config/review.ts` da batafsil.
+model Review {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Kim yozgan.
+  ///
+  /// Foydalanuvchi hisobini o'chirsa, sharhlari ham o'chadi va
+  /// reyting qayta hisoblanadi. Egasiz sharh qolib ketishi
+  /// mumkin emas: uni hech kim tekshira olmasdi.
+  authorId String @db.Uuid
+
+  /// Baho: 1 dan 5 gacha. Cheklov bazada ham bor.
+  rating Int @db.SmallInt
+
+  /// Sharh matni — IXTIYORIY.
+  ///
+  /// Odamlarning katta qismi yozishni xohlamaydi, lekin yulduz
+  /// bosishga rozi. Matn majburiy bo'lsa, bahoni ham yo'qotardik.
+  body String? @db.VarChar(1000)
+
+  /// ── Nimaga baho: FAQAT BITTASI to'ldiriladi ────────────────────────
+  ///
+  /// Bazada CHECK cheklovi bor (`reviews_single_target`). Bu
+  /// "umumiy" (polimorf) jadvaldan farqi: bog'liqlik BAZA darajasida
+  /// qulflangan, ya'ni mahsulot o'chirilsa sharhlari ham o'chadi.
+  productId    String? @db.Uuid
+  menuItemId   String? @db.Uuid
+  restaurantId String? @db.Uuid
+  shopId       String? @db.Uuid
+  hotelId      String? @db.Uuid
+
+  /// ── QAYSI buyurtma bu bahoni tasdiqladi ────────────────────────────
+  ///
+  /// Dalil saqlanadi: buyurtma keyinchalik qaytarilsa yoki
+  /// firibgarlik aniqlansa, o'sha bahoni topish mumkin bo'ladi.
+  ///
+  /// Buyurtma o'chirilsa dalil `null` bo'ladi, sharh esa qoladi —
+  /// aks holda eski sharhlar buyurtmalar tozalanganda birdan
+  /// yo'q bo'lib ketardi.
+  marketOrderId String? @db.Uuid
+  foodOrderId   String? @db.Uuid
+  bookingId     String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author User @relation("ReviewsWritten", fields: [authorId], references: [id], onDelete: Cascade)
+
+  product    Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem?   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  shop       Shop?       @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  hotel      Hotel?      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+
+  marketOrder MarketOrder?  @relation(fields: [marketOrderId], references: [id], onDelete: SetNull)
+  foodOrder   FoodOrder?    @relation(fields: [foodOrderId], references: [id], onDelete: SetNull)
+  booking     HotelBooking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  reports UserReport[] @relation("ReviewReports")
+
+  /// ── Bitta odam bitta narsaga BIR MARTA baho qo'yadi ────────────────
+  ///
+  /// Postgres bo'sh (`NULL`) qiymatlarni bir-biridan FARQLI deb
+  /// hisoblaydi. Ya'ni taomga yozilgan sharhda `productId` bo'sh
+  /// bo'lgani uchun mahsulot cheklovi unga umuman ta'sir qilmaydi.
+  ///
+  /// Shu sababli beshta alohida cheklov beshta turni mustaqil
+  /// qulflaydi va qo'shimcha jadval kerak bo'lmaydi.
+  @@unique([authorId, productId])
+  @@unique([authorId, menuItemId])
+  @@unique([authorId, restaurantId])
+  @@unique([authorId, shopId])
+  @@unique([authorId, hotelId])
+
+  /// Ro'yxat: eng yangi sharh birinchi.
+  @@index([productId, createdAt])
+  @@index([menuItemId, createdAt])
+  @@index([restaurantId, createdAt])
+  @@index([shopId, createdAt])
+  @@index([hotelId, createdAt])
+
+  /// "Mening sharhlarim" va hisob o'chirilganda tozalash.
+  @@index([authorId, createdAt])
+
+  /// Buyurtma o'chirilganda dalil bo'shatiladi — indekssiz bu
+  /// butun jadvalni skanerlardi.
+  @@index([marketOrderId])
+  @@index([foodOrderId])
+  @@index([bookingId])
+  @@map("reviews")
+}
+
 /// Mehmonxona.
 model Hotel {
   id String @id @default(uuid()) @db.Uuid
@@ -1405,6 +1530,7 @@ model Hotel {
 
   @@index([city, isActive])
   @@index([searchName])
+  reviews   Review[]
   @@map("hotels")
 }
 
@@ -1492,6 +1618,8 @@ model HotelBooking {
   /// Bo'sh joy tekshiruvi: xona + sana oralig'i bo'yicha qidiriladi.
   @@index([roomId, checkIn, checkOut])
   @@index([userId, createdAt])
+  /// Shu bandlov tasdiqlagan sharhlar.
+  reviews Review[]
   @@map("hotel_bookings")
 }
 
@@ -2849,6 +2977,15 @@ model UserReport {
   commentId String?      @db.Uuid
   comment   PostComment? @relation("CommentReports", fields: [commentId], references: [id], onDelete: Cascade)
 
+  /// Shikoyat aynan QAYSI baho haqida (bo'lsa).
+  ///
+  /// ── Nima uchun kerak ────────────────────────────────────────────────
+  /// Baho tizimining eng nozik joyi — haqoratli sharh. Uni faqat
+  /// muallif haqida umumiy shikoyat bilan bildirish mumkin edi va
+  /// moderator qaysi sharh haqida ekanini topa olmasdi.
+  reviewId String? @db.Uuid
+  review   Review? @relation("ReviewReports", fields: [reviewId], references: [id], onDelete: Cascade)
+
   /// Shikoyat aynan QAYSI hikoya haqida (bo'lsa).
   ///
   /// Hikoya 24 soatdan keyin ko'rinmay qoladi, lekin YOZUVI qoladi —
@@ -2876,6 +3013,7 @@ model UserReport {
   @@unique([reporterId, postId])
   @@unique([reporterId, commentId])
   @@unique([reporterId, storyId])
+  @@unique([reporterId, reviewId])
   /// Moderator ro'yxati uchun: yangi shikoyatlar birinchi.
   @@index([status, createdAt])
   @@index([targetId])
@@ -2885,6 +3023,8 @@ model UserReport {
   @@index([commentId])
   /// Hikoya o'chirilganda shikoyatlari tekshiriladi.
   @@index([storyId])
+  /// Baho o'chirilganda shikoyatlari tekshiriladi.
+  @@index([reviewId])
   @@map("user_reports")
 }
 
