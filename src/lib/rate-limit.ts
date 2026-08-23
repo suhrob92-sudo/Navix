@@ -371,6 +371,35 @@ export const PUBLIC_RATE_LIMITS = {
    * yukdan saqlaydi.
    */
   groupInviteLookup: { limit: 20, windowSeconds: 60 },
+  /**
+   * Xabarlarni qidirish: daqiqasiga 40 marta.
+   *
+   * ── Nima uchun kerak ────────────────────────────────────────────────
+   * Qidiruv eng katta jadval (`messages`) bo'ylab boradi va u ilovadagi
+   * eng og'ir so'rovlardan biri.
+   *
+   * Brauzer har harfda so'rov yubormaydi (kechikish bor), lekin bu
+   * himoya emas: so'rovni to'g'ridan-to'g'ri yuborib, bazani yuklab
+   * qo'yish mumkin.
+   *
+   * 40 ta — odam uchun bemalol: u bir daqiqada 40 marta qidirmaydi.
+   */
+  messageSearch: { limit: 40, windowSeconds: 60 },
+  /**
+   * CSP xabarlari: daqiqasiga 120 marta.
+   *
+   * ── Nima uchun ALOHIDA va SAXIY ─────────────────────────────────────
+   * Ilgari ular xato hisobotlari bilan bitta cheklovni bo'lishardi
+   * (daqiqasiga 30). Brauzer esa har bir sahifa ochilishida bir
+   * nechta xabar yuboradi — natijada oddiy foydalanuvchi bir necha
+   * sahifa ochishi bilanoq 429 xatosini olardi va uning konsoli
+   * qizil yozuvlarga to'lardi.
+   *
+   * Endi ma'lum buzilishlar serverda darhol tashlab yuboriladi
+   * (bazaga tegmasdan), ya'ni bu so'rovlar deyarli tekin. Shuning
+   * uchun chegara ham kengroq bo'lishi mumkin.
+   */
+  cspReport: { limit: 120, windowSeconds: 60 },
   referralLookup: { limit: 20, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 

@@ -12,6 +12,7 @@ import {
   PhoneIncoming,
   PhoneMissed,
   PhoneOutgoing,
+  Search,
   SendHorizontal,
   Store,
   Video,
@@ -42,6 +43,8 @@ import { formatUzDayLabel, formatUzTime } from '@/lib/date';
 import { cn } from '@/lib/utils';
 import { useCall } from '@/modules/call/call-provider';
 import { callSummaryText, type CallView } from '@/modules/call/call.types';
+import { MAX_THREAD_MESSAGES } from '@/config/message-search';
+import { MessageSearchPanel } from '@/components/chat/message-search-panel';
 import { ReactionChips } from '@/components/chat/reaction-chips';
 import {
   canReactToMessage,
@@ -250,15 +253,17 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
    * yopiladi: bir bosishda asl xabar ko'rinadi va qisqa vaqt
    * yoritiladi — ko'z uni darhol topadi.
    */
-  function jumpToMessage(messageId: string): void {
+  function jumpToMessage(messageId: string): boolean {
     const element = listRef.current?.querySelector(`[data-message-id="${messageId}"]`);
 
-    if (!element) return;
+    if (!element) return false;
 
     element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     setHighlightId(messageId);
 
     setTimeout(() => setHighlightId((current) => (current === messageId ? null : current)), HIGHLIGHT_MS);
+
+    return true;
   }
 
   /**
@@ -615,6 +620,21 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
    */
   const noCallReason = "Kompaniyaga qo'ng'iroq qilib bo'lmaydi";
 
+  /** Qidiruv oynasi ochiqmi. */
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  /**
+   * Topilgan xabar SHU oynada yuklanganmi.
+   *
+   * ── Nima uchun bu holat kerak ───────────────────────────────────────
+   * Suhbat oynasiga oxirgi 100 ta xabar yuklanadi. Qidiruv esa BUTUN
+   * tarixni ko'radi — ya'ni topilgan xabar oynada bo'lmasligi mumkin.
+   *
+   * Bunday holatda tugma jimgina ishlamasdi va odam uni buzuq deb
+   * o'ylardi. Endi unga ochiq aytiladi.
+   */
+  const [notLoadedAt, setNotLoadedAt] = useState<string | null>(null);
+
   const wallpaper = resolveWallpaper(thread?.wallpaper);
 
   /*
@@ -710,6 +730,15 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
               <Skeleton className="mt-1.5 h-3 w-16" />
             </div>
           )}
+
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsSearchOpen(true)}
+            aria-label="Suhbat ichidan qidirish"
+          >
+            <Search className="size-5" aria-hidden="true" />
+          </Button>
 
           {/*
             Ovozli qo'ng'iroq faqat ODAM bilan suhbatda ishlaydi.
@@ -1034,6 +1063,56 @@ export function ThreadContent({ conversationId }: ThreadContentProps) {
           }}
           onClose={() => setActionsFor(null)}
         />
+      )}
+
+      {/*
+        Qidiruv oynasi suhbat USTIDA ochiladi.
+
+        ── Nima uchun butun ekran ──────────────────────────────────────
+        Kichik ochiluvchi ro'yxat qilish mumkin edi, lekin telefonda
+        klaviatura ekranning yarmini egallaydi — natijalar uchun bir
+        necha qator joy qolardi.
+      */}
+      {isSearchOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Xabarlarni qidirish"
+          className="bg-background pb-safe fixed inset-0 z-50 flex flex-col"
+        >
+          <MessageSearchPanel
+            conversationId={conversationId}
+            placeholder="Shu suhbat ichidan qidirish"
+            onClose={() => {
+              setIsSearchOpen(false);
+              setNotLoadedAt(null);
+            }}
+            onSelect={(hit) => {
+              const found = jumpToMessage(hit.messageId);
+
+              if (found) {
+                setIsSearchOpen(false);
+                setNotLoadedAt(null);
+                return;
+              }
+
+              /**
+               * Xabar oynada yo'q — u eski.
+               *
+               * Jimgina hech narsa qilmaslik eng yomon yechim
+               * bo'lardi: odam tugmani buzuq deb o'ylardi.
+               */
+              setNotLoadedAt(hit.createdAt);
+            }}
+          />
+
+          {notLoadedAt && (
+            <p className="text-muted-foreground border-border border-t px-4 py-3 text-center text-xs leading-relaxed">
+              Bu xabar juda eski — suhbat oynasiga oxirgi {MAX_THREAD_MESSAGES} ta xabar yuklanadi.
+              Matnini yuqoridagi ro&apos;yxatdan o&apos;qishingiz mumkin.
+            </p>
+          )}
+        </div>
       )}
 
       <ConfirmDialog

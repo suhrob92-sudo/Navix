@@ -10,6 +10,7 @@ import { sendPush } from '@/modules/notification/push.service';
 import { deleteImageByUrl } from '@/modules/upload/upload.service';
 import { resolveWallpaper, type ChatWallpaperName } from '@/config/chat-wallpapers';
 import type { GroupRoleName, SystemMessageKindName } from '@/config/group-chat';
+import { MAX_THREAD_MESSAGES } from '@/config/message-search';
 import type { ServiceColor } from '@/config/modules';
 import { aggregateReactions, messageKindText, quotePreview } from '@/modules/chat/chat.types';
 import type {
@@ -463,7 +464,7 @@ async function recoverFromDuplicate(error: unknown, pairKey: string): Promise<Op
 // ─────────────────────────────────────────────────────────────────────
 
 /** Bitta so'rovda olinadigan eng ko'p xabar. */
-const MAX_THREAD_MESSAGES = 100;
+
 
 /**
  * Foydalanuvchi shu suhbatning a'zosimi.

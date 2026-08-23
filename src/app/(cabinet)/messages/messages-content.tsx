@@ -1,10 +1,12 @@
 'use client';
 
-import { BadgeCheck, MessageCircle, Search, Store, Users, UsersRound } from 'lucide-react';
+import { BadgeCheck, MessageCircle, MessageSquareText, Search, Store, Users, UsersRound } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { AppHeader } from '@/components/app/app-header';
+import { MessageSearchPanel } from '@/components/chat/message-search-panel';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
@@ -39,7 +41,21 @@ import {
  * ko'rsatmagan ma'qul.
  */
 export function MessagesContent() {
+  const router = useRouter();
+
   const [filter, setFilter] = useState<ChatFilter>('ALL');
+
+  /**
+   * Xabarlar ichidan qidirish oynasi.
+   *
+   * ── Nima uchun ALOHIDA oyna ─────────────────────────────────────────
+   * Yuqoridagi qidiruv maydoni SUHBATLARNI qidiradi: kim bilan
+   * yozishgan edim. Bu esa boshqa savol — "manzilni kim yuborgan
+   * edi?" Ikkalasini bitta maydonga sig'dirish natijalarni
+   * aralashtirib yuborardi va odam qaysi biri nima ekanini
+   * tushunmasdi.
+   */
+  const [isMessageSearchOpen, setIsMessageSearchOpen] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
 
@@ -87,6 +103,16 @@ export function MessagesContent() {
             Yuqori panelga qo'yish mumkin edi, lekin u umumiy komponent:
             u yerga qo'shilgan tugma barcha sahifalarda paydo bo'lardi.
           */}
+          <Button
+            variant="outline"
+            size="icon"
+            className="shrink-0"
+            onClick={() => setIsMessageSearchOpen(true)}
+            aria-label="Xabarlar ichidan qidirish"
+          >
+            <MessageSquareText className="size-5" aria-hidden="true" />
+          </Button>
+
           <Button asChild variant="outline" size="icon" className="shrink-0">
             <Link href="/messages/new-group" aria-label="Yangi guruh yaratish">
               <Users className="size-5" aria-hidden="true" />
@@ -202,12 +228,31 @@ export function MessagesContent() {
           ))}
         </ul>
 
-        {conversations.length > 0 && (
-          <p className="text-muted-foreground mt-4 px-1 pb-2 text-center text-xs leading-relaxed">
-            Media yuborish va qo&apos;ng&apos;iroq keyingi bosqichlarda qo&apos;shiladi.
-          </p>
-        )}
       </div>
+
+      {/*
+        Xabarlar qidiruvi butun ekranni egallaydi.
+
+        Telefonda klaviatura ekranning yarmini oladi — kichik ochiluvchi
+        ro'yxatda natijalar uchun bir necha qator joy qolardi.
+      */}
+      {isMessageSearchOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Xabarlarni qidirish"
+          className="bg-background pb-safe fixed inset-0 z-50 flex flex-col"
+        >
+          <MessageSearchPanel
+            placeholder="Barcha suhbatlardan qidirish"
+            onClose={() => setIsMessageSearchOpen(false)}
+            onSelect={(hit) => {
+              setIsMessageSearchOpen(false);
+              router.push(`/messages/${hit.conversationId}`);
+            }}
+          />
+        </div>
+      )}
     </>
   );
 }

@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 
+import { isKnownViolation } from '@/config/csp';
 import { withApiHandler } from '@/lib/api/handler';
 import { apiSuccess } from '@/lib/api/response';
 import { logger } from '@/lib/logger';
@@ -54,7 +55,7 @@ const cspReportSchema = z.object({
 export const POST = withApiHandler(async (request: NextRequest, { requestId }) => {
   const context = getRequestContext(request);
 
-  await enforcePublicRateLimit('clientError', context.ipAddress ?? 'anonim', "Juda ko'p so'rov.");
+  await enforcePublicRateLimit('cspReport', context.ipAddress ?? 'anonim', "Juda ko'p so'rov.");
 
   /**
    * Tana QO'LDA o'qiladi.
@@ -79,6 +80,18 @@ export const POST = withApiHandler(async (request: NextRequest, { requestId }) =
   const report = parsed.data['csp-report'];
   const directive = report['effective-directive'] ?? report['violated-directive'] ?? "noma'lum";
   const blocked = report['blocked-uri'] ?? "noma'lum";
+
+  /**
+   * ALLAQACHON O'LCHANGAN buzilish — jimgina tashlab yuboriladi.
+   *
+   * Sababi `config/csp.ts` dagi `KNOWN_VIOLATIONS` izohida: ular har
+   * bir sahifa ochilishida keladi va yangi hech narsa aytmaydi.
+   * Ularni yozish jurnalni ko'mib tashlardi va haqiqiy, yangi
+   * buzilishni ko'rinmas qilib qo'yardi.
+   */
+  if (isKnownViolation(directive, blocked)) {
+    return apiSuccess({ received: true }, { requestId, status: 202 });
+  }
 
   logger.warn({ directive, blocked, source: report['source-file'] }, 'CSP qoidasi buzildi');
 

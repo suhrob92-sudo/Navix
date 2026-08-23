@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { CSP_REPORT_PATH, ENFORCED_CSP, REPORT_ONLY_CSP } from '@/config/csp';
+import { CSP_REPORT_PATH, ENFORCED_CSP, isKnownViolation, REPORT_ONLY_CSP } from '@/config/csp';
 
 /**
  * CSP qoidalari — testlar.
@@ -98,5 +98,26 @@ describe('kuzatuv qoidalari', () => {
       expect(name.length).toBeGreaterThan(0);
       expect(value.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("ma'lum buzilishlar", () => {
+  it("Next.js ning ichki skripti YOZILMAYDI", () => {
+    /**
+     * U har bir sahifa ochilishida keladi. Yozilsa, jurnal shu
+     * xabarlar bilan to'lib, haqiqiy buzilish ko'rinmas bo'lardi.
+     */
+    expect(isKnownViolation('script-src-elem', 'inline')).toBe(true);
+  });
+
+  it("kutubxonaning kod yasash urinishi YOZILMAYDI", () => {
+    expect(isKnownViolation('script-src', 'eval')).toBe(true);
+  });
+
+  it("YANGI buzilish esa yoziladi", () => {
+    // Kuzatuv aynan shuning uchun yoqilgan.
+    expect(isKnownViolation('script-src', 'https://begona.uz/kod.js')).toBe(false);
+    expect(isKnownViolation('connect-src', 'https://begona.uz')).toBe(false);
+    expect(isKnownViolation('img-src', 'inline')).toBe(false);
   });
 });

@@ -62,6 +62,48 @@
 export const CSP_REPORT_PATH = '/api/v1/csp-report';
 
 /**
+ * ALLAQACHON O'LCHANGAN buzilishlar — ular yozilmaydi.
+ *
+ * ── Muammo (sinovda topilgan) ─────────────────────────────────────────
+ * Kuzatuv rejimi ikkita belgini HAR BIR sahifa ochilishida yuboradi:
+ * Next.js ning ichki skripti va Zod'ning tezlashtirish urinishi.
+ * Ikkalasi ham o'lchangan, sababi yozilgan va ular O'ZGARMAYDI.
+ *
+ * Ya'ni bitta odam o'nta sahifa ochsa, ellikta bir xil xabar keladi.
+ * Natijada:
+ *   · bazaga behuda yozuv ketardi;
+ *   · chastota cheklovi ishga tushib, foydalanuvchining brauzer
+ *     konsolida 429 xatolari chiqardi (aynan shu holat sinovda
+ *     ko'rindi);
+ *   · haqiqiy, YANGI buzilish shu shovqin ichida yo'qolardi.
+ *
+ * ── Nima uchun CSP'dan olib tashlanmadi ───────────────────────────────
+ * Qoidani yumshatish (masalan `unsafe-inline` qo'shish) kuzatuvning
+ * ma'nosini yo'qotardi: keyin haqiqiy XSS ham belgilanmasdi.
+ *
+ * Shuning uchun qoida QATTIQ qoladi, xabar esa serverda tashlab
+ * yuboriladi — bepul va yozuvsiz.
+ */
+const KNOWN_VIOLATIONS: ReadonlyArray<{ directive: string; blocked: string }> = [
+  // Next.js sahifaga o'z ichki skriptini qo'shadi.
+  { directive: 'script-src-elem', blocked: 'inline' },
+  { directive: 'script-src', blocked: 'inline' },
+  // Zod qoidalarni tezroq bajarish uchun kod yasashga urinadi.
+  { directive: 'script-src', blocked: 'eval' },
+  { directive: 'script-src-elem', blocked: 'eval' },
+];
+
+/**
+ * Bu buzilish allaqachon ma'lummi.
+ *
+ * Ma'lum bo'lsa — jurnalga yozilmaydi. Yangi bo'lsa — yoziladi va
+ * aynan shuning uchun kuzatuv yoqilgan.
+ */
+export function isKnownViolation(directive: string, blocked: string): boolean {
+  return KNOWN_VIOLATIONS.some((known) => known.directive === directive && known.blocked === blocked);
+}
+
+/**
  * Hozir MAJBURIY qilinadigan qoidalar.
  *
  * Har biri nimani to'sadi:
