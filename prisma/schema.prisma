@@ -298,6 +298,9 @@ model User {
   favorites         Favorite[]
   /// Yaqinda ko'rilganlar — o'zi to'ladi.
   recentViews       RecentView[]
+  /// Mahsulotlar haqida bergan savollari va javoblari.
+  questionsAsked    ProductQuestion[] @relation("QuestionsAsked")
+  answersGiven      ProductAnswer[]   @relation("AnswersGiven")
   tickets           TripBooking[]
   following         Follow[]             @relation("Following")
   followers         Follow[]             @relation("Followers")
@@ -1205,6 +1208,8 @@ model Product {
   @@index([isActive, price])
   favorites  Favorite[]
   recentViews RecentView[]
+  attributes  ProductAttribute[]
+  questions   ProductQuestion[]
   @@map("products")
 }
 
@@ -1397,6 +1402,134 @@ model CatalogImage {
   @@index([shopId, sortOrder])
   @@index([companyId, sortOrder])
   @@map("catalog_images")
+}
+
+/// Mahsulot xususiyati: "Ekran — 6.6 dyuym".
+///
+/// ── Nima uchun ALOHIDA jadval, tavsif ichida emas ─────────────────────
+/// Xususiyatlarni tavsif matniga yozib qo'yish mumkin edi va u
+/// hech qanday jadval talab qilmasdi.
+///
+/// Lekin unda:
+///
+///   1. ular jadval ko'rinishida chizilmasdi — matn ichida yo'qolardi;
+///   2. ertaga "xotirasi 128 GB bo'lganlarni ko'rsat" degan filtr
+///      qo'shib bo'lmasdi;
+///   3. har bir sotuvchi o'z tartibida yozardi va taqqoslash
+///      imkonsiz bo'lardi.
+///
+/// ── Nima uchun nom ham MATN ───────────────────────────────────────────
+/// "Ekran", "Xotira", "Rang" — bularni oldindan sanab bo'lmaydi:
+/// telefon, kitob va kir yuvish mashinasi butunlay boshqa
+/// xususiyatlarga ega.
+///
+/// Tayyor ro'yxat qilsak, sotuvchi o'z mahsulotini tasvirlay
+/// olmasdi. Bu — ataylab tanlangan erkinlik.
+model ProductAttribute {
+  id        String @id @default(uuid()) @db.Uuid
+  productId String @db.Uuid
+
+  /// Xususiyat nomi: "Ekran".
+  name String @db.VarChar(60)
+  /// Qiymati: "6.6 dyuym AMOLED".
+  value String @db.VarChar(200)
+
+  /// Tartib raqami — kichigi yuqorida turadi.
+  sortOrder Int @default(0)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// Bitta mahsulotda bir xil nomli xususiyat IKKI MARTA bo'lmaydi.
+  ///
+  /// Usiz sotuvchi "Rang" ni ikki marta kiritib, jadvalda ikkita
+  /// qarama-qarshi qator hosil qilardi.
+  @@unique([productId, name])
+  @@index([productId, sortOrder])
+  @@map("product_attributes")
+}
+
+/// Mahsulot haqidagi savol.
+///
+/// ── Nima uchun kerak ──────────────────────────────────────────────────
+/// Tavsifda hech qachon hamma narsa yozilmaydi. Xaridorning
+/// savoli aniq bo'ladi: "zaryadlagichi bormi?", "45-o'lchami
+/// bormi?".
+///
+/// Javobsiz u sotib olmaydi — yoki oladi-yu, keyin qaytaradi.
+/// Ikkalasi ham yo'qotish.
+///
+/// ── BAHODAN farqi: kim yoza oladi ─────────────────────────────────────
+/// Bahoni faqat SOTIB OLGAN odam qo'yadi — aks holda reyting soxta
+/// bo'lardi.
+///
+/// Savolni esa istalgan kirgan odam bera oladi va bu to'g'ri:
+/// savol aynan SOTIB OLISHDAN OLDIN tug'iladi. "Faqat xaridor
+/// so'rasin" degan qoida bu bo'limni butunlay ma'nosiz qilardi.
+model ProductQuestion {
+  id        String @id @default(uuid()) @db.Uuid
+  productId String @db.Uuid
+  authorId  String @db.Uuid
+
+  body String @db.VarChar(500)
+
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  author  User    @relation("QuestionsAsked", fields: [authorId], references: [id], onDelete: Cascade)
+
+  answers ProductAnswer[]
+
+  /// Ro'yxat: eng yangi savol birinchi.
+  @@index([productId, createdAt])
+  @@index([authorId, createdAt])
+  @@map("product_questions")
+}
+
+/// Savolga javob.
+///
+/// ── Nima uchun BIR NECHTA javob mumkin ────────────────────────────────
+/// Sotuvchi javob berishi ham, bergan odam javob berishi ham
+/// mumkin: "men oldim, zaryadlagichi bor edi".
+///
+/// Ko'pincha eng foydali javob aynan boshqa xaridordan keladi —
+/// u mahsulotni qo'lida ushlab ko'rgan.
+model ProductAnswer {
+  id         String @id @default(uuid()) @db.Uuid
+  questionId String @db.Uuid
+  authorId   String @db.Uuid
+
+  body String @db.VarChar(1000)
+
+  /// Javob DO'KON tomonidan berilganmi.
+  ///
+  /// ── Nima uchun saqlanadi, har safar hisoblanmaydi ──────────────────
+  /// Ro'yxatda har bir javob uchun "bu odam do'kon egasimi?" degan
+  /// so'rov ketardi. Bundan tashqari do'kon egasi ertaga
+  /// o'zgarishi mumkin, javob esa o'sha paytdagi holatni
+  /// ko'rsatishi kerak.
+  isFromSeller Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  question ProductQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  author   User            @relation("AnswersGiven", fields: [authorId], references: [id], onDelete: Cascade)
+
+  /// Bitta odam bitta savolga BIR MARTA javob beradi.
+  ///
+  /// Usiz bahs boshlanardi va u savol-javob bo'limini chatga
+  /// aylantirardi.
+  @@unique([questionId, authorId])
+  @@index([questionId, createdAt])
+  /**
+   * ── Nima uchun `authorId` uchun ALOHIDA indeks ──────────────────────
+   * Yuqoridagi cheklovda `authorId` bor, lekin u IKKINCHI ustun:
+   * indeks faqat `questionId` bilan birga qidirilganda ishlaydi.
+   *
+   * Hisob o'chirilganda esa baza "shu odamning javoblari"ni
+   * qidiradi — indekssiz bu butun jadvalni skanerlardi.
+   */
+  @@index([authorId])
+  @@map("product_answers")
 }
 
 /// Yaqinda ko'rilganlar.

@@ -86,6 +86,12 @@ export interface ProductDetail extends ProductListItem {
   shopMinOrder: number;
   /** Batafsil sahifadagi butun galereya. */
   images: CatalogImageView[];
+  /**
+   * Xususiyatlar jadvali: "Ekran — 6.6 dyuym".
+   *
+   * Tartib bo'yicha keladi va sahifada shu tartibda chiziladi.
+   */
+  attributes: { id: string; name: string; value: string }[];
 }
 
 export interface MarketOrderItemView {

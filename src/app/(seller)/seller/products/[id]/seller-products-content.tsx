@@ -304,6 +304,10 @@ function ProductsBody({ shopId }: SellerProductsContentProps) {
             setEditing((current) => (current ? { ...current, images } : current));
             replaceProduct({ ...editing, images });
           }}
+          onAttributesChanged={(attributes) => {
+            setEditing((current) => (current ? { ...current, attributes } : current));
+            replaceProduct({ ...editing, attributes });
+          }}
         />
       )}
     </>

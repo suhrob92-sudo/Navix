@@ -54,6 +54,12 @@ export interface SellerProduct {
    * yetarli emas.
    */
   images: CatalogImageView[];
+  /**
+   * Xususiyatlar: "Ekran — 6.6 dyuym".
+   *
+   * Kabinetda sotuvchi ularni jadval ko'rinishida tahrirlaydi.
+   */
+  attributes: { id: string; name: string; value: string }[];
 }
 
 export interface SellerOrderItem {

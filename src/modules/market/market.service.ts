@@ -276,6 +276,10 @@ export async function getProduct(slug: string): Promise<{ product: ProductDetail
       categoryId: true,
       shop: { select: { id: true, slug: true, name: true, color: true, deliveryDays: true, deliveryFee: true, minOrder: true } },
       images: GALLERY_SELECT,
+      attributes: {
+        select: { id: true, name: true, value: true },
+        orderBy: { sortOrder: 'asc' },
+      },
     },
   });
 
@@ -301,6 +305,7 @@ export async function getProduct(slug: string): Promise<{ product: ProductDetail
     shopDeliveryFee: tiyinToNumber(row.shop.deliveryFee),
     shopMinOrder: tiyinToNumber(row.shop.minOrder),
     images: toGallery(row.images),
+    attributes: row.attributes,
   };
 
   return { product, related: related.map(toProductItem) };

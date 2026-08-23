@@ -203,6 +203,13 @@ export const PUBLIC_RATE_LIMITS = {
    * ochishi mumkin. Chegara esa faqat skriptni to'xtatadi.
    */
   recentView: { limit: 120, windowSeconds: 60 },
+  /**
+   * Savol va javob: daqiqasiga 10 marta.
+   *
+   * Kunlik chegara (`MAX_QUESTIONS_PER_DAY`) asosiy himoya; bu esa
+   * bir zumda o'nlab so'rov yuborishni to'xtatadi.
+   */
+  productQuestion: { limit: 10, windowSeconds: 60 },
   chatOpen: { limit: 60, windowSeconds: 60 * 60 },
   /**
    * Guruh yaratish: soatiga 10 ta.

@@ -9,7 +9,10 @@ import { CatalogGallery } from '@/components/catalog/catalog-gallery';
 import { RecentTracker } from '@/components/recent/recent-tracker';
 import { ReviewSection } from '@/components/review/review-section';
 import { LinkedPosts } from '@/components/feed/linked-posts';
+import { AttributeTable } from '@/components/market/attribute-table';
+import { DeliveryPromise } from '@/components/market/delivery-promise';
 import { MarketCartBar } from '@/components/market/market-cart-bar';
+import { QuestionSection } from '@/components/market/question-section';
 import { ProductCard } from '@/components/market/product-card';
 import { QuantityStepper } from '@/components/market/quantity-stepper';
 import { Alert } from '@/components/ui/alert';
@@ -86,14 +89,23 @@ export function ProductContent({ slug }: ProductContentProps) {
         {product && (
           <>
             {/*
-              Galereya kartochkadan TASHQARIDA turadi.
+              ── SAHIFA TARTIBI ────────────────────────────────────────
+              Xaridor sahifani yuqoridan pastga o'qimaydi — u SAVOL
+              ketma-ketligi bo'yicha qaraydi:
 
-              Ichkarida bo'lsa, rasm atrofida chegara va bo'shliq
-              qolardi va u "kartochkadagi kichik rasm" bo'lib
-              ko'rinardi. Bu yerda esa u sahifaning bosh qismi.
+                1. "bu nima?"         → galereya va nom;
+                2. "qancha turadi?"   → narx;
+                3. "qachon keladi?"   → yetkazish sanasi;
+                4. "olamanmi?"        → savatga tugmasi;
+                5. "batafsil-chi?"    → tavsif va xususiyatlar;
+                6. "boshqalar-chi?"   → baholar;
+                7. "savolim bor"      → savol-javob.
+
+              Batafsil izoh `src/config/product-detail.ts` da.
             */}
             <CatalogGallery images={product.images} name={product.name} className="animate-fade-up" />
 
+            {/* 1-2. Nima va qancha */}
             <div className="bg-card border-border animate-fade-up rounded-2xl border p-4">
               <h1 className="text-base leading-snug font-semibold">{product.name}</h1>
 
@@ -101,9 +113,22 @@ export function ProductContent({ slug }: ProductContentProps) {
                 <span className="text-2xl font-semibold tabular-nums">{formatTiyin(product.price)}</span>
 
                 {product.oldPrice !== null && product.oldPrice > product.price && (
-                  <span className="text-muted-foreground text-sm tabular-nums line-through">
-                    {formatTiyin(product.oldPrice)}
-                  </span>
+                  <>
+                    <span className="text-muted-foreground text-sm tabular-nums line-through">
+                      {formatTiyin(product.oldPrice)}
+                    </span>
+
+                    {/*
+                      Tejamkorlik AYTILADI.
+
+                      Chizilgan eski narx o'zi ham ko'rinadi, lekin
+                      "600 000 so'm tejaysiz" degan yozuv qarorni
+                      tezlashtiradi: odam hisoblab o'tirmaydi.
+                    */}
+                    <Badge variant="success">
+                      {`${formatTiyin(product.oldPrice - product.price)} tejaysiz`}
+                    </Badge>
+                  </>
                 )}
               </div>
 
@@ -119,29 +144,15 @@ export function ProductContent({ slug }: ProductContentProps) {
                 </Link>
               </div>
 
-              {product.description && (
-                <p className="text-muted-foreground mt-3 text-sm leading-relaxed">{product.description}</p>
+              {/* 3. Eng muhim savol: qachon keladi */}
+              {!isOut && (
+                <div className="border-border/60 mt-3.5 border-t pt-3.5">
+                  <DeliveryPromise deliveryDays={product.shop.deliveryDays} />
+                </div>
               )}
             </div>
 
-            <section className="bg-card border-border rounded-2xl border p-4">
-              <Link href={`/marketplace/s/${product.shop.slug}`} className="flex items-center gap-3">
-                <span className="bg-secondary inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
-                  <Store className="size-5" aria-hidden="true" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold">{product.shop.name}</span>
-                  <span className="text-muted-foreground block text-xs">Do&apos;konga o&apos;tish</span>
-                </span>
-              </Link>
-
-              <p className="text-muted-foreground mt-3 flex items-start gap-2 text-xs leading-relaxed">
-                <Truck className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
-                {`${product.shop.deliveryDays} kunda yetkaziladi · yetkazish ${formatTiyin(product.shopDeliveryFee)} · eng kam buyurtma ${formatTiyin(product.shopMinOrder)}`}
-              </p>
-            </section>
-
-            {/* Savatga qo'shish */}
+            {/* 4. Olamanmi */}
             {isOut ? (
               <Alert variant="warning" title="Mahsulot tugagan">
                 Bu mahsulot hozir sotuvda yo&apos;q. Do&apos;kon zaxirani to&apos;ldirganda qaytadan paydo
@@ -162,13 +173,45 @@ export function ProductContent({ slug }: ProductContentProps) {
               </div>
             )}
 
+            {/* Do'kon — kim sotyapti */}
+            <section className="bg-card border-border rounded-2xl border p-4">
+              <Link href={`/marketplace/s/${product.shop.slug}`} className="flex items-center gap-3">
+                <span className="bg-secondary inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
+                  <Store className="size-5" aria-hidden="true" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold">{product.shop.name}</span>
+                  <span className="text-muted-foreground block text-xs">Do&apos;konga o&apos;tish</span>
+                </span>
+              </Link>
+
+              <p className="text-muted-foreground mt-3 flex items-start gap-2 text-xs leading-relaxed">
+                <Truck className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                {`Yetkazish ${formatTiyin(product.shopDeliveryFee)} · eng kam buyurtma ${formatTiyin(product.shopMinOrder)}`}
+              </p>
+            </section>
+
+            {/* 5. Batafsil */}
+            {product.description && (
+              <section className="bg-card border-border rounded-2xl border p-4">
+                <h2 className="mb-2 text-sm font-semibold">Tavsif</h2>
+                <p className="text-muted-foreground text-sm leading-relaxed">{product.description}</p>
+              </section>
+            )}
+
+            <AttributeTable attributes={product.attributes} />
+
             {/*
               Ko'rilgani belgilanadi — sahifa buni KUTMAYDI.
               Sabab `RecentTracker` da.
             */}
             <RecentTracker target="PRODUCT" targetId={product.id} />
 
+            {/* 6. Boshqalar nima deydi */}
             <ReviewSection target="PRODUCT" targetId={product.id} title="Xaridorlar bahosi" />
+
+            {/* 7. Hali savolim bor */}
+            <QuestionSection productId={product.id} />
 
             <LinkedPosts kind="PRODUCT" targetId={product.id} />
 

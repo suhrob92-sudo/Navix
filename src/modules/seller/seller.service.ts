@@ -278,6 +278,10 @@ const PRODUCT_SELECT = {
   categoryId: true,
   category: { select: { name: true } },
   images: GALLERY_SELECT,
+  attributes: {
+    select: { id: true, name: true, value: true },
+    orderBy: { sortOrder: 'asc' as const },
+  },
 } as const;
 
 type ProductRow = Prisma.ProductGetPayload<{ select: typeof PRODUCT_SELECT }>;
@@ -295,6 +299,7 @@ function toSellerProduct(row: ProductRow): SellerProduct {
     categoryId: row.categoryId,
     categoryName: row.category.name,
     images: toGallery(row.images),
+    attributes: row.attributes,
   };
 }
 

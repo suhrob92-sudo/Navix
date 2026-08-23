@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 import { CatalogImageManager } from '@/components/catalog/catalog-image-manager';
+import { AttributeEditor } from '@/components/market/attribute-editor';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
@@ -46,6 +47,8 @@ export interface SellerProductSheetProps {
    * va har safar oyna yopilsa, uni qaytadan ochish kerak bo'lardi.
    */
   onImagesChanged?: (images: CatalogImageView[]) => void;
+  /** Xususiyatlar saqlanganda — oyna yopilmaydi. */
+  onAttributesChanged?: (attributes: { id: string; name: string; value: string }[]) => void;
   onClose: () => void;
 }
 
@@ -113,6 +116,7 @@ export function SellerProductSheet({
   product,
   onSaved,
   onImagesChanged,
+  onAttributesChanged,
   onClose,
 }: SellerProductSheetProps) {
   const isEditing = product !== undefined;
@@ -127,6 +131,8 @@ export function SellerProductSheet({
    * yopsa — rasm yo'qolardi.
    */
   const [images, setImages] = useState<CatalogImageView[]>(product?.images ?? []);
+  /** Xususiyatlar ham forma tashqarisida — o'z "Saqlash" tugmasi bor. */
+  const [attributes, setAttributes] = useState(product?.attributes ?? []);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -305,6 +311,23 @@ export function SellerProductSheet({
                 onChange={(next) => {
                   setImages(next);
                   onImagesChanged?.(next);
+                }}
+              />
+            </div>
+          )}
+
+          {/*
+            Xususiyatlar ham faqat TAHRIRLASHDA: yangi mahsulotning
+            ID'si hali yo'q.
+          */}
+          {isEditing && (
+            <div className="border-border/60 border-t pt-4">
+              <AttributeEditor
+                productId={product.id}
+                attributes={attributes}
+                onSaved={(next) => {
+                  setAttributes(next);
+                  onAttributesChanged?.(next);
                 }}
               />
             </div>
