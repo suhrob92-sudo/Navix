@@ -5,6 +5,7 @@ import {
   Briefcase,
   ChevronRight,
   ExternalLink,
+  Heart,
   LayoutGrid,
   LogOut,
   ShieldCheck,
@@ -183,6 +184,29 @@ export function ProfileContent() {
             ) : (
               <p className="text-lg font-semibold tabular-nums">{formatTiyin(wallet.data?.balance ?? 0)}</p>
             )}
+          </div>
+
+          <ChevronRight className="text-muted-foreground size-5 shrink-0" aria-hidden="true" />
+        </Link>
+
+        {/*
+          Sevimlilar — hamyondan keyin.
+
+          Bu bo'lim HAMMAGA ko'rinadi: ro'yxat bo'sh bo'lsa ham u
+          "bunday imkoniyat bor" deb aytadi. Yashirilgan bo'lim
+          esa hech qachon topilmasdi.
+        */}
+        <Link
+          href="/favorites"
+          className="bg-card border-border flex items-center gap-3 rounded-2xl border p-4 transition-transform active:scale-[0.99]"
+        >
+          <span className="inline-flex size-11 items-center justify-center rounded-xl bg-rose-100 text-rose-600 dark:bg-rose-400/15 dark:text-rose-400">
+            <Heart className="size-5" aria-hidden="true" />
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium">Sevimlilar</p>
+            <p className="text-muted-foreground text-xs">Saqlab qo&apos;ygan narsalaringiz</p>
           </div>
 
           <ChevronRight className="text-muted-foreground size-5 shrink-0" aria-hidden="true" />

@@ -4,6 +4,7 @@ import { Briefcase, Check, MapPin } from 'lucide-react';
 import Link from 'next/link';
 
 import { ServiceIcon } from '@/components/app/service-icon';
+import { FavoriteButton } from '@/components/favorite/favorite-button';
 import { Badge } from '@/components/ui/badge';
 import { formatRelativeUz } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
@@ -50,6 +51,13 @@ export function VacancyCard({ vacancy, index = 0 }: VacancyCardProps) {
             Yuborilgan
           </Badge>
         )}
+
+        {/*
+          Vakansiyada yurakcha ayniqsa kerak: odam e'lonni ko'radi,
+          lekin rezyumesi tayyor bo'lmaydi va keyin uni topa
+          olmaydi.
+        */}
+        <FavoriteButton target="VACANCY" targetId={vacancy.id} name={vacancy.title} />
       </div>
 
       {/* Maosh — eng muhim raqam */}

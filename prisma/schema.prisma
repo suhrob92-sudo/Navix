@@ -294,6 +294,8 @@ model User {
   bookings          HotelBooking[]
   /// Yozgan baholari — hisob o'chirilsa ular ham o'chadi.
   reviewsWritten    Review[]        @relation("ReviewsWritten")
+  /// "Keyin qaytaman" ro'yxati.
+  favorites         Favorite[]
   tickets           TripBooking[]
   following         Follow[]             @relation("Following")
   followers         Follow[]             @relation("Followers")
@@ -711,6 +713,7 @@ model Restaurant {
   @@index([ownerId])
   @@index([searchName])
   reviews    Review[]
+  favorites  Favorite[]
   @@map("restaurants")
 }
 
@@ -770,6 +773,7 @@ model MenuItem {
   @@index([categoryId, sortOrder])
   /// AI yordamchi menyudan taom qidiradi — indekssiz bu butun jadvalni o'qirdi.
   @@index([searchName])
+  favorites  Favorite[]
   @@map("menu_items")
 }
 
@@ -1195,6 +1199,7 @@ model Product {
   @@index([searchName])
   /// Narx bo'yicha saralash va filtrlash uchun.
   @@index([isActive, price])
+  favorites  Favorite[]
   @@map("products")
 }
 
@@ -1389,6 +1394,73 @@ model CatalogImage {
   @@map("catalog_images")
 }
 
+/// Sevimlilar — "keyin qaytaman" ro'yxati.
+///
+/// ── Nima uchun kerak ──────────────────────────────────────────────────
+/// Xaridorlarning katta qismi birinchi ko'rishda sotib olmaydi: u
+/// narxni taqqoslaydi, maoshni kutadi yoki shunchaki o'ylab
+/// ko'rmoqchi bo'ladi.
+///
+/// Ro'yxatsiz u mahsulotni ERTAGA TOPA OLMAYDI — qidiruvda nima deb
+/// yozganini ham eslamaydi. Va qaytmaydi.
+///
+/// ── Nima uchun BITTA jadval ───────────────────────────────────────────
+/// Mahsulot, taom, restoran, mehmonxona va vakansiya uchun beshta
+/// alohida jadval yozish mumkin edi. Lekin ularning ustunlari bir xil
+/// bo'lardi va "sevimlilar sahifasi" beshta so'rovni birlashtirishga
+/// majbur bo'lardi.
+///
+/// Rasm va baho jadvallaridagi kabi: bitta jadval, har bir tur uchun
+/// alohida tashqi kalit va baza darajasidagi cheklov.
+model Favorite {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId String @db.Uuid
+
+  /// ── Nimaga: FAQAT BITTASI to'ldiriladi ─────────────────────────────
+  ///
+  /// Bazada CHECK cheklovi bor (`favorites_single_target`).
+  productId    String? @db.Uuid
+  menuItemId   String? @db.Uuid
+  restaurantId String? @db.Uuid
+  hotelId      String? @db.Uuid
+  vacancyId    String? @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  product    Product?    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem?   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  hotel      Hotel?      @relation(fields: [hotelId], references: [id], onDelete: Cascade)
+  vacancy    Vacancy?    @relation(fields: [vacancyId], references: [id], onDelete: Cascade)
+
+  /// ── Bitta narsa ro'yxatda BIR MARTA ────────────────────────────────
+  ///
+  /// Usiz tugmani ikki marta bosgan odam ro'yxatida bir xil mahsulot
+  /// ikki marta paydo bo'lardi.
+  ///
+  /// Postgres bo'sh qiymatlarni farqli deb hisoblaydi, shuning uchun
+  /// beshta cheklov beshta turni MUSTAQIL qulflaydi.
+  @@unique([userId, productId])
+  @@unique([userId, menuItemId])
+  @@unique([userId, restaurantId])
+  @@unique([userId, hotelId])
+  @@unique([userId, vacancyId])
+
+  /// Sevimlilar sahifasi: eng oxirgi qo'shilgani birinchi.
+  @@index([userId, createdAt])
+
+  /// Narsa o'chirilganda uning yozuvlari tozalanadi.
+  @@index([productId])
+  @@index([menuItemId])
+  @@index([restaurantId])
+  @@index([hotelId])
+  @@index([vacancyId])
+  @@map("favorites")
+}
+
 /// Baho va sharh.
 ///
 /// ── Modulning ASOSIY qoidasi: faqat HAQIQIY xaridor ───────────────────
@@ -1531,6 +1603,7 @@ model Hotel {
   @@index([city, isActive])
   @@index([searchName])
   reviews   Review[]
+  favorites Favorite[]
   @@map("hotels")
 }
 
@@ -1898,6 +1971,7 @@ model Vacancy {
   @@index([categoryId, sortOrder])
   @@index([searchName])
   @@index([isActive, createdAt])
+  favorites Favorite[]
   @@map("vacancies")
 }
 

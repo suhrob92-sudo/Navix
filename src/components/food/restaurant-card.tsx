@@ -2,6 +2,7 @@ import { Clock, Star, UtensilsCrossed } from 'lucide-react';
 
 import { ServiceIcon } from '@/components/app/service-icon';
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
+import { FavoriteButton } from '@/components/favorite/favorite-button';
 import { Badge } from '@/components/ui/badge';
 import { formatRating } from '@/config/review';
 import { formatTiyin } from '@/lib/money';
@@ -51,12 +52,13 @@ export function RestaurantCard({ restaurant, index = 0 }: RestaurantCardProps) {
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <h3 className="truncate text-sm font-semibold">{restaurant.name}</h3>
+          <h3 className="min-w-0 flex-1 truncate text-sm font-semibold">{restaurant.name}</h3>
           {!restaurant.isOpen && (
             <Badge variant="secondary" className="shrink-0">
               Yopiq
             </Badge>
           )}
+          <FavoriteButton target="RESTAURANT" targetId={restaurant.id} name={restaurant.name} />
         </div>
 
         <p className="text-muted-foreground truncate text-xs">{restaurant.description}</p>

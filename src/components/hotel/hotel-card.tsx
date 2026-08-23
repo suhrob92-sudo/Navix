@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 import { ServiceIcon } from '@/components/app/service-icon';
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
+import { FavoriteButton } from '@/components/favorite/favorite-button';
 import { Badge } from '@/components/ui/badge';
 import { formatRating } from '@/config/review';
 import { formatTiyin } from '@/lib/money';
@@ -48,7 +49,10 @@ export function HotelCard({ hotel, dates, index = 0 }: HotelCardProps) {
         )}
 
         <div className="min-w-0 flex-1">
-          <p className="text-base leading-snug font-semibold text-balance">{hotel.name}</p>
+          <span className="flex items-start justify-between gap-2">
+            <p className="min-w-0 text-base leading-snug font-semibold text-balance">{hotel.name}</p>
+            <FavoriteButton target="HOTEL" targetId={hotel.id} name={hotel.name} />
+          </span>
           <p className="text-muted-foreground mt-0.5 flex items-center gap-1 truncate text-xs">
             <MapPin className="size-3 shrink-0" aria-hidden="true" />
             {`${hotel.city} · ${hotel.address}`}

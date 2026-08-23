@@ -3,6 +3,7 @@
 import Link from 'next/link';
 
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
+import { FavoriteButton } from '@/components/favorite/favorite-button';
 import { RatingStars } from '@/components/review/rating-stars';
 import { Badge } from '@/components/ui/badge';
 import { formatRating } from '@/config/review';
@@ -51,12 +52,24 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         Birinchi to'rtta rasm darhol yuklanadi: telefonda ekranga
         odatda shuncha kartochka sig'adi.
       */}
-      <CatalogThumb
-        image={product.image}
-        name={product.name}
-        eager={index < 4}
-        className="mb-2.5"
-      />
+      {/*
+        Yurakcha RASM USTIDA turadi.
+
+        Kartochkaning pastida joy yo'q: u yerda nom, narx, do'kon
+        va zaxira bor. Rasm ustida esa u ko'zga tashlanadi va
+        barmoq bilan bosish oson.
+      */}
+      <span className="relative mb-2.5 block">
+        <CatalogThumb image={product.image} name={product.name} eager={index < 4} />
+
+        <FavoriteButton
+          target="PRODUCT"
+          targetId={product.id}
+          name={product.name}
+          variant="overlay"
+          className="absolute top-1.5 right-1.5"
+        />
+      </span>
 
       <p className="line-clamp-2 text-sm leading-snug font-medium">{product.name}</p>
 

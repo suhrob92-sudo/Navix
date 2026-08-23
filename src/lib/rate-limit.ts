@@ -183,6 +183,15 @@ export const PUBLIC_RATE_LIMITS = {
    * bemalol sig'adi.
    */
   review: { limit: 20, windowSeconds: 60 },
+  /**
+   * Sevimlilar: daqiqasiga 60 marta.
+   *
+   * ── Nima uchun bahodan yuqori ───────────────────────────────────────
+   * Yurakcha bosish — bir bosishlik amal va odam katalogni
+   * varaqlab, ketma-ket o'nlab narsani belgilashi mumkin. Baho esa
+   * o'ylashni talab qiladi.
+   */
+  favorite: { limit: 60, windowSeconds: 60 },
   chatOpen: { limit: 60, windowSeconds: 60 * 60 },
   /**
    * Guruh yaratish: soatiga 10 ta.

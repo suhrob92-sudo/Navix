@@ -7,6 +7,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
+import { FavoriteButton } from '@/components/favorite/favorite-button';
 import { RatingStars } from '@/components/review/rating-stars';
 import { ReviewSection } from '@/components/review/review-section';
 import { LinkedPosts } from '@/components/feed/linked-posts';
@@ -164,12 +165,13 @@ export function RestaurantContent({ slug }: RestaurantContentProps) {
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="truncate text-sm font-medium">{item.name}</p>
+                            <p className="min-w-0 flex-1 truncate text-sm font-medium">{item.name}</p>
                             {!item.isAvailable && (
                               <Badge variant="secondary" className="shrink-0">
                                 Tugagan
                               </Badge>
                             )}
+                            <FavoriteButton target="MENU_ITEM" targetId={item.id} name={item.name} />
                           </div>
 
                           {item.description && (
