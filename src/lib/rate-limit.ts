@@ -358,6 +358,19 @@ export const PUBLIC_RATE_LIMITS = {
    * Yigirmata — odam uchun bemalol (havolani bir necha marta
    * ochish, sahifani yangilash), skript uchun esa foydasiz.
    */
+  /**
+   * Guruh havolasini TEKSHIRISH: daqiqasiga 20 marta.
+   *
+   * ── Nima uchun kerak ────────────────────────────────────────────────
+   * Bu manzil kirishsiz ochiladi va u kod bo'yicha guruh qidiradi.
+   * Cheklovsiz bo'lsa, skript kodlarni birma-bir sinab, mavjud
+   * guruhlarni topib olishi mumkin edi.
+   *
+   * 141 trillion kombinatsiyada bu baribir amalda imkonsiz, lekin
+   * cheklov urinishning O'ZINI to'xtatadi — va serverni behuda
+   * yukdan saqlaydi.
+   */
+  groupInviteLookup: { limit: 20, windowSeconds: 60 },
   referralLookup: { limit: 20, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 

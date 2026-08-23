@@ -1,6 +1,20 @@
 'use client';
 
-import { BadgeCheck, LogOut, Pencil, ShieldCheck, ShieldMinus, UserMinus, UserPlus, Users } from 'lucide-react';
+import {
+  BadgeCheck,
+  Copy,
+  Link2,
+  Link2Off,
+  LogOut,
+  Pencil,
+  RefreshCw,
+  Share2,
+  ShieldCheck,
+  ShieldMinus,
+  UserMinus,
+  UserPlus,
+  Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -20,6 +34,8 @@ import { GROUP_ADD_BATCH_MAX, GROUP_TITLE_MAX, groupRoleLabel, memberCountText }
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzDate } from '@/lib/date';
+import { GROUP_INVITE_WARNING, groupInviteShareText } from '@/config/group-invite';
+import type { GroupInviteResponse } from '@/modules/chat/group-invite.types';
 import type { GroupInfoResponse, GroupInfoView, GroupMemberView } from '@/modules/chat/group.types';
 import type { UserSearchResult } from '@/modules/profile/social.types';
 
@@ -42,6 +58,20 @@ export function GroupInfoContent({ conversationId }: { conversationId: string })
 
   const group = data?.group ?? null;
 
+  /**
+   * Havola FAQAT huquqi borlarga so'raladi.
+   *
+   * Oddiy a'zoga so'rov yuborilsa, server 403 qaytarardi va ekranda
+   * sababsiz xato ko'rinardi.
+   */
+  const canManageInvite = group?.canAddMembers === true || group?.myRole === 'OWNER' || group?.myRole === 'ADMIN';
+
+  const inviteQuery = useApiQuery<GroupInviteResponse>(
+    canManageInvite ? `/api/v1/chat/groups/${conversationId}/invite` : null,
+  );
+
+  const invite = inviteQuery.data?.invite ?? null;
+
   const [actionError, setActionError] = useState<string | null>(null);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
 
@@ -56,6 +86,10 @@ export function GroupInfoContent({ conversationId }: { conversationId: string })
   const [isAdding, setIsAdding] = useState(false);
   const [picked, setPicked] = useState<UserSearchResult[]>([]);
   const [isSavingMembers, setIsSavingMembers] = useState(false);
+
+  // Havola.
+  const [isInviteBusy, setIsInviteBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Chiqarish va chiqish tasdiqlari.
   const [removeTarget, setRemoveTarget] = useState<GroupMemberView | null>(null);
@@ -134,6 +168,70 @@ export function GroupInfoContent({ conversationId }: { conversationId: string })
       setActionError(toUserMessage(caught));
     } finally {
       setIsSavingMembers(false);
+    }
+  }
+
+  /** Havola yasaydi yoki yangilaydi. */
+  async function refreshInvite(): Promise<void> {
+    setIsInviteBusy(true);
+    setActionError(null);
+
+    try {
+      const result = await request<GroupInviteResponse>(`/api/v1/chat/groups/${conversationId}/invite`, {
+        method: 'POST',
+        body: {},
+      });
+
+      inviteQuery.setData({ invite: result.invite });
+    } catch (caught) {
+      setActionError(toUserMessage(caught));
+    } finally {
+      setIsInviteBusy(false);
+    }
+  }
+
+  /** Havolani o'chiradi. */
+  async function revokeInvite(): Promise<void> {
+    setIsInviteBusy(true);
+    setActionError(null);
+
+    try {
+      const result = await request<GroupInviteResponse>(`/api/v1/chat/groups/${conversationId}/invite`, {
+        method: 'DELETE',
+      });
+
+      inviteQuery.setData({ invite: result.invite });
+    } catch (caught) {
+      setActionError(toUserMessage(caught));
+    } finally {
+      setIsInviteBusy(false);
+    }
+  }
+
+  /**
+   * Havolani ulashadi.
+   *
+   * Telefonda tizimning o'z ulashish oynasi ochiladi, kompyuterda
+   * esa havola nusxalanadi — u yerda ulashish oynasi yo'q.
+   */
+  async function shareInvite(link: string, title: string): Promise<void> {
+    const text = groupInviteShareText(title, link);
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url: link });
+        return;
+      }
+
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2_000);
+    } catch {
+      /*
+        Odam ulashish oynasini yopdi yoki nusxalashga ruxsat yo'q.
+        Ikkalasi ham xato emas — havola ekranda turibdi, uni qo'lda
+        belgilab olsa bo'ladi.
+      */
     }
   }
 
@@ -284,6 +382,96 @@ export function GroupInfoContent({ conversationId }: { conversationId: string })
             )}
 
             {actionError && <Alert variant="error">{actionError}</Alert>}
+
+            {/*
+              Havola bo'limi A'ZOLARDAN OLDIN.
+
+              Guruh yasagan odamning birinchi ishi — odamlarni
+              chaqirish. Havola pastda, uzun ro'yxat ostida tursa,
+              uni topish uchun varaqlash kerak bo'lardi.
+            */}
+            {canManageInvite && (
+              <section className="border-border space-y-3 rounded-2xl border p-3">
+                <h2 className="flex items-center gap-2 font-medium">
+                  <Link2 className="text-muted-foreground size-4" aria-hidden="true" />
+                  Taklif havolasi
+                </h2>
+
+                {inviteQuery.isLoading && <Skeleton className="h-10 rounded-lg" />}
+
+                {!inviteQuery.isLoading && invite?.link && (
+                  <>
+                    <p className="bg-secondary/60 text-muted-foreground rounded-lg px-3 py-2 font-mono text-xs break-all">
+                      {invite.link}
+                    </p>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        disabled={isInviteBusy}
+                        onClick={() => void shareInvite(invite.link!, group.title)}
+                      >
+                        {copied ? (
+                          <Copy className="size-4" aria-hidden="true" />
+                        ) : (
+                          <Share2 className="size-4" aria-hidden="true" />
+                        )}
+                        {copied ? 'Nusxalandi' : 'Ulashish'}
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isInviteBusy}
+                        onClick={() => void refreshInvite()}
+                      >
+                        <RefreshCw className="size-4" aria-hidden="true" />
+                        Yangilash
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive"
+                        disabled={isInviteBusy}
+                        onClick={() => void revokeInvite()}
+                      >
+                        <Link2Off className="size-4" aria-hidden="true" />
+                        O&apos;chirish
+                      </Button>
+                    </div>
+
+                    {/*
+                      Ogohlantirish havolaning YONIDA.
+
+                      Uni hujjatga yozib qo'yish yetarli emas: havolani
+                      ulashayotgan odam aynan shu daqiqada nima
+                      qilayotganini bilishi kerak.
+                    */}
+                    <p className="text-muted-foreground text-xs leading-relaxed">{GROUP_INVITE_WARNING}</p>
+                  </>
+                )}
+
+                {!inviteQuery.isLoading && !invite?.link && (
+                  <>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      Havola yo&apos;q. Uni yasasangiz, havolani bilgan odam guruhga o&apos;zi qo&apos;shila oladi.
+                    </p>
+
+                    <Button
+                      size="sm"
+                      disabled={isInviteBusy}
+                      isLoading={isInviteBusy}
+                      loadingText="Yasalmoqda..."
+                      onClick={() => void refreshInvite()}
+                    >
+                      <Link2 className="size-4" aria-hidden="true" />
+                      Havola yasash
+                    </Button>
+                  </>
+                )}
+              </section>
+            )}
 
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-2">

@@ -139,6 +139,27 @@ async function writeSystemMessage(
   });
 }
 
+/**
+ * Hodisa xabarini TRANZAKSIYASIZ yozadi.
+ *
+ * ── Nima uchun ikkinchi variant kerak ─────────────────────────────────
+ * Yuqoridagi `writeSystemMessage` tranzaksiya ichida ishlaydi: u
+ * a'zolar bilan bir vaqtda o'zgaradigan amallar uchun.
+ *
+ * Havola bilan bog'liq amallar esa bitta qatorni o'zgartiradi va
+ * ular uchun tranzaksiya ochish ortiqcha bo'lardi. Bu funksiya
+ * o'sha holat uchun — mantiq esa bir xil, takrorlanmagan.
+ */
+export async function writeGroupEvent(
+  conversationId: string,
+  actorId: string,
+  kind: SystemMessageKindName,
+  actor: string,
+  target?: string,
+): Promise<void> {
+  await prisma.$transaction((tx) => writeSystemMessage(tx, conversationId, actorId, kind, actor, target));
+}
+
 /** Guruhning to'liq ma'lumotini yig'adi. */
 export async function getGroupInfo(conversationId: string, viewerId: string): Promise<GroupInfoView> {
   const group = await requireGroup(conversationId, viewerId);

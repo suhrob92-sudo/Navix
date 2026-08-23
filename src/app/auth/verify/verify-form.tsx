@@ -9,6 +9,7 @@ import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { OtpInput } from '@/components/ui/otp-input';
 import { apiRequest, toUserMessage } from '@/lib/api-client';
+import { readPendingGroupInvite } from '@/lib/pending-group-invite';
 import { formatUzPhone } from '@/lib/phone';
 import { useCountdown } from '@/hooks/use-countdown';
 import { otpCodeSchema, phoneSchema } from '@/modules/auth/auth.schemas';
@@ -65,7 +66,23 @@ export function VerifyForm() {
       });
 
       setSession(session);
-      router.push('/dashboard');
+
+      /**
+       * Guruh havolasi orqali kelgan odam O'SHA GURUHGA qaytariladi.
+       *
+       * ── Nima uchun ─────────────────────────────────────────────────
+       * U ro'yxatdan o'tishni guruhga kirish uchun boshlagan edi.
+       * Uni "Bosh sahifa" ga tashlash — yo'lni yarmida uzish degani:
+       * u qaysi guruhga chaqirilganini eslay olmasligi mumkin va
+       * havolani qaytadan qidirishga majbur bo'lardi.
+       *
+       * Kod bu yerda O'CHIRILMAYDI: guruhga haqiqatan qo'shilgandan
+       * keyin o'chiriladi. Aks holda odam sahifani yopib qo'ysa,
+       * havola butunlay yo'qolardi.
+       */
+      const pendingGroup = readPendingGroupInvite();
+
+      router.push(pendingGroup ? `/g/${pendingGroup}` : '/dashboard');
     } catch (caught) {
       setError(toUserMessage(caught));
       setCode('');

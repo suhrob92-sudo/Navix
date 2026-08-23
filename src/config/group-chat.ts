@@ -125,7 +125,11 @@ export type SystemMessageKindName =
   | 'IMAGE_CHANGED'
   | 'ADMIN_GRANTED'
   | 'ADMIN_REVOKED'
-  | 'OWNER_CHANGED';
+  | 'OWNER_CHANGED'
+  | 'INVITE_CREATED'
+  | 'INVITE_ROTATED'
+  | 'INVITE_REVOKED'
+  | 'JOINED_BY_LINK';
 
 /**
  * Hodisa matnini yozadi.
@@ -159,6 +163,25 @@ export function systemMessageText(kind: SystemMessageKindName, actor: string, ta
       return `${actor} ${target}dan administratorlikni oldi`;
     case 'OWNER_CHANGED':
       return `${target} guruhning yangi egasi`;
+    case 'INVITE_CREATED':
+      return `${actor} guruh havolasini yaratdi`;
+    case 'INVITE_ROTATED':
+      /**
+       * "Yangiladi" — "yaratdi" emas.
+       *
+       * Farqi muhim: yangilanganda ESKI havola o'ladi va uni
+       * ulashgan odamlar buni bilishi kerak.
+       */
+      return `${actor} guruh havolasini yangiladi — eski havola endi ishlamaydi`;
+    case 'INVITE_REVOKED':
+      return `${actor} guruh havolasini o'chirdi`;
+    case 'JOINED_BY_LINK':
+      /**
+       * "Qo'shildi" — "qo'shdi" emas.
+       *
+       * Havolada hech kim hech kimni qo'shmaydi: odam o'zi kiradi.
+       */
+      return `${actor} havola orqali qo'shildi`;
   }
 }
 

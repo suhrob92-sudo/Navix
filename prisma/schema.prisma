@@ -2187,6 +2187,10 @@ enum SystemMessageKind {
   ADMIN_GRANTED
   ADMIN_REVOKED
   OWNER_CHANGED
+  INVITE_CREATED
+  INVITE_ROTATED
+  INVITE_REVOKED
+  JOINED_BY_LINK
 }
 
 /// Suhbat.
@@ -2206,6 +2210,21 @@ model Conversation {
 
   /// Guruh rasmi. Tanlanmagan bo'lsa harfli avatar ko'rsatiladi.
   imageUrl String? @db.VarChar(500)
+
+  /// Guruhga qo'shilish havolasining kodi.
+  ///
+  /// ── Nima uchun BO'SH bo'lishi mumkin ───────────────────────────────
+  /// Havola ATAYLAB yoqiladi. Har bir guruhga avtomatik havola
+  /// yasash noto'g'ri bo'lardi: oilaviy suhbatga havola kerak emas
+  /// va uning tasodifan tarqalib ketishi faqat zarar keltiradi.
+  ///
+  /// Bo'sh qiymat — "havola yo'q" degani. Havolani o'chirish ham
+  /// shu ustunni bo'shatish bilan bajariladi va eski havola
+  /// DARHOL ishlamay qoladi.
+  inviteCode String? @unique @db.VarChar(16)
+
+  /// Havola qachon yasalgani — ma'lumot sahifasida ko'rsatiladi.
+  inviteCreatedAt DateTime?
 
   /// Guruhni yaratgan odam.
   ///
