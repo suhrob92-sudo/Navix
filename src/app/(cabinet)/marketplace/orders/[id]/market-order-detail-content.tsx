@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, MapPin, MessageSquare, Store } from 'lucide-react';
+import { MapPin, MessageSquare, RotateCcw, Store } from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -16,14 +16,21 @@ import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzDateTime } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
-import { cn } from '@/lib/utils';
 import {
-  MARKET_ORDER_FLOW,
   MARKET_ORDER_STATUS_LABELS,
   MARKET_ORDER_STATUS_VARIANTS,
   isCancellable,
   type MarketOrderResponse,
 } from '@/modules/market/market.types';
+import { OrderTimeline } from '@/components/market/order-timeline';
+import { ReturnForm } from '@/components/market/return-form';
+import { ReturnStatusCard } from '@/components/market/return-status-card';
+import {
+  RETURN_BLOCK_TEXT,
+  checkReturnEligibility,
+  type ReturnReasonName,
+} from '@/config/order-return';
+import type { ReturnRequestView, ReturnResponse } from '@/modules/market/return.types';
 
 export interface MarketOrderDetailContentProps {
   orderId: string;
@@ -46,9 +53,24 @@ export function MarketOrderDetailContent({ orderId }: MarketOrderDetailContentPr
     { refreshIntervalMs: 30_000 },
   );
 
+  /*
+    Qaytarish so'rovi ALOHIDA so'raladi va faqat u mavjud
+    bo'lganda: buyurtmalarning aksariyatida qaytarish yo'q va
+    ularni har safar so'rash bekorga bo'lardi.
+  */
+  const returnQuery = useApiQuery<{ request: ReturnRequestView | null }>(
+    data?.order.returnStatus ? `/api/v1/market/orders/${orderId}/return` : null,
+  );
+
+  const returnRequest = returnQuery.data?.request ?? null;
+
   const [isCancelling, setIsCancelling] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  const [isReturnOpen, setIsReturnOpen] = useState(false);
+  const [isReturning, setIsReturning] = useState(false);
+  const [returnError, setReturnError] = useState<string | null>(null);
 
   const order = data?.order ?? null;
 
@@ -72,7 +94,49 @@ export function MarketOrderDetailContent({ orderId }: MarketOrderDetailContentPr
     }
   }
 
-  const currentStep = order ? MARKET_ORDER_FLOW.indexOf(order.status) : -1;
+  /**
+   * Qaytarish so'rovini yuboradi.
+   *
+   * Muvaffaqiyatdan keyin buyurtma QAYTA o'qiladi: uning
+   * `returnStatus` maydoni o'zgargan va ekran shuni ko'rsatishi
+   * kerak.
+   */
+  async function submitReturn(input: {
+    reason: ReturnReasonName;
+    comment?: string;
+    items: { orderItemId: string; quantity: number }[];
+  }) {
+    setIsReturning(true);
+    setReturnError(null);
+
+    try {
+      await request<ReturnResponse>(`/api/v1/market/orders/${orderId}/return`, {
+        method: 'POST',
+        body: input,
+      });
+
+      const fresh = await request<MarketOrderResponse>(`/api/v1/market/orders/${orderId}`);
+
+      setData(fresh);
+      setIsReturnOpen(false);
+    } catch (caught) {
+      setReturnError(toUserMessage(caught));
+    } finally {
+      setIsReturning(false);
+    }
+  }
+
+  /*
+    Qaytarish mumkinmi — SERVER bilan bir xil qoida bo'yicha
+    hisoblanadi (`checkReturnEligibility`).
+  */
+  const returnCheck = order
+    ? checkReturnEligibility({
+        status: order.status,
+        deliveredAt: order.deliveredAt,
+        hasReturnRequest: order.returnStatus !== null,
+      })
+    : null;
 
   return (
     <>
@@ -113,36 +177,20 @@ export function MarketOrderDetailContent({ orderId }: MarketOrderDetailContentPr
               )}
             </div>
 
-            {/* Bosqichlar */}
-            {order.status !== 'CANCELLED' && (
-              <section className="bg-card border-border rounded-2xl border p-4">
-                <ol className="space-y-3">
-                  {MARKET_ORDER_FLOW.map((step, index) => {
-                    const isDone = index <= currentStep;
+            {/*
+              ── Bosqichlar chizig'i ──────────────────────────────
+              Ilgari bu yerda oddiy ro'yxat turardi: u faqat
+              "qaysi bosqichdamiz" deb aytardi, QACHON bo'lgani
+              esa ko'rinmasdi.
 
-                    return (
-                      <li key={step} className="flex items-center gap-3">
-                        <span
-                          className={cn(
-                            'inline-flex size-6 shrink-0 items-center justify-center rounded-full text-xs',
-                            isDone ? 'bg-primary text-primary-foreground' : 'bg-secondary text-muted-foreground',
-                          )}
-                        >
-                          {isDone ? <Check className="size-3.5" aria-hidden="true" /> : index + 1}
-                        </span>
-                        <span className={cn('text-sm', isDone ? 'font-medium' : 'text-muted-foreground')}>
-                          {MARKET_ORDER_STATUS_LABELS[step]}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ol>
-
-                <p className="text-muted-foreground mt-3 text-xs">
-                  {`Taxminan ${order.shop.deliveryDays} kunda yetkaziladi`}
-                </p>
-              </section>
-            )}
+              Endi har bir bosqichning sanasi bor va bekor
+              qilingan buyurtma ham to'g'ri chiziladi.
+            */}
+            <OrderTimeline
+              events={order.events}
+              status={order.status}
+              deliveryDays={order.shop.deliveryDays}
+            />
 
             {/* Tarkib */}
             <section className="bg-card border-border rounded-2xl border p-4">
@@ -215,6 +263,51 @@ export function MarketOrderDetailContent({ orderId }: MarketOrderDetailContentPr
                 </p>
               )}
             </section>
+
+            {/* ── Qaytarish ────────────────────────────────────── */}
+            {returnRequest && <ReturnStatusCard request={returnRequest} />}
+
+            {isReturnOpen && (
+              <ReturnForm
+                items={order.items}
+                deliveryFee={order.deliveryFee}
+                isSubmitting={isReturning}
+                error={returnError}
+                onSubmit={submitReturn}
+                onCancel={() => {
+                  setIsReturnOpen(false);
+                  setReturnError(null);
+                }}
+              />
+            )}
+
+            {/*
+              Tugma FAQAT qaytarish mumkin bo'lganda ko'rinadi.
+
+              Muddat o'tgan bo'lsa esa SABAB aytiladi: tugmani
+              shunchaki yashirish odamni "qaytarish yo'q ekan"
+              degan xulosaga olib kelardi.
+            */}
+            {order.status === 'DELIVERED' && !returnRequest && !isReturnOpen && (
+              <>
+                {returnCheck?.canRequest ? (
+                  <>
+                    <Button variant="outline" fullWidth onClick={() => setIsReturnOpen(true)}>
+                      <RotateCcw className="size-4" aria-hidden="true" />
+                      Mahsulotni qaytarish
+                    </Button>
+
+                    <p className="text-muted-foreground text-center text-xs leading-relaxed">
+                      {`Qaytarish uchun yana ${returnCheck.daysLeft} kun bor.`}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground text-center text-xs leading-relaxed">
+                    {RETURN_BLOCK_TEXT[returnCheck?.reason ?? 'WINDOW_CLOSED']}
+                  </p>
+                )}
+              </>
+            )}
 
             {isCancellable(order.status) && (
               <>

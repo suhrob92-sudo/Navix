@@ -1,7 +1,7 @@
 'use client';
 
 import type { LucideIcon } from 'lucide-react';
-import { ClipboardList, LayoutGrid, Store } from 'lucide-react';
+import { ClipboardList, LayoutGrid, RotateCcw, Store } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -26,6 +26,7 @@ interface SellerNavItem {
 const SELLER_NAV: readonly SellerNavItem[] = [
   { href: '/seller', label: 'Asosiy', icon: LayoutGrid, exact: true },
   { href: '/seller/orders', label: 'Buyurtmalar', icon: ClipboardList },
+  { href: '/seller/returns', label: 'Qaytarish', icon: RotateCcw },
   { href: '/dashboard', label: 'Ilovaga', icon: Store },
 ] as const;
 

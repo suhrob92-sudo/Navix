@@ -4,6 +4,7 @@ import { toPrismaPagination } from '@/lib/api/pagination';
 import { AuditAction, recordAudit } from '@/lib/audit';
 import { startOfTashkentDay, startOfTashkentDaysAgo } from '@/lib/date';
 import { logger } from '@/lib/logger';
+import { recordOrderEvent } from '@/modules/market/order-event.service';
 import { tiyinToNumber } from '@/lib/money';
 import { formatUzPhone } from '@/lib/phone';
 import { prisma } from '@/lib/prisma';
@@ -105,7 +106,7 @@ export async function assertDeliveryNotPending(
   });
 
   if (delivery) {
-    throw new ConflictError('Buyurtmani kuryer topshiradi. Yetkazilgach holat o‘zi o‘zgaradi.');
+    throw new ConflictError("Buyurtmani kuryer topshiradi. Yetkazilgach holat o'zi o'zgaradi.");
   }
 
   const waiting = await tx.delivery.findFirst({
@@ -705,6 +706,21 @@ async function completeDelivery(
 
       if (finished.count === 0) {
         throw new ConflictError("Buyurtma holati o'zgardi. Sahifani yangilang.");
+      }
+
+      /*
+        Marketplace buyurtmasining tarixiga yozamiz.
+
+        Yetkazilganini KURYER tasdiqlaydi, ya'ni tarixda ham aynan
+        u ko'rinishi kerak: xaridor "kim yetkazdi" degan savolga
+        javob topsin.
+      */
+      if (row.marketOrderId !== null) {
+        await recordOrderEvent(tx, {
+          orderId: row.marketOrderId,
+          status: MarketOrderStatus.DELIVERED,
+          actorId: userId,
+        });
       }
     }
 

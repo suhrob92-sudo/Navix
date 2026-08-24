@@ -222,6 +222,13 @@ export const PUBLIC_RATE_LIMITS = {
    * chegara faqat skript uchun to'siq bo'lishi kerak.
    */
   cartWrite: { limit: 120, windowSeconds: 60 },
+  /**
+   * Qaytarish so'rovi: daqiqasiga 10 marta.
+   *
+   * Bu PUL bilan bog'liq amal va uni ketma-ket yuborishga hech
+   * qanday sabab yo'q. Past chegara oddiy odamga sezilmaydi.
+   */
+  returnRequest: { limit: 10, windowSeconds: 60 },
   chatOpen: { limit: 60, windowSeconds: 60 * 60 },
   /**
    * Guruh yaratish: soatiga 10 ta.

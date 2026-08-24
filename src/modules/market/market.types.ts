@@ -1,5 +1,7 @@
 import type { ServiceColor } from '@/config/modules';
 import type { ShopStatsView } from '@/config/shop-stats';
+import type { OrderEventView } from '@/config/order-timeline';
+import type { ReturnStatusName } from '@/config/order-return';
 import type { CatalogImageView, CatalogThumb } from '@/modules/catalog/catalog-image.types';
 import type { VariantsView } from '@/modules/product/product-variant.types';
 import type { OrderCourierView } from '@/modules/food/food.types';
@@ -151,6 +153,15 @@ export interface MarketOrderView {
   items: MarketOrderItemView[];
   /** Yetkazayotgan kuryer — topshiriq ochilgach paydo bo'ladi. */
   courier: OrderCourierView | null;
+  /**
+   * Holat o'zgarishlari tarixi — eng eskisidan yangisiga.
+   *
+   * Sanalar shu yerdan olinadi: ustunlarda `PACKING` bosqichi yo'q
+   * edi va tarix to'liq bo'lmasdi.
+   */
+  events: OrderEventView[];
+  /** Qaytarish so'rovi holati — so'rov bo'lmasa `null`. */
+  returnStatus: ReturnStatusName | null;
 }
 
 export interface ShopsResponse {

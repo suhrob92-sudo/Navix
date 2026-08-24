@@ -163,6 +163,38 @@ enum MarketOrderStatus {
   CANCELLED
 }
 
+/// Qaytarish so'rovining holati.
+enum ReturnStatus {
+  /// Sotuvchi hali qaramagan.
+  PENDING
+  /// Sotuvchi rozi — pul qaytarildi.
+  APPROVED
+  /// Sotuvchi rad etdi (sababi bilan).
+  REJECTED
+}
+
+/// Nima uchun qaytarilmoqda.
+///
+/// ── Nima uchun ro'yxat, erkin matn emas ───────────────────────────────
+/// Erkin matn ham yozilishi mumkin (`comment`), lekin ASOSIY sabab
+/// ro'yxatdan tanlanadi. Sabab:
+///
+///   · sotuvchi "menda nima ko'p buziladi" degan savolga javob
+///     olishi kerak, buni erkin matndan sanab bo'lmaydi;
+///   · yetkazish haqi qaytariladimi — aynan shu sababga bog'liq.
+enum ReturnReason {
+  /// Buzilgan yoki singan holda yetib keldi.
+  DAMAGED
+  /// Boshqa mahsulot kelgan.
+  WRONG_ITEM
+  /// Tavsifga mos kelmadi.
+  NOT_AS_DESCRIBED
+  /// Fikridan qaytdi — mahsulotda ayb yo'q.
+  CHANGED_MIND
+  /// Boshqa sabab.
+  OTHER
+}
+
 /// Mehmonxona bandlovining holati.
 ///
 /// ── Nima uchun "kutilmoqda" YO'Q ──────────────────────────────────────
@@ -303,6 +335,10 @@ model User {
   answersGiven      ProductAnswer[]      @relation("AnswersGiven")
   /// Savat va "keyinroq sotib olaman" ro'yxati.
   cartItems         CartItem[]
+  /// Buyurtma tarixi va qaytarish so'rovlari.
+  orderEvents       MarketOrderEvent[]
+  returnsRequested  ReturnRequest[]      @relation("ReturnsRequested")
+  returnsDecided    ReturnRequest[]      @relation("ReturnsDecided")
   tickets           TripBooking[]
   following         Follow[]             @relation("Following")
   followers         Follow[]             @relation("Followers")
@@ -1184,6 +1220,127 @@ model CartItem {
   @@map("cart_items")
 }
 
+/// Buyurtma holatining O'ZGARISHI.
+///
+/// ── Nima uchun ustunlar YETMADI ───────────────────────────────────────
+/// `market_orders` jadvalida allaqachon `confirmedAt`, `shippedAt`,
+/// `deliveredAt` va `cancelledAt` bor edi.
+///
+/// Lekin ular uchta narsani ayta olmasdi:
+///
+///   1. `PACKING` bosqichi qachon boshlangani — unga ustun yo'q edi;
+///   2. holatni KIM o'zgartirgani — sotuvchimi, kuryermi, xaridormi;
+///   3. yangi bosqich qo'shilsa, yana bitta ustun kerak bo'lardi.
+///
+/// Alohida jadval bu uchalasini ham hal qiladi va buyurtma tarixi
+/// to'liq ko'rinadi: "qachon, kim, nima qildi".
+///
+/// ── Eski buyurtmalar ──────────────────────────────────────────────────
+/// Ko'chirish paytida mavjud buyurtmalarning yozuvlari o'sha
+/// ustunlardan YASALADI — aks holda eski buyurtmalar tarixsiz
+/// qolardi.
+model MarketOrderEvent {
+  id String @id @default(uuid()) @db.Uuid
+
+  orderId String            @db.Uuid
+  status  MarketOrderStatus
+
+  /// Kim o'zgartirdi. Tizim o'zi qilgan bo'lsa `null`.
+  actorId String? @db.Uuid
+
+  /// Qo'shimcha izoh — masalan bekor qilish sababi.
+  note String? @db.VarChar(255)
+
+  createdAt DateTime @default(now())
+
+  order MarketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actor User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  /// Buyurtma tarixini o'qish uchun asosiy indeks.
+  @@index([orderId, createdAt])
+  @@index([actorId])
+  @@map("market_order_events")
+}
+
+/// Mahsulotni qaytarish so'rovi.
+///
+/// ── Nima uchun bitta buyurtmaga BITTA so'rov ──────────────────────────
+/// Ikkita ochiq so'rov bo'lsa, ikkalasi ham bir xil mahsulotni
+/// qamrab olishi va pul IKKI MARTA qaytishi mumkin edi.
+///
+/// Yagonalik cheklovi bu ehtimolni baza darajasida yo'q qiladi.
+///
+/// ── Nima uchun summa SAQLANADI ────────────────────────────────────────
+/// Odatda narxni saqlash xato bo'lardi — u eskiradi. Lekin bu yerdagi
+/// summa `market_order_items` dagi MUZLATILGAN narxlardan
+/// hisoblanadi: xaridor buyurtma bergan paytdagi narx.
+///
+/// U hech qachon o'zgarmaydi, ya'ni saqlangan summa ham eskirmaydi.
+/// Shu tufayli xaridor so'rov yuborayotganda ko'rgan raqam bilan
+/// keyin qaytgan pul BIR XIL bo'ladi.
+model ReturnRequest {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Bitta buyurtmada bitta so'rov — sabab yuqorida.
+  orderId String @unique @db.Uuid
+  userId  String @db.Uuid
+
+  status ReturnStatus @default(PENDING)
+  reason ReturnReason
+
+  /// Xaridorning o'z so'zlari.
+  comment String? @db.VarChar(500)
+
+  /// Qaytariladigan summa TIYINDA.
+  amount BigInt
+
+  decidedAt    DateTime?
+  decidedById  String?   @db.Uuid
+  /// Rad etish sababi yoki sotuvchining izohi.
+  decisionNote String?   @db.VarChar(255)
+
+  /// Pul qaytarilganda yozilgan hamyon amaliyoti.
+  refundTransactionId String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order     MarketOrder  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user      User         @relation("ReturnsRequested", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User?        @relation("ReturnsDecided", fields: [decidedById], references: [id], onDelete: SetNull)
+  items     ReturnItem[]
+
+  /// Sotuvchining "yangi so'rovlar" ro'yxati uchun.
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([decidedById])
+  @@map("return_requests")
+}
+
+/// Qaytarilayotgan bitta qator.
+///
+/// ── Nima uchun QISMAN qaytarish kerak ─────────────────────────────────
+/// Odam beshta narsa buyurtma qilib, bittasi buzilib kelishi mumkin.
+/// Butun buyurtmani qaytarishga majburlash unga ham, sotuvchiga ham
+/// zarar: qolgan to'rttasi joyida edi.
+model ReturnItem {
+  id String @id @default(uuid()) @db.Uuid
+
+  returnId    String @db.Uuid
+  orderItemId String @db.Uuid
+
+  /// Nechta dona qaytarilmoqda — buyurtmadagidan ko'p bo'la olmaydi.
+  quantity Int
+
+  request   ReturnRequest   @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  orderItem MarketOrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  /// Bir qator ikki marta qo'shilmasin.
+  @@unique([returnId, orderItemId])
+  @@index([orderItemId])
+  @@map("return_items")
+}
+
 /// Mahsulot toifasi: "Telefonlar", "Kiyim", "Kitoblar".
 ///
 /// ── Nima uchun do'konga BOG'LIQ EMAS ──────────────────────────────────
@@ -1313,14 +1470,18 @@ model MarketOrder {
   deliveredAt DateTime?
   cancelledAt DateTime?
 
-  user     User              @relation(fields: [userId], references: [id], onDelete: Restrict)
-  shop     Shop              @relation(fields: [shopId], references: [id], onDelete: Restrict)
-  address  Address?          @relation(fields: [addressId], references: [id], onDelete: SetNull)
-  items    MarketOrderItem[]
+  user          User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  shop          Shop               @relation(fields: [shopId], references: [id], onDelete: Restrict)
+  address       Address?           @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  items         MarketOrderItem[]
   /// Kuryer topshirig'i — do'kon "yo'lga chiqarish" bosgach yaratiladi.
-  delivery Delivery?
+  delivery      Delivery?
   /// Shu buyurtma tasdiqlagan sharhlar.
-  reviews  Review[]
+  reviews       Review[]
+  /// Holat o'zgarishlari tarixi.
+  events        MarketOrderEvent[]
+  /// Qaytarish so'rovi (ko'pi bilan bitta).
+  returnRequest ReturnRequest?
 
   @@index([userId, createdAt])
   @@index([shopId, status])
@@ -1368,10 +1529,11 @@ model MarketOrderItem {
   /// bog'liq yozuv. Faqat "qayerdan kelgani" yo'qoladi.
   sourcePostId String? @db.Uuid
 
-  order      MarketOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product    Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
-  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-  sourcePost Post?           @relation("OrderSource", fields: [sourcePostId], references: [id], onDelete: SetNull)
+  order       MarketOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  sourcePost  Post?           @relation("OrderSource", fields: [sourcePostId], references: [id], onDelete: SetNull)
+  returnItems ReturnItem[]
 
   @@index([orderId])
   /// "Shu videodan nechta buyurtma keldi" so'rovi uchun.

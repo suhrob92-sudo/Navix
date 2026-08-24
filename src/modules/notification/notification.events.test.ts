@@ -78,6 +78,23 @@ const SAMPLES = {
     amountTiyin: 429_000_000,
     reason: 'omborda topilmadi',
   },
+  'market.return_requested': {
+    orderId: '9d4a2c71-6b8e-4f2a-8d1c-3e7b5a9f2c40',
+    orderNumber: 'NVX-M-20260805-X9Y8Z7',
+    amountTiyin: 429_000_000,
+  },
+  'market.return_approved': {
+    orderId: '9d4a2c71-6b8e-4f2a-8d1c-3e7b5a9f2c40',
+    orderNumber: 'NVX-M-20260805-X9Y8Z7',
+    shopName: 'Texnomart',
+    amountTiyin: 429_000_000,
+  },
+  'market.return_rejected': {
+    orderId: '9d4a2c71-6b8e-4f2a-8d1c-3e7b5a9f2c40',
+    orderNumber: 'NVX-M-20260805-X9Y8Z7',
+    shopName: 'Texnomart',
+    reason: 'mahsulot ishlatilgan',
+  },
   'market.cart_reminder': {
     subject: 'Redmi Note 14 va yana 2 ta mahsulot',
     itemCount: 3,

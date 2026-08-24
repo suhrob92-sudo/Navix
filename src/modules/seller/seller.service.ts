@@ -11,6 +11,7 @@ import { slugify } from '@/lib/utils';
 import { GALLERY_SELECT, toGallery } from '@/modules/catalog/catalog-image.select';
 import type { ServiceColor } from '@/config/modules';
 import { notifyUser } from '@/modules/notification/notification.service';
+import { recordOrderEvent } from '@/modules/market/order-event.service';
 import { refundWallet } from '@/modules/wallet/wallet.service';
 import { canTransition, type MarketOrderStatusName } from '@/modules/market/market.types';
 import { assertDeliveryNotPending, createMarketDelivery } from '@/modules/courier/courier.service';
@@ -753,6 +754,18 @@ export async function updateSellerOrderStatus(
       throw new ConflictError("Buyurtma holati o'zgardi. Sahifani yangilang.");
     }
 
+    /*
+      Tarixga yozamiz.
+
+      `PACKING` bosqichiga ustun yo'q — u FAQAT shu yozuv orqali
+      ko'rinadi. Aynan shuning uchun alohida jadval kerak bo'lgan.
+    */
+    await recordOrderEvent(tx, {
+      orderId: order.id,
+      status: to as MarketOrderStatus,
+      actorId: userId,
+    });
+
     if (to === 'SHIPPED') {
       await createMarketDelivery(tx, { id: order.id, deliveryFee: order.deliveryFee });
     }
@@ -869,6 +882,13 @@ async function rejectOrder(
       sourceModule: MODULE,
       sourceId: order.id,
       idempotencyKey: `market-refund-${order.id}`,
+    });
+
+    await recordOrderEvent(tx, {
+      orderId: order.id,
+      status: MarketOrderStatus.CANCELLED,
+      actorId: userId,
+      note: reason,
     });
 
     await tx.marketOrder.update({

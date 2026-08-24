@@ -10,6 +10,7 @@ import { toSearchText } from '@/lib/search';
 import { variantLabel } from '@/config/product-variant';
 import { getVariants } from '@/modules/product/product-variant.service';
 import { getShopStats } from '@/modules/market/shop-stats.service';
+import { recordOrderEvent } from '@/modules/market/order-event.service';
 import type { ServiceColor } from '@/config/modules';
 import type { ShopStatsView } from '@/config/shop-stats';
 import {
@@ -28,7 +29,9 @@ import type {
   ProductQuery,
 } from '@/modules/market/market.schemas';
 import type { OrderCourierView } from '@/modules/food/food.types';
+import type { ReturnStatusName } from '@/config/order-return';
 import type {
+  MarketOrderStatusName,
   MarketOrderView,
   ProductCategoryView,
   ProductDetail,
@@ -376,6 +379,25 @@ const ORDER_SELECT = {
   deliveredAt: true,
   cancelledAt: true,
   shop: { select: { id: true, slug: true, name: true, color: true, deliveryDays: true } },
+  /*
+    Holat o'zgarishlari tarixi — kuzatuv chizig'i uchun.
+
+    ── Nima uchun `take` yo'q ──────────────────────────────────────────
+    Bitta buyurtmada eng ko'pi bilan olti yozuv bo'ladi (beshta
+    bosqich va bekor qilish). Chegara qo'yish keraksiz murakkablik
+    bo'lardi.
+  */
+  events: {
+    select: {
+      status: true,
+      createdAt: true,
+      note: true,
+      actor: { select: { firstName: true } },
+    },
+    orderBy: { createdAt: 'asc' },
+  },
+  /** Qaytarish so'rovi bormi — tugmani ko'rsatish uchun. */
+  returnRequest: { select: { id: true, status: true } },
   items: {
     /**
      * `productId` BAHO uchun kerak.
@@ -401,7 +423,18 @@ const ORDER_SELECT = {
       courier: { select: { firstName: true, lastName: true, phone: true } },
     },
   },
-} as const;
+  /*
+    `as const` EMAS, `satisfies`.
+
+    ── Nima uchun ────────────────────────────────────────────────────
+    `as const` ichidagi `orderBy: { createdAt: 'asc' }` faqat
+    o'qiladigan (`readonly`) bo'lib qoladi, Prisma esa
+    o'zgartiriladigan turni kutadi.
+
+    Natijada tur mos kelmay, `row.events` `never` bo'lib qolardi —
+    ya'ni voqealar ro'yxati "umuman mavjud emas" deb ko'rinardi.
+  */
+} satisfies Prisma.MarketOrderSelect;
 
 /**
  * Buyurtma sahifasida ko'rinadigan kuryer.
@@ -448,6 +481,19 @@ function toOrderView(row: OrderRow): MarketOrderView {
       color: row.shop.color as ServiceColor,
       deliveryDays: row.shop.deliveryDays,
     },
+    events: row.events.map((event) => ({
+      status: event.status as MarketOrderStatusName,
+      at: event.createdAt.toISOString(),
+      note: event.note,
+      /*
+        Ism KO'RSATILADI, familiya emas.
+
+        "Bekor qildi: Sardor" yetarli; to'liq ism boshqa odamning
+        ma'lumotini keraksiz ochib berardi.
+      */
+      actor: event.actor?.firstName ?? null,
+    })),
+    returnStatus: (row.returnRequest?.status ?? null) as ReturnStatusName | null,
     items: row.items.map((item) => ({
       id: item.id,
       name: item.name,
@@ -897,6 +943,13 @@ async function performCreateMarketOrder(
     */
     await tx.cartItem.deleteMany({ where: { userId, savedForLater: false } });
 
+    // Buyurtma tarixining birinchi yozuvi.
+    await recordOrderEvent(tx, {
+      orderId: created.id,
+      status: MarketOrderStatus.PENDING,
+      actorId: userId,
+    });
+
     return tx.marketOrder.update({
       where: { id: created.id },
       data: { walletTransactionId: charge.id },
@@ -1038,6 +1091,13 @@ export async function cancelMarketOrder(
       sourceModule: SOURCE_MODULE,
       sourceId: order.id,
       idempotencyKey: `market-refund-${order.id}`,
+    });
+
+    await recordOrderEvent(tx, {
+      orderId: order.id,
+      status: MarketOrderStatus.CANCELLED,
+      actorId: userId,
+      note: reason,
     });
 
     return tx.marketOrder.update({

@@ -89,6 +89,31 @@ export interface NotificationEventData {
    * Xabarda eski summani ko'rsatsak, odam savatni ochib boshqa
    * raqamni ko'rardi va bu aldashdek tuyulardi.
    */
+  /**
+   * Qaytarish so'rovi — SOTUVCHIGA.
+   *
+   * Usiz so'rov kabinetda ko'rilmay osilib qolardi va xaridor
+   * javob kutib o'tirardi.
+   */
+  'market.return_requested': {
+    orderId: string;
+    orderNumber: string;
+    amountTiyin: number;
+  };
+  /** Qaytarish tasdiqlandi — XARIDORGA. */
+  'market.return_approved': {
+    orderId: string;
+    orderNumber: string;
+    shopName: string;
+    amountTiyin: number;
+  };
+  /** Qaytarish rad etildi — XARIDORGA. */
+  'market.return_rejected': {
+    orderId: string;
+    orderNumber: string;
+    shopName: string;
+    reason: string;
+  };
   'market.cart_reminder': {
     /** Savatdagi birinchi mahsulot nomi (va qolganlari soni). */
     subject: string;
@@ -459,6 +484,33 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
    * Bu yerdagi maqsad boshqacha: odam savatini haqiqatan unutgan
    * bo'lishi mumkin va unga shunchaki eslatiladi.
    */
+  'market.return_requested': ({ orderNumber, amountTiyin }) => ({
+    title: "Qaytarish so'rovi",
+    body: `${orderNumber} buyurtmasi bo'yicha ${formatTiyin(amountTiyin)} qaytarish so'ralmoqda.`,
+    actionUrl: `/seller/returns`,
+    sourceModule: 'market',
+  }),
+
+  'market.return_approved': ({ orderId, shopName, amountTiyin }) => ({
+    title: 'Pul qaytarildi',
+    body: `${shopName} qaytarishni qabul qildi. ${formatTiyin(amountTiyin)} hamyoningizga qaytarildi.`,
+    actionUrl: `/marketplace/orders/${orderId}`,
+    sourceModule: 'market',
+  }),
+
+  /**
+   * Rad etishda SABAB matnga kiritiladi.
+   *
+   * "Rad etildi" degan quruq xabar xaridorni javobsiz qoldirardi va
+   * u nima qilish kerakligini bilmasdi.
+   */
+  'market.return_rejected': ({ orderId, shopName, reason }) => ({
+    title: "Qaytarish rad etildi",
+    body: `${shopName} qaytarishni qabul qilmadi: ${reason}`,
+    actionUrl: `/marketplace/orders/${orderId}`,
+    sourceModule: 'market',
+  }),
+
   'market.cart_reminder': ({ subject }) => ({
     title: 'Savatingiz kutmoqda',
     /*

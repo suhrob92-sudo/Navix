@@ -70,6 +70,10 @@ export const AuditAction = {
   FOOD_ORDER_CANCELLED: 'food.order.cancelled',
   MARKET_ORDER_CREATED: 'market.order.created',
   MARKET_ORDER_CANCELLED: 'market.order.cancelled',
+  /** Qaytarish so'rovi — pul bilan bog'liq, shuning uchun yozib boriladi. */
+  MARKET_RETURN_REQUESTED: 'market.return.requested',
+  MARKET_RETURN_APPROVED: 'market.return.approved',
+  MARKET_RETURN_REJECTED: 'market.return.rejected',
 
   // Restoran kabineti.
   MERCHANT_ORDER_STATUS_CHANGED: 'merchant.order.status_changed',
