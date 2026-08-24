@@ -3,17 +3,24 @@
 import * as icons from 'lucide-react';
 import { PackageSearch, Search, Store } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { ActiveFilters } from '@/components/market/active-filters';
+import { FilterSheet } from '@/components/market/filter-sheet';
 import { MarketCartBar } from '@/components/market/market-cart-bar';
 import { ProductCard } from '@/components/market/product-card';
 import { RecentRow } from '@/components/recent/recent-row';
 import { Alert } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { FilterChip } from '@/components/ui/filter-chip';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SORT_OPTIONS, activeFilterCount } from '@/config/product-filter';
 import { useApiQuery } from '@/hooks/use-api';
+import { useDebouncedValue } from '@/hooks/use-debounced-value';
+import { useProductFilters } from '@/modules/market/use-product-filters';
 import { formatTiyin } from '@/lib/money';
 import type { CategoriesResponse, ProductsResponse, ShopsResponse } from '@/modules/market/market.types';
 
@@ -29,15 +36,47 @@ import type { CategoriesResponse, ProductsResponse, ShopsResponse } from '@/modu
  * natija qoladi.
  */
 export function MarketplaceContent() {
-  const [search, setSearch] = useState('');
-  const trimmed = search.trim();
+  /**
+   * Qidiruv so'zi ham MANZILDA saqlanadi.
+   *
+   * ── Nima uchun ────────────────────────────────────────────────────
+   * Odam qidirib, mahsulotni ochib, orqaga qaytganda so'rovi
+   * joyida qolishi kerak. Aks holda u hammasini qaytadan yozardi.
+   *
+   * Filtrlar bilan bir joyda saqlangani ham muhim: ular birga
+   * ishlaydi va birga yo'qolishi kerak emas.
+   */
+  const { filters, update, clearOne, clearAll, queryString } = useProductFilters();
+
+  const trimmed = (filters.search ?? '').trim();
   const isSearching = trimmed.length > 0;
+
+  /**
+   * Yozilayotgan matn ALOHIDA holatda.
+   *
+   * ── Nima uchun to'g'ridan-to'g'ri manzilga yozilmaydi ──────────────
+   * Har bir harfda manzil yangilansa, brauzer tarixi va so'rov
+   * har bosishda o'zgarardi — bu sekin va miltillovchi bo'lardi.
+   *
+   * Shuning uchun matn shu yerda yig'iladi va kechikish bilan
+   * manzilga o'tadi.
+   */
+  const [draftSearch, setDraftSearch] = useState(filters.search ?? '');
+  const debouncedSearch = useDebouncedValue(draftSearch, 400);
+
+  useEffect(() => {
+    const next = debouncedSearch.trim();
+
+    if (next === (filters.search ?? '')) return;
+
+    update({ search: next === '' ? undefined : next });
+  }, [debouncedSearch, filters.search, update]);
 
   const categories = useApiQuery<CategoriesResponse>(isSearching ? null : '/api/v1/market/categories');
   const shops = useApiQuery<ShopsResponse>(isSearching ? null : '/api/v1/market/shops');
 
   const results = useApiQuery<ProductsResponse>(
-    isSearching ? `/api/v1/market/products?search=${encodeURIComponent(trimmed)}&pageSize=24` : null,
+    isSearching ? `/api/v1/market/products?${queryString}&pageSize=24` : null,
   );
 
   const isLoading = isSearching ? results.isLoading : categories.isLoading || shops.isLoading;
@@ -49,11 +88,36 @@ export function MarketplaceContent() {
 
       <div className="px-4 pt-4 pb-4">
         <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
+          value={draftSearch}
+          onChange={(event) => setDraftSearch(event.target.value)}
           placeholder="Mahsulot qidiring"
           aria-label="Qidirish"
         />
+
+        {/*
+          Filtr va saralash FAQAT qidiruv natijasida ko'rinadi.
+
+          Toifalar sahifasida filtrlashning ma'nosi yo'q: u yerda
+          mahsulot ro'yxati emas, bo'limlar turadi.
+        */}
+        {isSearching && (
+          <>
+            <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <FilterSheet filters={filters} onApply={update} onClearAll={clearAll} />
+
+              {SORT_OPTIONS.map((option) => (
+                <FilterChip
+                  key={option.value}
+                  label={option.label}
+                  active={filters.sort === option.value}
+                  onClick={() => update({ sort: option.value })}
+                />
+              ))}
+            </div>
+
+            <ActiveFilters filters={filters} onClear={clearOne} className="mt-2" />
+          </>
+        )}
 
         {isLoading && (
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -76,7 +140,24 @@ export function MarketplaceContent() {
               <EmptyState
                 icon={PackageSearch}
                 title="Hech narsa topilmadi"
-                description={`"${trimmed}" bo'yicha mahsulot yo'q. Boshqa so'z bilan urinib ko'ring.`}
+                description={
+                  /*
+                    Sabab AYTILADI: so'z topilmadimi yoki filtr
+                    hammasini chiqarib tashladimi. Bir xil matn
+                    ikkalasiga ham yozilsa, odam filtrni yechishni
+                    o'ylamasdi.
+                  */
+                  activeFilterCount(filters) > 0
+                    ? `"${trimmed}" bo'yicha tanlangan shartlarga mos mahsulot yo'q. Filtrni yumshatib ko'ring.`
+                    : `"${trimmed}" bo'yicha mahsulot yo'q. Boshqa so'z bilan urinib ko'ring.`
+                }
+                action={
+                  activeFilterCount(filters) > 0 ? (
+                    <Button variant="outline" onClick={clearAll}>
+                      Filtrni tozalash
+                    </Button>
+                  ) : undefined
+                }
                 className="mt-4"
               />
             ) : (

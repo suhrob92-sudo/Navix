@@ -184,6 +184,15 @@
   --animate-fade-up: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-fade-in: fade-in 0.5s ease-out both;
   --animate-scale-in: scale-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  /*
+    Pastdan chiqadigan oyna uchun.
+
+    Telefonda filtr va tanlov oynalari pastdan chiqadi — bu
+    barmoq yetadigan joy va u yerdan pastga surib yopish eng
+    tabiiy harakat. Harakat ham shu yo'nalishda bo'lishi kerak,
+    aks holda oyna "sakrab" chiqqandek ko'rinardi.
+  */
+  --animate-slide-up: slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-aurora: aurora 18s ease-in-out infinite;
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-heart-pop: heart-pop 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -242,6 +251,17 @@
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

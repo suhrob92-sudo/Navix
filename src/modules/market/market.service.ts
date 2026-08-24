@@ -234,6 +234,34 @@ export async function listProducts(query: ProductQuery): Promise<{ products: Pro
     ...(query.category ? { category: { slug: query.category } } : {}),
     ...(query.shop ? { shop: { slug: query.shop, isActive: true } } : {}),
     ...(query.inStock ? { stock: { gt: 0 } } : {}),
+    /**
+     * Chegirma: eski narx bor VA u hozirgisidan katta.
+     *
+     * ── Nima uchun ikkinchi shart ham kerak ─────────────────────────
+     * Sotuvchi eski narxni yozib qo'yib, keyin asosiy narxni
+     * oshirishi mumkin. Unda "chegirma" aslida QIMMATLASHUV
+     * bo'lib qoladi va uni chegirmalar ro'yxatida ko'rsatish
+     * yolg'on bo'lardi.
+     *
+     * Prisma ikkita ustunni bir-biri bilan taqqoslay olmaydi,
+     * shuning uchun xom SQL shartidan foydalaniladi.
+     */
+    ...(query.hasDiscount
+      ? { AND: [{ oldPrice: { not: null } }, { oldPrice: { gt: prisma.product.fields.price } }] }
+      : {}),
+    ...(query.minRating === undefined
+      ? {}
+      : {
+          /**
+           * Bahosi YO'Q mahsulot ham chiqarib tashlanadi.
+           *
+           * `rating` nolga teng bo'lgani uchun bu o'z-o'zidan
+           * bajariladi, lekin `ratingCount` sharti niyatni ochiq
+           * qiladi: "kamida bitta baho bo'lsin".
+           */
+          rating: { gte: query.minRating },
+          ratingCount: { gt: 0 },
+        }),
     ...(query.minPriceSom === undefined && query.maxPriceSom === undefined
       ? {}
       : {

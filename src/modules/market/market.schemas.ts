@@ -92,6 +92,27 @@ export const productQuerySchema = paginationQuerySchema.extend({
     .union([z.literal('true'), z.literal('false')])
     .transform((value) => value === 'true')
     .optional(),
+  /**
+   * Faqat chegirmadagilari.
+   *
+   * ── Nima uchun bu filtr KERAK ───────────────────────────────────────
+   * Chegirma qidirish — savdo maydonchasidagi eng keng tarqalgan
+   * niyatlardan biri. Usiz odam butun katalogni varaqlab, chizilgan
+   * narxlarni ko'z bilan izlashi kerak bo'lardi.
+   */
+  hasDiscount: z
+    .union([z.literal('true'), z.literal('false')])
+    .transform((value) => value === 'true')
+    .optional(),
+  /**
+   * Shu bahodan yuqorilari.
+   *
+   * ── Nima uchun "va undan yuqori" ────────────────────────────────────
+   * Xaridor "aynan 4 bahoni" izlamaydi — u "yomon bo'lmaganini"
+   * izlaydi. Aniq baho bo'yicha filtr 4.2 baholi mahsulotni
+   * chiqarib tashlardi.
+   */
+  minRating: z.coerce.number().min(1).max(5).optional(),
   sort: z.enum(['popular', 'cheap', 'expensive', 'new']).default('popular'),
 });
 
