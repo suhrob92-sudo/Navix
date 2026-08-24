@@ -1,4 +1,5 @@
 import type { ServiceColor } from '@/config/modules';
+import type { ShopStatsView } from '@/config/shop-stats';
 import type { CatalogImageView, CatalogThumb } from '@/modules/catalog/catalog-image.types';
 import type { VariantsView } from '@/modules/product/product-variant.types';
 import type { OrderCourierView } from '@/modules/food/food.types';
@@ -158,7 +159,8 @@ export interface ShopsResponse {
 
 export interface ShopResponse {
   shop: ShopListItem;
-  products: ProductListItem[];
+  /** Sotuvchi haqidagi sonlar — mahsulotlar alohida so'rov bilan olinadi. */
+  stats: ShopStatsView;
 }
 
 export interface CategoriesResponse {

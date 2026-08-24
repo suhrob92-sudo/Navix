@@ -7,6 +7,7 @@ import {
   emptyFilters,
   filtersToParams,
   paramsToFilters,
+  type FilterKey,
   type ProductFilters,
 } from '@/config/product-filter';
 
@@ -43,6 +44,13 @@ export interface ProductFiltersState {
   clearAll: () => void;
   /** So'rov satri — API manzilini yasash uchun. */
   queryString: string;
+  /**
+   * O'ZGARMAYDIGAN maydonlar.
+   *
+   * Ularni sanash va ularga "olib tashlash" belgisi chizish xato
+   * bo'lardi — sabab `FilterKey` izohida.
+   */
+  fixedKeys: readonly FilterKey[];
 }
 
 export interface UseProductFiltersOptions {
@@ -127,5 +135,29 @@ export function useProductFilters(options: UseProductFiltersOptions = {}): Produ
 
   const queryString = useMemo(() => filtersToParams(filters).toString(), [filters]);
 
-  return { filters, update, clearOne, clearAll, queryString };
+  /**
+   * Faqat FILTR bo'la oladigan maydonlar qoladi.
+   *
+   * `search` va `category` bu ro'yxatda yo'q: ular hech qachon
+   * sanalmaydi va ularga belgi ham chizilmaydi.
+   */
+  const fixedKeys = useMemo<readonly FilterKey[]>(
+    () => Object.keys(fixed ?? {}).filter(isFilterKey),
+    [fixed],
+  );
+
+  return { filters, update, clearOne, clearAll, queryString, fixedKeys };
+}
+
+const FILTER_KEYS: readonly string[] = [
+  'minPriceSom',
+  'maxPriceSom',
+  'shop',
+  'inStock',
+  'hasDiscount',
+  'minRating',
+];
+
+function isFilterKey(key: string): key is FilterKey {
+  return FILTER_KEYS.includes(key);
 }

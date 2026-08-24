@@ -64,6 +64,26 @@ export interface ProductFilters {
   sort: ProductSort;
 }
 
+/**
+ * Filtr maydonining nomi.
+ *
+ * ── Nima uchun alohida tur kerak ──────────────────────────────────────
+ * Ba'zi sahifalarda filtrning bittasi O'ZGARMAYDI: do'kon sahifasida
+ * do'kon, toifa sahifasida toifa manzil yo'lining o'zida turadi.
+ *
+ * Bunday filtrni sanash ham, unga "olib tashlash" belgisi chizish ham
+ * XATO bo'lardi:
+ *
+ *   · tugmada har doim "1" yozib turardi — odam nimadir yoqib
+ *     qo'yganman deb o'ylardi;
+ *   · belgidagi ✕ ni bosgan odam esa hech narsa o'zgarmasligini
+ *     ko'rardi, chunki qiymat darhol qaytadan qo'yilardi.
+ *
+ * Shuning uchun bunday maydonlar `skip` ro'yxati orqali chetlab
+ * o'tiladi.
+ */
+export type FilterKey = 'minPriceSom' | 'maxPriceSom' | 'shop' | 'inStock' | 'hasDiscount' | 'minRating';
+
 /** Boshlang'ich holat — hech narsa tanlanmagan. */
 export function emptyFilters(): ProductFilters {
   return { sort: 'popular' };
@@ -84,15 +104,20 @@ export function emptyFilters(): ProductFilters {
  * o'zgartiradi. Uni sanash "filtr yoqilgan" degan yolg'on
  * ogohlantirish berardi.
  */
-export function activeFilterCount(filters: ProductFilters): number {
+export function activeFilterCount(
+  filters: ProductFilters,
+  skip: readonly FilterKey[] = [],
+): number {
   let count = 0;
 
-  if (filters.minPriceSom !== undefined) count += 1;
-  if (filters.maxPriceSom !== undefined) count += 1;
-  if (filters.shop) count += 1;
-  if (filters.inStock) count += 1;
-  if (filters.hasDiscount) count += 1;
-  if (filters.minRating !== undefined) count += 1;
+  const counts = (key: FilterKey) => !skip.includes(key);
+
+  if (filters.minPriceSom !== undefined && counts('minPriceSom')) count += 1;
+  if (filters.maxPriceSom !== undefined && counts('maxPriceSom')) count += 1;
+  if (filters.shop && counts('shop')) count += 1;
+  if (filters.inStock && counts('inStock')) count += 1;
+  if (filters.hasDiscount && counts('hasDiscount')) count += 1;
+  if (filters.minRating !== undefined && counts('minRating')) count += 1;
 
   return count;
 }
@@ -188,26 +213,30 @@ export function priceRangeError(min?: number, max?: number): string | null {
 export function describeFilter(
   filters: ProductFilters,
   shopName?: string,
-): { key: string; label: string }[] {
-  const chips: { key: string; label: string }[] = [];
+  skip: readonly FilterKey[] = [],
+): { key: FilterKey; label: string }[] {
+  const chips: { key: FilterKey; label: string }[] = [];
+
+  const add = (key: FilterKey, label: string) => {
+    // O'ZGARMAYDIGAN filtrga belgi chizilmaydi — sabab yuqorida.
+    if (!skip.includes(key)) chips.push({ key, label });
+  };
 
   if (filters.minPriceSom !== undefined) {
-    chips.push({ key: 'minPriceSom', label: `${formatSom(filters.minPriceSom)} dan` });
+    add('minPriceSom', `${formatSom(filters.minPriceSom)} dan`);
   }
 
   if (filters.maxPriceSom !== undefined) {
-    chips.push({ key: 'maxPriceSom', label: `${formatSom(filters.maxPriceSom)} gacha` });
+    add('maxPriceSom', `${formatSom(filters.maxPriceSom)} gacha`);
   }
 
-  if (filters.shop) {
-    chips.push({ key: 'shop', label: shopName ?? filters.shop });
-  }
+  if (filters.shop) add('shop', shopName ?? filters.shop);
 
-  if (filters.inStock) chips.push({ key: 'inStock', label: 'Faqat mavjud' });
-  if (filters.hasDiscount) chips.push({ key: 'hasDiscount', label: 'Chegirmada' });
+  if (filters.inStock) add('inStock', 'Faqat mavjud');
+  if (filters.hasDiscount) add('hasDiscount', 'Chegirmada');
 
   if (filters.minRating !== undefined) {
-    chips.push({ key: 'minRating', label: `${filters.minRating}+ baho` });
+    add('minRating', `${filters.minRating}+ baho`);
   }
 
   return chips;

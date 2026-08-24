@@ -13,6 +13,7 @@ import {
   SORT_OPTIONS,
   activeFilterCount,
   priceRangeError,
+  type FilterKey,
   type ProductFilters,
 } from '@/config/product-filter';
 import { useApiQuery } from '@/hooks/use-api';
@@ -49,6 +50,13 @@ export interface FilterSheetProps {
   onClearAll: () => void;
   /** Do'kon filtri kerakmi — do'kon sahifasida u ortiqcha. */
   showShops?: boolean;
+  /**
+   * Tugmadagi sonda hisobga OLINMAYDIGAN maydonlar.
+   *
+   * Do'kon sahifasida do'kon har doim tanlangan — uni sanash
+   * tugmada abadiy "1" yozib qo'yardi.
+   */
+  skip?: readonly FilterKey[];
   className?: string;
 }
 
@@ -57,11 +65,12 @@ export function FilterSheet({
   onApply,
   onClearAll,
   showShops = true,
+  skip,
   className,
 }: FilterSheetProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  const count = activeFilterCount(filters);
+  const count = activeFilterCount(filters, skip);
 
   return (
     <>

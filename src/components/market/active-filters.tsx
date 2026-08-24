@@ -2,7 +2,7 @@
 
 import { X } from 'lucide-react';
 
-import { describeFilter, type ProductFilters } from '@/config/product-filter';
+import { describeFilter, type FilterKey, type ProductFilters } from '@/config/product-filter';
 import { cn } from '@/lib/utils';
 
 /**
@@ -24,12 +24,14 @@ export interface ActiveFiltersProps {
   filters: ProductFilters;
   /** Tanlangan do'konning ko'rinadigan nomi. */
   shopName?: string;
-  onClear: (key: keyof ProductFilters) => void;
+  /** Belgi chizilmaydigan O'ZGARMAS maydonlar. */
+  skip?: readonly FilterKey[];
+  onClear: (key: FilterKey) => void;
   className?: string;
 }
 
-export function ActiveFilters({ filters, shopName, onClear, className }: ActiveFiltersProps) {
-  const chips = describeFilter(filters, shopName);
+export function ActiveFilters({ filters, shopName, skip, onClear, className }: ActiveFiltersProps) {
+  const chips = describeFilter(filters, shopName, skip);
 
   // Hech narsa yoqilmagan bo'lsa, qator umuman chizilmaydi.
   if (chips.length === 0) return null;
@@ -45,7 +47,7 @@ export function ActiveFilters({ filters, shopName, onClear, className }: ActiveF
         <button
           key={chip.key}
           type="button"
-          onClick={() => onClear(chip.key as keyof ProductFilters)}
+          onClick={() => onClear(chip.key)}
           aria-label={`${chip.label} — filtrni olib tashlash`}
           className={cn(
             'border-primary/40 bg-primary/10 text-primary inline-flex shrink-0 items-center gap-1.5',

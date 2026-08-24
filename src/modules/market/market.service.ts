@@ -9,7 +9,9 @@ import { prisma } from '@/lib/prisma';
 import { toSearchText } from '@/lib/search';
 import { variantLabel } from '@/config/product-variant';
 import { getVariants } from '@/modules/product/product-variant.service';
+import { getShopStats } from '@/modules/market/shop-stats.service';
 import type { ServiceColor } from '@/config/modules';
+import type { ShopStatsView } from '@/config/shop-stats';
 import {
   GALLERY_SELECT,
   THUMB_SELECT,
@@ -113,20 +115,33 @@ export async function listShops(): Promise<ShopListItem[]> {
 }
 
 /** Bitta do'kon va uning mahsulotlari. */
-export async function getShop(slug: string): Promise<{ shop: ShopListItem; products: ProductListItem[] }> {
-  const shop = await prisma.shop.findFirst({ where: { slug, isActive: true }, select: SHOP_SELECT });
+export async function getShop(slug: string): Promise<{ shop: ShopListItem; stats: ShopStatsView }> {
+  const shop = await prisma.shop.findFirst({
+    where: { slug, isActive: true },
+    select: { ...SHOP_SELECT, createdAt: true },
+  });
 
   if (!shop) {
     throw new NotFoundError("Do'kon");
   }
 
-  const products = await prisma.product.findMany({
-    where: { shopId: shop.id, isActive: true },
-    select: PRODUCT_SELECT,
-    orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-  });
+  /*
+    ── Nima uchun MAHSULOTLAR bu yerda qaytarilmaydi ──────────────────
+    Ilgari bu funksiya do'konning BARCHA mahsulotlarini qaytarardi:
+    filtrsiz, saralashsiz, sahifalashsiz.
 
-  return { shop: toShopItem(shop), products: products.map(toProductItem) };
+    Ikkita muammosi bor edi. Birinchisi — mingta mahsulotli do'kon
+    sahifasi mobil internetda ochilmasdi. Ikkinchisi — savat
+    sahifasi ham shu manzilni chaqiradi (unga faqat yetkazish
+    narxi kerak) va u ham o'sha mingta mahsulotni yuklab olardi.
+
+    Endi mahsulotlar `/api/v1/market/products?shop=...` dan
+    olinadi — 43-bosqichdagi filtrlar, saralash va sahifalash
+    bilan birga.
+  */
+  const stats = await getShopStats(shop.id, shop.createdAt);
+
+  return { shop: toShopItem(shop), stats };
 }
 
 // ── Toifalar ──────────────────────────────────────────────────────────
