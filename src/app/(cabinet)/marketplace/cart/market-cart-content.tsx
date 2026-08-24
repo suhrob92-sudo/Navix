@@ -1,12 +1,13 @@
 'use client';
 
-import { MapPin, ShoppingCart, Wallet } from 'lucide-react';
+import { Bookmark, MapPin, ShoppingCart, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { QuantityStepper } from '@/components/market/quantity-stepper';
+import { SavedForLater } from '@/components/market/saved-for-later';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -21,8 +22,8 @@ import { cn } from '@/lib/utils';
 import { createIdempotencyKey } from '@/modules/wallet/wallet.schemas';
 import { MAX_ITEM_QUANTITY } from '@/modules/market/market.schemas';
 import type { MarketOrderResponse, ShopResponse } from '@/modules/market/market.types';
-import { cartLineKey, useMarketCart } from '@/modules/market/use-market-cart';
-import type { CartPreviewResult } from '@/modules/market/cart-preview.service';
+import { cartLineKey } from '@/config/cart';
+import { resetCartState, useMarketCart } from '@/modules/market/use-market-cart';
 import type { WalletSummary } from '@/modules/wallet/wallet.types';
 
 interface AddressesResponse {
@@ -57,32 +58,19 @@ export function MarketCartContent() {
   const wallet = useApiQuery<WalletSummary>('/api/v1/wallet');
 
   /**
-   * Narx va zaxira SERVERDAN olinadi.
+   * Narx va zaxira SAVAT SO'ROVIDA keladi.
    *
-   * ── Nima uchun katalog ro'yxatidan emas ─────────────────────────────
-   * Ilgari savat do'kon ro'yxatidagi narxni ishlatardi: u yerda
-   * har bir mahsulotning bitta narxi bor edi.
+   * ── Nima uchun alohida "preview" so'rovi yo'q ───────────────────────
+   * Savat brauzerda turganda server undagi mahsulotlarni bilmasdi:
+   * ularni yuborib, narxini alohida so'rash kerak edi.
    *
-   * Variant paydo bo'lgach bu yetmay qoldi: "Qora 256 GB" va
-   * "Oq 128 GB" narxi ham, zaxirasi ham boshqacha va ular
-   * katalog ro'yxatida umuman yo'q.
+   * 45-bosqichdan keyin savat serverning o'zida. U narxni ham,
+   * zaxirani ham bir so'rovda qaytaradi va ikkinchi so'rov
+   * keraksiz bo'lib qoldi.
    */
-  const preview = useApiQuery<CartPreviewResult>(
-    cart.isReady && cart.shopId && cart.lines.length > 0 ? '/api/v1/market/cart-preview' : null,
-    {
-      method: 'POST',
-      body: { shopId: cart.shopId, items: cart.lines },
-    },
-  );
+  const lines = cart.cart.lines.map((line) => ({ ...line, price: line.unitPrice }));
 
-  const lines = (preview.data?.lines ?? []).map((line) => ({
-    ...line,
-    quantity:
-      cart.lines.find(
-        (row) => cartLineKey(row.productId, row.variantId) === cartLineKey(line.productId, line.variantId),
-      )?.quantity ?? 0,
-    price: line.unitPrice,
-  }));
+  const savedLines = cart.cart.savedLines;
 
   const subtotal = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
   const deliveryFee = shop.data?.shop.deliveryFee ?? 0;
@@ -100,7 +88,17 @@ export function MarketCartContent() {
   const hasEnoughMoney = balance >= total;
 
   const canSubmit =
-    lines.length > 0 && !isBelowMinimum && shortLines.length === 0 && hasEnoughMoney && selectedAddressId !== null;
+    lines.length > 0 &&
+    !isBelowMinimum &&
+    shortLines.length === 0 &&
+    hasEnoughMoney &&
+    /*
+      Yopiq do'kondan buyurtma berib bo'lmaydi — buni SERVER ham
+      rad etadi. Lekin odam buni manzil tanlab, izoh yozib
+      bo'lgandan keyin emas, DARHOL bilishi kerak.
+    */
+    cart.cart.shop?.isOpen !== false &&
+    selectedAddressId !== null;
 
   async function submit() {
     if (!cart.shopId || !selectedAddressId) return;
@@ -120,7 +118,13 @@ export function MarketCartContent() {
         },
       });
 
-      cart.clear();
+      /*
+        Savatni SERVER buyurtma amaliyoti ichida bo'shatdi.
+
+        Bu yerda faqat brauzerdagi nusxa tozalanadi — aks holda
+        buyurtma berilgandan keyin ham to'la savat ko'rinardi.
+      */
+      resetCartState();
       router.push(`/marketplace/orders/${response.order.id}`);
     } catch (caught) {
       setError(toUserMessage(caught));
@@ -129,6 +133,8 @@ export function MarketCartContent() {
   }
 
   const isLoading = !cart.isReady || (cart.shopSlug !== null && shop.isLoading);
+
+  const isShopClosed = cart.cart.shop !== null && !cart.cart.shop.isOpen;
 
   return (
     <>
@@ -201,12 +207,32 @@ export function MarketCartContent() {
                       )}
                     </div>
 
-                    <QuantityStepper
-                      value={line.quantity}
-                      max={Math.min(line.stock, MAX_ITEM_QUANTITY)}
-                      onChange={(next) => cart.setQuantity(line.productId, next, line.variantId)}
-                      label={line.name}
-                    />
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                      <QuantityStepper
+                        value={line.quantity}
+                        max={Math.min(line.stock, MAX_ITEM_QUANTITY)}
+                        onChange={(next) => cart.setQuantity(line.productId, next, line.variantId)}
+                        label={line.name}
+                      />
+
+                      {/*
+                        "Keyinroq" — o'chirishga MUQOBIL.
+
+                        Odam ko'pincha mahsulotni butunlay rad
+                        etmaydi: u shunchaki bu safar olmaydi.
+                        Faqat "o'chirish" tugmasi bo'lsa, u
+                        mahsulotni yo'qotardi va keyin qaytadan
+                        qidirishga majbur bo'lardi.
+                      */}
+                      <button
+                        type="button"
+                        onClick={() => cart.saveForLater(line.productId, line.variantId)}
+                        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs transition-colors"
+                      >
+                        <Bookmark className="size-3.5" aria-hidden="true" />
+                        Keyinroq
+                      </button>
+                    </div>
                   </li>
                 );
               })}
@@ -280,6 +306,12 @@ export function MarketCartContent() {
 
             {/* Ogohlantirishlar */}
             <div className="mt-4 space-y-3">
+              {isShopClosed && (
+                <Alert variant="warning" title="Do'kon vaqtincha yopiq">
+                  {`${cart.shopName} hozir buyurtma qabul qilmayapti. Savatingiz saqlanadi — birozdan keyin qayta urinib ko'ring.`}
+                </Alert>
+              )}
+
               {isBelowMinimum && (
                 <Alert variant="warning" title="Eng kam buyurtmaga yetmadi">
                   {`${cart.shopName} uchun eng kam buyurtma — ${formatTiyin(minOrder)}. Yana ${formatTiyin(minOrder - subtotal)} lik mahsulot qo'shing.`}
@@ -319,6 +351,27 @@ export function MarketCartContent() {
               {`${formatTiyin(total)} — buyurtma berish`}
             </Button>
           </>
+        )}
+
+        {/*
+          "Keyinroq" ro'yxati savat BO'SH bo'lganda ham ko'rinadi.
+
+          Aynan shu holat eng muhimi: odam buyurtma berib bo'lgan
+          va endi saqlab qo'ygan narsalariga qaytishi mumkin.
+        */}
+        {!isLoading && (
+          <SavedForLater
+            lines={savedLines}
+            onMoveToCart={(productId, variantId) => cart.moveToCart(productId, variantId)}
+            onRemove={(productId, variantId) => cart.remove(productId, variantId)}
+            className={lines.length > 0 ? 'mt-8' : 'mt-6'}
+          />
+        )}
+
+        {cart.error && (
+          <Alert variant="error" className="mt-4">
+            {cart.error}
+          </Alert>
         )}
       </div>
     </>

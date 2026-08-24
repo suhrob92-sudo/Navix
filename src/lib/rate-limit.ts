@@ -210,6 +210,18 @@ export const PUBLIC_RATE_LIMITS = {
    * bir zumda o'nlab so'rov yuborishni to'xtatadi.
    */
   productQuestion: { limit: 10, windowSeconds: 60 },
+  /**
+   * Savatni o'zgartirish: daqiqasiga 120 marta.
+   *
+   * ── Nima uchun chegara YUQORI ───────────────────────────────────────
+   * Savat serverga ko'chgach, har bir "+" va "-" bosish so'rovga
+   * aylandi. Odam beshta mahsulotning sonini tanlab chiqsa,
+   * bu allaqachon o'nlab so'rov.
+   *
+   * Past chegara oddiy xaridorni to'xtatib qo'yardi — pastroq
+   * chegara faqat skript uchun to'siq bo'lishi kerak.
+   */
+  cartWrite: { limit: 120, windowSeconds: 60 },
   chatOpen: { limit: 60, windowSeconds: 60 * 60 },
   /**
    * Guruh yaratish: soatiga 10 ta.

@@ -81,6 +81,19 @@ export interface NotificationEventData {
     amountTiyin: number;
     reason: string;
   };
+  /**
+   * Savatda unutilgan mahsulot.
+   *
+   * ── Nima uchun summa YO'Q ───────────────────────────────────────────
+   * Narx eslatma yuborilgan paytdan buyon o'zgargan bo'lishi mumkin.
+   * Xabarda eski summani ko'rsatsak, odam savatni ochib boshqa
+   * raqamni ko'rardi va bu aldashdek tuyulardi.
+   */
+  'market.cart_reminder': {
+    /** Savatdagi birinchi mahsulot nomi (va qolganlari soni). */
+    subject: string;
+    itemCount: number;
+  };
   'delivery.courier_assigned': {
     orderUrl: string;
     orderNumber: string;
@@ -433,6 +446,27 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
     title: "Do'kon buyurtmani rad etdi",
     body: `${shopName} buyurtmangizni bajara olmadi (${reason}). ${formatTiyin(amountTiyin)} hamyoningizga qaytarildi.`,
     actionUrl: `/marketplace/orders/${orderId}`,
+    sourceModule: 'market',
+  }),
+
+  /**
+   * Savat eslatmasi.
+   *
+   * ── Nima uchun matn YUMSHOQ ─────────────────────────────────────────
+   * "Sotib oling!" degan xabar bosim o'tkazadi va odam
+   * bildirishnomalarni o'chirib qo'yadi.
+   *
+   * Bu yerdagi maqsad boshqacha: odam savatini haqiqatan unutgan
+   * bo'lishi mumkin va unga shunchaki eslatiladi.
+   */
+  'market.cart_reminder': ({ subject }) => ({
+    title: 'Savatingiz kutmoqda',
+    /*
+      Ko'plik `reminderSubject` da hal qilingan: u "Redmi Note 14"
+      yoki "Redmi Note 14 va yana 2 ta mahsulot" qaytaradi.
+    */
+    body: `${subject} savatingizda qoldi. Buyurtmani yakunlaysizmi?`,
+    actionUrl: '/marketplace/cart',
     sourceModule: 'market',
   }),
 

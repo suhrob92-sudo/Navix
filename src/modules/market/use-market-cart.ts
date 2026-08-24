@@ -1,238 +1,360 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
+
+import { ApiClientError, toUserMessage } from '@/lib/api-client';
+import { useApiClient } from '@/hooks/use-api';
+import { cartLineKey, clampQuantity, totalQuantity, type CartLine } from '@/config/cart';
+import type { CartResponse, CartView } from '@/modules/market/cart.types';
 
 /**
- * Marketplace savati — brauzerda saqlanadi.
+ * Marketplace savati — SERVERDA saqlanadi.
  *
- * ── Nima uchun bazada emas ────────────────────────────────────────────
- * Savat — vaqtinchalik ro'yxat, moliyaviy hujjat emas. Uni bazada
- * saqlash har bir "+" bosishda so'rov yuborishni talab qilardi.
+ * ── Nima uchun brauzerdan ko'chirildi ─────────────────────────────────
+ * Sabab `src/config/cart.ts` da batafsil: savat brauzer tozalanganda
+ * yo'qolardi, qurilmalar orasida bo'linmasdi va serverga ko'rinmagani
+ * uchun "savatingizda mahsulot qoldi" degan eslatma imkonsiz edi.
  *
- * ── Nima uchun bu XAVFSIZ ─────────────────────────────────────────────
- * Savatda FAQAT mahsulot ID'si va soni turadi — narx emas. Buyurtma
- * berishda server narxni bazadan qayta o'qiydi.
+ * ── Nima uchun holat MODUL darajasida, `useState` da emas ─────────────
+ * Savatni uchta joy o'qiydi: pastdagi savat chizig'i, mahsulot
+ * sahifasi va savatning o'zi.
  *
- * ── Nima uchun bitta do'kon ───────────────────────────────────────────
- * Har do'konning o'z omborxonasi, yetkazish haqi va muddati bor. Ikki
- * do'kondan bitta buyurtma — ikki alohida jo'natma demak. Shuning uchun
- * boshqa do'kon tanlanganda savat tozalanadi (ogohlantirish bilan).
+ * Har biri o'z holatini saqlasa, ularning uchalasi ham serverga
+ * alohida so'rov yuborardi va bir-biridan xabarsiz bo'lardi:
+ * mahsulot qo'shilgach pastdagi chiziqdagi son o'zgarmasdi.
  *
- * ── Ovqat savatidan farqi ─────────────────────────────────────────────
- * Bu yerda `add` MIQDOR qabul qiladi. Mahsulotni "2 ta" qilib qo'shish
- * odatiy holat, ovqatda esa har bosishda bittadan qo'shilardi.
+ * Bitta umumiy do'kon (`store`) esa bitta so'rov va bitta haqiqat
+ * beradi. `useSyncExternalStore` — React'ning aynan shu holat uchun
+ * mo'ljallangan vositasi.
+ *
+ * ── Nima uchun EKRAN darhol yangilanadi ───────────────────────────────
+ * Har bir "+" bosishda javobni kutish mobil internetda sekin
+ * ko'rinardi: odam bosadi, hech narsa o'zgarmaydi, u yana bosadi.
+ *
+ * Shuning uchun o'zgarish avval ekranda ko'rsatiladi, so'rov esa
+ * orqada ketadi. Server xato qaytarsa — o'zgarish ortga qaytariladi
+ * va sabab aytiladi.
  */
 
-const STORAGE_KEY = 'navix.market.cart.v1';
+/** Brauzerdagi eski savat — endi faqat KO'CHIRISH uchun o'qiladi. */
+const LEGACY_STORAGE_KEY = 'navix.market.cart.v1';
 
-export interface MarketCartLine {
-  productId: string;
-  /**
-   * Qaysi variant — rang, o'lcham, xotira.
-   *
-   * ── Nima uchun savat kaliti IKKITA maydondan ────────────────────────
-   * Bir xil mahsulotning qora va oq rangi — savatda IKKI ALOHIDA
-   * qator. Faqat mahsulot bo'yicha kalitlansa, ikkinchi rang
-   * birinchisining sonini oshirib yuborardi.
-   *
-   * `undefined` — variantsiz mahsulot.
-   */
-  variantId?: string;
-  quantity: number;
+const EMPTY_CART: CartView = { shop: null, lines: [], savedLines: [], missingCount: 0 };
+
+interface CartStoreState {
+  cart: CartView;
+  /** Server javobi kelgunicha `false` — miltillashning oldini oladi. */
+  isReady: boolean;
+  /** Orqada so'rov ketyaptimi. */
+  isSyncing: boolean;
+  error: string | null;
+}
+
+const INITIAL: CartStoreState = { cart: EMPTY_CART, isReady: false, isSyncing: false, error: null };
+
+let state: CartStoreState = INITIAL;
+
+const listeners = new Set<() => void>();
+
+function setState(patch: Partial<CartStoreState>): void {
+  state = { ...state, ...patch };
+
+  for (const listener of listeners) listener();
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+function getSnapshot(): CartStoreState {
+  return state;
 }
 
 /**
- * Savat qatorining kaliti.
+ * Server tomonda har doim BO'SH savat.
  *
- * Variantsiz mahsulotda faqat mahsulot ID'si ishlatiladi — eski
- * savatlar ham shu ko'rinishda saqlangan va ular buzilmasligi
- * kerak.
+ * Server foydalanuvchining savatini bilmaydi va uni chizishga
+ * urinsa, brauzerdagi natija bilan mos kelmasdi (hydration
+ * mismatch).
  */
-export function cartLineKey(productId: string, variantId?: string | null): string {
-  return variantId ? `${productId}:${variantId}` : productId;
+function getServerSnapshot(): CartStoreState {
+  return INITIAL;
 }
 
-export interface MarketCartState {
+type Request = <TData>(path: string, options?: Record<string, unknown>) => Promise<TData>;
+
+/** Savat bir marta yuklanadi — sabab komponent izohida. */
+let loadPromise: Promise<void> | null = null;
+
+/**
+ * Brauzerdagi eski savatni o'qiydi.
+ *
+ * ── Nima uchun shakl TO'LIQ tekshiriladi ──────────────────────────────
+ * `localStorage` dagi ma'lumotni foydalanuvchi ham, ilovaning eski
+ * versiyasi ham yozgan bo'lishi mumkin.
+ */
+function readLegacyCart(): CartLine[] {
+  if (typeof window === 'undefined') return [];
+
+  try {
+    const raw = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+
+    if (!raw) return [];
+
+    const parsed: unknown = JSON.parse(raw);
+
+    if (typeof parsed !== 'object' || parsed === null) return [];
+
+    const lines = (parsed as { lines?: unknown }).lines;
+
+    if (!Array.isArray(lines)) return [];
+
+    return lines.flatMap((line): CartLine[] => {
+      if (typeof line !== 'object' || line === null) return [];
+
+      const row = line as Record<string, unknown>;
+
+      if (typeof row.productId !== 'string') return [];
+      if (!Number.isInteger(row.quantity) || (row.quantity as number) < 1) return [];
+
+      return [
+        {
+          productId: row.productId,
+          variantId: typeof row.variantId === 'string' ? row.variantId : null,
+          quantity: clampQuantity(row.quantity as number),
+        },
+      ];
+    });
+  } catch {
+    // Buzuq ma'lumot — ko'chiradigan narsa yo'q.
+    return [];
+  }
+}
+
+/**
+ * Savatni serverdan yuklaydi va eski savatni bir marta ko'chiradi.
+ *
+ * ── Nima uchun eski savat MUVAFFAQIYATDAN KEYIN o'chiriladi ───────────
+ * So'rov yiqilsa (internet uzilgan bo'lsa) va biz uni oldindan
+ * o'chirsak, odamning savati butunlay yo'qolardi. Muvaffaqiyatdan
+ * keyin o'chirish esa eng yomon holatda ko'chirishni qayta
+ * urinishga olib keladi — u takrorlansa ham xavfsiz.
+ */
+async function load(request: Request): Promise<void> {
+  try {
+    const legacy = readLegacyCart();
+
+    const response =
+      legacy.length > 0
+        ? await request<CartResponse>('/api/v1/market/cart/merge', {
+            method: 'POST',
+            body: { lines: legacy },
+          })
+        : await request<CartResponse>('/api/v1/market/cart');
+
+    if (legacy.length > 0 && typeof window !== 'undefined') {
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+
+    setState({ cart: response.cart, isReady: true, error: null });
+  } catch (error) {
+    /*
+      Savatni yuklab bo'lmadi.
+
+      `isReady` BARIBIR yoqiladi: aks holda pastdagi savat chizig'i
+      abadiy skelet holatida qolardi va odam ilovani buzilgan deb
+      o'ylardi.
+    */
+    setState({ isReady: true, error: toUserMessage(error) });
+  } finally {
+    loadPromise = null;
+  }
+}
+
+/**
+ * So'rovni yuboradi va javobdagi savatni haqiqat deb qabul qiladi.
+ *
+ * @param optimistic Ekranda DARHOL ko'rsatiladigan holat.
+ */
+async function mutate(
+  request: Request,
+  path: string,
+  options: Record<string, unknown>,
+  optimistic?: CartView,
+): Promise<{ ok: boolean; message: string | null }> {
+  const previous = state.cart;
+
+  if (optimistic) setState({ cart: optimistic });
+
+  setState({ isSyncing: true, error: null });
+
+  try {
+    const response = await request<CartResponse>(path, options);
+
+    setState({ cart: response.cart, isSyncing: false });
+
+    return { ok: true, message: null };
+  } catch (error) {
+    /*
+      Xato — ekrandagi o'zgarish ORTGA qaytariladi.
+
+      Usiz odam savatiga mahsulot qo'shilgandek ko'rardi, lekin u
+      serverda yo'q edi va buyurtma berishda "yo'qolib" qolardi.
+    */
+    const message =
+      error instanceof ApiClientError ? error.message : toUserMessage(error);
+
+    setState({ cart: previous, isSyncing: false, error: message });
+
+    return { ok: false, message };
+  }
+}
+
+export interface UseMarketCartResult {
+  /** Savat va "keyinroq" ro'yxati — narxlari bilan. */
+  cart: CartView;
+  /** Faol qatorlar — qisqa ko'rinish. */
+  lines: CartLine[];
   shopId: string | null;
   shopSlug: string | null;
   shopName: string | null;
-  lines: MarketCartLine[];
-}
-
-const EMPTY: MarketCartState = { shopId: null, shopSlug: null, shopName: null, lines: [] };
-
-/** Boshqa yorliqlar (tab) ham xabardor bo'lishi uchun. */
-const CART_EVENT = 'navix:market-cart-changed';
-
-export interface CartShop {
-  id: string;
-  slug: string;
-  name: string;
-}
-
-/**
- * `localStorage` dagi ma'lumot ISHONCHSIZ: uni foydalanuvchi ham,
- * ilovaning eski versiyasi ham yozgan bo'lishi mumkin. Shuning uchun
- * shakli to'liq tekshiriladi.
- */
-function isCartState(value: unknown): value is MarketCartState {
-  if (typeof value !== 'object' || value === null) return false;
-
-  const candidate = value as Record<string, unknown>;
-
-  if (!Array.isArray(candidate.lines)) return false;
-
-  return candidate.lines.every(
-    (line) =>
-      typeof line === 'object' &&
-      line !== null &&
-      typeof (line as MarketCartLine).productId === 'string' &&
-      ((line as MarketCartLine).variantId === undefined ||
-        typeof (line as MarketCartLine).variantId === 'string') &&
-      Number.isInteger((line as MarketCartLine).quantity) &&
-      (line as MarketCartLine).quantity > 0,
-  );
-}
-
-function readStorage(): MarketCartState {
-  if (typeof window === 'undefined') return EMPTY;
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return EMPTY;
-
-    const parsed: unknown = JSON.parse(raw);
-    if (!isCartState(parsed)) return EMPTY;
-
-    return parsed;
-  } catch {
-    // Buzuq ma'lumot — savatni tozalab, davom etamiz.
-    return EMPTY;
-  }
-}
-
-function writeStorage(state: MarketCartState): void {
-  if (typeof window === 'undefined') return;
-
-  if (state.lines.length === 0) {
-    window.localStorage.removeItem(STORAGE_KEY);
-  } else {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }
-
-  window.dispatchEvent(new Event(CART_EVENT));
-}
-
-export interface UseMarketCartResult extends MarketCartState {
-  /** Server tomonda va birinchi chizishda `false` — miltillashning oldini oladi. */
   isReady: boolean;
+  isSyncing: boolean;
+  error: string | null;
   totalQuantity: number;
   quantityOf: (productId: string, variantId?: string | null) => number;
-  /** Mahsulot qo'shadi. Boshqa do'kon bo'lsa `false` qaytaradi. */
+  /**
+   * Mahsulot qo'shadi.
+   *
+   * Boshqa do'kon bo'lsa `ok: false` va do'kon nomi qaytadi —
+   * so'rov umuman yuborilmaydi.
+   */
   add: (
-    shop: CartShop,
+    shop: { id: string; slug: string; name: string },
     productId: string,
     quantity?: number,
     variantId?: string | null,
   ) => { ok: boolean; conflictWith: string | null };
-  /** Yangi do'konga o'tib, savatni tozalaydi. */
+  /** Savatni tozalab, yangi do'kondan boshlaydi. */
   replaceShop: (
-    shop: CartShop,
+    shop: { id: string; slug: string; name: string },
     productId: string,
     quantity?: number,
     variantId?: string | null,
   ) => void;
-  remove: (productId: string, variantId?: string | null) => void;
   setQuantity: (productId: string, quantity: number, variantId?: string | null) => void;
+  remove: (productId: string, variantId?: string | null) => void;
   clear: () => void;
+  /** "Keyinroq sotib olaman" ro'yxatiga ko'chiradi. */
+  saveForLater: (productId: string, variantId?: string | null) => void;
+  /** "Keyinroq" ro'yxatidan savatga qaytaradi. */
+  moveToCart: (productId: string, variantId?: string | null) => void;
+  /** Savatni serverdan qayta o'qiydi. */
+  reload: () => void;
 }
 
 export function useMarketCart(): UseMarketCartResult {
-  const [state, setState] = useState<MarketCartState>(EMPTY);
-  const [isReady, setIsReady] = useState(false);
+  const request = useApiClient() as Request;
 
-  /**
-   * `localStorage` faqat brauzerda mavjud. Agar uni to'g'ridan-to'g'ri
-   * boshlang'ich qiymat sifatida o'qisak, server chizgan sahifa bilan
-   * brauzer chizgani mos kelmaydi (hydration mismatch).
-   */
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setState(readStorage());
-    setIsReady(true);
+    /*
+      Savat FAQAT bir marta yuklanadi.
 
-    const sync = () => setState(readStorage());
+      Uchta komponent ham `useMarketCart()` chaqiradi; qulfsiz
+      ularning uchalasi ham bir vaqtda so'rov yuborardi.
+    */
+    if (state.isReady || loadPromise) return;
 
-    window.addEventListener(CART_EVENT, sync);
-    window.addEventListener('storage', sync);
+    loadPromise = load(request);
+  }, [request]);
 
-    return () => {
-      window.removeEventListener(CART_EVENT, sync);
-      window.removeEventListener('storage', sync);
-    };
-  }, []);
+  const cart = snapshot.cart;
 
-  const commit = useCallback((next: MarketCartState) => {
-    setState(next);
-    writeStorage(next);
-  }, []);
+  const lines = cart.lines.map((line) => ({
+    productId: line.productId,
+    variantId: line.variantId,
+    quantity: line.quantity,
+  }));
+
+  const quantityOf = useCallback(
+    (productId: string, variantId?: string | null) => {
+      const key = cartLineKey(productId, variantId);
+
+      return (
+        cart.lines.find((line) => cartLineKey(line.productId, line.variantId) === key)?.quantity ?? 0
+      );
+    },
+    [cart.lines],
+  );
 
   const add = useCallback<UseMarketCartResult['add']>(
     (shop, productId, quantity = 1, variantId = null) => {
-      const current = readStorage();
+      /*
+        Do'kon to'qnashuvi SO'ROVSIZ aniqlanadi.
 
-      if (current.shopId && current.shopId !== shop.id && current.lines.length > 0) {
-        return { ok: false, conflictWith: current.shopName };
+        Server ham buni tekshiradi, lekin javobini kutish ekranda
+        savol oynasini kechiktirardi. Serverdagi tekshiruv esa
+        himoya bo'lib qoladi: brauzerdagi holat eskirgan bo'lishi
+        mumkin.
+      */
+      if (cart.shop && cart.shop.id !== shop.id && cart.lines.length > 0) {
+        return { ok: false, conflictWith: cart.shop.name };
       }
 
-      const key = cartLineKey(productId, variantId);
-      const existing = current.lines.find(
-        (line) => cartLineKey(line.productId, line.variantId) === key,
-      );
-
-      const lines = existing
-        ? current.lines.map((line) =>
-            cartLineKey(line.productId, line.variantId) === key
-              ? { ...line, quantity: line.quantity + quantity }
-              : line,
-          )
-        : [...current.lines, { productId, ...(variantId ? { variantId } : {}), quantity }];
-
-      commit({ shopId: shop.id, shopSlug: shop.slug, shopName: shop.name, lines });
+      void mutate(request, '/api/v1/market/cart', {
+        method: 'POST',
+        body: { productId, variantId, quantity },
+      });
 
       return { ok: true, conflictWith: null };
     },
-    [commit],
+    [cart.shop, cart.lines.length, request],
   );
 
   const replaceShop = useCallback<UseMarketCartResult['replaceShop']>(
     (shop, productId, quantity = 1, variantId = null) => {
-      commit({
-        shopId: shop.id,
-        shopSlug: shop.slug,
-        shopName: shop.name,
-        lines: [{ productId, ...(variantId ? { variantId } : {}), quantity }],
+      void mutate(request, '/api/v1/market/cart', {
+        method: 'POST',
+        body: { productId, variantId, quantity, replaceShop: true },
       });
     },
-    [commit],
+    [request],
   );
 
   const setQuantity = useCallback<UseMarketCartResult['setQuantity']>(
     (productId, quantity, variantId = null) => {
-      const current = readStorage();
       const key = cartLineKey(productId, variantId);
 
-      const lines =
-        quantity <= 0
-          ? current.lines.filter((line) => cartLineKey(line.productId, line.variantId) !== key)
-          : current.lines.map((line) =>
-              cartLineKey(line.productId, line.variantId) === key ? { ...line, quantity } : line,
-            );
+      /*
+        Ekran DARHOL yangilanadi: son o'zgargandek ko'rinadi va
+        so'rov orqada ketadi.
+      */
+      const optimistic: CartView = {
+        ...cart,
+        lines:
+          quantity <= 0
+            ? cart.lines.filter((line) => cartLineKey(line.productId, line.variantId) !== key)
+            : cart.lines.map((line) =>
+                cartLineKey(line.productId, line.variantId) === key
+                  ? { ...line, quantity: clampQuantity(quantity) }
+                  : line,
+              ),
+      };
 
-      // Oxirgi mahsulot olib tashlansa — do'kon bog'lanishi ham tozalanadi.
-      commit(lines.length === 0 ? EMPTY : { ...current, lines });
+      void mutate(
+        request,
+        '/api/v1/market/cart',
+        { method: 'PATCH', body: { productId, variantId, quantity } },
+        optimistic,
+      );
     },
-    [commit],
+    [cart, request],
   );
 
   const remove = useCallback<UseMarketCartResult['remove']>(
@@ -240,30 +362,67 @@ export function useMarketCart(): UseMarketCartResult {
     [setQuantity],
   );
 
-  const clear = useCallback(() => commit(EMPTY), [commit]);
+  const clear = useCallback(() => {
+    void mutate(request, '/api/v1/market/cart?all=true', { method: 'DELETE' }, { ...cart, shop: null, lines: [] });
+  }, [cart, request]);
 
-  const quantityOf = useCallback(
-    (productId: string, variantId?: string | null) => {
-      const key = cartLineKey(productId, variantId);
-
-      return (
-        state.lines.find((line) => cartLineKey(line.productId, line.variantId) === key)?.quantity ?? 0
-      );
+  const move = useCallback(
+    (productId: string, variantId: string | null, savedForLater: boolean) => {
+      void mutate(request, '/api/v1/market/cart', {
+        method: 'PATCH',
+        body: { productId, variantId, savedForLater },
+      });
     },
-    [state.lines],
+    [request],
   );
 
-  const totalQuantity = state.lines.reduce((sum, line) => sum + line.quantity, 0);
+  const saveForLater = useCallback<UseMarketCartResult['saveForLater']>(
+    (productId, variantId = null) => move(productId, variantId, true),
+    [move],
+  );
+
+  const moveToCart = useCallback<UseMarketCartResult['moveToCart']>(
+    (productId, variantId = null) => move(productId, variantId, false),
+    [move],
+  );
+
+  const reload = useCallback(() => {
+    loadPromise = load(request);
+  }, [request]);
 
   return {
-    ...state,
-    isReady,
-    totalQuantity,
+    cart,
+    lines,
+    shopId: cart.shop?.id ?? null,
+    shopSlug: cart.shop?.slug ?? null,
+    shopName: cart.shop?.name ?? null,
+    isReady: snapshot.isReady,
+    isSyncing: snapshot.isSyncing,
+    error: snapshot.error,
+    totalQuantity: totalQuantity(cart.lines),
     quantityOf,
     add,
     replaceShop,
-    remove,
     setQuantity,
+    remove,
     clear,
+    saveForLater,
+    moveToCart,
+    reload,
   };
+}
+
+/**
+ * Savatni tashqaridan tozalaydi — buyurtma berilgandan keyin.
+ *
+ * ── Nima uchun kerak ──────────────────────────────────────────────────
+ * Buyurtma yaratilganda server savatni o'zi bo'shatadi. Brauzerdagi
+ * nusxa esa eski holatda qolardi va odam buyurtma bergandan keyin
+ * ham to'la savatni ko'rardi.
+ */
+export function resetCartState(): void {
+  state = INITIAL;
+  loadPromise = null;
+
+  for (const listener of listeners) listener();
 }

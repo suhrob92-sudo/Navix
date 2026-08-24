@@ -78,6 +78,10 @@ const SAMPLES = {
     amountTiyin: 429_000_000,
     reason: 'omborda topilmadi',
   },
+  'market.cart_reminder': {
+    subject: 'Redmi Note 14 va yana 2 ta mahsulot',
+    itemCount: 3,
+  },
   'delivery.courier_assigned': {
     orderUrl: '/orders/7c2f1b90-4f5e-4d1a-9c3e-2b8a6d5e4f10',
     orderNumber: 'NVX-F-20260803-A1B2C3',

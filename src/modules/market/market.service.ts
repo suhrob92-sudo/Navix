@@ -879,6 +879,24 @@ async function performCreateMarketOrder(
       idempotencyKey: input.idempotencyKey,
     });
 
+    /*
+      ── Savat SHU YERDA bo'shatiladi ────────────────────────────────
+      Ilgari savat brauzerda turardi va uni sahifa o'zi tozalardi.
+      45-bosqichdan keyin savat serverda: uni ekranga ishonib
+      qo'yib bo'lmaydi.
+
+      Sabab oddiy: odam to'lov tugmasini bosgach ilovani yopib
+      qo'yishi yoki interneti uzilishi mumkin. O'shanda buyurtma
+      berilgan, savat esa to'la qolardi va u boshqa qurilmada
+      ham ko'rinardi.
+
+      Bitta amaliyot ichida esa ikkalasi birga bajariladi yoki
+      ikkalasi ham bajarilmaydi.
+
+      "Keyinroq" ro'yxati TEGILMAYDI — u buyurtmaga aloqador emas.
+    */
+    await tx.cartItem.deleteMany({ where: { userId, savedForLater: false } });
+
     return tx.marketOrder.update({
       where: { id: created.id },
       data: { walletTransactionId: charge.id },

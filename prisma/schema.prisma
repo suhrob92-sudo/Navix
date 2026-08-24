@@ -293,14 +293,16 @@ model User {
   parcels           Parcel[]
   bookings          HotelBooking[]
   /// Yozgan baholari — hisob o'chirilsa ular ham o'chadi.
-  reviewsWritten    Review[]        @relation("ReviewsWritten")
+  reviewsWritten    Review[]             @relation("ReviewsWritten")
   /// "Keyin qaytaman" ro'yxati.
   favorites         Favorite[]
   /// Yaqinda ko'rilganlar — o'zi to'ladi.
   recentViews       RecentView[]
   /// Mahsulotlar haqida bergan savollari va javoblari.
-  questionsAsked    ProductQuestion[] @relation("QuestionsAsked")
-  answersGiven      ProductAnswer[]   @relation("AnswersGiven")
+  questionsAsked    ProductQuestion[]    @relation("QuestionsAsked")
+  answersGiven      ProductAnswer[]      @relation("AnswersGiven")
+  /// Savat va "keyinroq sotib olaman" ro'yxati.
+  cartItems         CartItem[]
   tickets           TripBooking[]
   following         Follow[]             @relation("Following")
   followers         Follow[]             @relation("Followers")
@@ -711,15 +713,15 @@ model Restaurant {
   orders     FoodOrder[]
   business   BusinessProfile?
 
-  postLinks PostAttachment[]
-  images    CatalogImage[]
+  postLinks   PostAttachment[]
+  images      CatalogImage[]
+  reviews     Review[]
+  favorites   Favorite[]
+  recentViews RecentView[]
 
   @@index([isActive, sortOrder])
   @@index([ownerId])
   @@index([searchName])
-  reviews    Review[]
-  favorites  Favorite[]
-  recentViews RecentView[]
   @@map("restaurants")
 }
 
@@ -773,14 +775,14 @@ model MenuItem {
   images     CatalogImage[]
   reviews    Review[]
 
-  postLinks PostAttachment[]
+  postLinks   PostAttachment[]
+  favorites   Favorite[]
+  recentViews RecentView[]
 
   @@index([restaurantId, isAvailable])
   @@index([categoryId, sortOrder])
   /// AI yordamchi menyudan taom qidiradi — indekssiz bu butun jadvalni o'qirdi.
   @@index([searchName])
-  favorites  Favorite[]
-  recentViews RecentView[]
   @@map("menu_items")
 }
 
@@ -830,6 +832,8 @@ model FoodOrder {
   items      FoodOrderItem[]
   /// Kuryer topshirig'i — restoran "yo'lga chiqarish" bosgach yaratiladi.
   delivery   Delivery?
+  /// Shu buyurtma tasdiqlagan sharhlar.
+  reviews    Review[]
 
   @@index([userId, createdAt])
   @@index([status])
@@ -837,8 +841,6 @@ model FoodOrder {
   @@index([restaurantId])
   /// Manzil o'chirilganda unga bog'langan buyurtmalar tekshiriladi.
   @@index([addressId])
-  /// Shu buyurtma tasdiqlagan sharhlar.
-  reviews    Review[]
   @@map("food_orders")
 }
 
@@ -1111,12 +1113,75 @@ model Shop {
   orders   MarketOrder[]
   business BusinessProfile?
   images   CatalogImage[]
+  reviews  Review[]
 
   @@index([isActive, sortOrder])
   @@index([ownerId])
   @@index([searchName])
-  reviews  Review[]
   @@map("shops")
+}
+
+/// Savat qatori — SERVERDA.
+///
+/// ── Nima uchun brauzerdan ko'chirildi ─────────────────────────────────
+/// Savat `localStorage` da turardi va bu uchta muammoni keltirardi:
+///
+///   1. brauzer ma'lumotlari tozalansa savat yo'qolardi;
+///   2. odam noutbukda savat to'ldirib, telefondan ochsa — bo'sh
+///      savat ko'rardi;
+///   3. savatda nima turgani hech kimga ma'lum emas edi, ya'ni
+///      "savatingizda mahsulot qoldi" degan eslatma ham imkonsiz edi.
+///
+/// ── Nima uchun NARX bu yerda saqlanmaydi ──────────────────────────────
+/// Savatga narxni yozib qo'yish oson bo'lardi va sahifa tezroq
+/// ochilardi.
+///
+/// Lekin o'shanda narx eskirardi: sotuvchi kechqurun narxni
+/// o'zgartirsa, ertasi kuni xaridor ESKI narxni ko'rardi va
+/// buyurtma berganda boshqa summa yechilardi.
+///
+/// Narx har doim `products` va `product_variants` dan o'qiladi.
+///
+/// ── Nima uchun "keyinroq" ALOHIDA jadval emas ─────────────────────────
+/// Ikkita jadval bo'lsa, "savatga qaytarish" amali qatorni bir
+/// jadvaldan ikkinchisiga KO'CHIRISHNI talab qilardi: o'chirish va
+/// qo'shish, ya'ni ikkita amal va ular orasida buzilish ehtimoli.
+///
+/// Bitta belgi (`savedForLater`) esa bitta yangilanish bilan
+/// almashadi.
+model CartItem {
+  id String @id @default(uuid()) @db.Uuid
+
+  userId    String @db.Uuid
+  productId String @db.Uuid
+
+  /// Qaysi variant — rang, o'lcham, xotira. Variantsiz mahsulotda `null`.
+  variantId String? @db.Uuid
+
+  quantity Int
+
+  /// "Keyinroq sotib olaman" ro'yxatidami.
+  ///
+  /// Bir mahsulot bir vaqtda ikkala ro'yxatda tura olmaydi: pastdagi
+  /// yagonalik cheklovi buni ta'minlaydi. Aks holda odam savatda ham,
+  /// "keyinroq" da ham bir xil narsani ko'rib chalkashardi.
+  savedForLater Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  /// Savatni o'qish va eslatma uchun asosiy indeks.
+  @@index([userId, savedForLater, updatedAt])
+  /// Eslatma qidiruvi: qaysi savatlar uzoq vaqt qimirlamagan.
+  @@index([updatedAt])
+  /// Tashqi kalitlar indekslanishi SHART (`schema-indexes.test.ts`).
+  @@index([productId])
+  @@index([variantId])
+  @@map("cart_items")
 }
 
 /// Mahsulot toifasi: "Telefonlar", "Kiyim", "Kitoblar".
@@ -1192,26 +1257,27 @@ model Product {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  shop       Shop              @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  category   ProductCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  orderItems MarketOrderItem[]
-  images     CatalogImage[]
-  reviews    Review[]
+  shop        Shop               @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  category    ProductCategory    @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems  MarketOrderItem[]
+  images      CatalogImage[]
+  reviews     Review[]
   /// Shu mahsulot biriktirilgan videolar.
-  postLinks  PostAttachment[]
-  stories    Story[]           @relation("StoryProduct")
+  postLinks   PostAttachment[]
+  stories     Story[]            @relation("StoryProduct")
+  favorites   Favorite[]
+  recentViews RecentView[]
+  attributes  ProductAttribute[]
+  questions   ProductQuestion[]
+  options     ProductOption[]
+  variants    ProductVariant[]
+  cartItems   CartItem[]
 
   @@index([shopId, isActive])
   @@index([categoryId, sortOrder])
   @@index([searchName])
   /// Narx bo'yicha saralash va filtrlash uchun.
   @@index([isActive, price])
-  favorites  Favorite[]
-  recentViews RecentView[]
-  attributes  ProductAttribute[]
-  questions   ProductQuestion[]
-  options     ProductOption[]
-  variants    ProductVariant[]
   @@map("products")
 }
 
@@ -1253,14 +1319,14 @@ model MarketOrder {
   items    MarketOrderItem[]
   /// Kuryer topshirig'i — do'kon "yo'lga chiqarish" bosgach yaratiladi.
   delivery Delivery?
+  /// Shu buyurtma tasdiqlagan sharhlar.
+  reviews  Review[]
 
   @@index([userId, createdAt])
   @@index([shopId, status])
   @@index([status])
   /// Manzil o'chirilganda tekshiriladi.
   @@index([addressId])
-  /// Shu buyurtma tasdiqlagan sharhlar.
-  reviews  Review[]
   @@map("market_orders")
 }
 
@@ -1277,7 +1343,7 @@ model MarketOrderItem {
   /// bog'liq yozuv. Shuning uchun `SetNull`.
   variantId String? @db.Uuid
 
-  name      String @db.VarChar(160)
+  name         String  @db.VarChar(160)
   /// Variant nomi NUSXA qilib saqlanadi: "Qora · 256 GB".
   ///
   /// ── Nima uchun nusxa ────────────────────────────────────────────────
@@ -1302,7 +1368,7 @@ model MarketOrderItem {
   /// bog'liq yozuv. Faqat "qayerdan kelgani" yo'qoladi.
   sourcePostId String? @db.Uuid
 
-  order      MarketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order      MarketOrder     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product    Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
   variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
   sourcePost Post?           @relation("OrderSource", fields: [sourcePostId], references: [id], onDelete: SetNull)
@@ -1469,7 +1535,7 @@ model ProductOptionValue {
 
   sortOrder Int @default(0)
 
-  option   ProductOption          @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  option   ProductOption         @relation(fields: [optionId], references: [id], onDelete: Cascade)
   variants ProductVariantValue[]
 
   @@unique([optionId, value])
@@ -1518,6 +1584,7 @@ model ProductVariant {
   product    Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
   values     ProductVariantValue[]
   orderItems MarketOrderItem[]
+  cartItems  CartItem[]
 
   @@index([productId, sortOrder])
   @@map("product_variants")
@@ -1566,7 +1633,7 @@ model ProductAttribute {
   productId String @db.Uuid
 
   /// Xususiyat nomi: "Ekran".
-  name String @db.VarChar(60)
+  name  String @db.VarChar(60)
   /// Qiymati: "6.6 dyuym AMOLED".
   value String @db.VarChar(200)
 
@@ -1660,7 +1727,6 @@ model ProductAnswer {
    * ── Nima uchun `authorId` uchun ALOHIDA indeks ──────────────────────
    * Yuqoridagi cheklovda `authorId` bor, lekin u IKKINCHI ustun:
    * indeks faqat `questionId` bilan birga qidirilganda ishlaydi.
-   *
    * Hisob o'chirilganda esa baza "shu odamning javoblari"ni
    * qidiradi — indekssiz bu butun jadvalni skanerlardi.
    */
@@ -1719,11 +1785,9 @@ model RecentView {
   @@unique([userId, restaurantId])
   @@unique([userId, hotelId])
   @@unique([userId, vacancyId])
-
   /// Ro'yxat: eng oxirgi ko'rilgani birinchi. Eskilarini o'chirish
   /// ham shu indeks orqali boradi.
   @@index([userId, viewedAt])
-
   @@index([productId])
   @@index([menuItemId])
   @@index([restaurantId])
@@ -1786,10 +1850,8 @@ model Favorite {
   @@unique([userId, restaurantId])
   @@unique([userId, hotelId])
   @@unique([userId, vacancyId])
-
   /// Sevimlilar sahifasi: eng oxirgi qo'shilgani birinchi.
   @@index([userId, createdAt])
-
   /// Narsa o'chirilganda uning yozuvlari tozalanadi.
   @@index([productId])
   @@index([menuItemId])
@@ -1880,17 +1942,14 @@ model Review {
   @@unique([authorId, restaurantId])
   @@unique([authorId, shopId])
   @@unique([authorId, hotelId])
-
   /// Ro'yxat: eng yangi sharh birinchi.
   @@index([productId, createdAt])
   @@index([menuItemId, createdAt])
   @@index([restaurantId, createdAt])
   @@index([shopId, createdAt])
   @@index([hotelId, createdAt])
-
   /// "Mening sharhlarim" va hisob o'chirilganda tozalash.
   @@index([authorId, createdAt])
-
   /// Buyurtma o'chirilganda dalil bo'shatiladi — indekssiz bu
   /// butun jadvalni skanerlardi.
   @@index([marketOrderId])
@@ -1935,14 +1994,14 @@ model Hotel {
 
   rooms HotelRoom[]
 
-  postLinks PostAttachment[]
-  images    CatalogImage[]
+  postLinks   PostAttachment[]
+  images      CatalogImage[]
+  reviews     Review[]
+  favorites   Favorite[]
+  recentViews RecentView[]
 
   @@index([city, isActive])
   @@index([searchName])
-  reviews   Review[]
-  favorites Favorite[]
-  recentViews RecentView[]
   @@map("hotels")
 }
 
@@ -2024,14 +2083,14 @@ model HotelBooking {
   createdAt   DateTime  @default(now())
   cancelledAt DateTime?
 
-  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  room HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room    HotelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  /// Shu bandlov tasdiqlagan sharhlar.
+  reviews Review[]
 
   /// Bo'sh joy tekshiruvi: xona + sana oralig'i bo'yicha qidiriladi.
   @@index([roomId, checkIn, checkOut])
   @@index([userId, createdAt])
-  /// Shu bandlov tasdiqlagan sharhlar.
-  reviews Review[]
   @@map("hotel_bookings")
 }
 
@@ -2304,14 +2363,14 @@ model Vacancy {
   category     JobCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   applications JobApplication[]
 
-  postLinks PostAttachment[]
+  postLinks   PostAttachment[]
+  favorites   Favorite[]
+  recentViews RecentView[]
 
   @@index([companyId, isActive])
   @@index([categoryId, sortOrder])
   @@index([searchName])
   @@index([isActive, createdAt])
-  favorites Favorite[]
-  recentViews RecentView[]
   @@map("vacancies")
 }
 

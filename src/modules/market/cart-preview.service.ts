@@ -76,8 +76,30 @@ export async function previewCart(
     throw new NotFoundError("Do'kon");
   }
 
+  return priceCartLines(items, shopId);
+}
+
+/**
+ * Narx va zaxirani DO'KONGA bog'lamasdan o'qiydi.
+ *
+ * ── Nima uchun alohida funksiya kerak bo'ldi ──────────────────────────
+ * Savat bitta do'konga tegishli, lekin "keyinroq sotib olaman"
+ * ro'yxati EMAS: odam turli do'konlardan narsa yig'ib qo'yishi
+ * mumkin va bu butunlay tabiiy.
+ *
+ * Do'kon bo'yicha cheklov faqat `previewCart` da qoladi — u yerda u
+ * himoya vazifasini bajaradi.
+ */
+export async function priceCartLines(
+  items: readonly { productId: string; variantId?: string | null; quantity: number }[],
+  shopId?: string,
+): Promise<CartPreviewResult> {
+  if (items.length === 0) {
+    return { lines: [], missingCount: 0 };
+  }
+
   const products = await prisma.product.findMany({
-    where: { id: { in: items.map((item) => item.productId) }, shopId },
+    where: { id: { in: items.map((item) => item.productId) }, ...(shopId ? { shopId } : {}) },
     select: {
       id: true,
       slug: true,
