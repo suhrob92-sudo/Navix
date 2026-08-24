@@ -4,16 +4,18 @@ import { useState } from 'react';
 
 import { CatalogImageManager } from '@/components/catalog/catalog-image-manager';
 import { AttributeEditor } from '@/components/market/attribute-editor';
+import { VariantEditor } from '@/components/market/variant-editor';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { useApiClient } from '@/hooks/use-api';
+import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { ApiClientError, toUserMessage } from '@/lib/api-client';
 import type { FieldErrors } from '@/lib/api/errors';
 import type { CatalogImageView } from '@/modules/catalog/catalog-image.types';
+import type { VariantsView } from '@/modules/product/product-variant.types';
 import type { SellerCategoryOption, SellerProduct } from '@/modules/seller/seller.types';
 
 /**
@@ -49,6 +51,13 @@ export interface SellerProductSheetProps {
   onImagesChanged?: (images: CatalogImageView[]) => void;
   /** Xususiyatlar saqlanganda — oyna yopilmaydi. */
   onAttributesChanged?: (attributes: { id: string; name: string; value: string }[]) => void;
+  /**
+   * Variantlar saqlanganda.
+   *
+   * Ro'yxat YANGILANADI: variant narxi va zaxirasi mahsulotdagi
+   * nusxaga ta'sir qiladi va eski qiymat ekranda qolib ketardi.
+   */
+  onVariantsChanged?: () => void;
   onClose: () => void;
 }
 
@@ -117,6 +126,7 @@ export function SellerProductSheet({
   onSaved,
   onImagesChanged,
   onAttributesChanged,
+  onVariantsChanged,
   onClose,
 }: SellerProductSheetProps) {
   const isEditing = product !== undefined;
@@ -133,6 +143,11 @@ export function SellerProductSheet({
   const [images, setImages] = useState<CatalogImageView[]>(product?.images ?? []);
   /** Xususiyatlar ham forma tashqarisida — o'z "Saqlash" tugmasi bor. */
   const [attributes, setAttributes] = useState(product?.attributes ?? []);
+
+  /** Variantlar faqat tahrirlashda va faqat so'ralganda yuklanadi. */
+  const variants = useApiQuery<VariantsView>(
+    isEditing ? `/api/v1/products/${product.id}/variants` : null,
+  );
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -320,6 +335,29 @@ export function SellerProductSheet({
             Xususiyatlar ham faqat TAHRIRLASHDA: yangi mahsulotning
             ID'si hali yo'q.
           */}
+          {/*
+            Variantlar SO'RALGANDA yuklanadi.
+
+            ── Nima uchun ro'yxat bilan birga kelmaydi ─────────────────
+            Omborda 200 ta mahsulot bo'lishi mumkin va har biriga
+            variantlarni qo'shib olish 200 ta qo'shimcha so'rov
+            bo'lardi — holbuki sotuvchi bir vaqtda faqat bittasini
+            tahrirlaydi.
+          */}
+          {isEditing && variants.data && (
+            <div className="border-border/60 border-t pt-4">
+              <VariantEditor
+                productId={product.id}
+                data={variants.data}
+                defaultPriceSom={Math.round(product.price / 100)}
+                onSaved={(next) => {
+                  variants.setData(next);
+                  onVariantsChanged?.();
+                }}
+              />
+            </div>
+          )}
+
           {isEditing && (
             <div className="border-border/60 border-t pt-4">
               <AttributeEditor

@@ -32,6 +32,19 @@ export const MAX_ITEM_QUANTITY = 10;
 
 export const cartLineSchema = z.object({
   productId: z.uuid({ message: "Mahsulot noto'g'ri tanlangan" }),
+  /**
+   * Qaysi variant — rang, o'lcham, xotira.
+   *
+   * ── Nima uchun IXTIYORIY ────────────────────────────────────────────
+   * Katalogdagi mahsulotlarning katta qismida variant yo'q: kitob,
+   * dazmol, konstruktor. Ularni sun'iy "yagona variant" ga
+   * o'rashning ma'nosi yo'q edi.
+   *
+   * Variantli mahsulotda esa u MAJBURIY bo'ladi — buni server
+   * tekshiradi, chunki savat brauzerda saqlanadi va unga ishonib
+   * bo'lmaydi.
+   */
+  variantId: z.uuid({ message: "Variant noto'g'ri tanlangan" }).optional(),
   quantity: z
     .number({ message: 'Sonini kiriting' })
     .int("Son butun bo'lishi kerak")

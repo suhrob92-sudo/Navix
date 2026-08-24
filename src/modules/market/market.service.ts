@@ -7,6 +7,8 @@ import { logger } from '@/lib/logger';
 import { formatTiyin, somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { toSearchText } from '@/lib/search';
+import { variantLabel } from '@/config/product-variant';
+import { getVariants } from '@/modules/product/product-variant.service';
 import type { ServiceColor } from '@/config/modules';
 import {
   GALLERY_SELECT,
@@ -299,6 +301,8 @@ export async function getProduct(slug: string): Promise<{ product: ProductDetail
     take: 6,
   });
 
+  const variants = await getVariants(row.id);
+
   const product: ProductDetail = {
     ...toProductItem(row),
     description: row.description,
@@ -306,6 +310,7 @@ export async function getProduct(slug: string): Promise<{ product: ProductDetail
     shopMinOrder: tiyinToNumber(row.shop.minOrder),
     images: toGallery(row.images),
     attributes: row.attributes,
+    variants,
   };
 
   return { product, related: related.map(toProductItem) };
@@ -336,7 +341,15 @@ const ORDER_SELECT = {
      * bo'lsa ham buyurtma tarixi qoladi (nomi va narxi nusxa
      * qilingan). Bunday qatorga baho qo'yib bo'lmaydi.
      */
-    select: { id: true, name: true, unitPrice: true, quantity: true, lineTotal: true, productId: true },
+    select: {
+      id: true,
+      name: true,
+      unitPrice: true,
+      quantity: true,
+      lineTotal: true,
+      productId: true,
+      variantLabel: true,
+    },
     orderBy: { name: 'asc' as const },
   },
   delivery: {
@@ -399,6 +412,7 @@ function toOrderView(row: OrderRow): MarketOrderView {
       quantity: item.quantity,
       lineTotal: tiyinToNumber(item.lineTotal),
       productId: item.productId,
+      variantLabel: item.variantLabel,
     })),
     courier: toCourierView(row.delivery),
   };
@@ -541,7 +555,34 @@ async function performCreateMarketOrder(
 
   const products = await prisma.product.findMany({
     where: { id: { in: requestedIds }, shopId: shop.id },
-    select: { id: true, name: true, price: true, stock: true, isActive: true },
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      stock: true,
+      isActive: true,
+      /**
+       * Variantlar ham olinadi.
+       *
+       * ── Nima uchun BARCHASI, faqat tanlangani emas ──────────────────
+       * Savatdagi variant ID'si eski bo'lishi mumkin: sotuvchi
+       * variantlarni qayta yozgan bo'lsa, eskilari o'chirilgan.
+       *
+       * Barchasini olib, tekshirish aniq xabar berishga imkon
+       * beradi: "variant o'zgargan" deb aytish "topilmadi" dan
+       * ancha tushunarli.
+       */
+      variants: {
+        select: {
+          id: true,
+          price: true,
+          stock: true,
+          isActive: true,
+          values: { select: { optionValue: { select: { value: true, optionId: true } } } },
+        },
+      },
+      options: { select: { id: true }, orderBy: { sortOrder: 'asc' } },
+    },
   });
 
   const productById = new Map(products.map((product) => [product.id, product]));
@@ -559,34 +600,107 @@ async function performCreateMarketOrder(
   }
 
   /**
+   * Har bir qator uchun VARIANT aniqlanadi.
+   *
+   * ── Nima uchun bu yerda, savatda emas ──────────────────────────────
+   * Savat brauzerda saqlanadi va unga ISHONIB bo'lmaydi: u yerdagi
+   * variant ID'si eski, begona yoki umuman yasama bo'lishi mumkin.
+   *
+   * Shuning uchun bog'liqlik SERVERDA tekshiriladi: variant shu
+   * mahsulotnikimi, faolmi va zaxirasi yetadimi.
+   */
+  const resolved = input.items.map((line) => {
+    const product = productById.get(line.productId)!;
+
+    /** Variantsiz mahsulot — eskicha ishlaydi. */
+    if (product.options.length === 0) {
+      if (line.variantId) {
+        throw new ValidationError('Savat eskirgan', {
+          items: [`"${product.name}" endi variantsiz sotiladi. Savatni yangilang.`],
+        });
+      }
+
+      return {
+        product,
+        variant: null,
+        unitPrice: product.price,
+        stock: product.stock,
+        label: null as string | null,
+      };
+    }
+
+    /**
+     * Variantli mahsulotda tanlov MAJBURIY.
+     *
+     * Aks holda qaysi rang va qaysi narx sotilgani noma'lum
+     * bo'lib qolardi.
+     */
+    if (!line.variantId) {
+      throw new ValidationError('Variant tanlanmagan', {
+        items: [`"${product.name}" uchun variantni tanlang.`],
+      });
+    }
+
+    const variant = product.variants.find((row) => row.id === line.variantId);
+
+    if (!variant) {
+      throw new ValidationError('Savat eskirgan', {
+        items: [`"${product.name}" variantlari o'zgargan. Savatni yangilang.`],
+      });
+    }
+
+    if (!variant.isActive) {
+      throw new ConflictError(`"${product.name}" ning bu varianti endi sotuvda yo'q.`);
+    }
+
+    /** Nomi buyurtmaga NUSXA qilib yoziladi — sabab sxemada. */
+    const optionOrder = new Map(product.options.map((option, index) => [option.id, index]));
+
+    const label = variantLabel(
+      [...variant.values]
+        .sort(
+          (a, b) =>
+            (optionOrder.get(a.optionValue.optionId) ?? 0) -
+            (optionOrder.get(b.optionValue.optionId) ?? 0),
+        )
+        .map((row) => row.optionValue.value),
+    );
+
+    return { product, variant, unitPrice: variant.price, stock: variant.stock, label };
+  });
+
+  /**
    * Zaxirani OLDINDAN ham tekshiramiz.
    *
    * Bu tranzaksiya ichidagi shartli `UPDATE` ning o'rnini bosmaydi —
    * u yakuniy himoya. Bu yerdagi tekshiruv esa foydalanuvchiga ANIQ
    * xabar berish uchun: qaysi mahsulot yetmayapti va nechta qolgan.
    */
-  for (const line of input.items) {
-    const product = productById.get(line.productId)!;
+  input.items.forEach((line, index) => {
+    const { product, stock, label } = resolved[index];
+    const shownName = label ? `${product.name} (${label})` : product.name;
 
-    if (product.stock < line.quantity) {
+    if (stock < line.quantity) {
       throw new ConflictError(
-        product.stock === 0
-          ? `"${product.name}" tugadi. Savatdan olib tashlang.`
-          : `"${product.name}" dan atigi ${product.stock} ta qolgan. Sonini kamaytiring.`,
+        stock === 0
+          ? `"${shownName}" tugadi. Savatdan olib tashlang.`
+          : `"${shownName}" dan atigi ${stock} ta qolgan. Sonini kamaytiring.`,
       );
     }
-  }
+  });
 
   // 4. Summa — BAZADAGI narxlardan.
-  const lines = input.items.map((line) => {
-    const product = productById.get(line.productId)!;
+  const lines = input.items.map((line, index) => {
+    const { product, variant, unitPrice, label } = resolved[index];
 
     return {
       productId: product.id,
+      variantId: variant?.id ?? null,
       name: product.name,
-      unitPrice: product.price,
+      variantLabel: label,
+      unitPrice,
       quantity: line.quantity,
-      lineTotal: product.price * BigInt(line.quantity),
+      lineTotal: unitPrice * BigInt(line.quantity),
     };
   });
 
@@ -638,6 +752,39 @@ async function performCreateMarketOrder(
        * ENG MUHIM QATOR. Shart `UPDATE` ning o'zida turadi, shuning
        * uchun bir vaqtda kelgan ikki so'rovdan faqat bittasi o'tadi.
        */
+      const shownName = line.variantLabel ? `${line.name} (${line.variantLabel})` : line.name;
+
+      if (line.variantId) {
+        /**
+         * VARIANT zaxirasi shart bilan kamayadi — bir vaqtda
+         * kelgan ikki so'rovdan faqat bittasi o'tadi.
+         */
+        const claimedVariant = await tx.productVariant.updateMany({
+          where: { id: line.variantId, isActive: true, stock: { gte: line.quantity } },
+          data: { stock: { decrement: line.quantity } },
+        });
+
+        if (claimedVariant.count === 0) {
+          throw new ConflictError(
+            `"${shownName}" hozirgina sotib olindi va zaxira tugadi. Savatni yangilang.`,
+          );
+        }
+
+        /**
+         * Mahsulotdagi NUSXA ham kamayadi.
+         *
+         * Bu yerda shart yo'q: variant tekshiruvi allaqachon
+         * o'tdi va nusxa faqat yig'indini kuzatib boradi.
+         */
+        await tx.product.update({
+          where: { id: line.productId },
+          data: { stock: { decrement: line.quantity } },
+          select: { id: true },
+        });
+
+        continue;
+      }
+
       const claimed = await tx.product.updateMany({
         where: { id: line.productId, isActive: true, stock: { gte: line.quantity } },
         data: { stock: { decrement: line.quantity } },
@@ -645,7 +792,7 @@ async function performCreateMarketOrder(
 
       if (claimed.count === 0) {
         throw new ConflictError(
-          `"${line.name}" hozirgina sotib olindi va zaxira tugadi. Savatni yangilang.`,
+          `"${shownName}" hozirgina sotib olindi va zaxira tugadi. Savatni yangilang.`,
         );
       }
     }
@@ -756,7 +903,7 @@ export async function cancelMarketOrder(
       status: true,
       total: true,
       shop: { select: { name: true } },
-      items: { select: { productId: true, quantity: true } },
+      items: { select: { productId: true, variantId: true, quantity: true } },
     },
   });
 
@@ -802,6 +949,20 @@ export async function cancelMarketOrder(
      */
     for (const item of order.items) {
       if (!item.productId) continue;
+
+      /**
+       * VARIANT zaxirasi ham tiklanadi.
+       *
+       * Mahsulotdagi zaxira variantlar yig'indisining NUSXASI,
+       * shuning uchun ikkalasi ham bir xil miqdorga oshadi —
+       * aks holda nusxa haqiqatdan ajralib qolardi.
+       */
+      if (item.variantId) {
+        await tx.productVariant.update({
+          where: { id: item.variantId },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
 
       await tx.product.update({
         where: { id: item.productId },

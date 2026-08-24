@@ -50,7 +50,7 @@ export function SellerProductsContent({ shopId }: SellerProductsContentProps) {
 function ProductsBody({ shopId }: SellerProductsContentProps) {
   const request = useApiClient();
 
-  const { data, isLoading, error, setData } = useApiQuery<SellerProductsResponse>(
+  const { data, isLoading, error, setData, reload } = useApiQuery<SellerProductsResponse>(
     `/api/v1/seller/shops/${shopId}/products`,
   );
 
@@ -304,6 +304,7 @@ function ProductsBody({ shopId }: SellerProductsContentProps) {
             setEditing((current) => (current ? { ...current, images } : current));
             replaceProduct({ ...editing, images });
           }}
+          onVariantsChanged={() => reload()}
           onAttributesChanged={(attributes) => {
             setEditing((current) => (current ? { ...current, attributes } : current));
             replaceProduct({ ...editing, attributes });

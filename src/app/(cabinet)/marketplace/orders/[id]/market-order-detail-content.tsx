@@ -155,6 +155,13 @@ export function MarketOrderDetailContent({ orderId }: MarketOrderDetailContentPr
                       <span className="min-w-0">
                         <span className="text-sm font-medium tabular-nums">{`${item.quantity} × `}</span>
                         <span className="text-sm">{item.name}</span>
+
+                        {/* Variant nomi — buyurtma paytidagi NUSXA. */}
+                        {item.variantLabel && (
+                          <span className="text-muted-foreground block text-xs">
+                            {item.variantLabel}
+                          </span>
+                        )}
                       </span>
                       <span className="text-muted-foreground shrink-0 text-sm tabular-nums">
                         {formatTiyin(item.lineTotal)}

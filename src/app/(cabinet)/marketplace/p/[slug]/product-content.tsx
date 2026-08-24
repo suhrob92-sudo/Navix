@@ -15,6 +15,9 @@ import { MarketCartBar } from '@/components/market/market-cart-bar';
 import { QuestionSection } from '@/components/market/question-section';
 import { ProductCard } from '@/components/market/product-card';
 import { QuantityStepper } from '@/components/market/quantity-stepper';
+import { VariantPicker, selectedVariantOf } from '@/components/market/variant-picker';
+import { PICK_VARIANT_TEXT, needsFromPrefix } from '@/config/product-variant';
+import { emptyVariants, pruneSelection } from '@/modules/product/product-variant.types';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,22 +46,61 @@ export function ProductContent({ slug }: ProductContentProps) {
   const { data, isLoading, error } = useApiQuery<ProductResponse>(`/api/v1/market/products/${slug}`);
 
   const [quantity, setQuantity] = useState(1);
+  /**
+   * Tanlangan variant qiymatlari — tanlovlar tartibida.
+   *
+   * ── Nima uchun boshida BO'SH ────────────────────────────────────────
+   * Birinchi variantni avtomatik tanlash mumkin edi va sahifa
+   * "tayyor" ko'rinardi.
+   *
+   * Lekin unda odam o'zi tanlamagan rangni sotib olib qo'yishi
+   * mumkin edi: u narxni ko'rdi, tugmani bosdi va rang haqida
+   * o'ylamadi ham.
+   */
+  const [selectedValues, setSelectedValues] = useState<string[]>([]);
   const [conflictShop, setConflictShop] = useState<string | null>(null);
   const [added, setAdded] = useState(false);
 
   const product = data?.product ?? null;
   const related = data?.related ?? [];
 
-  const state = product ? stockState(product.stock) : 'out';
+  const variantData = product?.variants ?? emptyVariants();
+  const hasVariants = variantData.options.length > 0;
+  const variant = product ? selectedVariantOf(variantData, selectedValues) : null;
+
+  /**
+   * Narx va zaxira VARIANTDAN olinadi.
+   *
+   * Variant tanlanmagan bo'lsa, mahsulotdagi nusxa ko'rsatiladi —
+   * u eng arzon variantning narxi va umumiy zaxira.
+   */
+  const price = variant?.price ?? product?.price ?? 0;
+  const oldPrice = variant ? variant.oldPrice : (product?.oldPrice ?? null);
+  const stock = variant?.stock ?? product?.stock ?? 0;
+
+  /**
+   * Narxlar har xil bo'lsa, "dan" belgisi qo'yiladi.
+   *
+   * Aks holda katalogdagi narx YOLG'ON bo'lardi: odam
+   * 4 290 000 so'mni ko'rib kirsa, ichkarida 5 890 000 so'mni
+   * ko'rardi.
+   */
+  const showFromPrefix =
+    hasVariants && variant === null && needsFromPrefix(variantData.variants.map((row) => row.price));
+
+  const state = stockState(stock);
   const isOut = state === 'out';
 
+  /** Variantli mahsulotda tanlov MAJBURIY. */
+  const needsPick = hasVariants && variant === null;
+
   /** Omborda bor sondan ham, bir buyurtmadagi chegaradan ham oshmaydi. */
-  const maxQuantity = product ? Math.min(product.stock, MAX_ITEM_QUANTITY) : 0;
+  const maxQuantity = Math.min(stock, MAX_ITEM_QUANTITY);
 
   function handleAdd() {
     if (!product) return;
 
-    const result = cart.add(product.shop, product.id, quantity);
+    const result = cart.add(product.shop, product.id, quantity, variant?.id ?? null);
 
     if (!result.ok) {
       setConflictShop(result.conflictWith);
@@ -109,13 +151,26 @@ export function ProductContent({ slug }: ProductContentProps) {
             <div className="bg-card border-border animate-fade-up rounded-2xl border p-4">
               <h1 className="text-base leading-snug font-semibold">{product.name}</h1>
 
-              <div className="mt-3 flex items-baseline gap-3">
-                <span className="text-2xl font-semibold tabular-nums">{formatTiyin(product.price)}</span>
+              {/*
+                `flex-wrap` SHART: narx, eski narx va tejamkorlik
+                belgisi telefon ekranida bitta qatorga sig'maydi va
+                belgi chetdan chiqib ketardi.
+              */}
+              <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1.5">
+                <span className="text-2xl font-semibold tabular-nums">
+                  {/*
+                    "dan" qo'shimchasi BO'SHLIQSIZ yoziladi.
 
-                {product.oldPrice !== null && product.oldPrice > product.price && (
+                    O'zbekchada u so'zga qo'shilib ketadi:
+                    "4 290 000 so'mdan", "so'm dan" emas.
+                  */}
+                  {showFromPrefix ? `${formatTiyin(price)}dan` : formatTiyin(price)}
+                </span>
+
+                {oldPrice !== null && oldPrice > price && (
                   <>
                     <span className="text-muted-foreground text-sm tabular-nums line-through">
-                      {formatTiyin(product.oldPrice)}
+                      {formatTiyin(oldPrice)}
                     </span>
 
                     {/*
@@ -125,16 +180,14 @@ export function ProductContent({ slug }: ProductContentProps) {
                       "600 000 so'm tejaysiz" degan yozuv qarorni
                       tezlashtiradi: odam hisoblab o'tirmaydi.
                     */}
-                    <Badge variant="success">
-                      {`${formatTiyin(product.oldPrice - product.price)} tejaysiz`}
-                    </Badge>
+                    <Badge variant="success">{`${formatTiyin(oldPrice - price)} tejaysiz`}</Badge>
                   </>
                 )}
               </div>
 
               <div className="mt-3 flex items-center gap-2">
                 <Badge variant={isOut ? 'destructive' : state === 'low' ? 'warning' : 'success'}>
-                  {stockLabel(product.stock)}
+                  {stockLabel(stock)}
                 </Badge>
                 <Link
                   href={`/marketplace/c/${product.category.slug}`}
@@ -144,8 +197,49 @@ export function ProductContent({ slug }: ProductContentProps) {
                 </Link>
               </div>
 
+              {/*
+                Variant tanlash — narxdan KEYIN, savatdan OLDIN.
+
+                Narxdan oldin qo'yilsa, odam nima uchun tanlash
+                kerakligini bilmasdi. Savatdan keyin esa u
+                tanlamasdan tugmani bosardi.
+              */}
+              {hasVariants && (
+                <div className="border-border/60 mt-3.5 border-t pt-3.5">
+                  <VariantPicker
+                    data={variantData}
+                    selected={selectedValues}
+                    onSelect={(optionIndex, valueId) => {
+                      setSelectedValues((current) => {
+                        /*
+                          Shu tanlovdagi eski qiymat olib
+                          tashlanadi: bitta tanlovdan faqat
+                          bittasi tanlanadi.
+                        */
+                        const optionValueIds = variantData.options[optionIndex].values.map(
+                          (value) => value.id,
+                        );
+
+                        const cleaned = current.filter((id) => !optionValueIds.includes(id));
+
+                        /*
+                          Mos kelmaydigan tanlov BEKOR qilinadi.
+
+                          "Oq · 128 GB" birikmasi bo'lmasa, odam
+                          "Oq" ni bosganda "128 GB" o'zi
+                          bo'shaydi — u tuzoqqa tushmaydi.
+                          Sabab `pruneSelection` da.
+                        */
+                        return pruneSelection(variantData.variants, [...cleaned, valueId]);
+                      });
+                      setAdded(false);
+                    }}
+                  />
+                </div>
+              )}
+
               {/* 3. Eng muhim savol: qachon keladi */}
-              {!isOut && (
+              {!isOut && !needsPick && (
                 <div className="border-border/60 mt-3.5 border-t pt-3.5">
                   <DeliveryPromise deliveryDays={product.shop.deliveryDays} />
                 </div>
@@ -167,8 +261,8 @@ export function ProductContent({ slug }: ProductContentProps) {
                   label={product.name}
                 />
 
-                <Button fullWidth size="lg" onClick={handleAdd}>
-                  {added ? "Savatga qo'shildi" : "Savatga qo'shish"}
+                <Button fullWidth size="lg" onClick={handleAdd} disabled={needsPick}>
+                  {needsPick ? PICK_VARIANT_TEXT : added ? "Savatga qo'shildi" : "Savatga qo'shish"}
                 </Button>
               </div>
             )}
@@ -236,7 +330,7 @@ export function ProductContent({ slug }: ProductContentProps) {
         confirmLabel="Savatni tozalash"
         onConfirm={() => {
           if (product) {
-            cart.replaceShop(product.shop, product.id, quantity);
+            cart.replaceShop(product.shop, product.id, quantity, variant?.id ?? null);
             setAdded(true);
           }
           setConflictShop(null);

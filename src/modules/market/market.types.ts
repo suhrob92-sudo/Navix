@@ -1,5 +1,6 @@
 import type { ServiceColor } from '@/config/modules';
 import type { CatalogImageView, CatalogThumb } from '@/modules/catalog/catalog-image.types';
+import type { VariantsView } from '@/modules/product/product-variant.types';
 import type { OrderCourierView } from '@/modules/food/food.types';
 
 /**
@@ -92,6 +93,13 @@ export interface ProductDetail extends ProductListItem {
    * Tartib bo'yicha keladi va sahifada shu tartibda chiziladi.
    */
   attributes: { id: string; name: string; value: string }[];
+  /**
+   * Tanlovlar va variantlar.
+   *
+   * Bo'sh bo'lsa — mahsulot variantsiz sotiladi va narx/zaxira
+   * mahsulotning o'zidan olinadi.
+   */
+  variants: VariantsView;
 }
 
 export interface MarketOrderItemView {
@@ -109,6 +117,13 @@ export interface MarketOrderItemView {
    * Bunday qatorga baho qo'yib bo'lmaydi.
    */
   productId: string | null;
+  /**
+   * Qaysi variant sotilgan: "Qora · 256 GB".
+   *
+   * NUSXA sifatida saqlanadi — sotuvchi ertaga nomni o'zgartirsa
+   * ham, eski buyurtmada xaridor nima olganini ko'rishi kerak.
+   */
+  variantLabel: string | null;
 }
 
 export interface MarketOrderView {

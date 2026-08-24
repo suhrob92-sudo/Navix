@@ -60,6 +60,30 @@ export interface QueryOptions {
    * mos, lekin uzun ro'yxatlar uchun emas.
    */
   refreshIntervalMs?: number;
+
+  /**
+   * `POST` bilan so'rash.
+   *
+   * ── Nima uchun O'QISH uchun `POST` kerak bo'lib qoldi ────────────────
+   * Savat ko'rinishi 30 tagacha qatorni serverga yuboradi va har
+   * birida ikkita ID bor. Ularni manzilga yozsak, manzil juda
+   * uzun bo'lib ketardi va ba'zi tarmoqlar uni kesib qo'yardi.
+   *
+   * Amal MA'NOSI bo'yicha baribir o'qish: u hech narsani
+   * o'zgartirmaydi.
+   */
+  method?: 'GET' | 'POST';
+
+  /**
+   * `POST` so'rovining tanasi.
+   *
+   * ── Nima uchun MATNGA aylantiriladi ─────────────────────────────────
+   * Obyekt har chizishda YANGI bo'ladi va `useEffect` uni
+   * "o'zgardi" deb hisoblab, cheksiz so'rov yuborardi.
+   *
+   * Matn esa mazmuni bir xil bo'lsa, o'zi ham bir xil qoladi.
+   */
+  body?: unknown;
 }
 
 /**
@@ -70,6 +94,9 @@ export interface QueryOptions {
  * @param options Qo'shimcha sozlamalar (avtomatik yangilash).
  */
 export function useApiQuery<TData>(path: string | null, options: QueryOptions = {}): QueryState<TData> {
+  /** Tana matnga aylantiriladi — sabab `QueryOptions.body` da. */
+  const bodyKey = options.body === undefined ? null : JSON.stringify(options.body);
+  const method = options.method ?? 'GET';
   const request = useApiClient();
   const { isLoading: isAuthLoading } = useAuth();
 
@@ -96,7 +123,10 @@ export function useApiQuery<TData>(path: string | null, options: QueryOptions = 
 
     async function load() {
       try {
-        const result = await request<TData>(path!);
+        const result = await request<TData>(path!, {
+          method,
+          ...(bodyKey === null ? {} : { body: JSON.parse(bodyKey) as unknown }),
+        });
         if (!cancelled && isMountedRef.current) {
           setDataState(result);
           setError(null);
@@ -117,7 +147,7 @@ export function useApiQuery<TData>(path: string | null, options: QueryOptions = 
     return () => {
       cancelled = true;
     };
-  }, [path, request, reloadCount, isAuthLoading]);
+  }, [path, request, reloadCount, isAuthLoading, method, bodyKey]);
 
   const reload = useCallback(() => {
     setIsLoading(true);

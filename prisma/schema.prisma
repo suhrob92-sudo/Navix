@@ -1210,6 +1210,8 @@ model Product {
   recentViews RecentView[]
   attributes  ProductAttribute[]
   questions   ProductQuestion[]
+  options     ProductOption[]
+  variants    ProductVariant[]
   @@map("products")
 }
 
@@ -1269,7 +1271,21 @@ model MarketOrderItem {
   orderId   String  @db.Uuid
   productId String? @db.Uuid
 
+  /// Qaysi VARIANT sotilgan (bo'lsa).
+  ///
+  /// Variant o'chirilsa buyurtma qolishi shart — u pul bilan
+  /// bog'liq yozuv. Shuning uchun `SetNull`.
+  variantId String? @db.Uuid
+
   name      String @db.VarChar(160)
+  /// Variant nomi NUSXA qilib saqlanadi: "Qora · 256 GB".
+  ///
+  /// ── Nima uchun nusxa ────────────────────────────────────────────────
+  /// Sotuvchi ertaga "Qora" ni "Tungi qora" deb o'zgartirishi mumkin.
+  /// Eski buyurtmada esa xaridor NIMA BUYURTMA QILGANI ko'rinishi
+  /// kerak — nomi ham, narxi ham o'sha paytdagi holatda qoladi.
+  variantLabel String? @db.VarChar(200)
+
   unitPrice BigInt
   quantity  Int
   lineTotal BigInt
@@ -1287,14 +1303,17 @@ model MarketOrderItem {
   sourcePostId String? @db.Uuid
 
   order      MarketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product    Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
-  sourcePost Post?       @relation("OrderSource", fields: [sourcePostId], references: [id], onDelete: SetNull)
+  product    Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  sourcePost Post?           @relation("OrderSource", fields: [sourcePostId], references: [id], onDelete: SetNull)
 
   @@index([orderId])
   /// "Shu videodan nechta buyurtma keldi" so'rovi uchun.
   @@index([sourcePostId])
   /// Mahsulot o'chirilganda va 'shu mahsulot necha marta sotilgan' hisobida.
   @@index([productId])
+  /// Variant o'chirilganda tekshiriladi.
+  @@index([variantId])
   @@map("market_order_items")
 }
 
@@ -1402,6 +1421,123 @@ model CatalogImage {
   @@index([shopId, sortOrder])
   @@index([companyId, sortOrder])
   @@map("catalog_images")
+}
+
+/// Mahsulot tanlovi: "Rang", "Xotira", "O'lcham".
+///
+/// ── Nima uchun VARIANT kerak ──────────────────────────────────────────
+/// Hozirgacha "qora 128 GB" va "oq 256 GB" ikkita ALOHIDA mahsulot
+/// edi. Bu uchta muammoni keltirardi:
+///
+///   1. xaridor rangni almashtirish uchun katalogga qaytib, qaytadan
+///      qidirishi kerak edi;
+///   2. bir xil mahsulotning baholari va sharhlari ikkiga bo'linib
+///      ketardi;
+///   3. sotuvchi tavsif va rasmni har biriga qayta yozardi.
+///
+/// ── Nima uchun UCHTA jadval ───────────────────────────────────────────
+/// Variantni bitta jadvalda, "rang" va "xotira" ustunlari bilan ham
+/// saqlash mumkin edi. Lekin unda uchinchi tanlov (masalan "quvvat")
+/// kerak bo'lganda BAZANI o'zgartirish kerak bo'lardi.
+///
+/// Bu yerda esa tanlov nomi ham ma'lumot: sotuvchi "Ip turi" deb
+/// yozsa ham tizim ishlayveradi.
+model ProductOption {
+  id        String @id @default(uuid()) @db.Uuid
+  productId String @db.Uuid
+
+  /// Tanlov nomi: "Rang".
+  name String @db.VarChar(40)
+
+  sortOrder Int @default(0)
+
+  product Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values  ProductOptionValue[]
+
+  /// Bitta mahsulotda bir xil nomli tanlov ikki marta bo'lmaydi.
+  @@unique([productId, name])
+  @@index([productId, sortOrder])
+  @@map("product_options")
+}
+
+/// Tanlovning bitta qiymati: "Qora", "256 GB".
+model ProductOptionValue {
+  id       String @id @default(uuid()) @db.Uuid
+  optionId String @db.Uuid
+
+  value String @db.VarChar(60)
+
+  sortOrder Int @default(0)
+
+  option   ProductOption          @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  variants ProductVariantValue[]
+
+  @@unique([optionId, value])
+  @@index([optionId, sortOrder])
+  @@map("product_option_values")
+}
+
+/// Mahsulotning aniq bir ko'rinishi: "Qora, 256 GB".
+///
+/// ── Nima uchun narx va ZAXIRA shu yerda ───────────────────────────────
+/// 256 GB li telefon 128 GB lidan qimmat va ularning omboridagi
+/// soni ham boshqacha. Ular mahsulot darajasida saqlansa, "qora
+/// rangdan 3 ta qoldi" degan holatni ko'rsatib bo'lmasdi.
+///
+/// ── `products.price` va `products.stock` bilan aloqasi ────────────────
+/// Variant bo'lsa, mahsulotdagi qiymatlar NUSXA bo'lib qoladi:
+///
+///   · `products.price` = eng arzon variant narxi ("dan");
+///   · `products.stock` = variantlar zaxirasining yig'indisi.
+///
+/// Nusxa katalog uchun kerak: 40 mahsulotli sahifada har biriga
+/// variantlarni qo'shib hisoblash o'ndan ortiq so'rov bo'lardi.
+/// U variant har o'zgarganda BIR TRANZAKSIYADA yangilanadi.
+model ProductVariant {
+  id        String @id @default(uuid()) @db.Uuid
+  productId String @db.Uuid
+
+  /// Narx TIYINDA — mahsulotdagi kabi.
+  price    BigInt
+  oldPrice BigInt?
+
+  /// Shu ko'rinishdan omborda nechta bor.
+  stock Int @default(0)
+
+  /// Vaqtincha sotuvdan olingan variant.
+  ///
+  /// O'chirish o'rniga: o'chirilsa, eski buyurtmalardagi bog'lanish
+  /// yo'qolardi.
+  isActive Boolean @default(true)
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product    Product               @relation(fields: [productId], references: [id], onDelete: Cascade)
+  values     ProductVariantValue[]
+  orderItems MarketOrderItem[]
+
+  @@index([productId, sortOrder])
+  @@map("product_variants")
+}
+
+/// Variant va tanlov qiymati o'rtasidagi bog'lanish.
+///
+/// "Qora, 256 GB" varianti ikkita qiymatga bog'lanadi: `Qora` va
+/// `256 GB`.
+model ProductVariantValue {
+  variantId     String @db.Uuid
+  optionValueId String @db.Uuid
+
+  variant     ProductVariant     @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  optionValue ProductOptionValue @relation(fields: [optionValueId], references: [id], onDelete: Cascade)
+
+  @@id([variantId, optionValueId])
+  /// "Shu rangdagi variantlar" so'rovi uchun.
+  @@index([optionValueId])
+  @@map("product_variant_values")
 }
 
 /// Mahsulot xususiyati: "Ekran — 6.6 dyuym".

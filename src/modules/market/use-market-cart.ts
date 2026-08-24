@@ -27,7 +27,29 @@ const STORAGE_KEY = 'navix.market.cart.v1';
 
 export interface MarketCartLine {
   productId: string;
+  /**
+   * Qaysi variant — rang, o'lcham, xotira.
+   *
+   * ── Nima uchun savat kaliti IKKITA maydondan ────────────────────────
+   * Bir xil mahsulotning qora va oq rangi — savatda IKKI ALOHIDA
+   * qator. Faqat mahsulot bo'yicha kalitlansa, ikkinchi rang
+   * birinchisining sonini oshirib yuborardi.
+   *
+   * `undefined` — variantsiz mahsulot.
+   */
+  variantId?: string;
   quantity: number;
+}
+
+/**
+ * Savat qatorining kaliti.
+ *
+ * Variantsiz mahsulotda faqat mahsulot ID'si ishlatiladi — eski
+ * savatlar ham shu ko'rinishda saqlangan va ular buzilmasligi
+ * kerak.
+ */
+export function cartLineKey(productId: string, variantId?: string | null): string {
+  return variantId ? `${productId}:${variantId}` : productId;
 }
 
 export interface MarketCartState {
@@ -65,6 +87,8 @@ function isCartState(value: unknown): value is MarketCartState {
       typeof line === 'object' &&
       line !== null &&
       typeof (line as MarketCartLine).productId === 'string' &&
+      ((line as MarketCartLine).variantId === undefined ||
+        typeof (line as MarketCartLine).variantId === 'string') &&
       Number.isInteger((line as MarketCartLine).quantity) &&
       (line as MarketCartLine).quantity > 0,
   );
@@ -103,13 +127,23 @@ export interface UseMarketCartResult extends MarketCartState {
   /** Server tomonda va birinchi chizishda `false` — miltillashning oldini oladi. */
   isReady: boolean;
   totalQuantity: number;
-  quantityOf: (productId: string) => number;
+  quantityOf: (productId: string, variantId?: string | null) => number;
   /** Mahsulot qo'shadi. Boshqa do'kon bo'lsa `false` qaytaradi. */
-  add: (shop: CartShop, productId: string, quantity?: number) => { ok: boolean; conflictWith: string | null };
+  add: (
+    shop: CartShop,
+    productId: string,
+    quantity?: number,
+    variantId?: string | null,
+  ) => { ok: boolean; conflictWith: string | null };
   /** Yangi do'konga o'tib, savatni tozalaydi. */
-  replaceShop: (shop: CartShop, productId: string, quantity?: number) => void;
-  remove: (productId: string) => void;
-  setQuantity: (productId: string, quantity: number) => void;
+  replaceShop: (
+    shop: CartShop,
+    productId: string,
+    quantity?: number,
+    variantId?: string | null,
+  ) => void;
+  remove: (productId: string, variantId?: string | null) => void;
+  setQuantity: (productId: string, quantity: number, variantId?: string | null) => void;
   clear: () => void;
 }
 
@@ -144,20 +178,25 @@ export function useMarketCart(): UseMarketCartResult {
   }, []);
 
   const add = useCallback<UseMarketCartResult['add']>(
-    (shop, productId, quantity = 1) => {
+    (shop, productId, quantity = 1, variantId = null) => {
       const current = readStorage();
 
       if (current.shopId && current.shopId !== shop.id && current.lines.length > 0) {
         return { ok: false, conflictWith: current.shopName };
       }
 
-      const existing = current.lines.find((line) => line.productId === productId);
+      const key = cartLineKey(productId, variantId);
+      const existing = current.lines.find(
+        (line) => cartLineKey(line.productId, line.variantId) === key,
+      );
 
       const lines = existing
         ? current.lines.map((line) =>
-            line.productId === productId ? { ...line, quantity: line.quantity + quantity } : line,
+            cartLineKey(line.productId, line.variantId) === key
+              ? { ...line, quantity: line.quantity + quantity }
+              : line,
           )
-        : [...current.lines, { productId, quantity }];
+        : [...current.lines, { productId, ...(variantId ? { variantId } : {}), quantity }];
 
       commit({ shopId: shop.id, shopSlug: shop.slug, shopName: shop.name, lines });
 
@@ -167,25 +206,28 @@ export function useMarketCart(): UseMarketCartResult {
   );
 
   const replaceShop = useCallback<UseMarketCartResult['replaceShop']>(
-    (shop, productId, quantity = 1) => {
+    (shop, productId, quantity = 1, variantId = null) => {
       commit({
         shopId: shop.id,
         shopSlug: shop.slug,
         shopName: shop.name,
-        lines: [{ productId, quantity }],
+        lines: [{ productId, ...(variantId ? { variantId } : {}), quantity }],
       });
     },
     [commit],
   );
 
   const setQuantity = useCallback<UseMarketCartResult['setQuantity']>(
-    (productId, quantity) => {
+    (productId, quantity, variantId = null) => {
       const current = readStorage();
+      const key = cartLineKey(productId, variantId);
 
       const lines =
         quantity <= 0
-          ? current.lines.filter((line) => line.productId !== productId)
-          : current.lines.map((line) => (line.productId === productId ? { ...line, quantity } : line));
+          ? current.lines.filter((line) => cartLineKey(line.productId, line.variantId) !== key)
+          : current.lines.map((line) =>
+              cartLineKey(line.productId, line.variantId) === key ? { ...line, quantity } : line,
+            );
 
       // Oxirgi mahsulot olib tashlansa — do'kon bog'lanishi ham tozalanadi.
       commit(lines.length === 0 ? EMPTY : { ...current, lines });
@@ -194,14 +236,20 @@ export function useMarketCart(): UseMarketCartResult {
   );
 
   const remove = useCallback<UseMarketCartResult['remove']>(
-    (productId) => setQuantity(productId, 0),
+    (productId, variantId = null) => setQuantity(productId, 0, variantId),
     [setQuantity],
   );
 
   const clear = useCallback(() => commit(EMPTY), [commit]);
 
   const quantityOf = useCallback(
-    (productId: string) => state.lines.find((line) => line.productId === productId)?.quantity ?? 0,
+    (productId: string, variantId?: string | null) => {
+      const key = cartLineKey(productId, variantId);
+
+      return (
+        state.lines.find((line) => cartLineKey(line.productId, line.variantId) === key)?.quantity ?? 0
+      );
+    },
     [state.lines],
   );
 

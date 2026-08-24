@@ -21,7 +21,8 @@ import { cn } from '@/lib/utils';
 import { createIdempotencyKey } from '@/modules/wallet/wallet.schemas';
 import { MAX_ITEM_QUANTITY } from '@/modules/market/market.schemas';
 import type { MarketOrderResponse, ShopResponse } from '@/modules/market/market.types';
-import { useMarketCart } from '@/modules/market/use-market-cart';
+import { cartLineKey, useMarketCart } from '@/modules/market/use-market-cart';
+import type { CartPreviewResult } from '@/modules/market/cart-preview.service';
 import type { WalletSummary } from '@/modules/wallet/wallet.types';
 
 interface AddressesResponse {
@@ -55,22 +56,33 @@ export function MarketCartContent() {
   const addresses = useApiQuery<AddressesResponse>('/api/v1/addresses');
   const wallet = useApiQuery<WalletSummary>('/api/v1/wallet');
 
-  const productById = new Map((shop.data?.products ?? []).map((product) => [product.id, product]));
+  /**
+   * Narx va zaxira SERVERDAN olinadi.
+   *
+   * ── Nima uchun katalog ro'yxatidan emas ─────────────────────────────
+   * Ilgari savat do'kon ro'yxatidagi narxni ishlatardi: u yerda
+   * har bir mahsulotning bitta narxi bor edi.
+   *
+   * Variant paydo bo'lgach bu yetmay qoldi: "Qora 256 GB" va
+   * "Oq 128 GB" narxi ham, zaxirasi ham boshqacha va ular
+   * katalog ro'yxatida umuman yo'q.
+   */
+  const preview = useApiQuery<CartPreviewResult>(
+    cart.isReady && cart.shopId && cart.lines.length > 0 ? '/api/v1/market/cart-preview' : null,
+    {
+      method: 'POST',
+      body: { shopId: cart.shopId, items: cart.lines },
+    },
+  );
 
-  const lines = cart.lines.flatMap((line) => {
-    const product = productById.get(line.productId);
-    if (!product) return [];
-
-    return [
-      {
-        ...line,
-        name: product.name,
-        price: product.price,
-        stock: product.stock,
-        slug: product.slug,
-      },
-    ];
-  });
+  const lines = (preview.data?.lines ?? []).map((line) => ({
+    ...line,
+    quantity:
+      cart.lines.find(
+        (row) => cartLineKey(row.productId, row.variantId) === cartLineKey(line.productId, line.variantId),
+      )?.quantity ?? 0,
+    price: line.unitPrice,
+  }));
 
   const subtotal = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);
   const deliveryFee = shop.data?.shop.deliveryFee ?? 0;
@@ -158,7 +170,7 @@ export function MarketCartContent() {
 
                 return (
                   <li
-                    key={line.productId}
+                    key={cartLineKey(line.productId, line.variantId)}
                     className={cn(
                       'bg-card border-border flex items-center gap-3 rounded-2xl border p-3',
                       isShort && 'border-destructive/40',
@@ -168,10 +180,21 @@ export function MarketCartContent() {
                       <Link href={`/marketplace/p/${line.slug}`} className="line-clamp-2 text-sm font-medium">
                         {line.name}
                       </Link>
+
+                      {/* Variant nomi — "Qora · 256 GB". */}
+                      {line.variantLabel && (
+                        <p className="text-muted-foreground text-xs">{line.variantLabel}</p>
+                      )}
                       <p className="text-muted-foreground text-xs tabular-nums">
                         {`${formatTiyin(line.price)} × ${line.quantity} = ${formatTiyin(line.price * line.quantity)}`}
                       </p>
-                      {isShort && (
+                      {!line.isAvailable && (
+                        <p className="text-destructive mt-1 text-xs">
+                          Bu variant endi sotuvda yo&apos;q. Savatdan olib tashlang.
+                        </p>
+                      )}
+
+                      {line.isAvailable && isShort && (
                         <p className="text-destructive mt-1 text-xs">
                           {line.stock === 0 ? 'Tugadi' : `Atigi ${line.stock} ta qolgan`}
                         </p>
@@ -181,7 +204,7 @@ export function MarketCartContent() {
                     <QuantityStepper
                       value={line.quantity}
                       max={Math.min(line.stock, MAX_ITEM_QUANTITY)}
-                      onChange={(next) => cart.setQuantity(line.productId, next)}
+                      onChange={(next) => cart.setQuantity(line.productId, next, line.variantId)}
                       label={line.name}
                     />
                   </li>
