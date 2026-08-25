@@ -403,7 +403,15 @@ export async function cancelParcel(
   await prisma.$transaction(async (tx) => {
     const updated = await tx.delivery.updateMany({
       where: { id: parcel.delivery!.id, status: parcel.delivery!.status },
-      data: { status: DeliveryStatus.CANCELLED, cancelledAt: new Date(), cancelReason: input.reason ?? null },
+      data: {
+        status: DeliveryStatus.CANCELLED,
+        cancelledAt: new Date(),
+        cancelReason: input.reason ?? null,
+        // Ish tugadi — kuryerning oxirgi nuqtasi saqlanib qolmaydi.
+        courierLat: null,
+        courierLng: null,
+        locationAt: null,
+      },
     });
 
     if (updated.count === 0) {

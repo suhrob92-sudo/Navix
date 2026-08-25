@@ -20,7 +20,12 @@ import {
   type DeliveryView,
 } from '@/modules/courier/courier.types';
 import { formatWeight } from '@/modules/parcel/parcel.types';
-import type { DeliveryQuery, UpdateDeliveryStatusInput } from '@/modules/courier/courier.schemas';
+import type {
+  CourierLocationInput,
+  DeliveryQuery,
+  UpdateDeliveryStatusInput,
+} from '@/modules/courier/courier.schemas';
+import { isAccurateEnough } from '@/config/delivery-eta';
 
 /**
  * Kuryer moduli.
@@ -46,12 +51,18 @@ import type { DeliveryQuery, UpdateDeliveryStatusInput } from '@/modules/courier
  *    Begona topshiriqni o'zgartirish u yoqda tursin, ko'rib ham
  *    bo'lmaydi.
  *
- * ── Nima uchun xaritasiz ──────────────────────────────────────────────
- * Jonli kuzatuv xarita API kalitini talab qiladi va u pullik. Lekin
- * yetkazishning asosiy qismi kalitsiz ham ishlaydi: kim oldi, nima
- * olib ketilyapti, qayerga, mijozning telefoni va har bosqichdagi
- * xabar. Xarita keyinchalik shu poydevor ustiga qo'shiladi —
- * bosqichlar va jadval o'zgarmaydi.
+ * ── Joylashuv: nima saqlanadi va nima saqlanmaydi ────────────────────
+ * Kuryer topshiriqni bajarayotganda telefoni oxirgi koordinatani
+ * yuborib turadi va u AYNAN SHU topshiriq qatoriga yoziladi.
+ *
+ * TARIX saqlanmaydi. Sabab ikkitalik:
+ *  · texnik — har 20 soniyada yangi qator bir kunda millionlab
+ *    yozuv bo'lardi, mijozga esa faqat oxirgi nuqta kerak;
+ *  · axloqiy — bu odamning kun bo'yi qayerda yurgani haqidagi
+ *    yozuv bo'lardi. Bizga u kerak emas.
+ *
+ * Topshiriq yakunlangach yoki qaytarilgach joylashuv TOZALANADI:
+ * ish tugagach kuryerning qayerdaligi hech kimni qiziqtirmaydi.
  */
 
 const MODULE = 'delivery';
@@ -592,6 +603,63 @@ export async function updateDeliveryStatus(
   return delivery;
 }
 
+// ── Joylashuv ─────────────────────────────────────────────────────────
+
+/**
+ * Kuryerning joylashuvini yozadi.
+ *
+ * ── Nima uchun AUDIT yozilmaydi ───────────────────────────────────────
+ * Bu funksiya har 20 soniyada chaqiriladi. Har chaqiruvni audit
+ * jurnaliga yozish jurnalni butunlay ko'mib tashlardi va undagi
+ * haqiqiy muhim voqealar (pul, ruxsat, o'chirish) ko'rinmay qolardi.
+ *
+ * ── Nima uchun faqat ISH USTIDA ───────────────────────────────────────
+ * Joylashuv faqat topshiriq kuryerning qo'lida turganda qabul
+ * qilinadi. Topshiriq yakunlangandan keyin ham yuborilaversa, bu
+ * kuryerni ish vaqtidan tashqarida kuzatish bo'lardi.
+ *
+ * Rad javobi ilovaga "to'xta" degan signal beradi.
+ */
+export async function reportCourierLocation(
+  userId: string,
+  deliveryId: string,
+  input: CourierLocationInput,
+): Promise<{ reportedAt: string }> {
+  if (!isAccurateEnough(input.accuracy)) {
+    /*
+      Qo'pol nuqtani saqlash — mijozga yolg'on ko'rsatish. Lekin bu
+      XATO emas: kuryer aybdor emas va ilova ishlashda davom etadi.
+      Shuning uchun eski nuqta shunchaki o'z joyida qoladi.
+    */
+    throw new ConflictError('Joylashuv aniqligi yetarli emas. GPS yoqilganini tekshiring.');
+  }
+
+  const now = new Date();
+
+  const updated = await prisma.delivery.updateMany({
+    where: { id: deliveryId, courierId: userId, status: { in: ACTIVE_STATUSES } },
+    data: {
+      courierLat: new Prisma.Decimal(input.latitude),
+      courierLng: new Prisma.Decimal(input.longitude),
+      locationAt: now,
+    },
+  });
+
+  if (updated.count === 0) {
+    throw new NotFoundError('Faol topshiriq');
+  }
+
+  return { reportedAt: now.toISOString() };
+}
+
+/**
+ * Joylashuvni tozalash uchun tayyor qiymatlar.
+ *
+ * Topshiriq yakunlanganda yoki qaytarilganda ishlatiladi: ish
+ * tugagach kuryerning oxirgi nuqtasi saqlanib turishi kerak emas.
+ */
+const CLEARED_LOCATION = { courierLat: null, courierLng: null, locationAt: null };
+
 function buildTransitionMessage(from: DeliveryStatusName, to: DeliveryStatusName): string {
   if (from === 'DELIVERED' || from === 'CANCELLED') {
     return "Topshiriq yakunlangan — uni o'zgartirib bo'lmaydi.";
@@ -626,6 +694,8 @@ async function releaseDelivery(
       status: DeliveryStatus.OFFERED,
       acceptedAt: null,
       cancelReason: reason,
+      // Topshiriq endi begona — eski kuryerning nuqtasi qolmasligi kerak.
+      ...CLEARED_LOCATION,
     },
   });
 
@@ -673,7 +743,7 @@ async function completeDelivery(
   await prisma.$transaction(async (tx) => {
     const claimed = await tx.delivery.updateMany({
       where: { id: row.id, courierId: userId, status: row.status },
-      data: { status: DeliveryStatus.DELIVERED, deliveredAt: now },
+      data: { status: DeliveryStatus.DELIVERED, deliveredAt: now, ...CLEARED_LOCATION },
     });
 
     if (claimed.count === 0) {

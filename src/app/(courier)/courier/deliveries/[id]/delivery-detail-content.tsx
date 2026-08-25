@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
+import { LocationShareCard } from '@/components/courier/location-share-card';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -223,6 +224,15 @@ function DeliveryBody({ deliveryId }: DeliveryDetailContentProps) {
                 </a>
               )}
             </section>
+
+            {/*
+              Joylashuv — topshiriq kuryerning qo'lida turganda.
+              Umumiy ro'yxatdagi (egasiz) topshiriqda ma'nosi yo'q.
+            */}
+            <LocationShareCard
+              deliveryId={delivery.id}
+              isActive={delivery.status === 'ACCEPTED' || delivery.status === 'PICKED_UP'}
+            />
 
             {/* Amallar */}
             <div className="space-y-2">

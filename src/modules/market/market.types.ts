@@ -138,6 +138,13 @@ export interface MarketOrderView {
   total: number;
   deliveryAddress: string;
   deliveryNote: string | null;
+  /**
+   * Yetkazish manzilining koordinatasi — xarita uchun.
+   *
+   * Manzil o'chirilgan bo'lsa `null`: matn qoladi, koordinata esa
+   * yo'qoladi.
+   */
+  destination: { latitude: number; longitude: number } | null;
   cancelReason: string | null;
   createdAt: string;
   shippedAt: string | null;

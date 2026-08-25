@@ -1,11 +1,13 @@
 'use client';
 
-import { Check, MapPin, MessageSquare, UtensilsCrossed } from 'lucide-react';
+import { MapPin, MessageSquare, UtensilsCrossed } from 'lucide-react';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { OrderCourierCard } from '@/components/app/order-courier-card';
 import { ServiceIcon } from '@/components/app/service-icon';
+import { OrderTracking } from '@/components/food/order-tracking';
+import { ReorderButton } from '@/components/food/reorder-button';
 import { InlineReview } from '@/components/review/inline-review';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -16,14 +18,11 @@ import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzDateTime } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
-import { cn } from '@/lib/utils';
 import {
-  FOOD_ORDER_FLOW,
   FOOD_ORDER_STATUS_LABELS,
   FOOD_ORDER_STATUS_VARIANTS,
   isCancellable,
   type FoodOrderResponse,
-  type FoodOrderStatusName,
 } from '@/modules/food/food.types';
 
 export interface OrderDetailContentProps {
@@ -104,15 +103,20 @@ export function OrderDetailContent({ orderId }: OrderDetailContentProps) {
               </div>
             </div>
 
-            {/* Holat chizig'i */}
-            {order.status === 'CANCELLED' ? (
+            {/*
+              Bekor qilingan buyurtmada avval pul haqidagi xabar
+              beriladi: odamning birinchi savoli aynan shu.
+              Bosqichlar chizig'i esa ostida qoladi — u nima
+              bo'lganini ko'rsatadi.
+            */}
+            {order.status === 'CANCELLED' && (
               <Alert variant="warning" title="Buyurtma bekor qilindi">
                 {`${formatTiyin(order.total)} hamyoningizga qaytarildi.`}
                 {order.cancelReason ? ` Sabab: ${order.cancelReason}.` : ''}
               </Alert>
-            ) : (
-              <OrderProgress status={order.status} deliveryMinutes={order.restaurant.deliveryMinutes} />
             )}
+
+            <OrderTracking order={order} />
 
             {/* Tarkib */}
             <section className="bg-card border-border rounded-2xl border p-4">
@@ -162,7 +166,7 @@ export function OrderDetailContent({ orderId }: OrderDetailContentProps) {
             </section>
 
             {/* Kuryer — topshiriq olingandan keyin paydo bo'ladi */}
-            {order.courier && <OrderCourierCard courier={order.courier} />}
+            {order.courier && <OrderCourierCard courier={order.courier} destination={order.destination} />}
 
             {/* Manzil */}
             <section className="bg-card border-border rounded-2xl border p-4">
@@ -184,6 +188,16 @@ export function OrderDetailContent({ orderId }: OrderDetailContentProps) {
                 {`Buyurtma berilgan: ${formatUzDateTime(order.createdAt, 'long')}`}
               </p>
             </section>
+
+            {/*
+              ── Takrorlash ────────────────────────────────────────
+              Faqat YAKUNLANGAN buyurtmada. Faol buyurtma ustiga
+              yana o'shani buyurtma qilish odatda xato bosish
+              bo'ladi — odam ikki marta to'lab qo'yardi.
+            */}
+            {(order.status === 'DELIVERED' || order.status === 'CANCELLED') && (
+              <ReorderButton order={order} />
+            )}
 
             {/* Bekor qilish */}
             {isCancellable(order.status) && (
@@ -216,53 +230,6 @@ export function OrderDetailContent({ orderId }: OrderDetailContentProps) {
         onCancel={() => setIsCancelOpen(false)}
       />
     </>
-  );
-}
-
-/**
- * Buyurtma qayerda — bosqichma-bosqich.
- *
- * Nima uchun kerak: ovqat kutayotgan odam eng ko'p "qachon keladi?"
- * deb o'ylaydi. Aniq bosqich ko'rsatilsa, u qo'llab-quvvatlashga
- * yozmaydi va sahifani qayta-qayta yangilamaydi.
- */
-function OrderProgress({ status, deliveryMinutes }: { status: FoodOrderStatusName; deliveryMinutes: number }) {
-  const currentIndex = FOOD_ORDER_FLOW.indexOf(status);
-
-  return (
-    <section className="bg-card border-border rounded-2xl border p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Buyurtma holati</h2>
-        {status !== 'DELIVERED' && (
-          <span className="text-muted-foreground text-xs">{`~${deliveryMinutes} daqiqa`}</span>
-        )}
-      </div>
-
-      <ol className="mt-4 space-y-3">
-        {FOOD_ORDER_FLOW.map((step, index) => {
-          const isDone = index <= currentIndex;
-          const isCurrent = index === currentIndex;
-
-          return (
-            <li key={step} className="flex items-center gap-3">
-              <span
-                className={cn(
-                  'inline-flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
-                  isDone ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
-                )}
-                aria-hidden="true"
-              >
-                {isDone && <Check className="size-3.5" />}
-              </span>
-
-              <span className={cn('text-sm', isCurrent ? 'font-semibold' : isDone ? '' : 'text-muted-foreground')}>
-                {FOOD_ORDER_STATUS_LABELS[step]}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-    </section>
   );
 }
 

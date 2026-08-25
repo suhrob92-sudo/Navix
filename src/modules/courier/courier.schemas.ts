@@ -35,3 +35,29 @@ export const updateDeliveryStatusSchema = z.object({
 });
 
 export type UpdateDeliveryStatusInput = z.infer<typeof updateDeliveryStatusSchema>;
+
+/**
+ * POST /api/v1/courier/deliveries/[id]/location
+ *
+ * ── Nima uchun ANIQLIK ham so'raladi ──────────────────────────────────
+ * Brauzer GPS o'rniga Wi-Fi yoki mobil tarmoq bo'yicha ham joylashuv
+ * beradi. Bunday nuqtaning xatosi bir necha KILOMETR bo'lishi mumkin.
+ *
+ * Uni xaritada ko'rsatish "kuryer boshqa tumanda" degan taassurot
+ * qoldirardi. Shuning uchun aniqlik ham yuboriladi va server juda
+ * qo'pol nuqtani RAD etadi.
+ */
+export const courierLocationSchema = z.object({
+  latitude: z
+    .number({ message: "Kenglik noto'g'ri" })
+    .min(-90, "Kenglik noto'g'ri")
+    .max(90, "Kenglik noto'g'ri"),
+  longitude: z
+    .number({ message: "Uzunlik noto'g'ri" })
+    .min(-180, "Uzunlik noto'g'ri")
+    .max(180, "Uzunlik noto'g'ri"),
+  /** Brauzer aytgan xatolik — METRDA. */
+  accuracy: z.number().min(0, "Aniqlik noto'g'ri").max(100_000, "Aniqlik noto'g'ri").optional(),
+});
+
+export type CourierLocationInput = z.infer<typeof courierLocationSchema>;

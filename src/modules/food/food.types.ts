@@ -124,8 +124,26 @@ export interface FoodOrderView {
   deliveryNote: string | null;
   cancelReason: string | null;
   createdAt: string;
+  /**
+   * Bosqich vaqtlari — kuzatuv chizig'i uchun.
+   *
+   * Eski buyurtmalarda bo'sh bo'lishi mumkin: bu ustunlar 48-bosqichda
+   * qo'shilgan va o'shangacha vaqt HECH QAYERDA yozilmagan. Bo'sh
+   * qiymat "bo'lmagan" degani emas — "bilmaymiz" degani, shuning
+   * uchun ekranda taxminiy vaqt o'ylab topilmaydi.
+   */
+  confirmedAt: string | null;
+  preparingAt: string | null;
+  deliveringAt: string | null;
   deliveredAt: string | null;
   cancelledAt: string | null;
+  /**
+   * Yetkazish manzilining koordinatasi — xarita uchun.
+   *
+   * Manzil o'chirilgan bo'lsa `null`: matn qoladi, koordinata esa
+   * yo'qoladi.
+   */
+  destination: { latitude: number; longitude: number } | null;
   restaurant: {
     id: string;
     slug: string;
@@ -148,6 +166,19 @@ export interface OrderCourierView {
   name: string | null;
   phone: string;
   status: DeliveryStatusName;
+  /**
+   * Kuryerning oxirgi joylashuvi — xaritada ko'rsatish uchun.
+   *
+   * ── Nima uchun VAQTI ham beriladi ───────────────────────────────────
+   * Kuryerning telefoni o'chishi yoki interneti uzilishi mumkin.
+   * O'shanda oxirgi nuqta joyida qotib qoladi.
+   *
+   * Uni "kuryer shu yerda" deb ko'rsatish yolg'on bo'lardi — odam
+   * unga qarab eshikka chiqib, sovuqda kutib turardi. Shuning uchun
+   * brauzer nuqtaning ESKILIGINI o'zi tekshiradi.
+   */
+  point: { latitude: number; longitude: number } | null;
+  reportedAt: string | null;
 }
 
 export interface RestaurantsResponse {

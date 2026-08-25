@@ -915,10 +915,14 @@ model FoodOrder {
   cancelReason        String? @db.VarChar(255)
   refundTransactionId String? @db.Uuid
 
-  createdAt   DateTime  @default(now())
-  confirmedAt DateTime?
-  deliveredAt DateTime?
-  cancelledAt DateTime?
+  createdAt    DateTime  @default(now())
+  confirmedAt  DateTime?
+  /// Oshxona tayyorlashni boshlagan payt.
+  preparingAt  DateTime?
+  /// Kuryer topshirig'i ochilgan payt — "yo'lga chiqdi".
+  deliveringAt DateTime?
+  deliveredAt  DateTime?
+  cancelledAt  DateTime?
 
   user       User            @relation(fields: [userId], references: [id], onDelete: Restrict)
   restaurant Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Restrict)
@@ -2464,6 +2468,20 @@ model Delivery {
 
   /// Kuryer bekor qilsa yoki buyurtma bekor bo'lsa — sababi.
   cancelReason String? @db.VarChar(255)
+
+  /// Kuryerning oxirgi joylashuvi — mijozning xaritasi uchun.
+  ///
+  /// ── Nima uchun TARIX saqlanmaydi ────────────────────────────────
+  /// Har 15 soniyada yangi qator yozilsa, bir kunda million qator
+  /// yig'ilardi. Mijozga esa faqat OXIRGI nuqta kerak: u kuryerning
+  /// yarim soat oldin qayerda bo'lganini bilishni istamaydi.
+  ///
+  /// Uchtasi birga yoziladi — buni bazadagi CHECK kafolatlaydi
+  /// (`deliveries_location_complete`).
+  courierLat Decimal?  @db.Decimal(10, 7)
+  courierLng Decimal?  @db.Decimal(10, 7)
+  /// Joylashuv qachon yuborilgan — uning ESKILIGINI bilish uchun.
+  locationAt DateTime?
 
   createdAt   DateTime  @default(now())
   acceptedAt  DateTime?

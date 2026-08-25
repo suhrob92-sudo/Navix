@@ -104,6 +104,14 @@ export interface UseCartResult extends CartState {
   ) => { ok: boolean; conflictWith: string | null };
   /** Yangi restoranga o'tib, savatni tozalaydi. */
   replaceRestaurant: (restaurant: { id: string; slug: string; name: string }, menuItemId: string) => void;
+  /**
+   * Savatni butunlay YANGI ro'yxat bilan almashtiradi.
+   *
+   * "Buyurtmani takrorlash" uchun: eski buyurtmadagi taomlar bir
+   * yo'la savatga tushadi. Bittalab qo'shish o'nlab yozuv va o'nta
+   * qayta chizish degani bo'lardi.
+   */
+  replaceAll: (restaurant: { id: string; slug: string; name: string }, lines: readonly CartLine[]) => void;
   remove: (menuItemId: string) => void;
   setQuantity: (menuItemId: string, quantity: number) => void;
   clear: () => void;
@@ -180,6 +188,19 @@ export function useCart(): UseCartResult {
     [commit],
   );
 
+  const replaceAll = useCallback<UseCartResult['replaceAll']>(
+    (restaurant, lines) => {
+      commit({
+        restaurantId: restaurant.id,
+        restaurantSlug: restaurant.slug,
+        restaurantName: restaurant.name,
+        // Nusxa olinadi: chaqiruvchi ro'yxatni keyin o'zgartirsa savat buzilmasin.
+        lines: lines.map((line) => ({ ...line })),
+      });
+    },
+    [commit],
+  );
+
   const setQuantity = useCallback<UseCartResult['setQuantity']>(
     (menuItemId, quantity) => {
       const current = readStorage();
@@ -211,6 +232,7 @@ export function useCart(): UseCartResult {
     quantityOf,
     add,
     replaceRestaurant,
+    replaceAll,
     remove,
     setQuantity,
     clear,

@@ -502,7 +502,18 @@ export async function updateMerchantOrderStatus(
       where: { id: order.id, status: order.status },
       data: {
         status: to as FoodOrderStatus,
+        /*
+          Har bosqichning vaqti YOZILADI — mijozning kuzatuv chizig'i
+          uchun. Ilgari faqat `confirmedAt` va `deliveredAt` bor edi
+          va oradagi ikki bosqich vaqtsiz qolardi.
+
+          Vaqt FAQAT bo'sh bo'lsa yoziladi degan shart kerak emas:
+          holatlar avtomati orqaga qaytishga yo'l qo'ymaydi, ya'ni
+          har bosqichga bir marta kelinadi.
+        */
         ...(to === 'CONFIRMED' ? { confirmedAt: now } : {}),
+        ...(to === 'PREPARING' ? { preparingAt: now } : {}),
+        ...(to === 'DELIVERING' ? { deliveringAt: now } : {}),
         ...(to === 'DELIVERED' ? { deliveredAt: now } : {}),
       },
     });

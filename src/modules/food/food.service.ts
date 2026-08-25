@@ -289,8 +289,13 @@ const ORDER_SELECT = {
   deliveryNote: true,
   cancelReason: true,
   createdAt: true,
+  confirmedAt: true,
+  preparingAt: true,
+  deliveringAt: true,
   deliveredAt: true,
   cancelledAt: true,
+  /** Xarita uchun koordinata. Manzil o'chirilgan bo'lsa `null`. */
+  address: { select: { latitude: true, longitude: true } },
   restaurant: { select: { id: true, slug: true, name: true, color: true, deliveryMinutes: true } },
   items: {
     /** `menuItemId` baho uchun. Izohi `market.service.ts` da. */
@@ -300,6 +305,9 @@ const ORDER_SELECT = {
   delivery: {
     select: {
       status: true,
+      courierLat: true,
+      courierLng: true,
+      locationAt: true,
       courier: { select: { firstName: true, lastName: true, phone: true } },
     },
   },
@@ -315,15 +323,29 @@ const ORDER_SELECT = {
 function toCourierView(
   delivery: {
     status: string;
+    courierLat: Prisma.Decimal | null;
+    courierLng: Prisma.Decimal | null;
+    locationAt: Date | null;
     courier: { firstName: string | null; lastName: string | null; phone: string } | null;
   } | null,
 ): OrderCourierView | null {
   if (!delivery?.courier) return null;
 
+  /*
+    Koordinata va vaqt BIRGA yoziladi (bazadagi CHECK shuni
+    kafolatlaydi), lekin TypeScript buni bilmaydi — shuning uchun
+    uchalasi ham tekshiriladi.
+  */
+  const hasPoint = delivery.courierLat !== null && delivery.courierLng !== null && delivery.locationAt !== null;
+
   return {
     name: [delivery.courier.firstName, delivery.courier.lastName].filter(Boolean).join(' ') || null,
     phone: delivery.courier.phone,
     status: delivery.status as OrderCourierView['status'],
+    point: hasPoint
+      ? { latitude: delivery.courierLat!.toNumber(), longitude: delivery.courierLng!.toNumber() }
+      : null,
+    reportedAt: delivery.locationAt?.toISOString() ?? null,
   };
 }
 
@@ -341,8 +363,14 @@ function toOrderView(row: OrderRow): FoodOrderView {
     deliveryNote: row.deliveryNote,
     cancelReason: row.cancelReason,
     createdAt: row.createdAt.toISOString(),
+    confirmedAt: row.confirmedAt?.toISOString() ?? null,
+    preparingAt: row.preparingAt?.toISOString() ?? null,
+    deliveringAt: row.deliveringAt?.toISOString() ?? null,
     deliveredAt: row.deliveredAt?.toISOString() ?? null,
     cancelledAt: row.cancelledAt?.toISOString() ?? null,
+    destination: row.address
+      ? { latitude: row.address.latitude.toNumber(), longitude: row.address.longitude.toNumber() }
+      : null,
     restaurant: {
       id: row.restaurant.id,
       slug: row.restaurant.slug,

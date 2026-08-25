@@ -242,7 +242,7 @@ export function MarketOrderDetailContent({ orderId }: MarketOrderDetailContentPr
             </section>
 
             {/* Kuryer — topshiriq olingandan keyin paydo bo'ladi */}
-            {order.courier && <OrderCourierCard courier={order.courier} />}
+            {order.courier && <OrderCourierCard courier={order.courier} destination={order.destination} />}
 
             {/* Do'kon va manzil */}
             <section className="bg-card border-border rounded-2xl border p-4">

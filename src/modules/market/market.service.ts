@@ -379,6 +379,8 @@ const ORDER_SELECT = {
   deliveredAt: true,
   cancelledAt: true,
   shop: { select: { id: true, slug: true, name: true, color: true, deliveryDays: true } },
+  /** Xarita uchun koordinata. Manzil o'chirilgan bo'lsa `null`. */
+  address: { select: { latitude: true, longitude: true } },
   /*
     Holat o'zgarishlari tarixi — kuzatuv chizig'i uchun.
 
@@ -420,6 +422,9 @@ const ORDER_SELECT = {
   delivery: {
     select: {
       status: true,
+      courierLat: true,
+      courierLng: true,
+      locationAt: true,
       courier: { select: { firstName: true, lastName: true, phone: true } },
     },
   },
@@ -445,15 +450,24 @@ const ORDER_SELECT = {
 function toCourierView(
   delivery: {
     status: string;
+    courierLat: Prisma.Decimal | null;
+    courierLng: Prisma.Decimal | null;
+    locationAt: Date | null;
     courier: { firstName: string | null; lastName: string | null; phone: string } | null;
   } | null,
 ): OrderCourierView | null {
   if (!delivery?.courier) return null;
 
+  const hasPoint = delivery.courierLat !== null && delivery.courierLng !== null && delivery.locationAt !== null;
+
   return {
     name: [delivery.courier.firstName, delivery.courier.lastName].filter(Boolean).join(' ') || null,
     phone: delivery.courier.phone,
     status: delivery.status as OrderCourierView['status'],
+    point: hasPoint
+      ? { latitude: delivery.courierLat!.toNumber(), longitude: delivery.courierLng!.toNumber() }
+      : null,
+    reportedAt: delivery.locationAt?.toISOString() ?? null,
   };
 }
 
@@ -469,6 +483,9 @@ function toOrderView(row: OrderRow): MarketOrderView {
     total: tiyinToNumber(row.total),
     deliveryAddress: row.deliveryAddress,
     deliveryNote: row.deliveryNote,
+    destination: row.address
+      ? { latitude: row.address.latitude.toNumber(), longitude: row.address.longitude.toNumber() }
+      : null,
     cancelReason: row.cancelReason,
     createdAt: row.createdAt.toISOString(),
     shippedAt: row.shippedAt?.toISOString() ?? null,
