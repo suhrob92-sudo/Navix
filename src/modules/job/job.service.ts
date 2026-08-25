@@ -6,12 +6,15 @@ import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { toSearchText } from '@/lib/search';
+import { MAX_SIMILAR, pickSimilar } from '@/config/similar-jobs';
+import { GALLERY_SELECT, toGallery } from '@/modules/catalog/catalog-image.select';
 import type { ServiceColor } from '@/config/modules';
 import { notifyUser } from '@/modules/notification/notification.service';
 import type { ApplicationQuery, CreateApplicationInput, VacancyQuery } from '@/modules/job/job.schemas';
 import {
   canWithdraw,
   type ApplicationStatusName,
+  type CompanyDetail,
   type JobApplicationView,
   type JobCategoryView,
   type VacancyDetail,
@@ -159,6 +162,61 @@ function buildVacancyOrder(sort: VacancyQuery['sort']): Prisma.VacancyOrderByWit
 }
 
 /**
+ * Maosh va qidiruv shartlari — BITTA ro'yxatda.
+ *
+ * Ular alohida `OR` ishlatadi va bitta obyektda ikkita `OR` kaliti
+ * bo'lolmaydi, shuning uchun hammasi `AND` massiviga yig'iladi.
+ */
+function buildVacancyConditions(query: VacancyQuery, needle: string | null): Prisma.VacancyWhereInput[] {
+  const conditions: Prisma.VacancyWhereInput[] = [];
+
+  /*
+    ── Eng kam maosh ───────────────────────────────────────────────────
+    Ikkala chegara ham tekshiriladi: "5 mln dan boshlab" degan e'lon
+    (`salaryMin` bor, `salaryMax` yo'q) 4 mln so'roviga to'g'ri keladi.
+
+    Maoshi umuman ko'rsatilmaganlar chiqib ketadi — bu to'g'ri,
+    chunki foydalanuvchi aynan summani so'radi.
+  */
+  if (query.minSalarySom !== undefined) {
+    const floor = somToTiyin(query.minSalarySom);
+
+    conditions.push({ OR: [{ salaryMax: { gte: floor } }, { salaryMin: { gte: floor } }] });
+  }
+
+  /*
+    ── Eng ko'p maosh ──────────────────────────────────────────────────
+    ── Nima uchun bu filtr umuman kerak ──────────────────────────────
+    Birinchi qarashda g'alati: kim maoshni CHEKLAMOQCHI?
+
+    Lekin ish qidiruvchi buni tez-tez qiladi: "20 mln lik senior
+    vakansiyalar menga to'g'ri kelmaydi, ular meni chaqirmaydi".
+    Yuqori chegara ro'yxatni HAQIQIY imkoniyatlar bilan to'ldiradi.
+
+    Solishtiruv `salaryMin` bo'yicha: e'lon SHU summadan
+    boshlanmasligi kerak.
+  */
+  if (query.maxSalarySom !== undefined) {
+    const ceiling = somToTiyin(query.maxSalarySom);
+
+    conditions.push({ OR: [{ salaryMin: { lte: ceiling } }, { salaryMax: { lte: ceiling } }] });
+  }
+
+  if (needle && needle.length > 0) {
+    conditions.push({
+      OR: [
+        // So'z boshidan moslik — sabab `assistant.food.ts` da.
+        { searchName: { startsWith: needle } },
+        { searchName: { contains: ` ${needle}` } },
+        { company: { searchName: { contains: needle } } },
+      ],
+    });
+  }
+
+  return conditions;
+}
+
+/**
  * Vakansiyalarni qidiradi va filtrlaydi.
  *
  * `userId` ixtiyoriy: kirmagan odam ham e'lonlarni ko'ra oladi —
@@ -179,36 +237,17 @@ export async function listVacancies(
     ...(query.city ? { city: { equals: query.city, mode: 'insensitive' } } : {}),
     ...(query.employmentType ? { employmentType: query.employmentType } : {}),
     ...(query.experienceLevel ? { experienceLevel: query.experienceLevel } : {}),
-    /**
-     * Maosh filtri.
-     *
-     * `salaryMax` bo'yicha solishtiramiz: "5 mln dan boshlab" degan
-     * e'lon 4 mln so'rovga ham to'g'ri keladi. Maoshi umuman
-     * ko'rsatilmaganlar esa chiqib ketadi — bu to'g'ri, chunki
-     * foydalanuvchi aynan summani so'radi.
-     */
-    ...(query.minSalarySom === undefined
-      ? {}
-      : {
-          OR: [
-            { salaryMax: { gte: somToTiyin(query.minSalarySom) } },
-            { salaryMin: { gte: somToTiyin(query.minSalarySom) } },
-          ],
-        }),
-    ...(needle && needle.length > 0
-      ? {
-          AND: [
-            {
-              OR: [
-                // So'z boshidan moslik — sabab `assistant.food.ts` da.
-                { searchName: { startsWith: needle } },
-                { searchName: { contains: ` ${needle}` } },
-                { company: { searchName: { contains: needle } } },
-              ],
-            },
-          ],
-        }
-      : {}),
+    /*
+      ── Nima uchun hammasi BITTA `AND` ichida ─────────────────────────
+      Maosh sharti ham, qidiruv sharti ham `OR` ishlatadi. Ular
+      to'g'ridan-to'g'ri `where` ga yozilsa, ikkinchisi birinchisini
+      ALMASHTIRIB yuborardi — bitta obyektda ikkita `OR` kaliti
+      bo'lolmaydi.
+
+      Natijada maosh filtri jimgina yo'qolardi va buni hech kim
+      sezmasdi: ro'yxat chiqadi, faqat filtr ishlamaydi.
+    */
+    AND: buildVacancyConditions(query, needle),
   };
 
   const [rows, total] = await Promise.all([
@@ -223,6 +262,15 @@ export async function listVacancies(
 
   return { vacancies: rows.map((row) => toVacancyItem(row, applied)), total };
 }
+
+/**
+ * O'xshashlik uchun ko'riladigan e'lonlar soni.
+ *
+ * Bir yo'nalishda undan ko'p e'lon bo'lsa ham, eng yangi 40 tasidan
+ * tanlash yetarli: eskiroq e'lonlar odatda allaqachon yopilgan
+ * bo'ladi va so'rov ham yengil qoladi.
+ */
+const SIMILAR_CANDIDATE_LIMIT = 40;
 
 /** Bitta vakansiya — kompaniya tavsifi va o'xshash e'lonlar bilan. */
 export async function getVacancy(
@@ -248,7 +296,22 @@ export async function getVacancy(
 
   const applied = await findAppliedVacancyIds(userId, [row.id]);
 
-  const relatedRows = await prisma.vacancy.findMany({
+  /*
+    ── O'xshash vakansiyalar ───────────────────────────────────────────
+    Avval bu yerda "shu yo'nalishdagi eng yangi to'rtta" olinardi.
+    U ishlardi, lekin o'xshashlikni deyarli hisobga olmasdi:
+    Toshkentdagi middle dasturchini ochgan odamga Nukusdagi
+    tajribasiz e'lon chiqishi mumkin edi — faqat u yangiroq
+    bo'lgani uchun.
+
+    Endi kengroq ro'yxat olinadi va u BALL bo'yicha tartiblanadi:
+    shahar, tajriba, bandlik turi va maosh yaqinligi hisobga
+    olinadi (`src/config/similar-jobs.ts`).
+
+    Chegara — 40 ta: bir yo'nalishda undan ko'p e'lon bo'lsa ham,
+    eng yangi 40 tasidan tanlash yetarli va so'rov yengil qoladi.
+  */
+  const candidateRows = await prisma.vacancy.findMany({
     where: {
       categoryId: row.categoryId,
       id: { not: row.id },
@@ -257,13 +320,37 @@ export async function getVacancy(
     },
     select: VACANCY_SELECT,
     orderBy: { createdAt: 'desc' },
-    take: 4,
+    take: SIMILAR_CANDIDATE_LIMIT,
   });
 
-  const relatedApplied = await findAppliedVacancyIds(
-    userId,
-    relatedRows.map((item) => item.id),
+  const toCandidate = (item: { id: string; city: string; experienceLevel: string; employmentType: string; salaryMin: bigint | null; salaryMax: bigint | null }) => ({
+    id: item.id,
+    /* Barchasi bir xil yo'nalishdan — shart allaqachon bajarilgan. */
+    categorySlug: row.category.slug,
+    city: item.city,
+    experienceLevel: item.experienceLevel,
+    employmentType: item.employmentType,
+    salaryMin: item.salaryMin === null ? null : Number(item.salaryMin),
+    salaryMax: item.salaryMax === null ? null : Number(item.salaryMax),
+  });
+
+  const ranked = pickSimilar(
+    toCandidate({ ...row, id: row.id }),
+    candidateRows.map((item) => toCandidate(item)),
+    MAX_SIMILAR,
   );
+
+  const rankedIds = new Set(ranked.map((item) => item.id));
+  const byId = new Map(candidateRows.map((item) => [item.id, item]));
+
+  /* Tartib `pickSimilar` dan olinadi — bazadan kelgan tartib emas. */
+  const relatedRows = ranked.flatMap((item) => {
+    const found = byId.get(item.id);
+
+    return found ? [found] : [];
+  });
+
+  const relatedApplied = await findAppliedVacancyIds(userId, [...rankedIds]);
 
   return {
     vacancy: {
@@ -283,6 +370,81 @@ export async function getVacancy(
     related: relatedRows.map((item) => toVacancyItem(item, relatedApplied)),
   };
 }
+
+/**
+ * Bitta kompaniya va uning ochiq vakansiyalari.
+ *
+ * ── Nima uchun vakansiyalar SHU YERDA olinadi ─────────────────────────
+ * Ularni alohida so'rov bilan olish mumkin edi va sahifa
+ * moslashuvchanroq bo'lardi.
+ *
+ * Lekin kompaniya sahifasining butun mazmuni — uning vakansiyalari.
+ * Ikkita so'rov ikkita kutish degani: odam avval nomni ko'radi,
+ * keyin bo'sh joyni, keyin ro'yxat paydo bo'ladi. Bitta so'rovda
+ * sahifa bir marta chiziladi.
+ *
+ * ── Nima uchun chegara bor ────────────────────────────────────────────
+ * Katta kompaniyada yuzlab e'lon bo'lishi mumkin. Hammasini bitta
+ * sahifaga chiqarish telefonni qotirardi. Qolganini ko'rish uchun
+ * umumiy ro'yxatga havola beriladi — u yerda filtr ham bor.
+ */
+export async function getCompany(
+  slug: string,
+  userId: string | null,
+): Promise<{ company: CompanyDetail; vacancies: VacancyListItem[] }> {
+  const row = await prisma.company.findFirst({
+    where: { slug, isActive: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      industry: true,
+      color: true,
+      description: true,
+      city: true,
+      images: GALLERY_SELECT,
+      _count: { select: { vacancies: { where: { isActive: true } } } },
+    },
+  });
+
+  if (!row) {
+    throw new NotFoundError('Kompaniya');
+  }
+
+  const vacancyRows = await prisma.vacancy.findMany({
+    where: { companyId: row.id, isActive: true },
+    select: VACANCY_SELECT,
+    orderBy: [{ createdAt: 'desc' }, { sortOrder: 'asc' }],
+    take: COMPANY_VACANCY_LIMIT,
+  });
+
+  const applied = await findAppliedVacancyIds(
+    userId,
+    vacancyRows.map((item) => item.id),
+  );
+
+  return {
+    company: {
+      id: row.id,
+      slug: row.slug,
+      name: row.name,
+      industry: row.industry,
+      color: row.color as ServiceColor,
+      description: row.description,
+      city: row.city,
+      vacancyCount: row._count.vacancies,
+      images: toGallery(row.images),
+    },
+    vacancies: vacancyRows.map((item) => toVacancyItem(item, applied)),
+  };
+}
+
+/**
+ * Kompaniya sahifasida ko'rsatiladigan e'lonlar soni.
+ *
+ * Qolganini umumiy ro'yxatdan ko'rish mumkin — u yerda filtr ham bor.
+ */
+const COMPANY_VACANCY_LIMIT = 20;
 
 /** Vakansiyalar joylashgan shaharlar — filtr ro'yxati uchun. */
 export async function listVacancyCities(): Promise<string[]> {

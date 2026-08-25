@@ -1,6 +1,7 @@
 'use client';
 
-import { Briefcase, Building2, Check, MapPin, Users } from 'lucide-react';
+import { Briefcase, Building2, Check, ChevronRight, MapPin, Users } from 'lucide-react';
+import Link from 'next/link';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
@@ -146,17 +147,26 @@ export function VacancyContent({ slug }: VacancyContentProps) {
               <p className="mt-2 text-sm leading-relaxed whitespace-pre-line">{vacancy.description}</p>
             </section>
 
-            {/* Kompaniya */}
-            <section className="bg-card border-border rounded-2xl border p-4">
+            {/*
+              ── Kompaniya — endi BOSILADI ─────────────────────────
+              Ilgari bu yerda nom shunchaki matn edi. Odamning
+              ikkinchi savoli esa "bu qanaqa kompaniya, yana qanday
+              ish bor?" — va unga javob yo'q edi.
+            */}
+            <Link
+              href={`/jobs/c/${vacancy.company.slug}`}
+              className="bg-card border-border block rounded-2xl border p-4 transition-transform active:scale-[0.99]"
+            >
               <h2 className="flex items-center gap-1.5 text-sm font-semibold">
-                <Building2 className="size-4" aria-hidden="true" />
-                {vacancy.company.name}
+                <Building2 className="size-4 shrink-0" aria-hidden="true" />
+                <span className="min-w-0 flex-1 truncate">{vacancy.company.name}</span>
+                <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
               </h2>
               <p className="text-muted-foreground mt-2 text-sm leading-relaxed">{vacancy.company.description}</p>
               <p className="text-muted-foreground mt-2 text-xs">
                 {`${vacancy.company.industry} · ${vacancy.company.city}`}
               </p>
-            </section>
+            </Link>
 
             {/* Ariza */}
             {hasApplied ? (

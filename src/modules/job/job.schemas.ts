@@ -28,6 +28,15 @@ export const vacancyQuerySchema = paginationQuerySchema.extend({
   experienceLevel: z.enum(['NONE', 'JUNIOR', 'MIDDLE', 'SENIOR']).optional(),
   /** Shundan kam maoshli e'lonlar ko'rsatilmaydi. */
   minSalarySom: z.coerce.number().int().min(0).max(1_000_000_000).optional(),
+  /**
+   * Shundan qimmat e'lonlar ko'rsatilmaydi.
+   *
+   * ── Nima uchun bunday filtr kerak ─────────────────────────────────
+   * Ish qidiruvchi ko'pincha o'z darajasidan yuqori e'lonlarni
+   * ro'yxatdan olib tashlamoqchi bo'ladi: ular uni chaqirmaydi va
+   * faqat ro'yxatni to'ldirib turadi.
+   */
+  maxSalarySom: z.coerce.number().int().min(0).max(1_000_000_000).optional(),
   sort: z.enum(['new', 'salary']).default('new'),
 });
 

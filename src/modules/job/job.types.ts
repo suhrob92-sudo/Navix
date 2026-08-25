@@ -1,4 +1,5 @@
 import type { ServiceColor } from '@/config/modules';
+import type { CatalogImageView } from '@/modules/catalog/catalog-image.types';
 
 /**
  * Ish qidirish moduli — brauzer tomonidagi turlar va qoidalar.
@@ -28,6 +29,31 @@ export interface CompanyBrief {
   name: string;
   industry: string;
   color: ServiceColor;
+}
+
+/**
+ * Kompaniya sahifasi.
+ *
+ * ── Nima uchun bu sahifa kerak ────────────────────────────────────────
+ * Vakansiyani ochgan odamning ikkinchi savoli — "bu qanaqa
+ * kompaniya?". Ilgari javob yo'q edi: nom bor, ustiga bosib
+ * bo'lmasdi.
+ *
+ * Odam esa kompaniya haqida bilmasa, ariza yubormaydi — ayniqsa
+ * ishini tashlab o'tmoqchi bo'lgan odam.
+ */
+export interface CompanyDetail extends CompanyBrief {
+  description: string;
+  city: string;
+  /** Shu kompaniyaning OCHIQ vakansiyalari soni. */
+  vacancyCount: number;
+  /** Kompaniya rasmlari — bor bo'lsa. */
+  images: CatalogImageView[];
+}
+
+export interface CompanyResponse {
+  company: CompanyDetail;
+  vacancies: VacancyListItem[];
 }
 
 export interface VacancyListItem {

@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { ServiceIcon } from '@/components/app/service-icon';
+import { ApplicationProgress } from '@/components/jobs/application-progress';
 import { FilterChip } from '@/components/ui/filter-chip';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -15,7 +16,6 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
-import { formatRelativeUz } from '@/lib/date';
 import {
   APPLICATION_STATUS_LABELS,
   APPLICATION_STATUS_VARIANTS,
@@ -139,6 +139,17 @@ export function ApplicationsContent() {
                 </Badge>
               </Link>
 
+              {/*
+                ── Kuzatuv chizig'i ─────────────────────────────────
+                Yorliq faqat "hozir qayerda" deydi. Nomzodga esa
+                QACHON bo'lgani ham kerak — sabab
+                `application-timeline.ts` da.
+              */}
+              <ApplicationProgress
+                application={application}
+                className="border-border/60 mt-3 border-t pt-3"
+              />
+
               {/* Ish beruvchining javobi — eng muhim matn */}
               {application.employerNote && (
                 <p className="bg-secondary/60 mt-3 rounded-xl p-3 text-sm leading-relaxed">
@@ -146,10 +157,17 @@ export function ApplicationsContent() {
                 </p>
               )}
 
-              <div className="border-border/60 mt-3 flex items-center justify-between gap-3 border-t pt-3">
-                <span className="text-muted-foreground text-xs">{formatRelativeUz(application.createdAt)}</span>
+              {/*
+                ── Sana bu yerdan OLIB TASHLANDI ────────────────────
+                Kuzatuv chizig'i qo'shilgach, yuborilgan vaqt ekranda
+                IKKI MARTA turib qoldi: chiziqning birinchi
+                qatorida va shu yerda.
 
-                {canWithdraw(application.status) && (
+                Takroriy son ekranni to'ldiradi va o'qishni
+                sekinlashtiradi. Suratda ko'rilganda aniqlandi.
+              */}
+              {canWithdraw(application.status) && (
+                <div className="border-border/60 mt-3 flex items-center justify-end gap-3 border-t pt-3">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -158,8 +176,8 @@ export function ApplicationsContent() {
                   >
                     Qaytarib olish
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>

@@ -1,6 +1,6 @@
 'use client';
 
-import { Briefcase, ClipboardList, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Bookmark, Briefcase, ClipboardList, Search, SlidersHorizontal, X } from 'lucide-react';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
@@ -14,6 +14,14 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiQuery } from '@/hooks/use-api';
+import {
+  SALARY_STEPS,
+  activeJobFilterCount,
+  describeJobFilters,
+  salaryRangeError,
+} from '@/config/job-filters';
+import { formatCompactTiyin } from '@/lib/money';
+import { useJobFilters } from '@/modules/job/use-job-filters';
 import { cn } from '@/lib/utils';
 import {
   EMPLOYMENT_TYPE_LABELS,
@@ -23,7 +31,6 @@ import {
   type ExperienceLevelName,
   type JobCategoriesResponse,
   type VacanciesResponse,
-  type VacancySort,
 } from '@/modules/job/job.types';
 
 const PAGE_SIZE = 20;
@@ -45,40 +52,59 @@ interface CitiesResponse {
  * turadi.
  */
 export function JobsContent() {
-  const [search, setSearch] = useState('');
-  const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('');
-  const [city, setCity] = useState('');
-  const [employmentType, setEmploymentType] = useState('');
-  const [experienceLevel, setExperienceLevel] = useState('');
-  const [sort, setSort] = useState<VacancySort>('new');
+  const { filters, update, clearOne, clearAll, queryString } = useJobFilters();
+
+  const [search, setSearch] = useState(filters.search ?? '');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [minText, setMinText] = useState(
+    filters.minSalarySom === undefined ? '' : String(filters.minSalarySom),
+  );
+  const [maxText, setMaxText] = useState(
+    filters.maxSalarySom === undefined ? '' : String(filters.maxSalarySom),
+  );
 
   const categories = useApiQuery<JobCategoriesResponse>('/api/v1/jobs/categories');
   const cities = useApiQuery<CitiesResponse>('/api/v1/jobs/cities');
 
   const params = useMemo(() => {
-    const result = new URLSearchParams({ pageSize: String(PAGE_SIZE), sort });
+    const result = new URLSearchParams(queryString);
 
-    if (query) result.set('search', query);
-    if (category) result.set('category', category);
-    if (city) result.set('city', city);
-    if (employmentType) result.set('employmentType', employmentType);
-    if (experienceLevel) result.set('experienceLevel', experienceLevel);
+    result.set('pageSize', String(PAGE_SIZE));
 
     return result.toString();
-  }, [query, category, city, employmentType, experienceLevel, sort]);
+  }, [queryString]);
 
   const { data, isLoading, error } = useApiQuery<VacanciesResponse>(`/api/v1/jobs/vacancies?${params}`);
 
   const vacancies = data?.vacancies ?? [];
-  const activeFilters = [category, city, employmentType, experienceLevel].filter(Boolean).length;
+  const activeFilters = activeJobFilterCount(filters);
+  const rangeError = salaryRangeError(filters);
+  const chips = describeJobFilters(filters, (value) => formatCompactTiyin(value * 100));
+
+  /** Matn maydonidan songa — bo'sh yoki yaroqsiz bo'lsa `undefined`. */
+  const toNumber = (value: string): number | undefined => {
+    const trimmed = value.trim();
+
+    if (trimmed === '') return undefined;
+
+    const parsed = Number(trimmed);
+
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
+  };
+
+  /*
+    ── Maosh maydoni FOKUSDAN chiqqanda qo'llanadi ─────────────────────
+    Har bosilgan raqamda so'rov yuborilsa, "5000000" yozayotgan odam
+    yettita so'rov yuborardi va ro'yxat har safar miltillardi.
+  */
+  const applySalary = () => {
+    update({ minSalarySom: toNumber(minText), maxSalarySom: toNumber(maxText) });
+  };
 
   function resetFilters() {
-    setCategory('');
-    setCity('');
-    setEmploymentType('');
-    setExperienceLevel('');
+    setMinText('');
+    setMaxText('');
+    clearAll();
   }
 
   return (
@@ -90,7 +116,7 @@ export function JobsContent() {
         <form
           onSubmit={(event) => {
             event.preventDefault();
-            setQuery(search.trim());
+            update({ search: search.trim() || undefined });
           }}
           className="relative"
         >
@@ -128,11 +154,11 @@ export function JobsContent() {
               <button
                 key={option.value}
                 type="button"
-                onClick={() => setSort(option.value)}
-                aria-pressed={sort === option.value}
+                onClick={() => update({ sort: option.value })}
+                aria-pressed={filters.sort === option.value}
                 className={cn(
                   'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-                  sort === option.value ? 'border-primary text-primary' : 'border-border text-muted-foreground',
+                  filters.sort === option.value ? 'border-primary text-primary' : 'border-border text-muted-foreground',
                 )}
               >
                 {option.label}
@@ -145,8 +171,8 @@ export function JobsContent() {
           <div className="bg-card border-border animate-fade-up mt-3 space-y-3 rounded-2xl border p-4">
             <Select
               aria-label="Yo'nalish"
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
+              value={filters.category ?? ''}
+              onChange={(event) => update({ category: event.target.value || undefined })}
               placeholder="Barcha yo'nalishlar"
               options={(categories.data?.categories ?? []).map((item) => ({
                 value: item.slug,
@@ -156,16 +182,16 @@ export function JobsContent() {
 
             <Select
               aria-label="Shahar"
-              value={city}
-              onChange={(event) => setCity(event.target.value)}
+              value={filters.city ?? ''}
+              onChange={(event) => update({ city: event.target.value || undefined })}
               placeholder="Barcha shaharlar"
               options={(cities.data?.cities ?? []).map((item) => ({ value: item, label: item }))}
             />
 
             <Select
               aria-label="Bandlik turi"
-              value={employmentType}
-              onChange={(event) => setEmploymentType(event.target.value)}
+              value={filters.employmentType ?? ''}
+              onChange={(event) => update({ employmentType: event.target.value || undefined })}
               placeholder="Har qanday bandlik"
               options={Object.entries(EMPLOYMENT_TYPE_LABELS).map(([value, label]) => ({
                 value: value as EmploymentTypeName,
@@ -175,14 +201,80 @@ export function JobsContent() {
 
             <Select
               aria-label="Tajriba"
-              value={experienceLevel}
-              onChange={(event) => setExperienceLevel(event.target.value)}
+              value={filters.experienceLevel ?? ''}
+              onChange={(event) => update({ experienceLevel: event.target.value || undefined })}
               placeholder="Har qanday tajriba"
               options={Object.entries(EXPERIENCE_LEVEL_LABELS).map(([value, label]) => ({
                 value: value as ExperienceLevelName,
                 label,
               }))}
             />
+
+            {/*
+              ── Maosh ────────────────────────────────────────────────
+              Ish qidirayotgan odamning BIRINCHI savoli shu. Server
+              tomonida filtr allaqachon bor edi, lekin ekranda yo'q
+              edi — ya'ni imkoniyat bor, foydalanuvchi esa undan
+              xabarsiz.
+            */}
+            <div>
+              <p className="text-muted-foreground mb-2 text-xs font-medium">Maosh (so&apos;m)</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  inputMode="numeric"
+                  aria-label="Eng kam maosh"
+                  placeholder="Eng kam"
+                  value={minText}
+                  onChange={(event) => setMinText(event.target.value.replace(/\D/g, ''))}
+                  onBlur={applySalary}
+                  hasError={rangeError !== null}
+                />
+
+                <Input
+                  inputMode="numeric"
+                  aria-label="Eng ko'p maosh"
+                  placeholder="Eng ko'p"
+                  value={maxText}
+                  onChange={(event) => setMaxText(event.target.value.replace(/\D/g, ''))}
+                  onBlur={applySalary}
+                  hasError={rangeError !== null}
+                />
+              </div>
+
+              {rangeError && (
+                <Alert variant="warning" className="mt-2">
+                  {rangeError}
+                </Alert>
+              )}
+
+              {/*
+                ── Tayyor tugmalar ────────────────────────────────────
+                Yetti xonali sonni telefonda terish uzoq ish. Tayyor
+                chegara — bitta bosish.
+              */}
+              <div className="mt-2 flex flex-wrap gap-2">
+                {SALARY_STEPS.map((step) => (
+                  <button
+                    key={step}
+                    type="button"
+                    onClick={() => {
+                      setMinText(String(step));
+                      update({ minSalarySom: step });
+                    }}
+                    aria-pressed={filters.minSalarySom === step}
+                    className={cn(
+                      'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                      filters.minSalarySom === step
+                        ? 'border-primary text-primary'
+                        : 'border-border text-muted-foreground',
+                    )}
+                  >
+                    {`${formatCompactTiyin(step * 100)} dan`}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             {activeFilters > 0 && (
               <Button variant="ghost" size="sm" fullWidth onClick={resetFilters}>
@@ -193,16 +285,64 @@ export function JobsContent() {
           </div>
         )}
 
-        {/* Arizalarim */}
-        <Link
-          href="/jobs/applications"
-          className="bg-card border-border mt-4 flex items-center gap-3 rounded-2xl border p-3.5 transition-transform active:scale-[0.99]"
-        >
-          <span className="bg-primary/10 text-primary inline-flex size-10 items-center justify-center rounded-xl">
-            <ClipboardList className="size-5" aria-hidden="true" />
-          </span>
-          <span className="min-w-0 flex-1 text-sm font-medium">Mening arizalarim</span>
-        </Link>
+        {/*
+          ── Yoqilgan filtrlar qatori ────────────────────────────────
+          Tugmadagi son "uchtasi yoqilgan" deydi, lekin QAYSILARI
+          ekanini aytmaydi. Odam esa odatda bittasini olib
+          tashlamoqchi bo'ladi.
+        */}
+        {chips.length > 0 && (
+          <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {chips.map((chip) => (
+              <button
+                key={chip.key}
+                type="button"
+                onClick={() => {
+                  if (chip.key === 'minSalarySom') setMinText('');
+                  if (chip.key === 'maxSalarySom') setMaxText('');
+                  clearOne(chip.key);
+                }}
+                aria-label={`${chip.label} — filtrni olib tashlash`}
+                className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+              >
+                {chip.label}
+                <X className="size-3" aria-hidden="true" />
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Link
+            href="/jobs/applications"
+            className="bg-card border-border flex items-center gap-2.5 rounded-2xl border p-3.5 transition-transform active:scale-[0.99]"
+          >
+            <span className="bg-primary/10 text-primary inline-flex size-9 shrink-0 items-center justify-center rounded-xl">
+              <ClipboardList className="size-4.5" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1 text-sm leading-tight font-medium">Arizalarim</span>
+          </Link>
+
+          {/*
+            ── Saqlangan vakansiyalar ──────────────────────────────
+            Saqlash imkoniyati allaqachon bor edi (har kartochkada
+            yurakcha), lekin saqlanganlarni KO'RISH uchun umumiy
+            "Sevimlilar" sahifasini topish kerak edi.
+
+            Ish qidirayotgan odam esa vakansiyani aynan keyinroq
+            qaytib ko'rish uchun saqlaydi — havola shu yerda
+            turishi kerak.
+          */}
+          <Link
+            href="/favorites"
+            className="bg-card border-border flex items-center gap-2.5 rounded-2xl border p-3.5 transition-transform active:scale-[0.99]"
+          >
+            <span className="bg-primary/10 text-primary inline-flex size-9 shrink-0 items-center justify-center rounded-xl">
+              <Bookmark className="size-4.5" aria-hidden="true" />
+            </span>
+            <span className="min-w-0 flex-1 text-sm leading-tight font-medium">Saqlanganlar</span>
+          </Link>
+        </div>
 
         {/* Ro'yxat */}
         <div className="mt-4">
@@ -225,7 +365,7 @@ export function JobsContent() {
               icon={Briefcase}
               title="Vakansiya topilmadi"
               description={
-                query || activeFilters > 0
+                filters.search || activeFilters > 0
                   ? "Shartlarni yumshatib ko'ring — filtrni tozalang yoki boshqa so'z yozing."
                   : "Hozircha e'lon yo'q. Tez orada yangilari qo'shiladi."
               }
