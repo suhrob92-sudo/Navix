@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 
-import { Clock, Star, UtensilsCrossed, ChevronRight } from 'lucide-react';
+import { ChevronRight, Flame } from 'lucide-react';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
@@ -12,8 +12,10 @@ import { RecentTracker } from '@/components/recent/recent-tracker';
 import { RatingStars } from '@/components/review/rating-stars';
 import { ReviewSection } from '@/components/review/review-section';
 import { LinkedPosts } from '@/components/feed/linked-posts';
-import { ServiceIcon } from '@/components/app/service-icon';
 import { CartBar } from '@/components/food/cart-bar';
+import { MenuItemSheet } from '@/components/food/menu-item-sheet';
+import { OpeningHoursCard } from '@/components/food/opening-hours-card';
+import { RestaurantHeader } from '@/components/food/restaurant-header';
 import { QuantityStepper } from '@/components/food/quantity-stepper';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -21,7 +23,6 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiQuery } from '@/hooks/use-api';
-import { formatRating } from '@/config/review';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import { MAX_ITEM_QUANTITY } from '@/modules/food/food.schemas';
@@ -45,7 +46,18 @@ export function RestaurantContent({ slug }: RestaurantContentProps) {
   /** Boshqa restoran savati bor bo'lsa — tasdiqlash so'raladi. */
   const [conflict, setConflict] = useState<{ itemId: string; otherName: string } | null>(null);
 
+  /** Ochilgan taom oynasi — tarkibi shu yerda ko'rsatiladi. */
+  const [openItem, setOpenItem] = useState<MenuItemView | null>(null);
+
   const restaurant = data?.restaurant ?? null;
+
+  /*
+    Mashhur taomlar barcha bo'limlardan yig'iladi: ular menyuda
+    turli joylarda turishi mumkin.
+  */
+  const popularItems = (restaurant?.categories ?? [])
+    .flatMap((category) => category.items)
+    .filter((item) => item.isPopular);
 
   function handleAdd(item: MenuItemView) {
     if (!restaurant) return;
@@ -78,58 +90,82 @@ export function RestaurantContent({ slug }: RestaurantContentProps) {
 
         {restaurant && (
           <>
-            {/* Restoran haqida */}
-            <div className="bg-card border-border animate-fade-up flex gap-3 rounded-2xl border p-4">
-              <ServiceIcon icon={UtensilsCrossed} color={restaurant.color} size="lg" />
+            <RestaurantHeader restaurant={restaurant} />
 
-              <div className="min-w-0 flex-1">
-                <p className="text-muted-foreground text-xs">{restaurant.cuisine}</p>
-                <p className="mt-0.5 text-sm leading-relaxed">{restaurant.description}</p>
+            <OpeningHoursCard
+              hours={restaurant.hours}
+              summary={restaurant.openState.text}
+              className="mt-4"
+            />
 
-                <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                  <span className="text-foreground inline-flex items-center gap-1 font-medium">
-                    <Star
-                      className={cn(
-                        'size-3.5',
-                        restaurant.ratingCount > 0
-                          ? 'fill-current text-amber-500'
-                          : 'text-muted-foreground/40',
-                      )}
-                      aria-hidden="true"
-                    />
-                    {formatRating(restaurant.rating, restaurant.ratingCount)}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="size-3.5" aria-hidden="true" />
-                    {`${restaurant.deliveryMinutes} daq`}
-                  </span>
-                  <span>{`Yetkazish ${formatTiyin(restaurant.deliveryFee)}`}</span>
-                </div>
+            {/*
+              Profilda manzil, telefon va obuna bor. Bu yerda esa
+              menyu — ikkalasi bir sahifaga sig'masdi.
+            */}
+            <Link
+              href={`/b/${slug}`}
+              className="text-primary mt-3 inline-flex items-center gap-1 text-sm font-medium hover:underline"
+            >
+              Restoran profilini ochish
+              <ChevronRight className="size-4" aria-hidden="true" />
+            </Link>
 
-                {/*
-                  Profilga havola.
-                  Bu yerda menyu bor, profilda esa manzil, ish vaqti,
-                  telefon va obuna. Ikkalasi bir sahifaga sig'masdi.
-                */}
-                <Link
-                  href={`/b/${slug}`}
-                  className="text-primary mt-2 inline-flex items-center gap-1 text-xs font-medium hover:underline"
-                >
-                  Profilni ochish
-                  <ChevronRight className="size-3.5" aria-hidden="true" />
-                </Link>
-              </div>
-            </div>
-
+            {/*
+              ── Yopiq restoran ──────────────────────────────────────
+              Sabab AYTILADI: "vaqtincha yopiq" (egasi o'chirgan) va
+              "hozircha ish vaqti emas" — bu ikki xil holat va odam
+              ular orasidagi farqni bilishi kerak.
+            */}
             {!restaurant.isOpen && (
-              <Alert variant="warning" title="Restoran hozir yopiq" className="mt-4">
-                Menyuni ko&apos;rishingiz mumkin, lekin buyurtma qabul qilinmaydi.
+              <Alert
+                variant="warning"
+                title={restaurant.acceptsOrders ? 'Hozir yopiq' : 'Vaqtincha yopiq'}
+                className="mt-4"
+              >
+                {restaurant.acceptsOrders
+                  ? `Menyuni ko'rishingiz mumkin. ${restaurant.openState.text}.`
+                  : "Restoran vaqtincha buyurtma qabul qilmayapti."}
               </Alert>
             )}
 
             <Alert variant="info" className="mt-4">
               {`Eng kam buyurtma summasi — ${formatTiyin(restaurant.minOrder)} (yetkazish narxisiz).`}
             </Alert>
+
+            {/*
+              ── Mashhur taomlar ─────────────────────────────────────
+              Notanish restoranda odam o'ttizta nom ko'radi va
+              nimani tanlashni bilmaydi.
+
+              Bu ro'yxat buyurtmalardan hisoblanadi — restoran uni
+              qo'lda belgilay olmaydi. Sabab `getPopularItemIds` da.
+            */}
+            {popularItems.length > 0 && (
+              <section className="mt-6">
+                <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+                  <Flame className="size-4 text-orange-500" aria-hidden="true" />
+                  Mashhur taomlar
+                </h2>
+
+                <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {popularItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setOpenItem(item)}
+                      className="bg-card border-border w-32 shrink-0 rounded-2xl border p-2 text-left"
+                    >
+                      <CatalogThumb image={item.image} name={item.name} className="rounded-xl" />
+
+                      <p className="mt-2 line-clamp-2 text-xs font-medium">{item.name}</p>
+                      <p className="mt-0.5 text-sm font-semibold tabular-nums">
+                        {formatTiyin(item.price)}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Menyu */}
             {restaurant.categories.map((category) => (
@@ -157,16 +193,40 @@ export function RestaurantContent({ slug }: RestaurantContentProps) {
                           qator baribir tekis turadi.
                         */}
                         {item.image && (
-                          <CatalogThumb
-                            image={item.image}
-                            name={item.name}
-                            className="size-16 shrink-0 rounded-xl"
-                          />
+                          <button
+                            type="button"
+                            onClick={() => setOpenItem(item)}
+                            aria-label={`${item.name} — batafsil`}
+                            className="shrink-0"
+                          >
+                            <CatalogThumb
+                              image={item.image}
+                              name={item.name}
+                              className="size-16 rounded-xl"
+                            />
+                          </button>
                         )}
 
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <p className="min-w-0 flex-1 truncate text-sm font-medium">{item.name}</p>
+                            {/*
+                              Nomga bosilsa TARKIB oynasi ochiladi.
+
+                              Tarkibni qatorga sig'dirib bo'lmaydi:
+                              u yerda nom, narx, rasm va tugma bor.
+                            */}
+                            <button
+                              type="button"
+                              onClick={() => setOpenItem(item)}
+                              className="min-w-0 flex-1 truncate text-left text-sm font-medium"
+                            >
+                              {item.name}
+                            </button>
+                            {item.isPopular && item.isAvailable && (
+                              <Badge variant="warning" className="shrink-0">
+                                Mashhur
+                              </Badge>
+                            )}
                             {!item.isAvailable && (
                               <Badge variant="secondary" className="shrink-0">
                                 Tugagan
@@ -241,6 +301,16 @@ export function RestaurantContent({ slug }: RestaurantContentProps) {
         o'z kuryeri va yetkazish haqi bor. Shuning uchun tanlov aniq
         so'raladi, savat jimgina tozalanmaydi.
       */}
+      {openItem && (
+        <MenuItemSheet
+          item={openItem}
+          quantity={cart.quantityOf(openItem.id)}
+          canOrder={restaurant?.isOpen ?? false}
+          onAdd={() => handleAdd(openItem)}
+          onClose={() => setOpenItem(null)}
+        />
+      )}
+
       <ConfirmDialog
         open={conflict !== null}
         title="Savatni almashtiramizmi?"

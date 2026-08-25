@@ -195,6 +195,37 @@ enum ReturnReason {
   OTHER
 }
 
+/// Taomdagi allergenlar.
+///
+/// ── Nima uchun ro'yxat, erkin matn emas ───────────────────────────────
+/// Allergiya — sog'liq masalasi. "Yong'oq bor" degan matnni odam
+/// tavsif ichidan izlab topishi kerak bo'lardi va shoshib o'tkazib
+/// yuborishi mumkin edi.
+///
+/// Ro'yxat esa alohida, ko'zga tashlanadigan belgilar bilan
+/// ko'rsatiladi va kelajakda "yong'oqsiz taomlar" filtri ham shu
+/// ustundan ishlaydi.
+enum Allergen {
+  /// Gluten (bug'doy, arpa).
+  GLUTEN
+  /// Sut mahsulotlari.
+  DAIRY
+  /// Tuxum.
+  EGG
+  /// Yong'oq (bodom, grek yong'og'i).
+  NUTS
+  /// Yer yong'og'i — alohida, chunki reaksiyasi kuchliroq.
+  PEANUT
+  /// Dengiz mahsulotlari (qisqichbaqa, midiya).
+  SEAFOOD
+  /// Baliq.
+  FISH
+  /// Soya.
+  SOY
+  /// Kunjut.
+  SESAME
+}
+
 /// Mehmonxona bandlovining holati.
 ///
 /// ── Nima uchun "kutilmoqda" YO'Q ──────────────────────────────────────
@@ -754,6 +785,8 @@ model Restaurant {
   reviews     Review[]
   favorites   Favorite[]
   recentViews RecentView[]
+  /// Haftalik ish vaqti.
+  hours       RestaurantHours[]
 
   @@index([isActive, sortOrder])
   @@index([ownerId])
@@ -801,6 +834,31 @@ model MenuItem {
   /// Tugab qolgan bo'lsa `false` — menyuda ko'rinadi, lekin tanlab bo'lmaydi.
   isAvailable Boolean @default(true)
   sortOrder   Int     @default(100)
+
+  /// ── Taom tarkibi ──────────────────────────────────────────────────
+  ///
+  /// Nima uchun kerak: odam "lag'mon" nima ekanini biladi, lekin
+  /// "Shef salati" da nima borligini bilmaydi. Tarkibsiz u yo
+  /// buyurtma qilmaydi, yo kelganda hafsalasi pir bo'ladi.
+  ///
+  /// Hammasi IXTIYORIY: restoran to'ldirmaguncha bo'lim
+  /// ko'rsatilmaydi. Bo'sh "Tarkibi: —" degan qator yozishdan
+  /// ko'ra, uni umuman chizmagan yaxshi.
+
+  /// Tarkibi: "Go'sht, kartoshka, sabzi, piyoz, ziravorlar".
+  ingredients String? @db.VarChar(500)
+
+  /// Porsiya og'irligi — GRAMMDA.
+  ///
+  /// Narxni solishtirishda eng muhim son: 25 000 so'mlik 150 g va
+  /// 25 000 so'mlik 400 g butunlay boshqa taklif.
+  weightGrams Int?
+
+  /// Porsiyadagi kaloriya.
+  calories Int?
+
+  /// Allergenlar — sog'liq uchun muhim, sabab `Allergen` da.
+  allergens Allergen[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1339,6 +1397,54 @@ model ReturnItem {
   @@unique([returnId, orderItemId])
   @@index([orderItemId])
   @@map("return_items")
+}
+
+/// Restoranning HAFTALIK ish vaqti.
+///
+/// ── Nima uchun `isOpen` bayrog'i yetmadi ──────────────────────────────
+/// `restaurants.isOpen` bor edi va u faqat "hozir ochiqmi" deb
+/// aytardi. Uni restoran egasi qo'lda bosardi.
+///
+/// Amalda bu ishlamasdi: hech kim har kuni ertalab "ochdim", kechqurun
+/// "yopdim" deb bosib o'tirmaydi. Natijada kechasi soat uchda ham
+/// restoran "ochiq" ko'rinardi va odam buyurtma berib, javob
+/// kutib qolardi.
+///
+/// ── Nima uchun bayroq BARIBIR qoladi ──────────────────────────────────
+/// Jadval "odatda qachon ishlaymiz" degan savolga javob beradi.
+/// Bayroq esa "bugun favqulodda yopiqmiz" (ta'mir, to'y, oshxonada
+/// gaz yo'q) degan holat uchun.
+///
+/// Restoran ochiq hisoblanadi FAQAT ikkalasi ham rozi bo'lganda.
+///
+/// ── Nima uchun vaqt DAQIQADA saqlanadi ────────────────────────────────
+/// `TIME` ustuni ham bo'lardi, lekin u vaqt mintaqasi bilan
+/// chalkashardi: bazada qaysi zonada ekani noaniq qolardi.
+///
+/// Kun boshidan hisoblangan daqiqa (09:30 → 570) esa oddiy son:
+/// uni solishtirish ham, qo'shish ham xatosiz ishlaydi. Zona esa
+/// bitta joyda — kodda — qo'llanadi (Toshkent, UTC+5).
+model RestaurantHours {
+  id String @id @default(uuid()) @db.Uuid
+
+  restaurantId String @db.Uuid
+
+  /// Hafta kuni: 0 — yakshanba, 6 — shanba (JavaScript tartibi).
+  ///
+  /// Kun uchun yozuv BO'LMASA — o'sha kuni dam olish. Alohida
+  /// "yopiq" bayrog'i keraksiz.
+  weekday Int
+
+  /// Kun boshidan DAQIQADA.
+  opensAt  Int
+  closesAt Int
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  /// Bir kunga bitta yozuv.
+  @@unique([restaurantId, weekday])
+  @@index([restaurantId])
+  @@map("restaurant_hours")
 }
 
 /// Mahsulot toifasi: "Telefonlar", "Kiyim", "Kitoblar".

@@ -1,5 +1,6 @@
 import type { ServiceColor } from '@/config/modules';
 import type { CatalogThumb } from '@/modules/catalog/catalog-image.types';
+import type { AllergenName } from '@/config/menu-item-detail';
 import type { DeliveryStatusName } from '@/modules/courier/courier.types';
 
 /**
@@ -10,6 +11,13 @@ import type { DeliveryStatusName } from '@/modules/courier/courier.types';
  */
 
 export type FoodOrderStatusName = 'PENDING' | 'CONFIRMED' | 'PREPARING' | 'DELIVERING' | 'DELIVERED' | 'CANCELLED';
+
+/** Bitta kunning ish vaqti — kun boshidan DAQIQADA. */
+export interface RestaurantHoursView {
+  weekday: number;
+  opensAt: number;
+  closesAt: number;
+}
 
 export interface RestaurantListItem {
   id: string;
@@ -24,7 +32,24 @@ export interface RestaurantListItem {
   rating: number;
   ratingCount: number;
   color: ServiceColor;
+  /**
+   * HOZIR buyurtma qabul qilyaptimi.
+   *
+   * Bayroq va jadval BIRGA hisoblanadi — sabab
+   * `src/config/opening-hours.ts` da.
+   */
   isOpen: boolean;
+  /**
+   * Restoran egasining bayrog'i — jadvaldan alohida.
+   *
+   * "Vaqtincha yopiq" va "hozircha ish vaqti emas" — bu ikki xil
+   * holat va ekranda ular boshqacha yoziladi.
+   */
+  acceptsOrders: boolean;
+  /** Haftalik ish vaqti. Kiritilmagan bo'lsa bo'sh. */
+  hours: RestaurantHoursView[];
+  /** "22:00 gacha ochiq" yoki "Ertaga 09:00 da ochiladi". */
+  openState: { isOpen: boolean; text: string };
   /** Restoran rasmi. Rasm qo'yilmagan bo'lsa `null`. */
   image: CatalogThumb | null;
 }
@@ -46,6 +71,25 @@ export interface MenuItemView {
    * ko'rmasa, tanish nomlarnigina buyurtma qiladi.
    */
   image: CatalogThumb | null;
+
+  /**
+   * ── Taom tarkibi ────────────────────────────────────────────────
+   * Hammasi ixtiyoriy: restoran to'ldirmaguncha bo'lim
+   * ko'rsatilmaydi. Sabab `src/config/menu-item-detail.ts` da.
+   */
+  ingredients: string | null;
+  /** GRAMMDA. */
+  weightGrams: number | null;
+  calories: number | null;
+  allergens: AllergenName[];
+
+  /**
+   * Eng ko'p buyurtma qilingan taomlardanmi.
+   *
+   * Bu son BUYURTMALARDAN hisoblanadi va uni restoran qo'lda
+   * o'zgartira olmaydi — sabab `getPopularItemIds` izohida.
+   */
+  isPopular: boolean;
 }
 
 export interface MenuCategoryView {

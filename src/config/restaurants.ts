@@ -1,4 +1,5 @@
 import type { ServiceColor } from '@/config/modules';
+import type { AllergenName } from '@/config/menu-item-detail';
 
 /**
  * Boshlang'ich restoranlar ro'yxati (seed manbasi).
@@ -17,7 +18,44 @@ export interface MenuItemSeed {
   name: string;
   description?: string;
   priceSom: number;
+
+  /**
+   * ── Taom tarkibi (ixtiyoriy) ────────────────────────────────────
+   * Hamma taomga yozilmagan — bu ATAYLAB. Restoran maydonlarni
+   * to'ldirmagan holat ham ishlashi kerak va uni sinovda ko'rish
+   * mumkin bo'lsin.
+   */
+  ingredients?: string;
+  /** GRAMMDA. */
+  weightGrams?: number;
+  calories?: number;
+  allergens?: readonly AllergenName[];
 }
+
+/**
+ * Bitta kunning ish vaqti.
+ *
+ * `weekday`: 0 — yakshanba, 6 — shanba. Vaqt "HH:MM" ko'rinishida
+ * yoziladi — ro'yxatni odam o'qiydi va tahrirlaydi. Seed paytida
+ * daqiqaga o'giriladi.
+ */
+export interface HoursSeed {
+  weekday: number;
+  opens: string;
+  closes: string;
+}
+
+/**
+ * Odatiy ish vaqti: har kuni 09:00 — 23:00.
+ *
+ * Restoranlarning aksariyati shunday ishlaydi; farq qiladiganlari
+ * o'z jadvalini yozadi.
+ */
+export const DEFAULT_HOURS: readonly HoursSeed[] = [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+  weekday,
+  opens: '09:00',
+  closes: '23:00',
+}));
 
 export interface MenuCategorySeed {
   name: string;
@@ -36,6 +74,8 @@ export interface RestaurantSeed {
   ratingCount: number;
   color: ServiceColor;
   sortOrder: number;
+  /** Haftalik ish vaqti. Berilmasa `DEFAULT_HOURS` ishlatiladi. */
+  hours?: readonly HoursSeed[];
   categories: readonly MenuCategorySeed[];
 }
 
@@ -59,16 +99,46 @@ export const RESTAURANTS: readonly RestaurantSeed[] = [
       {
         name: 'Issiq taomlar',
         items: [
-          { name: "To'y oshi", description: "Qo'y go'shti, sariq sabzi, no'xat", priceSom: 45_000 },
-          { name: "Lag'mon", description: "Qo'lda tortilgan xamir, mol go'shti", priceSom: 42_000 },
-          { name: 'Shurva', description: "Qo'y go'shtidan quyuq sho'rva", priceSom: 38_000 },
+          {
+            name: "To'y oshi",
+            description: "Qo'y go'shti, sariq sabzi, no'xat",
+            priceSom: 45_000,
+            ingredients: "Devzira guruch, qo'y go'shti, sariq sabzi, piyoz, no'xat, zira, paxta yog'i",
+            weightGrams: 450,
+            calories: 780,
+          },
+          {
+            name: "Lag'mon",
+            description: "Qo'lda tortilgan xamir, mol go'shti",
+            priceSom: 42_000,
+            ingredients: "Bug'doy uni, mol go'shti, bulg'or qalampiri, pomidor, piyoz, sarimsoq, ziravorlar",
+            weightGrams: 400,
+            calories: 620,
+            allergens: ['GLUTEN', 'EGG'],
+          },
+          {
+            name: 'Shurva',
+            description: "Qo'y go'shtidan quyuq sho'rva",
+            priceSom: 38_000,
+            ingredients: "Qo'y go'shti, kartoshka, sabzi, piyoz, pomidor, ko'kat",
+            weightGrams: 500,
+            calories: 410,
+          },
           { name: 'Norin', description: "An'anaviy sovuq taom", priceSom: 40_000 },
         ],
       },
       {
         name: 'Manti va somsa',
         items: [
-          { name: 'Manti (5 dona)', description: "Mol go'shti va piyoz", priceSom: 35_000 },
+          {
+            name: 'Manti (5 dona)',
+            description: "Mol go'shti va piyoz",
+            priceSom: 35_000,
+            ingredients: "Bug'doy uni, mol go'shti, piyoz, dumba yog'i, qora murch",
+            weightGrams: 350,
+            calories: 590,
+            allergens: ['GLUTEN'],
+          },
           { name: 'Chuchvara', description: 'Kichik chuchvara, qaymoq bilan', priceSom: 32_000 },
           { name: 'Tandir somsa (2 dona)', description: "Qo'y go'shti", priceSom: 24_000 },
         ],
@@ -182,6 +252,17 @@ export const RESTAURANTS: readonly RestaurantSeed[] = [
     ratingCount: 1780,
     color: 'green',
     sortOrder: 40,
+    /*
+      TUNGI kafe: 11:00 dan 02:00 gacha.
+
+      Bu jadval `isOvernight` yo'lini tekshiradi — yarim tundan
+      oshadigan smena eng ko'p xato chiqadigan holat.
+    */
+    hours: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({
+      weekday,
+      opens: '11:00',
+      closes: '02:00',
+    })),
     categories: [
       {
         name: 'Burgerlar',
@@ -252,6 +333,17 @@ export const RESTAURANTS: readonly RestaurantSeed[] = [
     ratingCount: 3120,
     color: 'violet',
     sortOrder: 60,
+    /*
+      Nonvoyxona ertalab ochiladi va yakshanba DAM OLADI.
+
+      Dam olish kuni uchun yozuv YO'Q — alohida "yopiq" bayrog'i
+      keraksiz.
+    */
+    hours: [1, 2, 3, 4, 5, 6].map((weekday) => ({
+      weekday,
+      opens: '07:00',
+      closes: '20:00',
+    })),
     categories: [
       {
         name: 'Shirinliklar',

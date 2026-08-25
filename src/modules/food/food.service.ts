@@ -8,6 +8,8 @@ import { formatTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { toSearchText } from '@/lib/search';
 import type { ServiceColor } from '@/config/modules';
+import { describeOpenState, isRestaurantOpen } from '@/config/opening-hours';
+import { MAX_POPULAR_ITEMS, MIN_POPULAR_ORDERS, type AllergenName } from '@/config/menu-item-detail';
 import { THUMB_SELECT, toThumb } from '@/modules/catalog/catalog-image.select';
 import { notifyUser } from '@/modules/notification/notification.service';
 import { chargeWallet, getOrCreateWallet, refundWallet } from '@/modules/wallet/wallet.service';
@@ -61,11 +63,26 @@ const RESTAURANT_SELECT = {
   color: true,
   isOpen: true,
   images: THUMB_SELECT,
-} as const;
+  /*
+    Haftalik ish vaqti — RO'YXATDA ham kerak.
+
+    ── Nima uchun ro'yxatga ham qo'shildi ────────────────────────────
+    Faqat restoran sahifasida hisoblansak, ro'yxatda kechasi ham
+    hamma restoran "ochiq" ko'rinardi. Odam ochiq deb kirib,
+    ichkarida "yopiq" degan yozuvni ko'rardi.
+
+    Bitta restoranda ko'pi bilan yetti qator — qo'shimcha so'rovga
+    arzimaydigan kichik yuk.
+  */
+  hours: {
+    select: { weekday: true, opensAt: true, closesAt: true },
+    orderBy: { weekday: 'asc' },
+  },
+} satisfies Prisma.RestaurantSelect;
 
 type RestaurantRow = Prisma.RestaurantGetPayload<{ select: typeof RESTAURANT_SELECT }>;
 
-function toRestaurantItem(row: RestaurantRow): RestaurantListItem {
+function toRestaurantItem(row: RestaurantRow, now: Date = new Date()): RestaurantListItem {
   return {
     id: row.id,
     slug: row.slug,
@@ -79,7 +96,18 @@ function toRestaurantItem(row: RestaurantRow): RestaurantListItem {
     rating: Number(row.rating),
     ratingCount: row.ratingCount,
     color: row.color as ServiceColor,
-    isOpen: row.isOpen,
+    /*
+      `isOpen` endi JADVAL bilan birga hisoblanadi.
+
+      Ustundagi bayroq — "vaqtincha yopiqmiz" degan qo'lda
+      qo'yiladigan holat; jadval esa "odatda qachon ishlaymiz".
+      Restoran ochiq hisoblanadi faqat IKKALASI ham rozi bo'lganda.
+    */
+    isOpen: isRestaurantOpen(row.hours, row.isOpen, now),
+    /** Bayroqning O'ZI — "vaqtincha yopiq" ni ajratish uchun. */
+    acceptsOrders: row.isOpen,
+    hours: row.hours,
+    openState: describeOpenState(row.hours, row.isOpen, now),
     image: toThumb(row.images),
   };
 }
@@ -126,7 +154,7 @@ export async function listRestaurants(query: RestaurantQuery): Promise<Restauran
     orderBy: [{ isOpen: 'desc' }, { sortOrder: 'asc' }, { name: 'asc' }],
   });
 
-  return restaurants.map(toRestaurantItem);
+  return restaurants.map((row) => toRestaurantItem(row));
 }
 
 /** Bitta restoran — menyusi bilan. */
@@ -149,6 +177,11 @@ export async function getRestaurant(slug: string): Promise<RestaurantDetail> {
               rating: true,
               ratingCount: true,
               images: THUMB_SELECT,
+              /* Taom tarkibi — sabab `src/config/menu-item-detail.ts` da. */
+              ingredients: true,
+              weightGrams: true,
+              calories: true,
+              allergens: true,
             },
             orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
           },
@@ -161,6 +194,8 @@ export async function getRestaurant(slug: string): Promise<RestaurantDetail> {
   if (!restaurant) {
     throw new NotFoundError('Restoran');
   }
+
+  const popular = await getPopularItemIds(restaurant.id);
 
   const categories: MenuCategoryView[] = restaurant.categories
     // Bo'sh bo'lim ko'rsatilmaydi — foydalanuvchini chalkashtiradi.
@@ -178,10 +213,67 @@ export async function getRestaurant(slug: string): Promise<RestaurantDetail> {
         rating: Number(item.rating),
         ratingCount: item.ratingCount,
         image: toThumb(item.images),
+        ingredients: item.ingredients,
+        weightGrams: item.weightGrams,
+        calories: item.calories,
+        allergens: item.allergens as AllergenName[],
+        /*
+          Mashhurlik BUYURTMALARDAN hisoblanadi — sabab
+          `getPopularItemIds` izohida.
+        */
+        isPopular: popular.has(item.id),
       })),
     }));
 
   return { ...toRestaurantItem(restaurant), categories };
+}
+
+/**
+ * Restoranning ENG KO'P buyurtma qilingan taomlari.
+ *
+ * ── Nima uchun bu kerak ───────────────────────────────────────────────
+ * Notanish restoranda odam menyuni ochadi va o'ttizta nom ko'radi.
+ * Nimani tanlashni bilmay, u yo tanish narsani (lag'mon) buyurtma
+ * qiladi, yo umuman chiqib ketadi.
+ *
+ * "Mashhur taomlar" bu qarorni oson qiladi: boshqalar nimani
+ * tanlaganini ko'rsatadi.
+ *
+ * ── Nima uchun son O'YLAB TOPILMAYDI ──────────────────────────────────
+ * Restoran o'zi "mashhur" deb belgilashi ham mumkin edi. Lekin
+ * o'shanda u eng ko'p foyda keltiradigan taomni belgilardi, eng
+ * yaxshisini emas — va bu yozuv yolg'onga aylanardi.
+ *
+ * Bu yerdagi ro'yxat `food_order_items` jadvalidan hisoblanadi va
+ * uni hech kim qo'lda o'zgartira olmaydi.
+ *
+ * ── Nima uchun BEKOR QILINGAN buyurtmalar sanalmaydi ──────────────────
+ * Bekor qilingan buyurtma hech kim yemagan taom degani. Uni sanash
+ * "mashhur" so'zining ma'nosini buzardi.
+ */
+async function getPopularItemIds(restaurantId: string): Promise<Set<string>> {
+  const grouped = await prisma.foodOrderItem.groupBy({
+    by: ['menuItemId'],
+    where: {
+      menuItem: { restaurantId },
+      order: { status: { not: FoodOrderStatus.CANCELLED } },
+    },
+    _sum: { quantity: true },
+    orderBy: { _sum: { quantity: 'desc' } },
+    take: MAX_POPULAR_ITEMS,
+  });
+
+  return new Set(
+    grouped
+      /*
+        Chegaradan kam buyurtma qilingan taom "mashhur" emas.
+
+        Bitta buyurtma tasodif bo'lishi mumkin va yangi restoranda
+        u birinchi o'ringa chiqib qolardi.
+      */
+      .filter((row) => (row._sum.quantity ?? 0) >= MIN_POPULAR_ORDERS)
+      .flatMap((row) => (row.menuItemId ? [row.menuItemId] : [])),
+  );
 }
 
 // ── Buyurtmalar ───────────────────────────────────────────────────────

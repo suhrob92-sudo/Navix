@@ -7,7 +7,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, RoleName, ServiceCategory } from '../src/generated/prisma/client';
 import { Permission, ROLE_PERMISSIONS, Role } from '../src/config/rbac';
 import { SERVICE_PROVIDERS } from '../src/config/service-providers';
-import { RESTAURANTS } from '../src/config/restaurants';
+import { DEFAULT_HOURS, RESTAURANTS } from '../src/config/restaurants';
 import { PRODUCT_CATEGORIES, SHOPS } from '../src/config/marketplace';
 import { COMPANIES, JOB_CATEGORIES } from '../src/config/jobs';
 import { HOTELS } from '../src/config/hotels';
@@ -207,6 +207,25 @@ async function seedRestaurants(prisma: PrismaClient): Promise<void> {
       create: { slug: restaurant.slug, ...data },
     });
 
+    /*
+      ── Ish vaqti ────────────────────────────────────────────────────
+      Avval eski yozuvlar o'chiriladi: jadval o'zgargan bo'lsa,
+      qo'shib qo'yish emas, ALMASHTIRISH kerak. Aks holda eski va
+      yangi qatorlar aralashib qolardi.
+    */
+    const hours = restaurant.hours ?? DEFAULT_HOURS;
+
+    await prisma.restaurantHours.deleteMany({ where: { restaurantId: saved.id } });
+
+    await prisma.restaurantHours.createMany({
+      data: hours.map((day) => ({
+        restaurantId: saved.id,
+        weekday: day.weekday,
+        opensAt: toMinutes(day.opens),
+        closesAt: toMinutes(day.closes),
+      })),
+    });
+
     for (const [categoryIndex, category] of restaurant.categories.entries()) {
       const savedCategory = await prisma.menuCategory.upsert({
         where: { restaurantId_name: { restaurantId: saved.id, name: category.name } },
@@ -230,6 +249,14 @@ async function seedRestaurants(prisma: PrismaClient): Promise<void> {
           price: BigInt(item.priceSom) * 100n,
           sortOrder: (itemIndex + 1) * 10,
           isAvailable: true,
+          /*
+            Taom tarkibi. Berilmagan bo'lsa `null` yoziladi —
+            ekranda bo'lim umuman ko'rsatilmaydi.
+          */
+          ingredients: item.ingredients ?? null,
+          weightGrams: item.weightGrams ?? null,
+          calories: item.calories ?? null,
+          allergens: [...(item.allergens ?? [])],
         };
 
         if (existing) {
@@ -596,3 +623,16 @@ main().catch((error: unknown) => {
   console.error('❌ Seed bajarilmadi:', error);
   process.exit(1);
 });
+
+/**
+ * "09:30" ni kun boshidan hisoblangan daqiqaga o'giradi.
+ *
+ * Seed ro'yxatini ODAM o'qiydi, shuning uchun u yerda vaqt oddiy
+ * ko'rinishda yoziladi. Bazada esa son saqlanadi — sabab
+ * `RestaurantHours` izohida.
+ */
+function toMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+
+  return hours * 60 + minutes;
+}
