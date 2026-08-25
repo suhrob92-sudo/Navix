@@ -196,9 +196,20 @@ async function findPurchaseProof(
        * "Avval buyurtma bering" degan matn allaqachon buyurtma
        * bergan odamga xato ko'rinardi va u tizim ishlamayapti deb
        * o'ylardi.
+       *
+       * ── HAQIQIY XATO: BEKOR QILINGAN buyurtma ham sanalardi ──────
+       * Bu tekshiruv holatga umuman qaramasdi. Natijada buyurtmasi
+       * bekor qilingan odam "yetkazilishini kuting" degan yozuvni
+       * ko'rardi — hech qachon kelmaydigan narsani.
+       *
+       * Bekor qilingan buyurtma "sotib olgan" degani emas: pul
+       * qaytarilgan va mahsulot yetib bormagan.
        */
       const pending = await prisma.marketOrderItem.findFirst({
-        where: { productId: targetId, order: { userId } },
+        where: {
+          productId: targetId,
+          order: { userId, status: { not: MarketOrderStatus.CANCELLED } },
+        },
         select: { id: true },
       });
 
@@ -215,7 +226,8 @@ async function findPurchaseProof(
       if (order) return { proof: { marketOrderId: order.id }, reason: null };
 
       const pending = await prisma.marketOrder.findFirst({
-        where: { shopId: targetId, userId },
+        // Bekor qilingan buyurtma sanalmaydi — sabab yuqorida.
+        where: { shopId: targetId, userId, status: { not: MarketOrderStatus.CANCELLED } },
         select: { id: true },
       });
 
@@ -235,7 +247,11 @@ async function findPurchaseProof(
       if (item) return { proof: { foodOrderId: item.orderId }, reason: null };
 
       const pending = await prisma.foodOrderItem.findFirst({
-        where: { menuItemId: targetId, order: { userId } },
+        // Bekor qilingan buyurtma sanalmaydi — sabab yuqorida.
+        where: {
+          menuItemId: targetId,
+          order: { userId, status: { not: FoodOrderStatus.CANCELLED } },
+        },
         select: { id: true },
       });
 
@@ -252,7 +268,8 @@ async function findPurchaseProof(
       if (order) return { proof: { foodOrderId: order.id }, reason: null };
 
       const pending = await prisma.foodOrder.findFirst({
-        where: { restaurantId: targetId, userId },
+        // Bekor qilingan buyurtma sanalmaydi — sabab yuqorida.
+        where: { restaurantId: targetId, userId, status: { not: FoodOrderStatus.CANCELLED } },
         select: { id: true },
       });
 
