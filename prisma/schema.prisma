@@ -2387,6 +2387,17 @@ model HotelBooking {
   walletTransactionId String? @db.Uuid
   cancelReason        String? @db.VarChar(255)
 
+  /// Bekor qilishda QAYTARILGAN summa — TIYINDA.
+  ///
+  /// ── Nima uchun saqlanadi, hisoblanmaydi ─────────────────────────
+  /// Qaytariladigan ulush kirish kunigacha qolgan vaqtga bog'liq
+  /// (`src/config/cancellation.ts`). Ya'ni javob bekor qilingan
+  /// KUNGA bog'liq va uni keyinroq qayta hisoblasak, butunlay
+  /// boshqa son chiqardi.
+  ///
+  /// Bekor qilinmagan bandlovda `null`.
+  refundTiyin BigInt?
+
   createdAt   DateTime  @default(now())
   cancelledAt DateTime?
 

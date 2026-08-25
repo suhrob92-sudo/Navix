@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, CalendarDays, Check, MapPin, Star, Users } from 'lucide-react';
+import { Building2, CalendarDays, Check, Columns3, MapPin, Star, Users } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
@@ -8,6 +8,8 @@ import { AppHeader } from '@/components/app/app-header';
 import { LinkedPosts } from '@/components/feed/linked-posts';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { CatalogGallery } from '@/components/catalog/catalog-gallery';
+import { CancellationPolicy } from '@/components/hotel/cancellation-policy';
+import { RoomCompare } from '@/components/hotel/room-compare';
 import { RecentTracker } from '@/components/recent/recent-tracker';
 import { ReviewSection } from '@/components/review/review-section';
 import { CatalogThumb } from '@/components/catalog/catalog-thumb';
@@ -19,6 +21,9 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { ApiClientError, toUserMessage } from '@/lib/api-client';
+import { cancellationTerms } from '@/config/cancellation';
+import { canAddToCompare, toggleCompare } from '@/config/room-compare';
+import { tashkentDateKey } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
 import type { FieldErrors } from '@/lib/api/errors';
@@ -72,6 +77,9 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
   const { data, isLoading, error, reload } = useApiQuery<HotelResponse>(url);
 
   const [selectedRoom, setSelectedRoom] = useState<HotelRoomView | null>(null);
+  /** Taqqoslash uchun tanlangan xonalar — ID'lari. */
+  const [compareIds, setCompareIds] = useState<string[]>([]);
+  const [isCompareOpen, setIsCompareOpen] = useState(false);
   const [guests, setGuests] = useState('1');
   const [guestName, setGuestName] = useState('');
   const [guestPhone, setGuestPhone] = useState('');
@@ -226,6 +234,7 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
               <ul className="space-y-2">
                 {hotel.rooms.map((room) => {
                   const isSoldOut = room.availableRooms === 0;
+                  const isCompared = compareIds.includes(room.id);
                   const total = hasValidDates ? room.pricePerNight * nights : null;
 
                   return (
@@ -281,16 +290,47 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
                           )}
                         </span>
 
-                        <Button
-                          size="sm"
-                          disabled={!hasValidDates || isSoldOut || room.availableRooms === null}
-                          onClick={() => {
-                            setSelectedRoom(room);
-                            setBookedNumber(null);
-                          }}
-                        >
-                          Band qilish
-                        </Button>
+                        <div className="flex shrink-0 items-center gap-2">
+                          {/*
+                            ── Taqqoslash tugmasi ──────────────────────
+                            Faqat BIR NECHTA xona bo'lsa ma'noga ega:
+                            bitta xonani nima bilan taqqoslash kerak?
+
+                            Band qilingan (bo'sh xonasi yo'q) xona ham
+                            taqqoslanadi: odam "bo'sh bo'lganda nima
+                            bo'lardi" deb qarashi mumkin va bu
+                            ma'lumot uni boshqa sanaga o'tishga
+                            undashi mumkin.
+                          */}
+                          {hotel.rooms.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setCompareIds((current) => toggleCompare(current, room.id))}
+                              aria-pressed={isCompared}
+                              disabled={!isCompared && !canAddToCompare(compareIds.length)}
+                              className={cn(
+                                'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                                isCompared
+                                  ? 'border-primary bg-primary/10 text-primary'
+                                  : 'border-border text-muted-foreground',
+                                'disabled:opacity-40',
+                              )}
+                            >
+                              {isCompared ? 'Tanlandi' : 'Taqqoslash'}
+                            </button>
+                          )}
+
+                          <Button
+                            size="sm"
+                            disabled={!hasValidDates || isSoldOut || room.availableRooms === null}
+                            onClick={() => {
+                              setSelectedRoom(room);
+                              setBookedNumber(null);
+                            }}
+                          >
+                            Band qilish
+                          </Button>
+                        </div>
                       </div>
                     </li>
                   );
@@ -306,6 +346,50 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
           </>
         )}
       </div>
+
+      {/*
+        ── Taqqoslash paneli ──────────────────────────────────────────
+        Pastda YOPISHIB turadi: odam xonalarni varaqlab tanlaydi va
+        panel har doim barmoq yetadigan joyda qoladi.
+
+        Kamida IKKITA xona kerak: bitta xonani taqqoslash ma'nosiz
+        va tugma faqat chalg'itardi.
+      */}
+      {compareIds.length >= 2 && !isCompareOpen && !selectedRoom && (
+        <div className="fixed inset-x-0 bottom-20 z-30 px-4">
+          <div className="bg-card border-border animate-fade-up mx-auto flex max-w-lg items-center gap-3 rounded-2xl border p-3 shadow-lg">
+            <span className="min-w-0 flex-1 text-sm">
+              {`${compareIds.length} ta xona tanlandi`}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setCompareIds([])}
+              className="text-muted-foreground hover:text-foreground shrink-0 text-xs"
+            >
+              Tozalash
+            </button>
+
+            <Button size="sm" onClick={() => setIsCompareOpen(true)}>
+              <Columns3 className="size-4" aria-hidden="true" />
+              Taqqoslash
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isCompareOpen && hotel && (
+        <RoomCompare
+          rooms={hotel.rooms.filter((room) => compareIds.includes(room.id))}
+          nights={hasValidDates ? nights : 0}
+          onClose={() => setIsCompareOpen(false)}
+          onBook={(room) => {
+            setIsCompareOpen(false);
+            setSelectedRoom(room);
+            setBookedNumber(null);
+          }}
+        />
+      )}
 
       {/* Bandlov oynasi */}
       {selectedRoom && hotel && (
@@ -362,9 +446,27 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
               </Field>
             </div>
 
+            {/*
+              ── HAQIQIY XATO: eski matn YOLG'ON va'da berardi ────────
+              Bu yerda "Kirish kunigacha bekor qilib, pulni qaytarib
+              olishingiz mumkin" deb yozilgan edi.
+
+              50-bosqichdan boshlab bu to'g'ri emas: kirish kuniga
+              yaqin bekor qilishda pulning yarmi ushlab qolinadi.
+              Eski matn qolsa, odam to'lovdan keyin aldangandek his
+              qilardi — va u haqli bo'lardi.
+
+              Endi shartlar TO'LIQ jadval bilan, to'lovdan OLDIN
+              ko'rsatiladi.
+            */}
             <p className="text-muted-foreground mt-4 text-xs leading-relaxed">
-              To&apos;lov hamyoningizdan yechiladi. Kirish kunigacha bekor qilib, pulni qaytarib olishingiz mumkin.
+              To&apos;lov hamyoningizdan yechiladi.
             </p>
+
+            <CancellationPolicy
+              highlight={cancellationTerms(checkIn, tashkentDateKey()).tier}
+              className="mt-3"
+            />
 
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button variant="outline" onClick={() => setSelectedRoom(null)} disabled={isSaving}>

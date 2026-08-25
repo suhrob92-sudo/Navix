@@ -80,6 +80,19 @@ export interface BookingView {
   guestName: string;
   guestPhone: string;
   cancelReason: string | null;
+  /**
+   * Bekor qilishda QAYTARILGAN summa — TIYINDA.
+   *
+   * ── Nima uchun alohida maydon ───────────────────────────────────────
+   * U `totalTiyin` ga TENG BO'LMASLIGI mumkin: kirish kuniga yaqin
+   * bekor qilishda ulushi ushlab qolinadi.
+   *
+   * Uni ekranda qayta hisoblab bo'lmaydi — hisob bekor qilingan
+   * KUNGA bog'liq va ertaga boshqacha chiqardi.
+   *
+   * Bekor qilinmagan bandlovda `null`.
+   */
+  refund: number | null;
   createdAt: string;
   hotel: { id: string; slug: string; name: string; city: string; address: string; color: ServiceColor };
   room: { id: string; name: string };

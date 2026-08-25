@@ -7,6 +7,8 @@ import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
 import { toSearchText } from '@/lib/search';
+import { tashkentDateKey } from '@/lib/date';
+import { cancellationTerms, refundAmount } from '@/config/cancellation';
 import type { ServiceColor } from '@/config/modules';
 import { notifyUser } from '@/modules/notification/notification.service';
 import {
@@ -322,6 +324,7 @@ const BOOKING_SELECT = {
   guestName: true,
   guestPhone: true,
   cancelReason: true,
+  refundTiyin: true,
   createdAt: true,
   room: {
     select: {
@@ -348,6 +351,7 @@ function toBookingView(row: BookingRow): BookingView {
     guestName: row.guestName,
     guestPhone: row.guestPhone,
     cancelReason: row.cancelReason,
+    refund: row.refundTiyin === null ? null : tiyinToNumber(row.refundTiyin),
     createdAt: row.createdAt.toISOString(),
     hotel: {
       id: row.room.hotel.id,
@@ -631,13 +635,27 @@ export async function cancelBooking(
     throw new NotFoundError('Bandlov');
   }
 
-  if (!canCancelBooking({ status: booking.status, checkIn: toDateKey(booking.checkIn) })) {
+  const checkInKey = toDateKey(booking.checkIn);
+
+  if (!canCancelBooking({ status: booking.status, checkIn: checkInKey })) {
     throw new ConflictError(
       booking.status === BookingStatus.CANCELLED
         ? 'Bu bandlov allaqachon bekor qilingan.'
         : "Kirish kuni boshlangan — bekor qilib bo'lmaydi. Mehmonxona bilan bog'laning.",
     );
   }
+
+  /*
+    ── Shart AYNAN SHU ONDA hisoblanadi ────────────────────────────────
+    Bugungi sana Toshkent vaqtida olinadi: UTC bo'yicha olinsa,
+    kechqurun soat 19:00 dan keyin "ertangi kun" boshlanardi va
+    mehmon bepul bekor qilish huquqini bir kun oldin yo'qotardi.
+
+    Natija bazaga YOZILADI: uni keyinroq qayta hisoblab bo'lmaydi,
+    chunki kunlar farqi har kuni o'zgaradi.
+  */
+  const terms = cancellationTerms(checkInKey, tashkentDateKey());
+  const refundTiyin = refundAmount(booking.totalTiyin, terms.refundPercent);
 
   const wallet = await getOrCreateWallet(userId);
 
@@ -649,6 +667,7 @@ export async function cancelBooking(
         status: BookingStatus.CANCELLED,
         cancelledAt: new Date(),
         cancelReason: input.reason ?? null,
+        refundTiyin,
       },
     });
 
@@ -656,14 +675,27 @@ export async function cancelBooking(
       throw new ConflictError("Bandlov holati o'zgardi. Sahifani yangilang.");
     }
 
-    await refundWallet(tx, {
-      walletId: wallet.id,
-      amountTiyin: booking.totalTiyin,
-      description: `Bandlov ${booking.bookingNumber} bekor qilindi`,
-      sourceModule: MODULE,
-      sourceId: booking.id,
-      idempotencyKey: `booking-refund-${booking.id}`,
-    });
+    /*
+      Nol summa uchun tranzaksiya YOZILMAYDI: hamyon tarixida
+      "0 so'm qaytarildi" degan qator odamni chalg'itardi.
+
+      Hozirgi shartlarda bunday holat yo'q (kirish kuni bekor
+      qilish umuman taqiqlangan), lekin shart o'zgarsa kod
+      to'g'ri ishlashda davom etadi.
+    */
+    if (refundTiyin > 0n) {
+      await refundWallet(tx, {
+        walletId: wallet.id,
+        amountTiyin: refundTiyin,
+        description:
+          terms.refundPercent >= 100
+            ? `Bandlov ${booking.bookingNumber} bekor qilindi`
+            : `Bandlov ${booking.bookingNumber} bekor qilindi (${terms.refundPercent}%)`,
+        sourceModule: MODULE,
+        sourceId: booking.id,
+        idempotencyKey: `booking-refund-${booking.id}`,
+      });
+    }
   });
 
   await recordAudit({
@@ -672,7 +704,11 @@ export async function cancelBooking(
     resourceType: 'HotelBooking',
     resourceId: booking.id,
     module: MODULE,
-    metadata: { bookingNumber: booking.bookingNumber, refundTiyin: booking.totalTiyin.toString() },
+    metadata: {
+      bookingNumber: booking.bookingNumber,
+      refundTiyin: refundTiyin.toString(),
+      refundPercent: terms.refundPercent,
+    },
     ...meta,
   });
 
@@ -680,7 +716,7 @@ export async function cancelBooking(
     bookingId: booking.id,
     bookingNumber: booking.bookingNumber,
     hotelName: booking.room.hotel.name,
-    refundTiyin: tiyinToNumber(booking.totalTiyin),
+    refundTiyin: tiyinToNumber(refundTiyin),
   });
 
   logger.info({ userId, bookingId: booking.id }, 'Bandlov bekor qilindi');
