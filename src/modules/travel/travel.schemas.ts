@@ -113,11 +113,57 @@ export const createTicketSchema = z
      * Chipta boshqa odam uchun bo'lishi mumkin (masalan ota-onaga),
      * shuning uchun ism va telefon alohida so'raladi.
      */
+    /**
+     * Tanlangan o'rin raqamlari: ["12A", "12B"].
+     *
+     * ── Nima uchun IXTIYORIY ────────────────────────────────────────
+     * Uni majburiy qilish "yaxshiroq" tuyuladi, lekin O'zbekistonda
+     * avtobus chiptasi ko'pincha o'rinsiz sotiladi — o'rinni haydovchi
+     * chiqishda aytadi.
+     *
+     * Majburiy qilinsa, tashuvchi shunday ishlaydigan reyslarni
+     * platformaga umuman qo'sha olmasdi.
+     *
+     * Berilgan bo'lsa esa TALABLAR qattiq: soni `seats` ga teng
+     * bo'lishi va takrorlanmasligi shart. Aks holda odam ikkita
+     * o'rin uchun to'lab, bittasini olardi.
+     */
+    seatNumbers: z
+      .array(
+        z
+          .string()
+          .trim()
+          .min(1, "O'rin raqami bo'sh")
+          .max(6, "O'rin raqami juda uzun")
+          .regex(/^[0-9]{1,4}[A-H]?$/, "O'rin raqami noto'g'ri"),
+      )
+      .max(TRIP_RULES.maxSeats)
+      .optional(),
     passengerName: z.string().trim().min(2, "Yo'lovchining ismini yozing").max(120, 'Ism juda uzun'),
     passengerPhone: phoneSchema,
     idempotencyKey: idempotencyKeySchema,
   })
-  .superRefine((value, ctx) => checkDepartDate(value.departDate, ctx, 'departDate'));
+  .superRefine((value, ctx) => {
+    checkDepartDate(value.departDate, ctx, 'departDate');
+
+    if (value.seatNumbers === undefined) return;
+
+    if (value.seatNumbers.length !== value.seats) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['seatNumbers'],
+        message: `${value.seats} ta o'rin tanlang`,
+      });
+    }
+
+    if (new Set(value.seatNumbers).size !== value.seatNumbers.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['seatNumbers'],
+        message: "Bitta o'rin ikki marta tanlangan",
+      });
+    }
+  });
 
 export type CreateTicketInput = z.infer<typeof createTicketSchema>;
 

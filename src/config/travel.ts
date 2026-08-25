@@ -82,6 +82,45 @@ export const TRAVEL_CITIES = [
   'Termiz',
 ] as const;
 
+/**
+ * Shaharlarning koordinatalari — yo'nalish xaritasi uchun.
+ *
+ * ── Nima uchun bu yerda, bazada emas ──────────────────────────────────
+ * Shahar markazining koordinatasi O'ZGARMAYDI. Uni bazaga yozish
+ * uchun jadval kerak bo'lardi va u hech qachon tahrirlanmasdi.
+ *
+ * ── Bu HAQIQIY koordinatalar ──────────────────────────────────────────
+ * O'ylab topilgan emas: har birining shahar markazi. Ular xaritada
+ * yo'nalishning YO'NALISHINI ko'rsatadi — qaysi tomonga, qanchalik
+ * uzoq.
+ *
+ * MUHIM: bu vokzal yoki aeroport emas, SHAHAR markazi. Xaritada
+ * ham shunday aytiladi — aks holda odam vokzalni shu nuqtadan
+ * izlardi.
+ */
+export const CITY_POINTS: Record<string, { latitude: number; longitude: number }> = {
+  Toshkent: { latitude: 41.3111, longitude: 69.2797 },
+  Samarqand: { latitude: 39.6547, longitude: 66.9758 },
+  Buxoro: { latitude: 39.7756, longitude: 64.4286 },
+  Xiva: { latitude: 41.3783, longitude: 60.3639 },
+  Urganch: { latitude: 41.5500, longitude: 60.6333 },
+  "Farg'ona": { latitude: 40.3894, longitude: 71.7867 },
+  Namangan: { latitude: 40.9983, longitude: 71.6726 },
+  Andijon: { latitude: 40.7821, longitude: 72.3442 },
+  Nukus: { latitude: 42.4531, longitude: 59.6103 },
+  Termiz: { latitude: 37.2242, longitude: 67.2783 },
+};
+
+/**
+ * Shaharning xaritadagi nuqtasi.
+ *
+ * Noma'lum shahar uchun `null`: taxminiy nuqta qo'yish odamni
+ * butunlay boshqa tomonga qaratardi.
+ */
+export function cityPoint(city: string): { latitude: number; longitude: number } | null {
+  return CITY_POINTS[city] ?? null;
+}
+
 const EVERY_DAY = [1, 2, 3, 4, 5, 6, 7] as const;
 
 export const TRIP_SCHEDULES: readonly TripScheduleSeed[] = [

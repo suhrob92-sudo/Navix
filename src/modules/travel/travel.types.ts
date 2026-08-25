@@ -44,6 +44,19 @@ export interface TripView {
   priceTiyin: number;
   totalSeats: number;
   availableSeats: number;
+  /**
+   * Shu kunga band qilingan o'rin raqamlari.
+   *
+   * Xaritada ular tanlab bo'lmaydigan qilib ko'rsatiladi.
+   */
+  takenSeats: string[];
+  /**
+   * Sotilgan o'rinlarning umumiy SONI.
+   *
+   * `takenSeats.length` dan KATTA bo'lishi mumkin: eski chiptalarda
+   * o'rin raqami saqlanmagan. Farqi ekranda ochiq aytiladi.
+   */
+  soldSeats: number;
 }
 
 export interface TicketView {
@@ -54,6 +67,18 @@ export interface TicketView {
   departAt: string;
   arriveAt: string;
   seats: number;
+  /**
+   * Tanlangan o'rin raqamlari: ["12A", "12B"].
+   *
+   * ── Nima uchun BO'SH bo'lishi mumkin ────────────────────────────────
+   * O'rin tanlash 51-bosqichda qo'shildi. Undan oldingi chiptalarda
+   * faqat SONI yozilgan va qaysi o'rin ekani hech qayerda
+   * saqlanmagan.
+   *
+   * Bo'sh ro'yxat "o'rin yo'q" degani emas — "qaysi biri ekani
+   * ma'lum emas" degani. Ekranda ham shunday aytiladi.
+   */
+  seatNumbers: string[];
   /** Summalar — TIYINDA. */
   pricePerSeat: number;
   totalTiyin: number;

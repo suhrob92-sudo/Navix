@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { TicketQr } from '@/components/travel/ticket-qr';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +16,7 @@ import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzDate, formatUzTime } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
+import { canShowQr } from '@/config/qr-ticket';
 import { formatUzPhone } from '@/lib/phone';
 import {
   calculateRefundTiyin,
@@ -181,6 +183,37 @@ export function TicketDetailContent({ ticketId }: TicketDetailContentProps) {
                   <div>
                     <p className="text-muted-foreground text-xs">O&apos;rinlar</p>
                     <p className="mt-0.5 font-medium">{formatSeats(ticket.seats)}</p>
+
+                    {/*
+                      ── O'rin RAQAMLARI ──────────────────────────
+                      Bo'sh bo'lishi mumkin: 51-bosqichgacha sotilgan
+                      chiptalarda ular saqlanmagan.
+
+                      O'shanda "o'rin yo'q" deb yozish YOLG'ON
+                      bo'lardi — o'rin bor, faqat raqami bizda yo'q.
+                      Shuning uchun sabab aytiladi.
+                    */}
+                    {ticket.seatNumbers.length > 0 ? (
+                      /*
+                        ── HAQIQIY XATO: raqam YOLG'IZ turardi ──────
+                        Avval bu yerda faqat "3" degan son turardi.
+                        Ustidagi yozuv "O'rinlar / 1 o'rin" edi, ya'ni
+                        son nimani anglatishi umuman tushunarsiz —
+                        ekranda ko'rilganda aniqlandi.
+
+                        Endi u "Raqami" so'zi bilan keladi.
+                      */
+                      <p className="mt-1 text-sm">
+                        <span className="text-muted-foreground text-xs">Raqami: </span>
+                        <span className="text-primary font-mono font-semibold">
+                          {ticket.seatNumbers.join(', ')}
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+                        O&apos;rinni tashuvchi beradi
+                      </p>
+                    )}
                   </div>
                   <div>
                     <p className="text-muted-foreground text-xs">Bir o&apos;rin</p>
@@ -198,6 +231,23 @@ export function TicketDetailContent({ ticketId }: TicketDetailContentProps) {
                     {formatUzPhone(ticket.passengerPhone)}
                   </p>
                 </div>
+
+                {/*
+                  ── QR kodi ──────────────────────────────────────
+                  Faqat AMALDAGI chiptada. Bekor qilingan chiptaning
+                  QR kodi nazoratchini ham, yo'lovchini ham
+                  chalg'itardi — sabab `qr-ticket.ts` da.
+                */}
+                {canShowQr(ticket.status) && (
+                  <div className="border-border/60 mt-4 flex flex-col items-center gap-2 border-t pt-4">
+                    <TicketQr ticketNumber={ticket.ticketNumber} />
+
+                    <p className="text-muted-foreground text-center text-xs leading-relaxed">
+                      Nazoratchiga shu kodni ko&apos;rsating. Ichida faqat chipta raqami bor —
+                      ism ham, summa ham yo&apos;q.
+                    </p>
+                  </div>
+                )}
               </div>
             </section>
 

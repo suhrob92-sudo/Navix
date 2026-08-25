@@ -2,6 +2,7 @@
 
 import { ArrowUpDown, Plane, Ticket } from 'lucide-react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
@@ -44,8 +45,22 @@ const CITY_OPTIONS = TRAVEL_CITIES.map((city) => ({ value: city, label: city }))
  * sahifa ochilishi bilan natija ko'rsatadi — bo'sh ekran emas.
  */
 export function TravelContent() {
-  const [from, setFrom] = useState<string>(TRAVEL_CITIES[0]);
-  const [to, setTo] = useState<string>(TRAVEL_CITIES[1]);
+  const params = useSearchParams();
+
+  /*
+    ── Manzildan kelgan shaharlar ──────────────────────────────────────
+    "Qaytish reysi" havolasi shaharlarni almashtirib yuboradi
+    (`?from=Nukus&to=Toshkent`). Ularsiz odam ikkala ro'yxatni
+    qo'lda o'zgartirishi kerak bo'lardi.
+
+    Faqat RO'YXATDAGI shahar qabul qilinadi: manzilni istalgan odam
+    qo'lda yozishi mumkin va noma'lum shahar bo'sh natija berardi.
+  */
+  const known = (value: string | null, fallback: string): string =>
+    value !== null && (TRAVEL_CITIES as readonly string[]).includes(value) ? value : fallback;
+
+  const [from, setFrom] = useState<string>(() => known(params.get('from'), TRAVEL_CITIES[0]));
+  const [to, setTo] = useState<string>(() => known(params.get('to'), TRAVEL_CITIES[1]));
   const [date, setDate] = useState(() => dateKeyFromToday(1));
   const [transport, setTransport] = useState('');
   const [sort, setSort] = useState<(typeof SORTS)[number]['value']>('time');

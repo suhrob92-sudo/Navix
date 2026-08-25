@@ -3,6 +3,7 @@ import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { AuditAction, recordAudit } from '@/lib/audit';
 import { isoWeekday, toDateKey } from '@/lib/date';
+import { allSeatNumbers, buildSeatMap } from '@/config/seat-map';
 import { runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { tiyinToNumber } from '@/lib/money';
@@ -79,7 +80,12 @@ type ScheduleRow = Prisma.TripScheduleGetPayload<{ select: typeof SCHEDULE_SELEC
  *
  * @param soldSeats Shu kuni sotilgan o'rinlar soni.
  */
-function toTripView(row: ScheduleRow, departDate: string, soldSeats: number): TripView {
+function toTripView(
+  row: ScheduleRow,
+  departDate: string,
+  soldSeats: number,
+  takenSeats: string[] = [],
+): TripView {
   const departAt = departureAt(departDate, row.departTime);
   const arriveAt = arrivalAt(departAt, row.durationMinutes);
 
@@ -97,6 +103,8 @@ function toTripView(row: ScheduleRow, departDate: string, soldSeats: number): Tr
     priceTiyin: tiyinToNumber(row.priceTiyin),
     totalSeats: row.totalSeats,
     availableSeats: Math.max(0, row.totalSeats - soldSeats),
+    takenSeats,
+    soldSeats,
   };
 }
 
@@ -183,9 +191,36 @@ export async function getTrip(scheduleId: string, departDate: string): Promise<T
     throw new NotFoundError('Reys');
   }
 
-  const sold = await countSoldSeats([row.id], departDate);
+  /*
+    ── Nima uchun ikkita alohida hisob ─────────────────────────────────
+    `countSoldSeats` — sotilgan o'rinlarning SONI. Aynan u
+    ortiqcha sotishning oldini oladi va eski chiptalarni ham
+    hisobga oladi.
 
-  return toTripView(row, departDate, sold.get(row.id) ?? 0);
+    `trip_seats` — QAYSI o'rin band ekani. Unda faqat 51-bosqichdan
+    keyingi chiptalar bor.
+
+    Ikkalasi ham kerak va ular bir-birini almashtira olmaydi.
+  */
+  const [sold, seatRows] = await Promise.all([
+    countSoldSeats([row.id], departDate),
+    prisma.tripSeat.findMany({
+      where: {
+        scheduleId: row.id,
+        departDate: new Date(`${departDate}T00:00:00Z`),
+        /* Bekor qilingan chiptaning o'rni yana bo'shaydi. */
+        releasedAt: null,
+      },
+      select: { seatNumber: true },
+    }),
+  ]);
+
+  return toTripView(
+    row,
+    departDate,
+    sold.get(row.id) ?? 0,
+    seatRows.map((seat) => seat.seatNumber),
+  );
 }
 
 // ── Chiptalar ─────────────────────────────────────────────────────────
@@ -208,6 +243,8 @@ const TICKET_SELECT = {
   schedule: {
     select: { id: true, code: true, carrier: true, transport: true, fromCity: true, toCity: true },
   },
+  /** Tanlangan o'rinlar. Eski chiptalarda bo'sh ro'yxat. */
+  seats_: { select: { seatNumber: true }, orderBy: { seatNumber: 'asc' as const } },
 } as const;
 
 type TicketRow = Prisma.TripBookingGetPayload<{ select: typeof TICKET_SELECT }>;
@@ -221,6 +258,7 @@ function toTicketView(row: TicketRow): TicketView {
     departAt: row.departAt.toISOString(),
     arriveAt: row.arriveAt.toISOString(),
     seats: row.seats,
+    seatNumbers: row.seats_.map((seat) => seat.seatNumber),
     pricePerSeat: tiyinToNumber(row.pricePerSeat),
     totalTiyin: tiyinToNumber(row.totalTiyin),
     refundTiyin: row.refundTiyin === null ? null : tiyinToNumber(row.refundTiyin),
@@ -374,6 +412,59 @@ async function performCreateTicket(
       },
       select: { id: true },
     });
+
+    /*
+      ── O'rinlar ────────────────────────────────────────────────────
+      Ular AYNAN SHU tranzaksiyada yoziladi: chipta sotilib, o'rin
+      yozilmay qolsa, o'sha o'rinni boshqa odam ham tanlab olardi.
+
+      Yagona indeks (`trip_seats_unique`) hakam bo'ladi. Ikki odam
+      bir vaqtda bitta o'rinni tanlasa, ikkinchisi shu yerda xato
+      oladi va butun tranzaksiya bekor bo'ladi — ya'ni puli ham
+      yechilmaydi.
+
+      Jadval qatori yuqorida QULFLANGAN, shuning uchun amalda bu
+      holat kamdan-kam bo'ladi. Lekin qulf yagona himoya bo'lib
+      qolmasligi kerak.
+    */
+    if (input.seatNumbers && input.seatNumbers.length > 0) {
+      const validSeats = new Set(
+        allSeatNumbers(buildSeatMap(schedule.transport as TransportName, schedule.totalSeats)),
+      );
+
+      const unknown = input.seatNumbers.filter((seat) => !validSeats.has(seat));
+
+      if (unknown.length > 0) {
+        /*
+          Bunday o'rin bu reysda umuman yo'q. So'rov qo'lda
+          tahrirlangan bo'lishi mumkin.
+        */
+        throw new ConflictError(`Bu reysda ${unknown[0]}-o'rin yo'q. Sahifani yangilang.`);
+      }
+
+      try {
+        await tx.tripSeat.createMany({
+          data: input.seatNumbers.map((seatNumber) => ({
+            bookingId: ticket.id,
+            scheduleId: schedule.id,
+            departDate,
+            seatNumber,
+          })),
+        });
+      } catch (caught) {
+        /*
+          Yagona indeks buzildi — kimdir ulgurdi. Foydalanuvchiga
+          "baza xatosi" emas, ANIQ sabab aytiladi.
+        */
+        if (caught instanceof Prisma.PrismaClientKnownRequestError && caught.code === 'P2002') {
+          throw new ConflictError(
+            "Tanlagan o'rinlaringizdan biri band bo'lib qoldi. Xaritani yangilab, boshqa o'rin tanlang.",
+          );
+        }
+
+        throw caught;
+      }
+    }
 
     const charge = await chargeWallet(tx, {
       userId,
@@ -541,6 +632,25 @@ export async function cancelTicket(
     if (updated.count === 0) {
       throw new ConflictError("Chipta holati o'zgardi. Sahifani yangilang.");
     }
+
+    /*
+      ── O'rinlar BO'SHATILADI ───────────────────────────────────────
+      Qator o'chirilmaydi, faqat `releasedAt` yoziladi: bekor
+      qilingan chiptada ham "qaysi o'rin edi" degan ma'lumot
+      qoladi.
+
+      Yagona indeks QISMAN (`WHERE "releasedAt" IS NULL`), shuning
+      uchun o'rin shu ondan boshlab yana sotuvga chiqadi.
+
+      Buni unutish eng yashirin xato bo'lardi: chipta qaytarilgan,
+      pul to'langan, lekin o'rinni hech kim sotib ololmaydi —
+      buni faqat jo'nash kuni, avtobus yarim bo'sh ketganda
+      sezishardi.
+    */
+    await tx.tripSeat.updateMany({
+      where: { bookingId: ticket.id, releasedAt: null },
+      data: { releasedAt: new Date() },
+    });
 
     /**
      * Nol summani qaytarmaymiz.

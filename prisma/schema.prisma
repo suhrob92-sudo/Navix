@@ -2805,6 +2805,7 @@ model TripSchedule {
   updatedAt DateTime @updatedAt
 
   bookings TripBooking[]
+  seats_   TripSeat[]
 
   @@index([fromCity, toCity, isActive])
   @@index([transport, isActive])
@@ -2861,11 +2862,66 @@ model TripBooking {
 
   user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   schedule TripSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  /// Tanlangan o'rinlar. Eski chiptalarda BO'SH — sabab migratsiyada.
+  seats_   TripSeat[]
 
   /// Bo'sh o'rin tekshiruvi: jadval + sana + holat bo'yicha qidiriladi.
   @@index([scheduleId, departDate, status])
   @@index([userId, createdAt])
   @@map("trip_bookings")
+}
+
+/// Chiptadagi bitta O'RIN.
+///
+/// ── Nima uchun alohida jadval ─────────────────────────────────────────
+/// Chiptaga massiv ustun qo'shish mumkin edi, lekin o'shanda eng
+/// muhim kafolat yo'qolardi: ikki kishi bir vaqtda bitta o'rinni
+/// tanlashi MUMKIN EMAS.
+///
+/// Massiv ustunga bunday shart qo'yib bo'lmaydi — uni faqat kod
+/// tekshirardi va ikkita so'rov bir vaqtda kelganda ikkalasi ham
+/// o'tib ketardi.
+///
+/// Bu yerda esa uchlik (reys + sana + o'rin) UNIQUE va hakam —
+/// bazaning o'zi.
+model TripSeat {
+  id String @id @default(uuid()) @db.Uuid
+
+  bookingId  String @db.Uuid
+  scheduleId String @db.Uuid
+
+  /// Jo'nash sanasi — bo'shlik AYNAN shu kun uchun hisoblanadi.
+  departDate DateTime @db.Date
+
+  /// "12A" yoki "24".
+  seatNumber String @db.VarChar(6)
+
+  /// O'rin BO'SHATILGAN payt (chipta bekor qilinganda).
+  ///
+  /// ── Nima uchun qator o'chirilmaydi ──────────────────────────────
+  /// Bekor qilingan chiptada ham "qaysi o'rin edi" degan ma'lumot
+  /// qoladi: yo'lovchi bilan bahs chiqsa, javob shu yerda.
+  ///
+  /// Yagona indeks QISMAN (`WHERE "releasedAt" IS NULL`), shuning
+  /// uchun bo'shagan o'rin darhol sotuvga qaytadi. Buni Prisma
+  /// sxemasida ifodalab bo'lmaydi — hakam bazadagi indeks.
+  releasedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  booking  TripBooking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  schedule TripSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  /**
+   * Yagona indeks QISMAN bo'lgani uchun bu yerda `@@unique` emas,
+   * oddiy `@@index` turadi: `@@unique` yozilsa, Prisma uni to'liq
+   * indeks deb bilib, har `migrate` da uni qayta yaratmoqchi
+   * bo'lardi.
+   * Haqiqiy shart migratsiyada: `trip_seats_unique`.
+   */
+  @@index([scheduleId, departDate, seatNumber])
+  @@index([bookingId])
+  @@map("trip_seats")
 }
 
 // ─────────────────────────────────────────────────────────────────────

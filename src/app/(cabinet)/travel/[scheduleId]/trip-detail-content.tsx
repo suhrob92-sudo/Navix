@@ -1,6 +1,7 @@
 'use client';
 
-import { ArrowRight, Bus, Check, Clock, Plane, TrainFront, Users } from 'lucide-react';
+import { ArrowLeftRight, ArrowRight, Bus, Check, Clock, Plane, TrainFront, Users } from 'lucide-react';
+import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
@@ -10,6 +11,8 @@ import { ServiceIcon } from '@/components/app/service-icon';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { RouteMap } from '@/components/travel/route-map';
+import { SeatPicker } from '@/components/travel/seat-picker';
 import { Field } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -60,6 +63,8 @@ export function TripDetailContent({ scheduleId }: TripDetailContentProps) {
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [seats, setSeats] = useState('1');
+  /** Tanlangan o'rin raqamlari — ixtiyoriy (sabab `travel.schemas.ts` da). */
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [passengerName, setPassengerName] = useState('');
   const [passengerPhone, setPassengerPhone] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -98,6 +103,12 @@ export function TripDetailContent({ scheduleId }: TripDetailContentProps) {
           scheduleId: trip.scheduleId,
           departDate: trip.departDate,
           seats: seatCount,
+          /*
+            O'rin tanlanmagan bo'lsa maydon umuman YUBORILMAYDI:
+            bo'sh massiv "nol o'rin tanladim" degan ma'no berardi
+            va server uni `seats` bilan mos kelmadi deb rad etardi.
+          */
+          ...(selectedSeats.length === seatCount ? { seatNumbers: selectedSeats } : {}),
           passengerName: passengerName.trim(),
           passengerPhone: passengerPhone.trim(),
           idempotencyKey,
@@ -108,6 +119,7 @@ export function TripDetailContent({ scheduleId }: TripDetailContentProps) {
       setIsFormOpen(false);
       setPassengerName('');
       setPassengerPhone('');
+      setSelectedSeats([]);
       setIdempotencyKey(crypto.randomUUID());
       reload();
     } catch (caught) {
@@ -209,6 +221,40 @@ export function TripDetailContent({ scheduleId }: TripDetailContentProps) {
               </div>
             </section>
 
+            {/*
+              ── Yo'nalish xaritasi ────────────────────────────────
+              "Toshkent → Nukus" degan yozuv masofani aytmaydi.
+              Xarita esa bir qarashda aytadi.
+            */}
+            <RouteMap fromCity={trip.fromCity} toCity={trip.toCity} />
+
+            {/*
+              ── Qaytish reysi ────────────────────────────────────
+              Safar ko'pincha ikki tomonlama bo'ladi. Odam qaytish
+              reysini qidirish uchun ro'yxatga qaytib, shaharlarni
+              QO'LDA almashtirishi kerak edi — to'rt harakat.
+
+              Bu havola o'sha ishni bitta bosishga tushiradi.
+              Sana kiritilmaydi: qaytish kuni oldindan ma'lum emas
+              va uni taxmin qilish noto'g'ri sana tanlashga
+              undardi.
+            */}
+            <Link
+              href={`/travel?from=${encodeURIComponent(trip.toCity)}&to=${encodeURIComponent(trip.fromCity)}`}
+              className="bg-card border-border flex items-center gap-3 rounded-2xl border p-4 transition-transform active:scale-[0.99]"
+            >
+              <span className="bg-primary/10 text-primary inline-flex size-10 shrink-0 items-center justify-center rounded-xl">
+                <ArrowLeftRight className="size-5" aria-hidden="true" />
+              </span>
+
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">Qaytish reysi</span>
+                <span className="text-muted-foreground block truncate text-xs">
+                  {`${trip.toCity} → ${trip.fromCity}`}
+                </span>
+              </span>
+            </Link>
+
             <section className="bg-card border-border rounded-2xl border p-4">
               <div className="flex items-baseline gap-1">
                 <span className="text-2xl font-semibold tabular-nums">{formatTiyin(trip.priceTiyin)}</span>
@@ -258,11 +304,46 @@ export function TripDetailContent({ scheduleId }: TripDetailContentProps) {
                   id="seats"
                   inputMode="numeric"
                   value={seats}
-                  onChange={(event) => setSeats(event.target.value.replace(/\D/g, ''))}
+                  onChange={(event) => {
+                    setSeats(event.target.value.replace(/\D/g, ''));
+                    /*
+                      Son o'zgarsa tanlov TOZALANADI: "3 ta o'rin"
+                      deb yozib, ikkitasini tanlagan odam
+                      "3 ta o'rin tanlang" degan xatoni ko'rardi va
+                      qaysi biri ortiqcha ekanini tushunmasdi.
+                    */
+                    setSelectedSeats([]);
+                  }}
                   hasError={Boolean(fieldErrors.seats)}
                   disabled={isSaving}
                 />
               </Field>
+
+              {/*
+                ── O'rin tanlash ────────────────────────────────────
+                IXTIYORIY: tanlanmasa, o'rinni tashuvchi beradi.
+                Sabab `travel.schemas.ts` da — O'zbekistonda avtobus
+                chiptasi ko'pincha shunday sotiladi.
+              */}
+              <SeatPicker
+                transport={trip.transport}
+                totalSeats={trip.totalSeats}
+                takenSeats={trip.takenSeats}
+                soldSeats={trip.soldSeats}
+                selected={selectedSeats}
+                onChange={setSelectedSeats}
+                maxSeats={seatCount}
+              />
+
+              {fieldErrors.seatNumbers && (
+                <Alert variant="warning">{fieldErrors.seatNumbers.join(' ')}</Alert>
+              )}
+
+              {selectedSeats.length > 0 && selectedSeats.length < seatCount && (
+                <p className="text-muted-foreground text-xs leading-relaxed">
+                  {`Yana ${seatCount - selectedSeats.length} ta o'rin tanlang yoki hech birini tanlamang — o'shanda o'rinni tashuvchi beradi.`}
+                </p>
+              )}
 
               <Field
                 id="passengerName"
