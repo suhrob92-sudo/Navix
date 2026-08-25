@@ -1,8 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import { ImageOff } from 'lucide-react';
-import { useCallback, useRef, useState } from 'react';
+import { ImageOff, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 import type { CatalogImageView } from '@/modules/catalog/catalog-image.types';
@@ -33,12 +33,25 @@ export interface CatalogGalleryProps {
   images: CatalogImageView[];
   /** Rasmsiz holat uchun nom — bosh harfi ko'rsatiladi. */
   name: string;
+  /**
+   * Rasmni bosganda TO'LIQ EKRANDA ochish.
+   *
+   * ── Nima uchun IXTIYORIY ────────────────────────────────────────────
+   * Hamma joyda kerak emas. Mahsulot kartochkasida rasm ko'pincha
+   * qutining surati bo'ladi va uni kattalashtirishdan foyda yo'q.
+   *
+   * Mehmonxonada esa aksincha: xona surati — asosiy qaror
+   * omillaridan biri. 400 piksellik kvadratda gilamning rangi ham,
+   * derazadagi manzara ham ko'rinmaydi.
+   */
+  enableFullscreen?: boolean;
   className?: string;
 }
 
-export function CatalogGallery({ images, name, className }: CatalogGalleryProps) {
+export function CatalogGallery({ images, name, enableFullscreen = false, className }: CatalogGalleryProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   /**
    * Qaysi rasm ko'rinayotgani SURISH O'RNIDAN hisoblanadi.
@@ -94,18 +107,40 @@ export function CatalogGallery({ images, name, className }: CatalogGalleryProps)
       >
         {images.map((image, index) => (
           <div key={image.id} className="w-full shrink-0 snap-center">
-            <img
-              src={image.url}
-              alt={image.alt}
-              /*
-                Faqat BIRINCHI rasm darhol yuklanadi: qolganlari
-                surilgandagina kerak bo'ladi va mobil trafikni
-                bekorga sarflamaydi.
-              */
-              loading={index === 0 ? 'eager' : 'lazy'}
-              decoding="async"
-              className="bg-secondary aspect-square w-full object-cover"
-            />
+            {/*
+              To'liq ekran yoqilgan bo'lsa rasm TUGMAGA aylanadi:
+              shundagina uni klaviatura bilan ham ochish mumkin va
+              ekran o'quvchi dastur "bosiladigan" ekanini aytadi.
+            */}
+            {enableFullscreen ? (
+              <button
+                type="button"
+                onClick={() => setIsFullscreen(true)}
+                aria-label={`${image.alt || name} — kattalashtirish`}
+                className="block w-full"
+              >
+                <img
+                  src={image.url}
+                  alt={image.alt}
+                  loading={index === 0 ? 'eager' : 'lazy'}
+                  decoding="async"
+                  className="bg-secondary aspect-square w-full object-cover"
+                />
+              </button>
+            ) : (
+              <img
+                src={image.url}
+                alt={image.alt}
+                /*
+                  Faqat BIRINCHI rasm darhol yuklanadi: qolganlari
+                  surilgandagina kerak bo'ladi va mobil trafikni
+                  bekorga sarflamaydi.
+                */
+                loading={index === 0 ? 'eager' : 'lazy'}
+                decoding="async"
+                className="bg-secondary aspect-square w-full object-cover"
+              />
+            )}
           </div>
         ))}
       </div>
@@ -139,6 +174,106 @@ export function CatalogGallery({ images, name, className }: CatalogGalleryProps)
       */}
       {images.length > 1 && (
         <span className="pointer-events-none absolute top-3 right-3 rounded-full bg-black/55 px-2 py-0.5 text-xs font-medium text-white backdrop-blur-sm">
+          {`${active + 1}/${images.length}`}
+        </span>
+      )}
+
+      {isFullscreen && (
+        <FullscreenViewer
+          images={images}
+          startIndex={active}
+          name={name}
+          onClose={() => setIsFullscreen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * To'liq ekrandagi ko'rinish.
+ *
+ * ── Nima uchun QORA fon ───────────────────────────────────────────────
+ * Oq fonda rasmning cheti ko'rinmaydi va ko'z rangni noto'g'ri
+ * baholaydi. Qora fon rasmni ajratib turadi — shuning uchun barcha
+ * suratkash ilovalari shunday qiladi.
+ *
+ * ── Nima uchun `object-contain` ───────────────────────────────────────
+ * Ro'yxatda rasm kvadratga QIRQILADI (`object-cover`) — u yerda bir
+ * xil o'lcham muhim. Bu yerda esa aksincha: odam rasmni butunligicha
+ * ko'rish uchun ochdi, qirqilgani emas.
+ */
+function FullscreenViewer({
+  images,
+  startIndex,
+  name,
+  onClose,
+}: {
+  images: CatalogImageView[];
+  startIndex: number;
+  name: string;
+  onClose: () => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(startIndex);
+
+  /*
+    Ochilganda AYNAN o'sha rasmdan boshlanadi. Birinchisiga
+    qaytarish odamni chalg'itardi: u to'rtinchi rasmni bosgan edi.
+
+    `scrollLeft` to'g'ridan-to'g'ri qo'yiladi — animatsiyasiz,
+    chunki bu boshlang'ich holat, harakat emas.
+  */
+  useEffect(() => {
+    const node = scrollRef.current;
+
+    if (node) node.scrollLeft = node.clientWidth * startIndex;
+  }, [startIndex]);
+
+  /* Escape — oynani yopishning eng kutilgan usuli. */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', onKey);
+
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const handleScroll = useCallback(() => {
+    const node = scrollRef.current;
+
+    if (!node || node.clientWidth === 0) return;
+
+    setActive(Math.max(0, Math.min(images.length - 1, Math.round(node.scrollLeft / node.clientWidth))));
+  }, [images.length]);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black" role="dialog" aria-modal="true" aria-label={`${name} — rasmlar`}>
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex h-full w-full snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {images.map((image) => (
+          <div key={image.id} className="flex h-full w-full shrink-0 snap-center items-center justify-center">
+            <img src={image.url} alt={image.alt} decoding="async" className="max-h-full max-w-full object-contain" />
+          </div>
+        ))}
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Yopish"
+        className="absolute top-4 right-4 inline-flex size-10 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm"
+      >
+        <X className="size-5" aria-hidden="true" />
+      </button>
+
+      {images.length > 1 && (
+        <span className="pointer-events-none absolute bottom-6 left-1/2 -translate-x-1/2 rounded-full bg-white/15 px-3 py-1 text-sm font-medium text-white backdrop-blur-sm tabular-nums">
           {`${active + 1}/${images.length}`}
         </span>
       )}

@@ -2243,6 +2243,28 @@ model Hotel {
   city    String @db.VarChar(80)
   address String @db.VarChar(300)
 
+  /// Tuman — shahar ichidagi filtr uchun. Kiritilmagan bo'lsa `null`.
+  ///
+  /// Alohida jadval EMAS: tuman nomi o'zgarmaydi va uning ustiga
+  /// osiladigan boshqa ma'lumot yo'q. Jadval qo'shish har so'rovga
+  /// bitta `JOIN` qo'shardi va hech narsa bermasdi.
+  district String? @db.VarChar(80)
+
+  /// Xaritadagi joyi. Kiritilmagan bo'lsa `null`.
+  ///
+  /// ── Nima uchun MAJBURIY emas ────────────────────────────────────
+  /// Yangi mehmonxona qo'shayotgan odam koordinatani bilmasligi
+  /// mumkin. Uni majburiy qilish "taxminan shu yerda" degan nuqta
+  /// qo'yishga undardi — bu esa mehmonni boshqa ko'chaga yuborardi.
+  ///
+  /// Koordinatasi yo'q mehmonxona xaritada ko'rsatilmaydi, lekin
+  /// ro'yxatda qolaveradi.
+  ///
+  /// Ikkalasi birga yoziladi — buni bazadagi CHECK kafolatlaydi
+  /// (`hotels_coordinates_complete`).
+  latitude  Decimal? @db.Decimal(10, 7)
+  longitude Decimal? @db.Decimal(10, 7)
+
   /// Yulduzlar soni (1–5).
   stars Int @default(3)
 
@@ -2252,9 +2274,16 @@ model Hotel {
 
   /// Qulayliklar: "Wi-Fi", "Nonushta", "Avtoturargoh".
   ///
-  /// Alohida jadval emas: ular faqat KO'RSATISH uchun va ular
-  /// bo'yicha filtr qilinmaydi. Jadval qo'shish keraksiz murakkablik
-  /// bo'lardi.
+  /// ── Nima uchun alohida jadval EMAS ──────────────────────────────
+  /// 49-bosqichdan boshlab ular bo'yicha FILTR ham qilinadi. Odatda
+  /// bu "alohida jadval kerak" degan signal bo'ladi.
+  ///
+  /// Bu yerda esa yo'q: qulaylik nomidan boshqa hech qanday ma'lumot
+  /// yo'q (narxi ham, tavsifi ham). Jadval qo'shilsa, har so'rovga
+  /// ikkita `JOIN` qo'shilardi va evaziga hech narsa berilmasdi.
+  ///
+  /// Massiv ichidan qidirish uchun GIN indeks bor
+  /// (`hotels_amenities_idx`) — usiz filtr butun jadvalni o'qirdi.
   amenities String[] @db.VarChar(60)
 
   color     String  @db.VarChar(20)
@@ -2274,6 +2303,12 @@ model Hotel {
 
   @@index([city, isActive])
   @@index([searchName])
+  /// Massiv ichidan qidirish — GIN indeks (sabab `amenities` izohida).
+  @@index([amenities], type: Gin)
+  /// Yulduz bo'yicha filtr.
+  @@index([stars])
+  /// Tanlangan shahardagi tumanlar ro'yxati.
+  @@index([city, district])
   @@map("hotels")
 }
 

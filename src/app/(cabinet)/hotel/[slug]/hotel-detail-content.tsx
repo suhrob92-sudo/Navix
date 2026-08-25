@@ -153,7 +153,7 @@ export function HotelDetailContent({ slug }: HotelDetailContentProps) {
               Mehmonxonada rasm — asosiy qaror omili. Odam avval
               xonani KO'RADI, keyin narxga qaraydi.
             */}
-            <CatalogGallery images={hotel.images} name={hotel.name} className="animate-fade-up" />
+            <CatalogGallery images={hotel.images} name={hotel.name} enableFullscreen className="animate-fade-up" />
 
             <section className="bg-card border-border animate-fade-up rounded-2xl border p-4">
               <div className="flex items-start gap-3">

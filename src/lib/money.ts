@@ -114,6 +114,59 @@ export function formatTiyin(tiyin: bigint | number): string {
 }
 
 /**
+ * Summani QISQA ko'rinishda beradi: "450 ming", "1,2 mln".
+ *
+ * ── Nima uchun kerak ──────────────────────────────────────────────────
+ * Xaritadagi belgi ichiga narx yoziladi. To'liq "450 000 so'm" o'n
+ * belgidan iborat va u belgini shu qadar kengaytiradi ki, yonma-yon
+ * turgan ikki mehmonxona bir-birini butunlay yopib qo'yadi.
+ *
+ * ── Nima uchun ANIQLIK yo'qotiladi ────────────────────────────────────
+ * "1,2 mln" — 1 200 000 dan 1 249 999 gacha bo'lgan har qanday son.
+ * Bu YETARLI: xaritadagi narx tanlash uchun emas, TAQQOSLASH uchun.
+ * Aniq summa mehmonxona sahifasida to'liq ko'rsatiladi.
+ *
+ * @example formatCompactTiyin(45_000_000n) // "450 ming"
+ * @example formatCompactTiyin(120_000_000n) // "1,2 mln"
+ */
+export function formatCompactTiyin(tiyin: bigint | number): string {
+  const som = typeof tiyin === 'bigint' ? tiyinToSom(tiyin) : Math.trunc(tiyin / 100);
+
+  if (!Number.isFinite(som)) return '';
+
+  const isNegative = som < 0;
+  const value = Math.abs(som);
+
+  const render = (): string => {
+    if (value < 1000) return String(value);
+
+    if (value < 1_000_000) {
+      /*
+        Mingda kasr KO'RSATILMAYDI: "450,5 ming" belgini uzaytiradi
+        va hech qanday foyda bermaydi.
+      */
+      return `${Math.round(value / 1000)} ming`;
+    }
+
+    const millions = value / 1_000_000;
+
+    /*
+      Vergul — o'zbek tilidagi kasr ajratgichi. Nuqta ingliz
+      tilidagi yozuv va u "1.2 mln" ni "12 mln" deb o'qishga
+      undashi mumkin.
+
+      Butun son bo'lsa kasr umuman yozilmaydi: "2 mln" dan
+      "2,0 mln" chiroyliroq emas.
+    */
+    const rounded = Math.round(millions * 10) / 10;
+
+    return Number.isInteger(rounded) ? `${rounded} mln` : `${String(rounded).replace('.', ',')} mln`;
+  };
+
+  return isNegative ? `-${render()}` : render();
+}
+
+/**
  * Kiritilayotgan summani faqat raqamlardan iborat qilib tozalaydi.
  *
  * Foydalanuvchi "50 000" yoki "50.000" deb yozishi mumkin — ikkalasi ham

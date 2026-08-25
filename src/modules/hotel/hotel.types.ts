@@ -40,6 +40,16 @@ export interface HotelListItem {
   description: string;
   city: string;
   address: string;
+  /** Shahar ichidagi tuman. Kiritilmagan bo'lsa `null`. */
+  district: string | null;
+  /**
+   * Xaritadagi joyi. Kiritilmagan bo'lsa `null`.
+   *
+   * Koordinatasi yo'q mehmonxona XARITADA ko'rsatilmaydi, lekin
+   * ro'yxatda qolaveradi: taxminiy nuqta qo'yish mehmonni boshqa
+   * ko'chaga yuborardi.
+   */
+  point: { latitude: number; longitude: number } | null;
   stars: number;
   rating: number;
   ratingCount: number;
@@ -79,6 +89,18 @@ export interface HotelsResponse {
   hotels: HotelListItem[];
   total: number;
   cities: string[];
+  /**
+   * Tanlangan shahardagi tumanlar.
+   *
+   * ── Nima uchun FAQAT tanlangan shaharniki ───────────────────────────
+   * Barcha tumanlarni berish mumkin edi, lekin unda Buxoroni
+   * tanlagan odamga Toshkent tumanlari ko'rsatilardi. U birortasini
+   * tanlashi bilan ro'yxat bo'shab qolardi.
+   *
+   * Shahar tanlanmagan bo'lsa ro'yxat BO'SH — tuman filtri o'sha
+   * paytda umuman ko'rsatilmaydi.
+   */
+  districts: string[];
 }
 
 export interface HotelResponse {

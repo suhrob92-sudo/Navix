@@ -28,6 +28,11 @@ export interface HotelSeed {
   description: string;
   city: string;
   address: string;
+  /** Shahar ichidagi tuman — filtr uchun. */
+  district: string;
+  /** Xaritadagi joyi. */
+  latitude: number;
+  longitude: number;
   stars: number;
   rating: number;
   ratingCount: number;
@@ -36,6 +41,35 @@ export interface HotelSeed {
   sortOrder: number;
   rooms: readonly HotelRoomSeed[];
 }
+
+/**
+ * Filtr uchun QULAYLIKLAR ro'yxati.
+ *
+ * ── Nima uchun bu ro'yxat kerak ───────────────────────────────────────
+ * Qulayliklar mehmonxona yozuvida erkin matn massivi sifatida turadi.
+ * Filtr oynasida esa ular TUGMA bo'lib chiqadi va tugmalar ro'yxati
+ * barqaror bo'lishi kerak.
+ *
+ * Agar ular bazadan yig'ilsa, bitta mehmonxona "wi-fi" deb yozishi
+ * bilan ro'yxatda ikkita deyarli bir xil tugma paydo bo'lardi.
+ *
+ * ── Nima uchun ENG KERAKLILARI ────────────────────────────────────────
+ * Yigirmata tugma tanlashni osonlashtirmaydi — u qaror qabul qilishni
+ * qiyinlashtiradi. Bu yerda mehmon ANIQ izlaydigan narsalar turadi:
+ * ular bo'lmasa safar rejasi buziladi.
+ */
+export const HOTEL_AMENITIES = [
+  'Wi-Fi',
+  'Nonushta',
+  'Avtoturargoh',
+  'Konditsioner',
+  'Konferens-zal',
+  'Hovli',
+  'Choyxona',
+  'Tom terrasasi',
+] as const;
+
+export type HotelAmenity = (typeof HOTEL_AMENITIES)[number];
 
 /** Mehmonxona bor shaharlar — filtr uchun. */
 export const HOTEL_CITIES = ['Toshkent', 'Samarqand', 'Buxoro', 'Xiva', "Farg'ona"] as const;
@@ -48,6 +82,9 @@ export const HOTELS: readonly HotelSeed[] = [
       "Shahar markazida, metro yonida. Ish safari uchun qulay: konferens-zal va tezkor Wi-Fi bor.",
     city: 'Toshkent',
     address: "Amir Temur ko'chasi 45-uy",
+    district: 'Mirobod',
+    latitude: 41.3111,
+    longitude: 69.2797,
     stars: 4,
     rating: 4.6,
     ratingCount: 218,
@@ -84,6 +121,9 @@ export const HOTELS: readonly HotelSeed[] = [
     description: "Registon maydonidan besh daqiqa piyoda. An'anaviy bezak va milliy nonushta.",
     city: 'Samarqand',
     address: "Registon ko'chasi 12-uy",
+    district: 'Registon',
+    latitude: 39.6547,
+    longitude: 66.9758,
     stars: 4,
     rating: 4.8,
     ratingCount: 342,
@@ -113,6 +153,9 @@ export const HOTELS: readonly HotelSeed[] = [
     description: "Labi Hovuz yonidagi tarixiy binoda. Tomida choyxona va shahar manzarasi.",
     city: 'Buxoro',
     address: "Labi Hovuz maydoni 3-uy",
+    district: 'Lyabi-Havz',
+    latitude: 39.7756,
+    longitude: 64.4286,
     stars: 3,
     rating: 4.5,
     ratingCount: 156,
@@ -141,6 +184,9 @@ export const HOTELS: readonly HotelSeed[] = [
     description: "Ichan Qal'a devorlari ichida. Ertalab quyosh chiqishini tomdan kuzating.",
     city: 'Xiva',
     address: "Ichan Qal'a, Pahlavon Mahmud ko'chasi 7-uy",
+    district: 'Ichan Qala',
+    latitude: 41.3783,
+    longitude: 60.3639,
     stars: 3,
     rating: 4.7,
     ratingCount: 204,
@@ -169,6 +215,9 @@ export const HOTELS: readonly HotelSeed[] = [
     description: "Shahar bog'i yonida, tinch joyda. Uzoq safarlardan keyin dam olish uchun qulay.",
     city: "Farg'ona",
     address: "Mustaqillik ko'chasi 22-uy",
+    district: 'Markaz',
+    latitude: 40.3894,
+    longitude: 71.7867,
     stars: 3,
     rating: 4.3,
     ratingCount: 87,

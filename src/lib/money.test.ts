@@ -5,6 +5,7 @@ const NBSP = '\u00a0';
 
 import {
   formatAmountInput,
+  formatCompactTiyin,
   formatTiyin,
   parseAmountInput,
   somToTiyin,
@@ -98,5 +99,42 @@ describe('formatAmountInput', () => {
 
   it("kiritish va o'qish teskari amal — birga ishlaydi", () => {
     expect(parseAmountInput(formatAmountInput(1_234_567))).toBe(1_234_567);
+  });
+});
+
+describe('formatCompactTiyin', () => {
+  it('mingni "ming" deb qisqartiradi', () => {
+    expect(formatCompactTiyin(45_000_000n)).toBe('450 ming');
+  });
+
+  it('millionni bitta kasr bilan beradi', () => {
+    expect(formatCompactTiyin(120_000_000n)).toBe('1,2 mln');
+  });
+
+  it('butun millionda kasr YOZILMAYDI', () => {
+    // "2,0 mln" chiroyliroq emas.
+    expect(formatCompactTiyin(200_000_000n)).toBe('2 mln');
+  });
+
+  it('kasr ajratgichi VERGUL', () => {
+    // Nuqta ingliz yozuvi: "1.2 mln" ni "12 mln" deb o'qish mumkin.
+    expect(formatCompactTiyin(150_000_000n)).toContain(',');
+  });
+
+  it('mingdan kichik summa BUTUNLIGICHA', () => {
+    expect(formatCompactTiyin(50_000n)).toBe('500');
+  });
+
+  it('mingda kasr ko\'rsatilmaydi', () => {
+    // Yaxlitlanadi: belgini uzaytirishdan foyda yo'q.
+    expect(formatCompactTiyin(45_050_000n)).toBe('451 ming');
+  });
+
+  it('manfiy summa ham ishlaydi', () => {
+    expect(formatCompactTiyin(-45_000_000n)).toBe('-450 ming');
+  });
+
+  it('yaroqsiz son bo\'sh matn beradi', () => {
+    expect(formatCompactTiyin(Number.NaN)).toBe('');
   });
 });

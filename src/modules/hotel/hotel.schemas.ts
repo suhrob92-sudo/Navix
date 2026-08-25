@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 import { paginationQuerySchema } from '@/lib/api/pagination';
-import { BOOKING_RULES } from '@/config/hotels';
+import { BOOKING_RULES, HOTEL_AMENITIES } from '@/config/hotels';
+import { MAX_PRICE_SOM } from '@/config/hotel-filters';
 import { phoneSchema } from '@/modules/auth/auth.schemas';
 import { countNights, dateKeyFromToday, toDateKey } from '@/modules/hotel/hotel.types';
 
@@ -91,8 +92,39 @@ function checkDateRange(value: { checkIn: string; checkOut: string }, ctx: z.Ref
 export const hotelQuerySchema = paginationQuerySchema.extend({
   search: z.string().trim().min(1).max(120).optional(),
   city: z.string().trim().min(1).max(80).optional(),
-  /** Shu narxdan qimmat xonalar ko'rsatilmaydi (SO'MDA). */
-  maxPriceSom: z.coerce.number().int().min(0).max(100_000_000).optional(),
+  district: z.string().trim().min(1).max(80).optional(),
+  /** Bir kecha narxi — SO'MDA. */
+  minPriceSom: z.coerce.number().int().min(0).max(MAX_PRICE_SOM).optional(),
+  maxPriceSom: z.coerce.number().int().min(0).max(MAX_PRICE_SOM).optional(),
+  /** Kamida shuncha yulduz. */
+  minStars: z.coerce.number().int().min(1).max(5).optional(),
+  /**
+   * Talab qilinadigan qulayliklar — vergul bilan.
+   *
+   * ── Nima uchun RO'YXAT bilan tekshiriladi ───────────────────────────
+   * Bu qiymat bazaga massiv qidiruviga tushadi. Ro'yxatsiz bo'lsa,
+   * so'rovga istalgan matn yozib yuborish mumkin edi: xavfsizlik
+   * xatosi emas (Prisma parametr qo'yadi), lekin har xil yozilgan
+   * qiymatlar keshni buzardi va natija har safar bo'sh chiqardi.
+   */
+  amenities: z
+    .string()
+    .trim()
+    .max(400)
+    .optional()
+    .transform((value) =>
+      value === undefined
+        ? undefined
+        : [
+            ...new Set(
+              value
+                .split(',')
+                .map((item) => item.trim())
+                .filter((item) => (HOTEL_AMENITIES as readonly string[]).includes(item)),
+            ),
+          ],
+    )
+    .transform((list) => (list && list.length > 0 ? list : undefined)),
   sort: z.enum(['popular', 'price', 'rating']).default('popular'),
 });
 

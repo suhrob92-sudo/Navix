@@ -185,7 +185,7 @@ describe('isBookingFinished', () => {
     expect(isBookingFinished({ status: 'CONFIRMED', checkOut: '2026-08-20' }, now)).toBe(false);
   });
 
-  it('o’tgan bandlov — TUGAGAN', () => {
+  it("o'tgan bandlov — TUGAGAN", () => {
     expect(isBookingFinished({ status: 'CONFIRMED', checkOut: '2024-01-05' }, now)).toBe(true);
   });
 
@@ -197,7 +197,7 @@ describe('isBookingFinished', () => {
     expect(isBookingFinished({ status: 'CONFIRMED', checkOut: '2026-08-12' }, now)).toBe(false);
   });
 
-  it('bekor qilingan va yakunlangan — sanadan qat’i nazar tugagan', () => {
+  it("bekor qilingan va yakunlangan — sanadan qat'i nazar tugagan", () => {
     expect(isBookingFinished({ status: 'CANCELLED', checkOut: '2030-01-01' }, now)).toBe(true);
     expect(isBookingFinished({ status: 'COMPLETED', checkOut: '2030-01-01' }, now)).toBe(true);
   });

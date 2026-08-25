@@ -67,6 +67,9 @@ const HOTEL_SELECT = {
   description: true,
   city: true,
   address: true,
+  district: true,
+  latitude: true,
+  longitude: true,
   stars: true,
   rating: true,
   ratingCount: true,
@@ -107,6 +110,15 @@ function toHotelListItem(row: HotelRow): HotelListItem {
     description: row.description,
     city: row.city,
     address: row.address,
+    district: row.district,
+    /*
+      Koordinata ikkalasi birga yoziladi (bazadagi CHECK shuni
+      kafolatlaydi), lekin TypeScript buni bilmaydi.
+    */
+    point:
+      row.latitude !== null && row.longitude !== null
+        ? { latitude: row.latitude.toNumber(), longitude: row.longitude.toNumber() }
+        : null,
     stars: row.stars,
     rating: row.rating,
     ratingCount: row.ratingCount,
@@ -137,16 +149,39 @@ function buildHotelOrder(sort: HotelQuery['sort']): Prisma.HotelOrderByWithRelat
 
 export async function listHotels(
   query: HotelQuery,
-): Promise<{ hotels: HotelListItem[]; total: number; cities: string[] }> {
+): Promise<{ hotels: HotelListItem[]; total: number; cities: string[]; districts: string[] }> {
   const { skip, take } = toPrismaPagination(query);
   const needle = query.search ? toSearchText(query.search) : null;
+
+  /*
+    ── Narx SHARTI bitta xonaga tegishli ───────────────────────────────
+    Ikki shart alohida yozilsa, Prisma ularni turli xonalarga
+    qo'llardi: 200 mingli xonasi bor va 900 mingli xonasi bor
+    mehmonxona "300-500 ming" so'roviga tushib qolardi.
+
+    Bitta `some` ichida yozilsa esa ikkala shart HAM bir xonaga
+    tegishli bo'ladi.
+  */
+  const priceFilter: Prisma.BigIntFilter = {
+    ...(query.minPriceSom === undefined ? {} : { gte: somToTiyin(query.minPriceSom) }),
+    ...(query.maxPriceSom === undefined ? {} : { lte: somToTiyin(query.maxPriceSom) }),
+  };
+
+  const hasPriceFilter = query.minPriceSom !== undefined || query.maxPriceSom !== undefined;
 
   const where: Prisma.HotelWhereInput = {
     isActive: true,
     ...(query.city ? { city: { equals: query.city, mode: 'insensitive' } } : {}),
-    ...(query.maxPriceSom === undefined
-      ? {}
-      : { rooms: { some: { isActive: true, pricePerNight: { lte: somToTiyin(query.maxPriceSom) } } } }),
+    ...(query.district ? { district: { equals: query.district, mode: 'insensitive' } } : {}),
+    /* Yulduz — "va undan yuqori": sabab `hotel-filters.ts` da. */
+    ...(query.minStars === undefined ? {} : { stars: { gte: query.minStars } }),
+    /*
+      `hasEvery` — HAMMASI bo'lishi shart. Mehmon uchun qulayliklar
+      talab, tanlov emas: "avtoturargohi bor" deb belgilagan odam
+      avtoturargohsiz mehmonxonani ko'rmasligi kerak.
+    */
+    ...(query.amenities === undefined ? {} : { amenities: { hasEvery: query.amenities } }),
+    ...(hasPriceFilter ? { rooms: { some: { isActive: true, pricePerNight: priceFilter } } } : {}),
     ...(needle && needle.length > 0
       ? {
           OR: [
@@ -159,10 +194,26 @@ export async function listHotels(
       : {}),
   };
 
-  const [rows, total, cityRows] = await Promise.all([
+  const [rows, total, cityRows, districtRows] = await Promise.all([
     prisma.hotel.findMany({ where, select: HOTEL_SELECT, orderBy: buildHotelOrder(query.sort), skip, take }),
     prisma.hotel.count({ where }),
     prisma.hotel.groupBy({ by: ['city'], where: { isActive: true }, _count: { _all: true } }),
+    /*
+      Tumanlar FAQAT tanlangan shahar bo'yicha. Shahar tanlanmagan
+      bo'lsa so'rov umuman yuborilmaydi — sabab `HotelsResponse`
+      izohida.
+
+      MUHIM: bu yerda `where` ISHLATILMAYDI. Aks holda tuman
+      tanlangach ro'yxatda faqat o'sha tuman qolardi va odam
+      boshqasiga o'ta olmasdi — u filtrni tozalashga majbur bo'lardi.
+    */
+    query.city
+      ? prisma.hotel.groupBy({
+          by: ['district'],
+          where: { isActive: true, city: { equals: query.city, mode: 'insensitive' }, district: { not: null } },
+          _count: { _all: true },
+        })
+      : Promise.resolve([]),
   ]);
 
   const hotels = rows.map(toHotelListItem);
@@ -171,7 +222,12 @@ export async function listHotels(
     hotels.sort((a, b) => (a.fromPrice ?? Number.POSITIVE_INFINITY) - (b.fromPrice ?? Number.POSITIVE_INFINITY));
   }
 
-  return { hotels, total, cities: cityRows.map((row) => row.city).sort() };
+  return {
+    hotels,
+    total,
+    cities: cityRows.map((row) => row.city).sort(),
+    districts: districtRows.flatMap((row) => (row.district ? [row.district] : [])).sort(),
+  };
 }
 
 /**

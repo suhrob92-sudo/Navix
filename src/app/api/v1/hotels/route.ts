@@ -27,10 +27,10 @@ export const GET = withApiHandler(async (request: NextRequest, { requestId }) =>
 
   const query = parseSearchParams(request, hotelQuerySchema);
 
-  const { hotels, total, cities } = await listHotels(query);
+  const { hotels, total, cities, districts } = await listHotels(query);
 
   return apiSuccess(
-    { hotels, cities },
+    { hotels, cities, districts },
     { requestId, pagination: buildPagination(query.page, query.pageSize, total) },
   );
 });
