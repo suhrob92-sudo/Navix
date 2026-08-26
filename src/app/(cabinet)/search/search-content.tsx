@@ -1,20 +1,21 @@
 'use client';
 
-import { BadgeCheck, SearchX } from 'lucide-react';
+import { SearchX } from 'lucide-react';
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { SearchBar } from '@/components/app/search-bar';
 import { Section } from '@/components/app/section';
 import { ServiceIcon } from '@/components/app/service-icon';
-import { Avatar } from '@/components/ui/avatar';
+import { SearchGroupSection, SearchGroupSkeleton } from '@/components/search/search-group';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useApiQuery } from '@/hooks/use-api';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
-import { formatUsername, type UserSearchResponse, type UserSearchResult } from '@/modules/profile/social.types';
+import { MIN_QUERY_LENGTH, isPeopleQuery } from '@/config/search-groups';
+import type { UnifiedSearchResponse } from '@/modules/search/search.types';
 import {
   getPublicModules,
   MODULE_CATEGORIES,
@@ -42,10 +43,45 @@ function matchesQuery(appModule: AppModule, query: string): boolean {
 
 /** Qidiruv sahifasi. */
 export function SearchContent() {
-  const [query, setQuery] = useState('');
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+
+  /*
+    ── So'rov MANZILDA saqlanadi ───────────────────────────────────────
+    Uni oddiy holatda saqlash mumkin edi, lekin o'shanda:
+      · natijani do'stga yuborib bo'lmasdi;
+      · bo'limdan qaytgan odam so'rovini yo'qotardi;
+      · "Hammasi" havolasidan qaytish ham ishlamasdi.
+  */
+  const [query, setQuery] = useState(() => params.get('q') ?? '');
   const [activeCategory, setActiveCategory] = useState<ModuleCategoryValue | 'all'>('all');
 
   const normalizedQuery = query.trim().toLowerCase();
+  const hasQuery = normalizedQuery.length > 0;
+
+  /*
+    Manzil yozish KECHIKTIRILADI: har harfda `replace` chaqirilsa,
+    brauzer tarixi bilan ishlash sezilarli sekinlashadi.
+  */
+  const debouncedQuery = useDebouncedValue(query.trim(), 350);
+
+  const writeUrl = useCallback(
+    (value: string) => {
+      router.replace(value ? `${pathname}?q=${encodeURIComponent(value)}` : pathname, { scroll: false });
+    },
+    [pathname, router],
+  );
+
+  /*
+    Manzil BRAUZER TARIXIGA yoziladi — bu React holati emas, tashqi
+    tizim. Shuning uchun u effektda yangilanadi va `replace`
+    ishlatiladi: har harf uchun yangi tarix yozuvi qo'shilsa,
+    "orqaga" tugmasi ishlamay qolardi.
+  */
+  useEffect(() => {
+    writeUrl(debouncedQuery);
+  }, [debouncedQuery, writeUrl]);
 
   const results = useMemo(() => {
     return getPublicModules().filter((appModule) => {
@@ -56,29 +92,28 @@ export function SearchContent() {
     });
   }, [normalizedQuery, activeCategory]);
 
-  const hasQuery = normalizedQuery.length > 0;
-
   /**
    * So'rov "@" bilan boshlansa — odam qidirilyapti.
    *
-   * Bunda xizmatlar ko'rsatilmaydi: "@aziz" deb yozgan odam taksi yoki
-   * pizza izlamayotgani aniq, ro'yxat esa bekorga uzayardi.
+   * Bunda xizmatlar ko'rsatilmaydi: "@aziz" deb yozgan odam taksi
+   * yoki pizza izlamayotgani aniq, ro'yxat esa bekorga uzayardi.
    */
-  const isPeopleOnly = query.trim().startsWith('@');
+  const isPeopleOnly = isPeopleQuery(query);
 
   /**
-   * Odamlar SERVERDAN qidiriladi.
+   * ── Yagona qidiruv ────────────────────────────────────────────────
+   * Bitta so'rov oltita katalogni ham qamrab oladi. Ilgari bu yerda
+   * FAQAT odamlar so'ralardi va qolgan hammasi — mahsulot, taom,
+   * mehmonxona, vakansiya, xabar — o'z sahifasida yashiringan edi.
    *
-   * Xizmatlar ro'yxati kichik va ilova ichida turadi, shuning uchun u
-   * brauzerda filtrlanadi. Foydalanuvchilar esa bazada — ularni
-   * brauzerga yuklab bo'lmaydi.
-   *
-   * So'rov yozish to'xtagach yuboriladi (`useDebouncedValue`).
+   * Xizmatlar (modullar) esa BRAUZERDA filtrlanadi: ularning
+   * ro'yxati kichik va ilova ichida turadi, ya'ni so'rov ortiqcha
+   * bo'lardi.
    */
-  const debouncedQuery = useDebouncedValue(normalizedQuery, 350);
-
-  const { data: peopleData, isLoading: isPeopleLoading } = useApiQuery<UserSearchResponse>(
-    debouncedQuery.length > 0 ? `/api/v1/users/search?q=${encodeURIComponent(debouncedQuery)}&limit=12` : null,
+  const { data, isLoading } = useApiQuery<UnifiedSearchResponse>(
+    debouncedQuery.length >= MIN_QUERY_LENGTH
+      ? `/api/v1/search?q=${encodeURIComponent(debouncedQuery)}`
+      : null,
   );
 
   /**
@@ -87,72 +122,48 @@ export function SearchContent() {
    * Yozish davom etayotganda oldingi natijalar ekranda qolib, odam
    * "nega mos kelmayapti" deb o'ylardi.
    */
-  const isPeopleStale = debouncedQuery !== normalizedQuery;
-  const people = isPeopleStale ? [] : (peopleData?.users ?? []);
-  const isPeopleBusy = hasQuery && (isPeopleStale || isPeopleLoading);
+  const isStale = debouncedQuery !== query.trim();
+  const groups = isStale ? [] : (data?.groups ?? []);
+  const isBusy = hasQuery && normalizedQuery.length >= MIN_QUERY_LENGTH && (isStale || isLoading);
+
+  /* Hech narsa topilmadimi — xizmatlar ham, katalog ham. */
+  const isEmpty = hasQuery && !isBusy && groups.length === 0 && results.length === 0;
 
   return (
     <>
       <AppHeader title="Qidiruv" />
 
       <div className="space-y-6 px-4 pt-4">
-        <SearchBar value={query} onValueChange={setQuery} placeholder="Xizmat, mahsulot yoki odam..." autoFocus />
-
-        {/* Guruh bo'yicha filtr — faqat xizmatlarga tegishli. */}
-        {!isPeopleOnly && (
-          <div className="scrollbar-slim -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-            <FilterChip
-              label="Hammasi"
-              isActive={activeCategory === 'all'}
-              onClick={() => setActiveCategory('all')}
-            />
-
-            {MODULE_CATEGORIES.map((category) => (
-              <FilterChip
-                key={category.id}
-                label={category.name}
-                isActive={activeCategory === category.id}
-                onClick={() => setActiveCategory(category.id)}
-              />
-            ))}
-          </div>
-        )}
+        <SearchBar value={query} onValueChange={setQuery} placeholder="Taom, mahsulot, mehmonxona, ish, odam..." autoFocus />
 
         {/*
-          Odamlar XIZMATLARDAN oldin.
-
-          Odam nomini yozganda u aynan odamni qidirayotgan bo'ladi.
-          Xizmatlar pastda qolsa ham yo'qolmaydi, lekin izlagan narsa
-          birinchi ko'rinadi.
+          ── Katalog natijalari XIZMATLARDAN oldin ─────────────────
+          Odam "plov" deb yozganda taomni kutadi, "Ovqat yetkazish"
+          degan bo'lim nomini emas. Xizmatlar pastda qolsa ham
+          yo'qolmaydi.
         */}
-        {hasQuery && (
-          <Section title="Odamlar">
-            {isPeopleBusy ? (
-              <ul className="space-y-2.5" aria-label="Yuklanmoqda">
-                {[0, 1, 2].map((row) => (
-                  <li key={row} className="bg-card border-border flex items-center gap-3 rounded-2xl border p-3">
-                    <Skeleton className="size-11 shrink-0 rounded-full" />
-                    <div className="min-w-0 flex-1 space-y-1.5">
-                      <Skeleton className="h-3.5 w-32" />
-                      <Skeleton className="h-3 w-20" />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : people.length === 0 ? (
-              <p className="text-muted-foreground py-2 text-sm leading-relaxed">
-                Bunday foydalanuvchi topilmadi. Ism yoki @nom bilan qidirib ko&apos;ring.
-              </p>
-            ) : (
-              <ul className="space-y-2.5" aria-label="Foydalanuvchilar">
-                {people.map((person) => (
-                  <li key={person.id}>
-                    <PersonRow person={person} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
+        {isBusy && (
+          <section>
+            <h2 className="text-muted-foreground mb-2 text-sm">Qidirilmoqda...</h2>
+            <SearchGroupSkeleton />
+          </section>
+        )}
+
+        {!isBusy &&
+          groups.map((group) => (
+            <SearchGroupSection key={group.key} group={group} query={query.trim()} />
+          ))}
+
+        {/*
+          ── Juda qisqa so'rov ────────────────────────────────────
+          Sabab aytiladi. Jim qolish "hech narsa topilmadi" degan
+          yolg'on taassurot berardi — aslida qidiruv umuman
+          boshlanmagan.
+        */}
+        {hasQuery && normalizedQuery.length < MIN_QUERY_LENGTH && (
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            {`Qidirish uchun kamida ${MIN_QUERY_LENGTH} ta harf yozing.`}
+          </p>
         )}
 
         {/* So'rov bo'sh — mashhur so'rovlarni taklif qilamiz */}
@@ -173,6 +184,39 @@ export function SearchContent() {
           </Section>
         )}
 
+        {/*
+          ── HAQIQIY XATO: filtr chiziqlari YUQORIDA turardi ────────
+          Bu chiziqlar FAQAT xizmatlarni filtrlaydi. Ilgari xizmatlar
+          sahifaning asosiy mazmuni edi va chiziqlar tepada mantiqli
+          turardi.
+
+          Yagona qidiruv qo'shilgach esa xizmatlar eng pastga tushdi,
+          chiziqlar esa tepada qoldi — ular go'yo BUTUN natijani
+          filtrlayotgandek ko'rinardi. "Savdo" ni bosgan odam taomlar
+          yo'qolishini kutardi, lekin hech narsa o'zgarmasdi.
+
+          Ekranda ko'rilganda aniqlandi. Endi ular o'z bo'limi
+          yonida turadi.
+        */}
+        {!isPeopleOnly && (
+          <div className="scrollbar-slim -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+            <FilterChip
+              label="Hammasi"
+              isActive={activeCategory === 'all'}
+              onClick={() => setActiveCategory('all')}
+            />
+
+            {MODULE_CATEGORIES.map((category) => (
+              <FilterChip
+                key={category.id}
+                label={category.name}
+                isActive={activeCategory === category.id}
+                onClick={() => setActiveCategory(category.id)}
+              />
+            ))}
+          </div>
+        )}
+
         {/* Xizmatlar */}
         {!isPeopleOnly && (
           <Section title={hasQuery ? `Xizmatlar (${results.length})` : 'Barcha xizmatlar'}>
@@ -184,16 +228,22 @@ export function SearchContent() {
                 topilgan natijani pastga surib yuborardi — go'yo qidiruv
                 umuman ishlamagandek.
               */
-              people.length > 0 ? (
-                <p className="text-muted-foreground py-2 text-sm leading-relaxed">
-                  Bu so&apos;rov bo&apos;yicha xizmat yo&apos;q.
-                </p>
-              ) : (
+              /*
+                Katta "topilmadi" bloki FAQAT hamma joyda bo'sh
+                bo'lganda. Katalogdan nimadir topilgan bo'lsa, u
+                ekranning yarmini egallab, topilgan natijani pastga
+                surib yuborardi.
+              */
+              isEmpty ? (
                 <EmptyState
                   icon={SearchX}
                   title="Hech narsa topilmadi"
-                  description={`"${query}" bo'yicha xizmat yo'q. Boshqacha yozib ko'ring yoki guruhni o'zgartiring.`}
+                  description={`"${query}" bo'yicha natija yo'q. Boshqacha yozib ko'ring.`}
                 />
+              ) : (
+                <p className="text-muted-foreground py-2 text-sm leading-relaxed">
+                  Bu so&apos;rov bo&apos;yicha xizmat yo&apos;q.
+                </p>
               )
             ) : (
               <ul className="space-y-2.5">
@@ -208,44 +258,6 @@ export function SearchContent() {
         )}
       </div>
     </>
-  );
-}
-
-/**
- * Qidiruv natijasidagi bitta odam.
- *
- * Butun qator bosiladi — telefon ekranida kichik havolani barmoq bilan
- * aniq bosish qiyin.
- */
-function PersonRow({ person }: { person: UserSearchResult }) {
-  return (
-    <Link
-      href={`/u/${person.username}`}
-      className="bg-card border-border flex items-center gap-3 rounded-2xl border p-3 transition-transform active:scale-[0.99]"
-    >
-      <Avatar src={person.avatarUrl} name={person.fullName ?? person.username} size="md" />
-
-      <div className="min-w-0 flex-1">
-        <p className="flex items-center gap-1 text-sm font-semibold">
-          <span className="truncate">{person.fullName ?? formatUsername(person.username)}</span>
-          {person.isVerified && (
-            <BadgeCheck className="text-primary size-3.5 shrink-0" aria-label="Tasdiqlangan" />
-          )}
-        </p>
-        <p className="text-muted-foreground truncate text-xs">{formatUsername(person.username)}</p>
-      </div>
-
-      {/*
-        "Obunasiz" deb yozilmaydi: o'zbekchada u ham "obuna bo'lgansiz",
-        ham "obunasiz emas" deb tushunilishi mumkin. Qisqa "Obuna" esa
-        bir ma'noli.
-      */}
-      {person.isFollowing && (
-        <Badge variant="outline" className="shrink-0">
-          Obuna
-        </Badge>
-      )}
-    </Link>
   );
 }
 
