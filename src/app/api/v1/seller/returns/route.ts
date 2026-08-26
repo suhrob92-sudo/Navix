@@ -2,7 +2,9 @@ import type { NextRequest } from 'next/server';
 
 import { withApiHandler } from '@/lib/api/handler';
 import { apiSuccess } from '@/lib/api/response';
-import { requireAuth } from '@/modules/auth/auth.guard';
+import { Permission } from '@/config/rbac';
+import { requirePermission } from '@/modules/auth/auth.guard';
+import { enforcePublicRateLimit } from '@/lib/rate-limit';
 import { listShopReturns } from '@/modules/market/return.service';
 import type { ReturnStatusName } from '@/config/order-return';
 import type { ReturnsResponse } from '@/modules/market/return.types';
@@ -22,7 +24,25 @@ export const dynamic = 'force-dynamic';
 const STATUSES = new Set(['PENDING', 'APPROVED', 'REJECTED']);
 
 export const GET = withApiHandler(async (request: NextRequest, { requestId }) => {
-  const auth = await requireAuth(request);
+  /*
+    ── Nima uchun EGALIK yetarli emas edi ────────────────────────────
+    Bu yerda avval faqat `requireAuth` turardi va izohda "egalik
+    tekshiriladi, u qat'iyroq" deb yozilgandi.
+
+    Ma'lumot uchun bu to'g'ri: `shop.ownerId` begona so'rovni
+    ko'rsatmaydi.
+
+    Lekin ROL — platformaning sotuvchini O'CHIRISH mexanizmi.
+    Admin kimningdir SELLER rolini olib tashlasa, u do'kon egasi
+    bo'lib qolaveradi va qaytarish so'rovlarini tasdiqlashda davom
+    etardi. Ya'ni "sotuvchini to'xtatish" tugmasi ishlamasdi.
+
+    Endi IKKALASI ham tekshiriladi: rol — kirish uchun, egalik —
+    qaysi ma'lumot ko'rinishi uchun.
+  */
+  const auth = await requirePermission(request, Permission.SELLER_DASHBOARD_ACCESS);
+
+  await enforcePublicRateLimit('publicCatalog', auth.userId);
 
   const raw = new URL(request.url).searchParams.get('status');
   const status = raw && STATUSES.has(raw) ? (raw as ReturnStatusName) : undefined;
