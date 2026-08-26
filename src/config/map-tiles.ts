@@ -203,6 +203,87 @@ export function tileGrid(center: Point, zoom: number, width: number, height: num
 }
 
 /**
+ * Belgilar bir-birini yopmasligi uchun ENG KAM masofa — PIKSELDA.
+ *
+ * Narx yorlig'i taxminan 70 piksel keng. Ikkita belgi markazi
+ * shundan yaqin bo'lsa, ular ustma-ust tushadi va pastdagisini
+ * o'qib ham, bosib ham bo'lmaydi.
+ */
+export const MIN_MARKER_DISTANCE = 72;
+
+/** Bir joyga to'plangan belgilar guruhi. */
+export interface MarkerCluster<T> {
+  /** Guruhdagi yozuvlar — birinchisi "vakil" bo'ladi. */
+  items: T[];
+  /** Guruh markazi — ekrandagi o'rni. */
+  screen: ScreenPoint;
+}
+
+/**
+ * Yaqin turgan belgilarni GURUHLAYDI.
+ *
+ * ── Nima uchun kerak bo'ldi ───────────────────────────────────────────
+ * Butun O'zbekiston ko'rinib turganda Samarqand bilan Buxoro
+ * ekranda 40 piksel masofada bo'ladi. Ikkala narx yorlig'i
+ * ustma-ust tushadi: pastdagisini o'qib bo'lmaydi va uni bosish
+ * ham deyarli imkonsiz.
+ *
+ * Bu 49-bosqichda ataylab qoldirilgan edi — shahar tanlanganda
+ * muammo yo'q. Lekin "barcha shaharlar" ko'rinishi eng birinchi
+ * ochiladigan ko'rinish, ya'ni odam muammoni BIRINCHI ko'radi.
+ *
+ * ── Nima uchun oddiy usul ─────────────────────────────────────────────
+ * Xarita kutubxonalarida murakkab guruhlash algoritmlari bor
+ * (to'r bo'yicha, daraxt bo'yicha). Ular minglab nuqta uchun
+ * kerak.
+ *
+ * Bizda esa bir ekranda ko'pi bilan o'nlab mehmonxona bo'ladi.
+ * Bunday holatda eng sodda usul — ketma-ket yurib, yaqinini
+ * qo'shib borish — ham tez, ham natijasi oldindan aytiladigan.
+ *
+ * ── Nima uchun tartib MUHIM ───────────────────────────────────────────
+ * Guruhning "vakili" — birinchi kelgan yozuv. Ya'ni ro'yxat
+ * tartibi o'zgarsa, ekrandagi narx ham o'zgaradi. Chaqiruvchi
+ * ro'yxatni barqaror tartibda berishi kerak.
+ */
+export function clusterMarkers<T>(
+  items: readonly T[],
+  screenOf: (item: T) => ScreenPoint,
+  minDistance: number = MIN_MARKER_DISTANCE,
+): MarkerCluster<T>[] {
+  const clusters: MarkerCluster<T>[] = [];
+
+  for (const item of items) {
+    const screen = screenOf(item);
+
+    const near = clusters.find((cluster) => {
+      const dx = cluster.screen.x - screen.x;
+      const dy = cluster.screen.y - screen.y;
+
+      return Math.sqrt(dx * dx + dy * dy) < minDistance;
+    });
+
+    if (near) {
+      near.items.push(item);
+      continue;
+    }
+
+    /*
+      Guruh markazi BIRINCHI yozuvning o'rnida qoladi va keyin
+      o'zgarmaydi.
+
+      O'rtacha qiymatga ko'chirish "to'g'riroq" tuyuladi, lekin
+      o'shanda guruh markazi har qo'shilishda siljib, uzoqdagi
+      belgi bilan qayta yaqinlashib qolishi mumkin edi — natija
+      qo'shilish tartibiga bog'liq bo'lardi.
+    */
+    clusters.push({ items: [item], screen });
+  }
+
+  return clusters;
+}
+
+/**
  * Kafel manzili.
  *
  * ── Nima uchun OpenStreetMap ──────────────────────────────────────────

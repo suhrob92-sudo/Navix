@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import {
   MAP_PADDING,
+  MIN_MARKER_DISTANCE,
   MAX_ZOOM,
   MIN_ZOOM,
   TILE_SIZE,
   centerOf,
+  clusterMarkers,
   fitZoom,
   tileGrid,
   tileUrl,
@@ -197,5 +199,73 @@ describe('kafellar', () => {
     expect(tileUrl({ x: 3, y: 5, zoom: 14, left: 0, top: 0 })).toBe(
       'https://tile.openstreetmap.org/14/3/5.png',
     );
+  });
+});
+
+describe('belgilarni guruhlash', () => {
+  const at = (x: number, y: number) => ({ id: `${x},${y}`, screen: { x, y } });
+  const screenOf = (item: { screen: { x: number; y: number } }) => item.screen;
+
+  it('uzoq belgilar ALOHIDA qoladi', () => {
+    const clusters = clusterMarkers([at(0, 0), at(500, 500)], screenOf);
+
+    expect(clusters).toHaveLength(2);
+  });
+
+  it('yaqin belgilar BIRLASHADI', () => {
+    /**
+     * Samarqand bilan Buxoro butun mamlakat ko'rinishida 40
+     * piksel masofada bo'ladi — yorliqlar ustma-ust tushardi.
+     */
+    const clusters = clusterMarkers([at(0, 0), at(40, 0)], screenOf);
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].items).toHaveLength(2);
+  });
+
+  it('chegaraning O\'ZI alohida qoladi', () => {
+    // Aynan `minDistance` — bu "yaqin emas" degani.
+    const clusters = clusterMarkers([at(0, 0), at(MIN_MARKER_DISTANCE, 0)], screenOf);
+
+    expect(clusters).toHaveLength(2);
+  });
+
+  it('diagonal masofa ham hisobga olinadi', () => {
+    // 50/50 — to'g'ri chiziqda 70.7 piksel, ya'ni chegaradan ichkarida.
+    expect(clusterMarkers([at(0, 0), at(50, 50)], screenOf)).toHaveLength(1);
+  });
+
+  it('guruh markazi BIRINCHI belgida qoladi', () => {
+    /**
+     * O'rtachaga ko'chirilsa, marker har qo'shilishda siljib,
+     * natija qo'shilish tartibiga bog'liq bo'lardi.
+     */
+    const clusters = clusterMarkers([at(10, 10), at(30, 10)], screenOf);
+
+    expect(clusters[0].screen).toEqual({ x: 10, y: 10 });
+  });
+
+  it('uchtasi ham bitta guruhga tushadi', () => {
+    const clusters = clusterMarkers([at(0, 0), at(30, 0), at(60, 0)], screenOf);
+
+    expect(clusters).toHaveLength(1);
+    expect(clusters[0].items).toHaveLength(3);
+  });
+
+  it('bo\'sh ro\'yxatda bo\'sh javob', () => {
+    expect(clusterMarkers([], screenOf)).toEqual([]);
+  });
+
+  it('barcha belgilar SAQLANADI', () => {
+    // Guruhlash hech qanday belgini yo'qotmasligi kerak.
+    const items = [at(0, 0), at(20, 0), at(400, 400), at(410, 400), at(800, 0)];
+    const clusters = clusterMarkers(items, screenOf);
+
+    expect(clusters.flatMap((cluster) => cluster.items)).toHaveLength(items.length);
+  });
+
+  it('masofa sozlanadi', () => {
+    // Kichik chegara bilan hamma alohida qoladi.
+    expect(clusterMarkers([at(0, 0), at(40, 0)], screenOf, 10)).toHaveLength(2);
   });
 });

@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 
 import { withApiHandler } from '@/lib/api/handler';
+import { enforcePublicRateLimit } from '@/lib/rate-limit';
 import { apiSuccess } from '@/lib/api/response';
 import { Permission } from '@/config/rbac';
 import { requirePermission } from '@/modules/auth/auth.guard';
@@ -34,6 +35,20 @@ type Params = { id: string };
 
 export const POST = withApiHandler<Params>(async (request: NextRequest, { requestId, params }) => {
   const auth = await requirePermission(request, Permission.COURIER_DASHBOARD_ACCESS);
+
+  /*
+    ── Chegara KURYER bo'yicha ─────────────────────────────────────────
+    Bu so'rov ilovada har 20 soniyada bir yuboriladi. Chegara esa
+    ilovaga emas, SO'ROVGA qo'yiladi: telefondagi xato yoki qo'lda
+    yozilgan skript uni soniyasiga o'nlab marta yuborishi mumkin va
+    har biri bazaga yozuv amali.
+  */
+  await enforcePublicRateLimit(
+    'courierLocation',
+    auth.userId,
+    "Joylashuv juda tez-tez yuborilyapti. Ilovani yangilang.",
+  );
+
   const { id } = paramsSchema.parse(await params);
 
   const body: unknown = await request.json();

@@ -10,6 +10,7 @@ import {
   MAP_ATTRIBUTION,
   TILE_SIZE,
   centerOf,
+  clusterMarkers,
   fitZoom,
   tileGrid,
   tileUrl,
@@ -100,6 +101,14 @@ export function HotelMap({ hotels, dates, className }: HotelMapProps) {
     Buni effektda tozalash ham mumkin edi, lekin unda bir lahza
     eskirgan kartochka ekranda turardi.
   */
+  /*
+    Yaqin turgan belgilar GURUHLANADI: butun mamlakat ko'rinishida
+    Samarqand bilan Buxoro yorliqlari ustma-ust tushardi.
+  */
+  const clusters = isReady
+    ? clusterMarkers(placed, (hotel) => toScreen(hotel.point!, center, zoom, width, MAP_HEIGHT))
+    : [];
+
   const selected = placed.find((hotel) => hotel.id === selectedId) ?? null;
 
   if (placed.length === 0) {
@@ -149,25 +158,55 @@ export function HotelMap({ hotels, dates, className }: HotelMapProps) {
         <div className="pointer-events-none absolute inset-0 bg-white/20 dark:bg-black/45" aria-hidden="true" />
 
         {isReady &&
-          placed.map((hotel) => {
-            const screen = toScreen(hotel.point!, center, zoom, width, MAP_HEIGHT);
-            const isSelected = hotel.id === selectedId;
+          clusters.map((cluster) => {
+            const first = cluster.items[0];
+            const isGroup = cluster.items.length > 1;
+            const isSelected = cluster.items.some((hotel) => hotel.id === selectedId);
 
             return (
               <button
-                key={hotel.id}
+                key={first.id}
                 type="button"
-                onClick={() => setSelectedId(isSelected ? null : hotel.id)}
+                onClick={() => {
+                  /*
+                    ── Guruhni bosganda NAVBAT bilan aylanadi ────────
+                    Yaqin turgan mehmonxonalarni ajratib ko'rsatish
+                    uchun xaritani kattalashtirish kerak bo'lardi —
+                    lekin bu xarita ataylab qotib turadi.
+
+                    Shuning uchun bosish guruh ichida navbatdagisiga
+                    o'tadi: uchta mehmonxona bo'lsa, uch marta
+                    bosib uchalasini ham ko'rish mumkin.
+                  */
+                  const index = cluster.items.findIndex((hotel) => hotel.id === selectedId);
+                  const next = cluster.items[index + 1];
+
+                  setSelectedId(index === -1 ? first.id : (next?.id ?? null));
+                }}
                 aria-pressed={isSelected}
+                aria-label={
+                  isGroup
+                    ? `${cluster.items.length} ta mehmonxona shu atrofda`
+                    : first.name
+                }
                 className={cn(
                   'absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap shadow-md transition-transform active:scale-95',
                   isSelected
                     ? 'border-primary bg-primary text-primary-foreground z-10 scale-105'
                     : 'border-border bg-card text-foreground',
                 )}
-                style={{ left: screen.x, top: screen.y }}
+                style={{ left: cluster.screen.x, top: cluster.screen.y }}
               >
-                {hotel.fromPrice === null ? hotel.name : formatCompactTiyin(hotel.fromPrice)}
+                {/*
+                  Guruhda narx KO'RSATILMAYDI: uchta mehmonxonaning
+                  narxi har xil va bittasini ko'rsatish qolgan
+                  ikkitasi haqida yolg'on taassurot berardi.
+                */}
+                {isGroup
+                  ? `${cluster.items.length} ta`
+                  : first.fromPrice === null
+                    ? first.name
+                    : formatCompactTiyin(first.fromPrice)}
               </button>
             );
           })}

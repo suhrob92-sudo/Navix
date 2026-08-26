@@ -39,7 +39,7 @@ export const GET = withApiHandler(async (request: NextRequest, { requestId }) =>
     to'sib qo'ymasin.
   */
   await enforcePublicRateLimit(
-    'publicCatalog',
+    'unifiedSearch',
     auth?.userId ?? getRequestContext(request).ipAddress ?? 'anonim',
   );
 

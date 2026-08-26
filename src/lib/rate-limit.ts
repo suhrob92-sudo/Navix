@@ -211,6 +211,35 @@ export const PUBLIC_RATE_LIMITS = {
    */
   productQuestion: { limit: 10, windowSeconds: 60 },
   /**
+   * Kuryerning joylashuvi: daqiqasiga 12 marta.
+   *
+   * ── Nima uchun chegara KERAK ────────────────────────────────────────
+   * Bu so'rov 51-bosqichda chegarasiz qoldirilgan edi. Sabab
+   * mantiqiy tuyulgan: ilova uni har 20 soniyada bir yuboradi,
+   * ya'ni daqiqasiga uchtadan ko'p bo'lmasligi kerak.
+   *
+   * Lekin chegara ILOVAGA emas, SO'ROVGA qo'yiladi. Kuryerning
+   * telefonidagi xato (yoki qo'lda yozilgan skript) uni soniyasiga
+   * o'nlab marta yuborishi mumkin va HAR BIRI bazaga YOZUV amali.
+   *
+   * 12 — normal tezlikdan to'rt barobar yuqori: tarmoq uzilib,
+   * to'plangan nuqtalar birdan yuborilsa ham yetadi.
+   */
+  courierLocation: { limit: 12, windowSeconds: 60 },
+  /**
+   * Yagona qidiruv: daqiqasiga 30 marta.
+   *
+   * ── Nima uchun oddiy katalogdan PAST ────────────────────────────────
+   * Bitta so'rov OLTITA jadval bo'ylab boradi. `publicCatalog`
+   * chegarasi (120) bilan bu daqiqasiga 720 ta so'rov degani —
+   * bitta manzildan bazani yuklab qo'yish uchun yetarli.
+   *
+   * 30 — odam yozayotganda kechikish bilan yuboriladigan
+   * so'rovlardan ancha yuqori: bir daqiqada 30 marta boshqa
+   * so'rov yozib bo'lmaydi.
+   */
+  unifiedSearch: { limit: 30, windowSeconds: 60 },
+  /**
    * Savatni o'zgartirish: daqiqasiga 120 marta.
    *
    * ── Nima uchun chegara YUQORI ───────────────────────────────────────
