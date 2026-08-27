@@ -4,7 +4,7 @@ import { toPrismaPagination } from '@/lib/api/pagination';
 import { AuditAction, recordAudit } from '@/lib/audit';
 import { isoWeekday, toDateKey } from '@/lib/date';
 import { allSeatNumbers, buildSeatMap } from '@/config/seat-map';
-import { runIdempotent } from '@/lib/idempotency';
+import { clientIdempotencyKey, runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
@@ -309,7 +309,7 @@ export async function createTicket(
   return runIdempotent(
     () => performCreateTicket(userId, input, meta),
     async () => {
-      const duplicate = await findTransactionByIdempotencyKey(input.idempotencyKey);
+      const duplicate = await findTransactionByIdempotencyKey(userId, input.idempotencyKey);
 
       return duplicate?.sourceId ? getTicket(userId, duplicate.sourceId) : null;
     },
@@ -328,7 +328,7 @@ async function performCreateTicket(
    * bu foydalanuvchining aybi emas va unga xato ko'rsatish "pul
    * ikki marta yechildimi?" degan qo'rquv tug'diradi.
    */
-  const duplicate = await findTransactionByIdempotencyKey(input.idempotencyKey);
+  const duplicate = await findTransactionByIdempotencyKey(userId, input.idempotencyKey);
 
   if (duplicate?.sourceId) {
     return getTicket(userId, duplicate.sourceId);
@@ -473,7 +473,7 @@ async function performCreateTicket(
       description: `${schedule.fromCity} → ${schedule.toCity} · ${schedule.code}`,
       sourceModule: MODULE,
       sourceId: ticket.id,
-      idempotencyKey: input.idempotencyKey,
+      idempotencyKey: clientIdempotencyKey(userId, input.idempotencyKey),
     });
 
     return tx.tripBooking.update({

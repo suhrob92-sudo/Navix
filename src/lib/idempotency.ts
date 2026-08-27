@@ -145,3 +145,58 @@ export async function runIdempotent<T>(
  * ulguradi. Cheksiz kutish javobni osib qo'yardi.
  */
 const RECOVER_DELAYS_MS = [30, 80, 200] as const;
+
+/**
+ * Mijoz yuborgan kalitni SAQLASHGA tayyorlaydi.
+ *
+ * ── HAQIQIY XAVF (pul auditida topilgan) ──────────────────────────────
+ * `wallet_transactions.idempotencyKey` ustuni BUTUN baza bo'ylab
+ * yagona. Ya'ni uchta butunlay boshqa narsa bitta umumiy fazoda
+ * yashardi:
+ *
+ *   1. mijoz o'zi tanlagan kalit  — "abc12345";
+ *   2. BOSHQA mijozning kaliti     — o'sha "abc12345";
+ *   3. server yaratgan kalit       — "market-refund-{buyurtmaId}".
+ *
+ * Bundan ikkita jiddiy oqibat kelib chiqardi:
+ *
+ * · BEGONA YOZUVNI KO'RISH. Kalit boshqa odam tomonidan ishlatilgan
+ *   bo'lsa, tizim "takroriy so'rov" deb hisoblab, O'SHA ODAMNING
+ *   yozuvini javobda qaytarardi — summasi va amaldan keyingi
+ *   BALANSI bilan. Ustiga-ustak pul umuman qo'shilmagani holda
+ *   "muvaffaqiyatli" degan javob ketardi.
+ *
+ * · KALITNI BAND QILIB QO'YISH. Server kalitlari oldindan ma'lum
+ *   ko'rinishda. Buyurtma ID'sini biladigan odam (masalan sotuvchi)
+ *   `market-refund-{buyurtmaId}` kaliti bilan O'Z hamyonini
+ *   to'ldirib qo'ysa, xaridor keyin buyurtmani bekor qilmoqchi
+ *   bo'lganda pul qaytarish yozuvi yagona indeksga urilib, butun
+ *   tranzaksiya bekor bo'lardi. Xaridor buyurtmasini umuman bekor
+ *   qila olmay qolardi.
+ *
+ * ── Yechim ────────────────────────────────────────────────────────────
+ * Kalit egasi bilan birga saqlanadi:
+ *
+ *     client:{foydalanuvchiId}:{kalit}
+ *
+ * Shundan keyin ikkala teshik ham yopiladi:
+ *
+ * · ikki foydalanuvchining kaliti hech qachon to'qnashmaydi —
+ *   ularning ID'lari boshqa;
+ * · mijoz kalitida faqat harf, raqam, `-` va `_` bo'lishi mumkin
+ *   (sxemadagi tekshiruv), ya'ni ikki nuqtani u YOZA OLMAYDI —
+ *   demak server kalitiga o'xshatib yubora olmaydi ham.
+ *
+ * Server o'zi yaratadigan kalitlar (`market-refund-...`) shu
+ * funksiyadan O'TMAYDI: ular allaqachon obyektga bog'langan va
+ * bitta obyektga bitta qaytarish degani.
+ */
+export const CLIENT_KEY_PREFIX = 'client';
+
+/**
+ * @param userId Amalni bajarayotgan foydalanuvchi.
+ * @param rawKey Mijoz yuborgan kalit.
+ */
+export function clientIdempotencyKey(userId: string, rawKey: string): string {
+  return `${CLIENT_KEY_PREFIX}:${userId}:${rawKey}`;
+}

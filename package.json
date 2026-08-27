@@ -38,6 +38,7 @@
     "env:setup": "node scripts/env-setup.mjs",
     "deploy:check": "node scripts/deploy-check.mjs",
     "smoke": "node scripts/smoke.mjs",
+    "money:check": "tsx scripts/money-check.ts",
     "deploy:db": "node scripts/deploy-db.mjs",
     "deploy:vars": "node scripts/deploy-vars.mjs",
     "deploy:push-env": "node scripts/deploy-push-env.mjs",

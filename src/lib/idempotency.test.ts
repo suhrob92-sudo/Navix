@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { Prisma } from '@/generated/prisma/client';
-import { isDuplicateIdempotencyKey, runIdempotent } from '@/lib/idempotency';
+import { clientIdempotencyKey, isDuplicateIdempotencyKey, runIdempotent } from '@/lib/idempotency';
 
 /**
  * Takroriy so'rovlar — pul modullarining eng nozik joyi.
@@ -72,7 +72,7 @@ describe('runIdempotent', () => {
    * Aks holda "mablag' yetarli emas" yoki "zaxira tugadi" kabi
    * muhim xabarlar yo'qolib, mijoz sababni bilmasdan qolardi.
    */
-  it('boshqa xatoni o’tkazib yuboradi', async () => {
+  it("boshqa xatoni o'tkazib yuboradi", async () => {
     const operation = vi.fn().mockRejectedValue(new Error("Mablag' yetarli emas"));
     const recover = vi.fn();
 
@@ -109,5 +109,54 @@ describe('runIdempotent', () => {
       .mockResolvedValue('kechikkan natija');
 
     await expect(runIdempotent(operation, recover)).resolves.toBe('kechikkan natija');
+  });
+});
+
+/**
+ * Mijoz kaliti — pul auditida topilgan teshik.
+ *
+ * Kalit butun baza bo'ylab yagona edi, ya'ni bir xil kalit yuborgan
+ * ikki foydalanuvchi bir-birining yozuvini ko'rardi va server
+ * kalitini ("market-refund-...") band qilib qo'yish mumkin edi.
+ */
+describe('clientIdempotencyKey', () => {
+  const ALICE = '11111111-1111-4111-8111-111111111111';
+  const BOB = '22222222-2222-4222-8222-222222222222';
+
+  it("kalitni egasiga bog'laydi", () => {
+    expect(clientIdempotencyKey(ALICE, 'abc12345')).toBe(`client:${ALICE}:abc12345`);
+  });
+
+  it("bir xil kalit ikki foydalanuvchida TO'QNASHMAYDI", () => {
+    expect(clientIdempotencyKey(ALICE, 'abc12345')).not.toBe(clientIdempotencyKey(BOB, 'abc12345'));
+  });
+
+  it("bir foydalanuvchining bir xil kaliti HAR DOIM bir xil bo'ladi", () => {
+    // Idempotentlikning asosi: takroriy so'rov o'sha kalitni yasashi shart.
+    expect(clientIdempotencyKey(ALICE, 'abc12345')).toBe(clientIdempotencyKey(ALICE, 'abc12345'));
+  });
+
+  it("server kalitiga o'xshab qololmaydi", () => {
+    /*
+      Mijoz kalitida faqat harf, raqam, '-' va '_' bo'lishi mumkin
+      (sxemadagi tekshiruv). Ya'ni u "market-refund-..." deb yuborsa
+      ham, natija "client:" bilan boshlanadi va server kalitiga
+      urilmaydi.
+    */
+    const forged = clientIdempotencyKey(ALICE, 'market-refund-abcdef12');
+
+    expect(forged.startsWith('client:')).toBe(true);
+    expect(forged.startsWith('market-refund-')).toBe(false);
+  });
+
+  it("eng uzun holatda ham ustunga sig'adi", () => {
+    /*
+      Ustun: VARCHAR(200). Eng uzun holat — 100 belgilik kalit,
+      36 belgilik ID va o'tkazmaning "-in" qo'shimchasi.
+    */
+    const longestKey = 'k'.repeat(100);
+    const stored = `${clientIdempotencyKey(ALICE, longestKey)}-in`;
+
+    expect(stored.length).toBeLessThanOrEqual(200);
   });
 });

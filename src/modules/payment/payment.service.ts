@@ -2,6 +2,7 @@ import { Prisma, ServiceCategory, ServicePaymentStatus, type ServiceProvider } f
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { AuditAction, recordAudit } from '@/lib/audit';
+import { clientIdempotencyKey, runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
@@ -340,20 +341,51 @@ export async function createPayment(
   input: CreatePaymentInput,
   meta: OperationMeta = {},
 ): Promise<PaymentPayload> {
-  // 1. Takror bo'lsa — eski natijani qaytaramiz, pul ikkinchi marta ketmaydi.
-  const duplicate = await prisma.walletTransaction.findUnique({
-    where: { idempotencyKey: input.idempotencyKey },
+  /**
+   * Bir vaqtda kelgan takroriy so'rov.
+   *
+   * Ichkaridagi "takror bo'lsa qaytaramiz" tekshiruvi ketma-ket
+   * so'rovlar uchun yetarli. Ikkita so'rov BIR VAQTDA kelsa esa
+   * ikkalasi ham "yo'q" deb ko'rardi va ikkinchisi yagona indeksga
+   * urilib, 500 qaytarardi.
+   *
+   * Sekin internetda bu ENG QIMMAT xato: ilova "xatolik" deb
+   * ko'rsatadi, odam yangi kalit bilan qaytadan to'laydi va pul IKKI
+   * MARTA ketadi. Boshqa pul modullari allaqachon shu himoyada edi,
+   * xizmat to'lovi esa e'tibordan chetda qolgan.
+   */
+  return runIdempotent(
+    () => performCreatePayment(userId, input, meta),
+    () => findExistingPayment(userId, input.idempotencyKey),
+  );
+}
+
+/** Kalit bo'yicha allaqachon bajarilgan to'lovni topadi. */
+async function findExistingPayment(userId: string, rawKey: string): Promise<PaymentPayload | null> {
+  const transaction = await prisma.walletTransaction.findUnique({
+    where: { idempotencyKey: clientIdempotencyKey(userId, rawKey) },
     select: { sourceId: true },
   });
 
-  if (duplicate?.sourceId) {
-    const existing = await prisma.servicePayment.findUnique({
-      where: { id: duplicate.sourceId },
-      select: PAYMENT_SELECT,
-    });
+  if (!transaction?.sourceId) return null;
 
-    if (existing) return toPaymentPayload(existing);
-  }
+  const existing = await prisma.servicePayment.findUnique({
+    where: { id: transaction.sourceId },
+    select: PAYMENT_SELECT,
+  });
+
+  return existing ? toPaymentPayload(existing) : null;
+}
+
+async function performCreatePayment(
+  userId: string,
+  input: CreatePaymentInput,
+  meta: OperationMeta,
+): Promise<PaymentPayload> {
+  // 1. Takror bo'lsa — eski natijani qaytaramiz, pul ikkinchi marta ketmaydi.
+  const duplicate = await findExistingPayment(userId, input.idempotencyKey);
+
+  if (duplicate) return duplicate;
 
   // 2. Provayder va hisob raqami.
   const provider = await prisma.serviceProvider.findFirst({
@@ -405,7 +437,7 @@ export async function createPayment(
       description: `${provider.name} — ${input.accountNumber}`,
       sourceModule: SOURCE_MODULE,
       sourceId: created.id,
-      idempotencyKey: input.idempotencyKey,
+      idempotencyKey: clientIdempotencyKey(userId, input.idempotencyKey),
     });
 
     // Hamyondagi yozuv bilan bog'laymiz — chekda ikkalasi ko'rinadi.

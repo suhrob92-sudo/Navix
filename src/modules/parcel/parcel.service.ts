@@ -2,7 +2,7 @@ import { DeliveryStatus, Prisma } from '@/generated/prisma/client';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { AuditAction, recordAudit } from '@/lib/audit';
-import { runIdempotent } from '@/lib/idempotency';
+import { clientIdempotencyKey, runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
@@ -171,7 +171,7 @@ export async function createParcel(
   return runIdempotent(
     () => performCreateParcel(userId, input, meta),
     async () => {
-      const duplicate = await findTransactionByIdempotencyKey(input.idempotencyKey);
+      const duplicate = await findTransactionByIdempotencyKey(userId, input.idempotencyKey);
 
       return duplicate?.sourceId ? getParcel(userId, duplicate.sourceId) : null;
     },
@@ -203,7 +203,7 @@ async function performCreateParcel(
    * mijoz xom baza xatosini ko'rardi — bu haqiqiy baza ustidagi
    * tekshiruvda topildi.
    */
-  const duplicate = await findTransactionByIdempotencyKey(input.idempotencyKey);
+  const duplicate = await findTransactionByIdempotencyKey(userId, input.idempotencyKey);
 
   if (duplicate?.sourceId) {
     return getParcel(userId, duplicate.sourceId);
@@ -267,7 +267,7 @@ async function performCreateParcel(
       description: `Posilka ${parcelNumber} — ${input.toRegion}`,
       sourceModule: MODULE,
       sourceId: parcel.id,
-      idempotencyKey: input.idempotencyKey,
+      idempotencyKey: clientIdempotencyKey(userId, input.idempotencyKey),
     });
 
     return tx.parcel.update({

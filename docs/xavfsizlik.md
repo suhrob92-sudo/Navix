@@ -151,6 +151,9 @@ npm run deploy:check
 # Sayt tashqaridan qanday ko'rinadi (chiqarishdan keyin)
 npm run smoke -- https://<domeningiz>
 
+# Pul hisobi joyidami (balans = kirim - chiqim)
+npm run money:check -- --prod
+
 # Kod ichidagi qoidalar buzilmaganmi
 npm test
 ```

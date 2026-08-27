@@ -2,7 +2,7 @@ import { FoodOrderStatus, Prisma } from '@/generated/prisma/client';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { AuditAction, recordAudit } from '@/lib/audit';
-import { runIdempotent } from '@/lib/idempotency';
+import { clientIdempotencyKey, runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { formatTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
@@ -453,14 +453,20 @@ export async function createFoodOrder(
    */
   return runIdempotent(
     () => performCreateFoodOrder(userId, input, meta),
-    () => findExistingOrder(input.idempotencyKey),
+    () => findExistingOrder(userId, input.idempotencyKey),
   );
 }
 
-/** Kalit bo'yicha allaqachon yaratilgan buyurtmani topadi. */
-async function findExistingOrder(idempotencyKey: string): Promise<FoodOrderView | null> {
+/**
+ * Kalit bo'yicha allaqachon yaratilgan buyurtmani topadi.
+ *
+ * Kalit EGASI bilan birga saqlanadi (`clientIdempotencyKey`), shuning
+ * uchun bir xil kalit yuborgan ikki foydalanuvchi bir-birining
+ * buyurtmasini ko'rmaydi.
+ */
+async function findExistingOrder(userId: string, rawKey: string): Promise<FoodOrderView | null> {
   const transaction = await prisma.walletTransaction.findUnique({
-    where: { idempotencyKey },
+    where: { idempotencyKey: clientIdempotencyKey(userId, rawKey) },
     select: { sourceId: true },
   });
 
@@ -481,7 +487,7 @@ async function performCreateFoodOrder(
 ): Promise<FoodOrderView> {
   // 1. Takror bo'lsa — eski buyurtmani qaytaramiz, pul ikkinchi marta ketmaydi.
   const duplicate = await prisma.walletTransaction.findUnique({
-    where: { idempotencyKey: input.idempotencyKey },
+    where: { idempotencyKey: clientIdempotencyKey(userId, input.idempotencyKey) },
     select: { sourceId: true },
   });
 
@@ -606,7 +612,7 @@ async function performCreateFoodOrder(
       description: `${restaurant.name} — ovqat buyurtmasi`,
       sourceModule: SOURCE_MODULE,
       sourceId: created.id,
-      idempotencyKey: input.idempotencyKey,
+      idempotencyKey: clientIdempotencyKey(userId, input.idempotencyKey),
     });
 
     return tx.foodOrder.update({

@@ -8,7 +8,7 @@ import {
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { AuditAction, recordAudit } from '@/lib/audit';
-import { runIdempotent } from '@/lib/idempotency';
+import { clientIdempotencyKey, runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
@@ -255,14 +255,43 @@ function assertWalletUsable(status: WalletStatus): void {
  *
  * Bajarilgan bo'lsa o'shani qaytaradi: mijoz uchun natija bir xil bo'ladi,
  * lekin pul ikkinchi marta harakatlanmaydi.
+ *
+ * ── Nima uchun EGASI ham tekshiriladi ─────────────────────────────────
+ * Ilgari qidiruv faqat kalit bo'yicha edi. Kalitni esa mijoz o'zi
+ * tanlaydi va u butun baza bo'ylab yagona. Demak, boshqa odam ishlatgan
+ * kalitni yuborgan foydalanuvchi O'ZGANING yozuvini javobda ko'rardi:
+ * summasi, izohi va eng yomoni — amaldan keyingi BALANSI.
+ *
+ * Ustiga-ustak, pul umuman qo'shilmagani holda "muvaffaqiyatli" degan
+ * javob qaytardi.
+ *
+ * Shuning uchun endi yozuv faqat SHU foydalanuvchiniki bo'lsa va aynan
+ * SHU turdagi amal bo'lsa qaytariladi. Boshqa holatda kalit band deb
+ * hisoblanadi va tushunarli xato beriladi.
  */
-async function findByIdempotencyKey(key: string): Promise<WalletTransactionPayload | null> {
+async function findOwnTransaction(
+  storedKey: string,
+  userId: string,
+  type: TransactionType,
+  direction: TransactionDirection,
+): Promise<WalletTransactionPayload | null> {
   const existing = await prisma.walletTransaction.findUnique({
-    where: { idempotencyKey: key },
-    select: TRANSACTION_SELECT,
+    where: { idempotencyKey: storedKey },
+    select: { ...TRANSACTION_SELECT, wallet: { select: { userId: true } } },
   });
 
-  return existing ? toTransactionPayload(existing) : null;
+  if (!existing) return null;
+
+  const isOwn = existing.wallet.userId === userId;
+  const isSameOperation = existing.type === type && existing.direction === direction;
+
+  if (!isOwn || !isSameOperation) {
+    throw new ConflictError(
+      "Bu kalit allaqachon boshqa amalda ishlatilgan. Yangi kalit bilan qayta urinib ko'ring.",
+    );
+  }
+
+  return toTransactionPayload(existing);
 }
 
 interface OperationMeta {
@@ -283,7 +312,13 @@ export async function topUp(
   input: TopUpInput,
   meta: OperationMeta = {},
 ): Promise<WalletTransactionPayload> {
-  const duplicate = await findByIdempotencyKey(input.idempotencyKey);
+  const storedKey = clientIdempotencyKey(userId, input.idempotencyKey);
+  const duplicate = await findOwnTransaction(
+    storedKey,
+    userId,
+    TransactionType.TOP_UP,
+    TransactionDirection.IN,
+  );
   if (duplicate) return duplicate;
 
   /**
@@ -296,7 +331,7 @@ export async function topUp(
    */
   return runIdempotent(
     () => performTopUp(userId, input, meta),
-    () => findByIdempotencyKey(input.idempotencyKey),
+    () => findOwnTransaction(storedKey, userId, TransactionType.TOP_UP, TransactionDirection.IN),
   );
 }
 
@@ -331,7 +366,7 @@ async function performTopUp(
         amount: amountTiyin,
         balanceAfter: newBalance,
         description: `${methodLabel} orqali to'ldirildi`,
-        idempotencyKey: input.idempotencyKey,
+        idempotencyKey: clientIdempotencyKey(userId, input.idempotencyKey),
         externalReference: `SIM-${input.idempotencyKey.slice(0, 24)}`,
         sourceModule: SOURCE_MODULE,
         completedAt: new Date(),
@@ -375,13 +410,19 @@ export async function transfer(
   input: TransferInput,
   meta: OperationMeta = {},
 ): Promise<WalletTransactionPayload> {
-  const duplicate = await findByIdempotencyKey(input.idempotencyKey);
+  const storedKey = clientIdempotencyKey(userId, input.idempotencyKey);
+  const duplicate = await findOwnTransaction(
+    storedKey,
+    userId,
+    TransactionType.TRANSFER,
+    TransactionDirection.OUT,
+  );
   if (duplicate) return duplicate;
 
   // Bir vaqtda kelgan takroriy so'rov uchun — `topUp` dagi kabi.
   return runIdempotent(
     () => performTransfer(userId, input, meta),
-    () => findByIdempotencyKey(input.idempotencyKey),
+    () => findOwnTransaction(storedKey, userId, TransactionType.TRANSFER, TransactionDirection.OUT),
   );
 }
 
@@ -460,7 +501,7 @@ async function performTransfer(
         amount: amountTiyin,
         balanceAfter: recipientBalance,
         description: senderName ? `${senderName} dan o'tkazma` : "Kelgan o'tkazma",
-        idempotencyKey: `${input.idempotencyKey}-in`,
+        idempotencyKey: `${clientIdempotencyKey(userId, input.idempotencyKey)}-in`,
         sourceModule: SOURCE_MODULE,
         sourceId: userId,
         completedAt: new Date(),
@@ -477,7 +518,7 @@ async function performTransfer(
         amount: amountTiyin,
         balanceAfter: senderBalance,
         description: input.note ? `${recipientName} ga: ${input.note}` : `${recipientName} ga o'tkazma`,
-        idempotencyKey: input.idempotencyKey,
+        idempotencyKey: clientIdempotencyKey(userId, input.idempotencyKey),
         sourceModule: SOURCE_MODULE,
         sourceId: recipient.id,
         completedAt: new Date(),
@@ -714,11 +755,25 @@ export async function creditEarning(
 /**
  * Takroriy so'rovni aniqlaydi — boshqa modullar uchun.
  *
- * @returns Shu kalit bilan amal allaqachon bajarilgan bo'lsa uning ID'si.
+ * ── Nima uchun `userId` ham talab qilinadi ────────────────────────────
+ * Ilgari qidiruv faqat kalit bo'yicha edi. Kalitni esa mijoz o'zi
+ * tanlaydi, ustun esa butun baza bo'ylab yagona. Ya'ni ikki xil odam
+ * tasodifan (yoki ataylab) bir xil kalit yuborsa, ikkinchisi
+ * BIRINCHISINING buyurtmasini javobda ko'rardi — manzili, telefoni va
+ * savati bilan.
+ *
+ * Endi kalit egasiga bog'lab saqlanadi, shuning uchun qidirish uchun
+ * ham egasi kerak. Boshqa odamning yozuvi shunchaki topilmaydi.
+ *
+ * @returns Shu foydalanuvchi shu kalit bilan amalni allaqachon
+ *          bajargan bo'lsa — o'sha amal ID'si.
  */
-export async function findTransactionByIdempotencyKey(key: string): Promise<{ sourceId: string | null } | null> {
+export async function findTransactionByIdempotencyKey(
+  userId: string,
+  rawKey: string,
+): Promise<{ sourceId: string | null } | null> {
   return prisma.walletTransaction.findUnique({
-    where: { idempotencyKey: key },
+    where: { idempotencyKey: clientIdempotencyKey(userId, rawKey) },
     select: { sourceId: true },
   });
 }

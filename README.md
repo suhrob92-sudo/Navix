@@ -88,6 +88,7 @@ npm run dev
 | `npm run url`               | Ochiq havolani qayta chiqaradi (yangisini ochmaydi)                |
 | `npm run env:setup`         | Production sozlamalarini savol-javob bilan yozadi                  |
 | `npm run deploy:check`      | Production tayyorligini tekshiradi (baza, Redis, kalitlar)         |
+| `npm run money:check`       | Hamyon balanslari tarixga mos kelishini tekshiradi (`--prod` ham)  |
 | `npm run deploy:db`         | Bulutdagi bazaga migratsiya va boshlang'ich ma'lumotlarni yozadi   |
 | `npm run deploy:vars`       | Vercel o'zgaruvchilarini ekranga chiqaradi (qo'lda kiritish uchun) |
 | `npm run deploy:push-env`   | O'zgaruvchilarni Vercel'ga terminaldan yuboradi                    |

@@ -2,7 +2,7 @@ import { BookingStatus, Prisma } from '@/generated/prisma/client';
 import { ConflictError, NotFoundError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
 import { AuditAction, recordAudit } from '@/lib/audit';
-import { runIdempotent } from '@/lib/idempotency';
+import { clientIdempotencyKey, runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
@@ -397,7 +397,7 @@ export async function createBooking(
   return runIdempotent(
     () => performCreateBooking(userId, input, meta),
     async () => {
-      const duplicate = await findTransactionByIdempotencyKey(input.idempotencyKey);
+      const duplicate = await findTransactionByIdempotencyKey(userId, input.idempotencyKey);
 
       return duplicate?.sourceId ? getBooking(userId, duplicate.sourceId) : null;
     },
@@ -416,7 +416,7 @@ async function performCreateBooking(
    * Sabab posilka modulida batafsil yozilgan: bu foydalanuvchining
    * aybi emas va unga xato ko'rsatish qo'rquv tug'diradi.
    */
-  const duplicate = await findTransactionByIdempotencyKey(input.idempotencyKey);
+  const duplicate = await findTransactionByIdempotencyKey(userId, input.idempotencyKey);
 
   if (duplicate?.sourceId) {
     return getBooking(userId, duplicate.sourceId);
@@ -504,7 +504,7 @@ async function performCreateBooking(
       description: `${room.hotel.name} — ${nights} kecha`,
       sourceModule: MODULE,
       sourceId: booking.id,
-      idempotencyKey: input.idempotencyKey,
+      idempotencyKey: clientIdempotencyKey(userId, input.idempotencyKey),
     });
 
     return tx.hotelBooking.update({

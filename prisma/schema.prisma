@@ -665,7 +665,12 @@ model WalletTransaction {
   /// Tashqi tizim (Payme, Click, Uzum) tranzaksiya raqami.
   externalReference String? @db.VarChar(120)
   /// Takroriy so'rovlarni bloklash uchun kalit (idempotency).
-  idempotencyKey    String  @unique @db.VarChar(120)
+  ///
+  /// Mijoz yuborgan kalit EGASI bilan birga saqlanadi:
+  /// "client:{foydalanuvchiId}:{kalit}". Sabab: ustun butun baza
+  /// bo'ylab yagona, ya'ni ikki xil odamning bir xil kaliti
+  /// to'qnashardi. Batafsil: src/lib/idempotency.ts.
+  idempotencyKey    String  @unique @db.VarChar(200)
 
   /// Qaysi modul yaratgan: "taxi", "food", "payments"...
   sourceModule String  @db.VarChar(50)
