@@ -997,8 +997,14 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, status])
-  @@index([createdAt])
+  /// Ro'yxat, jami soni va o'qilmaganlar soni — uchalasi ham shu
+  /// indeksdan foydalanadi.
+  ///
+  /// O'qilmaganlar uchun QISMAN indeks ham bor
+  /// (`notifications_unread_idx`, `WHERE "readAt" IS NULL`). Uni
+  /// Prisma sxemasida yozib bo'lmaydi, shuning uchun u faqat
+  /// migratsiyada: 20260827120000_hot_query_indexes.
+  @@index([userId, channel, createdAt(sort: Desc)])
   @@map("notifications")
 }
 
@@ -1155,6 +1161,10 @@ model AuditLog {
   @@index([actorId, createdAt])
   @@index([resourceType, resourceId])
   @@index([action])
+  /// Admin paneldagi jurnal sana bo'yicha tartiblanadi va odam
+  /// tanlanmagan bo'lishi mumkin — o'shanda faqat shu indeks yordam
+  /// beradi. Jadval hech qachon tozalanmaydi, ya'ni cheksiz o'sadi.
+  @@index([createdAt(sort: Desc)])
   @@map("audit_logs")
 }
 

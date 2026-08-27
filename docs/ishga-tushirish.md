@@ -206,6 +206,43 @@ allaqachon joyida va sizdan hech narsa talab qilmaydi.
 | CSP (qattiq qism) | Kuzatuv rejimida; buzilishlar `/admin/errors` ga tushadi |
 | Salomatlik yo'li | Xato matni endi production'da yashiriladi (ichki manzil chiqib ketmaydi) |
 
+53-bosqichdan keyingi auditlarda qo'shilganlar:
+
+| Nima | Holati |
+|---|---|
+| Pul hisobi | `npm run money:check` — balans kirim/chiqimga mos, ortiqcha qaytarish yo'q |
+| Begona ma'lumot | 95 ta jonli tekshiruv, teshik topilmadi (`docs/xavfsizlik.md`) |
+| Sekin so'rovlar | Haqiqiy hajmda o'lchandi, ikkita indeks tuzatildi (pastda) |
+
+### 4.0. Tezlik: nima o'lchandi va nima tuzatildi
+
+Baza hozir kichik, shuning uchun sekinlik LOKAL ko'rinmaydi. Tekshiruv
+haqiqiy hajmda o'tkazildi: nusxa jadvallarga 300 000 bildirishnoma va
+500 000 audit yozuvi yozilib, ilova yuboradigan so'rovlar o'lchandi.
+
+| So'rov | Oldin | Keyin |
+|---|---|---|
+| Bildirishnomalar: jami soni | 12,5 ms | 1,2 ms |
+| Bildirishnomalar: o'qilmaganlar | 14,4 ms | 0,7 ms |
+| Bildirishnomalar: 10-sahifa | 3,0 ms | 0,3 ms |
+| Admin audit jurnali | 49 ms | 0,09 ms |
+
+Sabab ikkita edi:
+
+1. Bildirishnomalardagi indeks `status` ustuni bo'yicha edi, so'rov esa
+   `channel` bo'yicha filtrlab, sanaga qarab tartiblardi — ya'ni indeks
+   bor edi, lekin so'rovga MOS EMASDI.
+2. Audit jurnalida sana bo'yicha indeks umuman yo'q edi. Bu jadval esa
+   hech qachon tozalanmaydi (ataylab — u moliyaviy dalil).
+
+Ikkita ishlatilmaydigan indeks olib tashlandi: har bir yangi
+bildirishnoma yozilganda ular ham yangilanardi.
+
+Bir joy ATAYLAB tuzatilmadi: admin jurnalidagi "jami nechta" soni.
+Yozuvlar 10 millionga yetganda u sekinlashadi. Hozir tuzatish erta:
+buning uchun sahifalashni butunlay boshqacha qilish kerak, admin
+paneliga esa kuniga bir necha marta kiriladi.
+
 ### 4.1. `npm audit` uchta ogohlantirish beradi — bu MUAMMO emas
 
 `npm audit` uchta "high" darajali ogohlantirish ko'rsatadi:
