@@ -252,6 +252,9 @@ async function checkDatabase(url, directUrl) {
 
     ok('Jadvallar mavjud');
 
+    await checkMigrationsApplied(client);
+    await checkHotIndexes(client);
+
     // Seed bajarilganmi: rollarsiz hech kim ro'yxatdan o'ta olmaydi.
     const roles = await client.query('SELECT count(*)::int AS total FROM roles');
 
@@ -285,6 +288,94 @@ async function checkDatabase(url, directUrl) {
   } finally {
     await client.end().catch(() => {});
   }
+}
+
+/**
+ * Lokal migratsiyalarning HAMMASI bulutdagi bazaga tushganmi.
+ *
+ * ── Nima uchun kerak (haqiqiy holat) ──────────────────────────────────
+ * Ilgari bu skript faqat lokal papkalarni SANARDI: "81 ta migratsiya".
+ * Bu esa hech narsani isbotlamasdi — papka kompyuteringizda, jadval
+ * esa bulutda.
+ *
+ * Natijada "deploy:db bajardim, hammasi yashil" degan holatda ham
+ * bulutdagi baza eski qolishi mumkin edi: masalan `git pull` dan
+ * OLDIN bajarilgan bo'lsa.
+ *
+ * Endi ikkala ro'yxat solishtiriladi va qaysi biri yetishmayotgani
+ * NOMI bilan aytiladi.
+ */
+async function checkMigrationsApplied(client) {
+  const localNames = fs
+    .readdirSync(path.join(ROOT, 'prisma', 'migrations'), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
+    .map((entry) => entry.name);
+
+  let applied;
+
+  try {
+    const result = await client.query(
+      'SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL',
+    );
+
+    applied = new Set(result.rows.map((row) => row.migration_name));
+  } catch {
+    bad(
+      "Migratsiyalar jadvali o'qilmadi",
+      "npm run deploy:db  buyrug'ini bajaring",
+    );
+    return;
+  }
+
+  const missing = localNames.filter((name) => !applied.has(name));
+
+  if (missing.length === 0) {
+    ok('Migratsiyalar bulutda qo\'llangan', `${localNames.length} ta`);
+    return;
+  }
+
+  bad(
+    `${missing.length} ta migratsiya bulutda YO'Q: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? '...' : ''}`,
+    "Avval  git pull  keyin  npm run deploy:db  bajaring",
+  );
+}
+
+/**
+ * Tezlik uchun eng muhim indekslar bulutda bormi.
+ *
+ * ── Nima uchun alohida tekshiriladi ───────────────────────────────────
+ * Indeks yo'qligi XATO bermaydi — sahifa ochiladi, hammasi ishlaydi,
+ * faqat sekin. Ma'lumot kam bo'lganda esa sekinlik ham bilinmaydi.
+ * Ya'ni bu bo'shliq o'zini hech qachon ko'rsatmaydi, toki
+ * foydalanuvchilar ko'payib, sahifa "nega osilib qoldi?" bo'lgunicha.
+ *
+ * Ro'yxatdagi indekslar haqiqiy hajmda o'lchangan
+ * (docs/ishga-tushirish.md, 4.0-bo'lim).
+ */
+async function checkHotIndexes(client) {
+  const required = [
+    'notifications_userId_channel_createdAt_idx',
+    'notifications_unread_idx',
+    'audit_logs_createdAt_idx',
+  ];
+
+  const result = await client.query(
+    "SELECT indexname FROM pg_indexes WHERE schemaname='public' AND indexname = ANY($1)",
+    [required],
+  );
+
+  const present = new Set(result.rows.map((row) => row.indexname));
+  const missing = required.filter((name) => !present.has(name));
+
+  if (missing.length === 0) {
+    ok('Tezlik indekslari joyida', `${required.length} ta`);
+    return;
+  }
+
+  bad(
+    `${missing.length} ta tezlik indeksi yo'q: ${missing.join(', ')}`,
+    "npm run deploy:db  bajaring (migratsiya ularni yaratadi)",
+  );
 }
 
 /** Berilgan DIRECT_URL haqiqatan ishlayaptimi. */
