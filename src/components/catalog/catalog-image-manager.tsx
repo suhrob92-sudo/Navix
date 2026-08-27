@@ -37,6 +37,27 @@ export interface CatalogImageManagerProps {
   images: CatalogImageView[];
   /** Ro'yxat o'zgarganda chaqiriladi — sahifa o'z holatini yangilaydi. */
   onChange: (images: CatalogImageView[]) => void;
+  /**
+   * Pastdagi izoh ko'rsatilsinmi.
+   *
+   * Bitta ekranda bir nechta boshqaruvchi turganda (masalan
+   * mehmonxona va uning xonalari) bir xil izoh to'rt marta
+   * takrorlanardi. Bunday takror o'qishni og'irlashtiradi va muhim
+   * matnni ko'rinmas qiladi.
+   *
+   * Shu holatda chaqiruvchi izohni BIR MARTA yuqorida yozadi va bu
+   * yerdagisini o'chiradi.
+   */
+  showHint?: boolean;
+  /**
+   * Sarlavha matni.
+   *
+   * Bitta ekranda bir nechta boshqaruvchi turganda har biri
+   * QAYSI narsaga tegishli ekani ko'rinishi kerak. Alohida sarlavha
+   * qo'yilsa, "Standart" va "Rasmlar" ikki qatorda takrorlanardi —
+   * telefonda esa har bir ortiqcha qator qimmat.
+   */
+  title?: string;
   className?: string;
 }
 
@@ -45,6 +66,8 @@ export function CatalogImageManager({
   ownerId,
   images,
   onChange,
+  showHint = true,
+  title = 'Rasmlar',
   className,
 }: CatalogImageManagerProps) {
   const request = useApiClient();
@@ -150,7 +173,7 @@ export function CatalogImageManager({
   return (
     <div className={cn('space-y-3', className)}>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-medium">Rasmlar</p>
+        <p className="text-sm font-medium">{title}</p>
         <p className="text-muted-foreground text-xs tabular-nums">
           {`${images.length}/${MAX_CATALOG_IMAGES}`}
         </p>
@@ -246,10 +269,12 @@ export function CatalogImageManager({
         )}
       </div>
 
-      <p className="text-muted-foreground text-xs">
-        Birinchi rasm ro&apos;yxatlarda ko&apos;rinadi. Tartibni o&apos;q tugmalari bilan
-        o&apos;zgartiring.
-      </p>
+      {showHint && (
+        <p className="text-muted-foreground text-xs">
+          Birinchi rasm ro&apos;yxatlarda ko&apos;rinadi. Tartibni o&apos;q tugmalari bilan
+          o&apos;zgartiring.
+        </p>
+      )}
     </div>
   );
 }

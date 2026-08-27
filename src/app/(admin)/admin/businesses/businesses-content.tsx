@@ -1,6 +1,6 @@
 'use client';
 
-import { Store, UtensilsCrossed, Hotel, Ban, Check } from 'lucide-react';
+import { Store, UtensilsCrossed, Hotel, Ban, Check, Images } from 'lucide-react';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
@@ -19,6 +19,8 @@ import { toUserMessage } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import { RequireAdmin } from '@/modules/admin/require-admin';
 import type { AdminBusinessItem, BusinessKind } from '@/modules/admin/business.service';
+
+import { BusinessImages } from './business-images';
 
 interface BusinessesResponse {
   businesses: AdminBusinessItem[];
@@ -84,6 +86,13 @@ function BusinessesBody() {
   );
 
   const [closingId, setClosingId] = useState<string | null>(null);
+  /**
+   * Rasmlar paneli FAQAT bittasida ochiladi.
+   *
+   * Hammasi birdan ochilsa, har bir biznes uchun alohida so'rov
+   * ketardi — ro'yxatda ellikta biznes bo'lsa, ellikta so'rov.
+   */
+  const [imagesId, setImagesId] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -177,6 +186,7 @@ function BusinessesBody() {
             const Icon = KIND_ICONS[item.kind];
             const isBusy = busyId === item.id;
             const isClosing = closingId === item.id;
+            const isShowingImages = imagesId === item.id;
 
             return (
               <li
@@ -256,7 +266,7 @@ function BusinessesBody() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-3">
+                  <div className="mt-3 flex flex-wrap gap-2">
                     {item.isActive ? (
                       <Button
                         size="sm"
@@ -276,8 +286,20 @@ function BusinessesBody() {
                         Qayta ochish
                       </Button>
                     )}
+
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-expanded={isShowingImages}
+                      onClick={() => setImagesId(isShowingImages ? null : item.id)}
+                    >
+                      <Images className="size-4" aria-hidden="true" />
+                      {isShowingImages ? 'Rasmlarni yopish' : 'Rasmlar'}
+                    </Button>
                   </div>
                 )}
+
+                {isShowingImages && <BusinessImages kind={item.kind} id={item.id} slug={item.slug} />}
               </li>
             );
           })}
