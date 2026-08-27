@@ -64,6 +64,41 @@ Bular taxmin emas — kod o'qib topilgan va tuzatilgan:
 6. **Ochiq kataloglarda cheklov yo'q edi.**
 7. **`/api/openapi` butun API xaritasini ochiq berardi** — endi
    production'da admin ruxsati talab qilinadi.
+8. **Mijoz idempotentlik kaliti hammaga umumiy edi** — bir xil kalit
+   yuborgan ikkinchi odam BIRINCHISINING hamyon yozuvini va balansini
+   ko'rardi, o'zining puli esa qo'shilmasdi. Kalit endi egasiga
+   bog'lanadi (`client:{foydalanuvchiId}:{kalit}`).
+
+---
+
+### Begona ma'lumotni ko'rish — 95 ta jonli tekshiruv
+
+Eng ko'p uchraydigan sizib chiqish "hujum" bilan emas, bitta
+unutilgan shart bilan bo'ladi: yozuv ID bo'yicha o'qiladi, lekin
+"bu senikimi?" degan tekshiruv yozilmaydi.
+
+Shuning uchun ikkita (ba'zi joyda oltita) haqiqiy hisob bilan
+tekshirildi. Har bir tekshiruvda IKKI so'rov bor: egasi so'raydi —
+ochilishi kerak; begona so'raydi — ochilmasligi kerak. Ikkinchisisiz
+sinov aldardi, chunki ishlamaydigan manzil ham "ochilmadi" beradi.
+
+Tekshirilgani:
+
+| Nima | Natija |
+|---|---|
+| Buyurtma, bandlov, posilka, chipta, to'lov, manzil | begonaga 404 |
+| Suhbat va undagi xabarlar | begonaga 404 |
+| Bekor qilish, tahrirlash, o'chirish (begona yozuvda) | 404, bazada o'zgarish yo'q |
+| Sotuvchi/restoran/kuryer/ish beruvchi kabinetlari | begona biznes yozuvi 404 |
+| Guruh chat, taklif havolasi, qo'ng'iroqqa qo'shilish | a'zo bo'lmaganga 404 |
+| Xabar qidiruvi | begona suhbatdagi xabar topilmaydi |
+| Hikoyani kim ko'rgani | faqat muallifga |
+| Ochiq javoblarda telefon raqami | yo'q |
+
+95 ta tekshiruvning hammasi o'tdi — teshik topilmadi. Holat
+`src/config/data-ownership.test.ts` bilan qotirib qo'yilgan: shaxsiy
+jadvaldan ID bo'yicha o'qish yozilsa, sinov yiqiladi va sababini
+yozishni talab qiladi.
 
 ---
 
