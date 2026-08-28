@@ -1,4 +1,4 @@
-import { ArrowRight, Bot, Layers, ShieldCheck, Zap } from 'lucide-react';
+import { ArrowRight, Bot, Layers, ShieldCheck, Wallet, Zap } from 'lucide-react';
 import Link from 'next/link';
 
 import { SiteFooter } from '@/components/layout/site-footer';
@@ -28,25 +28,47 @@ const AI_EXAMPLES = [
   { command: "Kommunal to'lovlarni to'la", result: "To'lovlar moduli hisoblar bilan ochiladi" },
 ] as const;
 
-/** Platformaning texnik ustunliklari. */
+/**
+ * Platforma qanday qurilgani.
+ *
+ * ── Nima uchun bu yerda VA'DA yo'q ────────────────────────────────────
+ * Ilgari bu bo'limda "millionlab foydalanuvchiga tayyor" degan jumla
+ * turardi. Buni hech kim tekshirmagan: ilova hali ishga tushmagan,
+ * yuklama sinovi o'tkazilmagan. Ya'ni bu o'lchov emas, umid edi.
+ *
+ * Bunday jumlaning narxi yuqori. Uni o'qigan hamkor yoki investor shu
+ * asosda qaror qiladi va birinchi jiddiy yuklamada haqiqat ochilsa,
+ * ishonch yo'qoladi.
+ *
+ * Shuning uchun bu yerda faqat KODDA BOR narsalar sanaladi. Har bir
+ * jumlani repozitoriyni ochib tekshirish mumkin. Haqiqiy raqamlar
+ * (foydalanuvchi soni, javob tezligi) ishga tushgandan keyin
+ * qo'shiladi — o'shanda ular ancha kuchli bo'ladi.
+ */
 const PLATFORM_PILLARS = [
   {
     icon: Layers,
-    title: 'Modulli arxitektura',
+    title: 'Modulli tuzilma',
     description:
-      "Har bir xizmat mustaqil modul. Yangi modul qo'shish uchun mavjud kodga tegish shart emas — kelajakda mikroservislarga ajratish ham oson.",
+      "Har bir xizmat alohida modul: nomi, manzili va holati bitta reyestrda yozilgan. Bosh sahifadagi ro'yxat ham o'sha yerdan olinadi — qo'lda yangilanmaydi.",
   },
   {
     icon: ShieldCheck,
-    title: "Xavfsizlik birinchi o'rinda",
+    title: 'Ruxsat va audit',
     description:
-      "JWT autentifikatsiya, rollarga asoslangan ruxsatlar (RBAC), audit jurnali va barcha kirish ma'lumotlarini tekshirish — poydevordan boshlab.",
+      "Kirish JWT bilan, har bir amal rol va ruxsat bo'yicha tekshiriladi. Jiddiy amallar audit jurnaliga tushadi va jurnal faqat o'qish uchun — uni tahrirlab bo'lmaydi.",
+  },
+  {
+    icon: Wallet,
+    title: 'Pul hisobi',
+    description:
+      "Summalar tiyinda, butun sonda saqlanadi — kasr xatosi bo'lmaydi. Balans har doim tranzaksiya yozuvi bilan birga o'zgaradi, takroriy so'rovni esa bazadagi yagona kalit to'xtatadi.",
   },
   {
     icon: Zap,
-    title: 'Millionlab foydalanuvchiga tayyor',
+    title: 'Tezlik uchun tayyorgarlik',
     description:
-      'Redis keshi, indekslangan PostgreSQL jadvallari va Docker orqali gorizontal kengayish imkoniyati.',
+      "Ko'p ishlatiladigan so'rovlar indekslangan va ular haqiqiy hajmda o'lchangan. Sessiya, cheklovlar va tez-tez o'qiladigan ma'lumot Redis'da turadi.",
   },
 ] as const;
 
@@ -239,11 +261,11 @@ export default function HomePage() {
           <Container>
             <SectionHeading
               eyebrow="Texnologiya"
-              title="Kundalik ehtiyoj uchun oddiy, miqyos uchun kuchli"
-              description="Platforma birinchi kundanoq millionlab foydalanuvchini ko'tara oladigan qilib loyihalashtirilgan."
+              title="Platforma qanday qurilgan"
+              description="Quyidagilar hozir kodda bor. Va'da emas — tekshirish mumkin."
             />
 
-            <div className="mt-12 grid gap-5 md:grid-cols-3">
+            <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               {PLATFORM_PILLARS.map((pillar, index) => {
                 const Icon = pillar.icon;
 
