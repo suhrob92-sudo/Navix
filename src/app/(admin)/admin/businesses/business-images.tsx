@@ -2,13 +2,12 @@
 
 import { BedDouble } from 'lucide-react';
 
-import { CatalogImageManager } from '@/components/catalog/catalog-image-manager';
+import { CatalogImagePanel } from '@/components/catalog/catalog-image-panel';
 import { Alert } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
-import { catalogImagesPath, type CatalogImageOwner } from '@/config/catalog-image';
+import { type CatalogImageOwner } from '@/config/catalog-image';
 import { useApiQuery } from '@/hooks/use-api';
 import type { BusinessKind } from '@/modules/admin/business.service';
-import type { CatalogImageView } from '@/modules/catalog/catalog-image.types';
 
 /**
  * Biznes rasmlarini XODIM boshqaradi.
@@ -36,10 +35,6 @@ import type { CatalogImageView } from '@/modules/catalog/catalog-image.types';
  * egasi biriktirilmagan bo'lsa).
  */
 
-interface CatalogImagesResponse {
-  images: CatalogImageView[];
-}
-
 interface HotelRoomsResponse {
   hotel: {
     rooms: { id: string; name: string }[];
@@ -52,53 +47,6 @@ const OWNER_BY_KIND: Record<BusinessKind, CatalogImageOwner> = {
   RESTAURANT: 'RESTAURANT',
   HOTEL: 'HOTEL',
 };
-
-interface ImageSectionProps {
-  owner: CatalogImageOwner;
-  ownerId: string;
-  title: string;
-}
-
-function ImageSection({ owner, ownerId, title }: ImageSectionProps) {
-  /**
-   * Ro'yxat ALOHIDA holatda saqlanmaydi.
-   *
-   * `setData` bilan javobning o'zi yangilanadi. Aks holda "yuklandi ->
-   * holatga ko'chir" degan effekt kerak bo'lardi va u ekranni ikki
-   * marta chizardi (loyihada bunday effekt taqiqlangan).
-   */
-  const { data, isLoading, error, setData } = useApiQuery<CatalogImagesResponse>(
-    catalogImagesPath(owner, ownerId),
-  );
-
-  return (
-    <div className="space-y-2">
-      {isLoading && <Skeleton className="h-24 rounded-2xl" />}
-
-      {!isLoading && error && (
-        <Alert variant="error" title="Rasmlarni yuklab bo'lmadi">
-          {error}
-        </Alert>
-      )}
-
-      {!isLoading && !error && (
-        <CatalogImageManager
-          owner={owner}
-          ownerId={ownerId}
-          images={data?.images ?? []}
-          onChange={(images) => setData({ images })}
-          title={title}
-          /*
-            Izoh butun panel uchun BIR MARTA yuqorida yozilgan.
-            Bu yerda ham chiqarilsa, uchta xonali mehmonxonada u
-            to'rt marta takrorlanardi.
-          */
-          showHint={false}
-        />
-      )}
-    </div>
-  );
-}
 
 /**
  * Mehmonxona XONALARI ham alohida rasmga muhtoj.
@@ -134,7 +82,7 @@ function HotelRooms({ slug }: { slug: string }) {
       )}
 
       {rooms.map((room) => (
-        <ImageSection key={room.id} owner="HOTEL_ROOM" ownerId={room.id} title={room.name} />
+        <CatalogImagePanel key={room.id} owner="HOTEL_ROOM" ownerId={room.id} title={room.name} showHint={false} />
       ))}
     </div>
   );
@@ -154,7 +102,12 @@ export function BusinessImages({ kind, id, slug }: BusinessImagesProps) {
         tugmalari bilan o&apos;zgartiring.
       </p>
 
-      <ImageSection owner={OWNER_BY_KIND[kind]} ownerId={id} title="Asosiy rasmlar" />
+      <CatalogImagePanel
+        owner={OWNER_BY_KIND[kind]}
+        ownerId={id}
+        title="Asosiy rasmlar"
+        showHint={false}
+      />
 
       {kind === 'HOTEL' && <HotelRooms slug={slug} />}
     </div>

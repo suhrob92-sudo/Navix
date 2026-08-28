@@ -1,12 +1,22 @@
 'use client';
 
-import { ChevronRight, Clapperboard, ClipboardList, PackageX, ShoppingBag, Store, TrendingUp } from 'lucide-react';
+import {
+  ChevronRight,
+  Clapperboard,
+  ClipboardList,
+  Images,
+  PackageX,
+  ShoppingBag,
+  Store,
+  TrendingUp,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
 import { StatCard } from '@/components/admin/stat-card';
 import { ServiceIcon } from '@/components/app/service-icon';
+import { CatalogImagePanel } from '@/components/catalog/catalog-image-panel';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -42,6 +52,13 @@ function DashboardBody() {
   });
 
   const [savingId, setSavingId] = useState<string | null>(null);
+  /**
+   * Rasmlar paneli FAQAT bittasida ochiladi.
+   *
+   * Hammasi birdan ochilsa, har bir do'kon uchun alohida so'rov
+   * ketardi — sotuvchida bir nechta do'kon bo'lishi mumkin.
+   */
+  const [imagesId, setImagesId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const shops = data?.shops ?? [];
@@ -232,6 +249,41 @@ function DashboardBody() {
                   <span>Ombor va mahsulotlar</span>
                   <ChevronRight className="size-4" aria-hidden="true" />
                 </Link>
+
+                {/*
+                  DO'KON rasmlari — mahsulot rasmlaridan boshqa narsa.
+
+                  Mahsulot rasmi bitta tovarni ko'rsatadi, do'kon rasmi
+                  esa xaridor ro'yxatda ko'radigan birinchi taassurot.
+                  Rasmsiz do'kon ro'yxatda bo'sh kvadrat bo'lib turadi.
+                */}
+                <button
+                  type="button"
+                  aria-expanded={imagesId === shop.id}
+                  onClick={() => setImagesId(imagesId === shop.id ? null : shop.id)}
+                  className="border-border/60 text-muted-foreground hover:text-foreground mt-3 flex w-full items-center justify-between border-t pt-3 text-sm transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <Images className="size-4" aria-hidden="true" />
+                    Do&apos;kon rasmlari
+                  </span>
+                  <ChevronRight
+                    className={`size-4 transition-transform ${imagesId === shop.id ? 'rotate-90' : ''}`}
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {imagesId === shop.id && (
+                  <div className="mt-3">
+                    {/*
+                      Sarlavha berilmaydi: yuqoridagi tugma allaqachon
+                      "Do'kon rasmlari" deb turibdi. Ikkinchi marta
+                      yozilsa, telefon ekranida bir xil matn ikki
+                      qatorda takrorlanardi.
+                    */}
+                    <CatalogImagePanel owner="SHOP" ownerId={shop.id} />
+                  </div>
+                )}
               </li>
             ))}
           </ul>

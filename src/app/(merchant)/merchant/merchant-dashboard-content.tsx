@@ -1,12 +1,21 @@
 'use client';
 
-import { ChevronRight, ClipboardList, Store, TrendingUp, UtensilsCrossed, XCircle } from 'lucide-react';
+import {
+  ChevronRight,
+  ClipboardList,
+  Images,
+  Store,
+  TrendingUp,
+  UtensilsCrossed,
+  XCircle,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
 import { StatCard } from '@/components/admin/stat-card';
 import { ServiceIcon } from '@/components/app/service-icon';
+import { CatalogImagePanel } from '@/components/catalog/catalog-image-panel';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -44,6 +53,11 @@ function DashboardBody() {
   );
 
   const [savingId, setSavingId] = useState<string | null>(null);
+  /**
+   * Rasmlar paneli FAQAT bittasida ochiladi — sotuvchi kabinetidagi
+   * kabi. Bir egada bir nechta restoran bo'lishi mumkin.
+   */
+  const [imagesId, setImagesId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const restaurants = data?.restaurants ?? [];
@@ -197,6 +211,35 @@ function DashboardBody() {
                   <span>Menyuni boshqarish</span>
                   <ChevronRight className="size-4" aria-hidden="true" />
                 </Link>
+
+                {/*
+                  RESTORAN rasmlari — taom rasmlaridan boshqa narsa.
+
+                  Taom rasmi bitta taomni ko'rsatadi, restoran rasmi esa
+                  mijoz ro'yxatda ko'radigan birinchi taassurot.
+                */}
+                <button
+                  type="button"
+                  aria-expanded={imagesId === restaurant.id}
+                  onClick={() => setImagesId(imagesId === restaurant.id ? null : restaurant.id)}
+                  className="border-border/60 text-muted-foreground hover:text-foreground mt-3 flex w-full items-center justify-between border-t pt-3 text-sm transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <Images className="size-4" aria-hidden="true" />
+                    Restoran rasmlari
+                  </span>
+                  <ChevronRight
+                    className={`size-4 transition-transform ${imagesId === restaurant.id ? 'rotate-90' : ''}`}
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {imagesId === restaurant.id && (
+                  <div className="mt-3">
+                    {/* Sarlavha yuqoridagi tugmada — takrorlanmaydi. */}
+                    <CatalogImagePanel owner="RESTAURANT" ownerId={restaurant.id} />
+                  </div>
+                )}
               </li>
             ))}
           </ul>

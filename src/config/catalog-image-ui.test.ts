@@ -26,38 +26,46 @@ import { CATALOG_IMAGE_OWNERS, type CatalogImageOwner } from '@/config/catalog-i
  */
 
 interface OwnerUi {
-  /** Boshqaruvchi joylashgan fayl. `null` — ekran hali yo'q. */
-  file: string | null;
+  /** Boshqaruvchi joylashgan fayllar. Bo'sh ro'yxat — ekran hali yo'q. */
+  files: readonly string[];
   why: string;
 }
 
 const OWNER_UI: Record<CatalogImageOwner, OwnerUi> = {
   PRODUCT: {
-    file: 'src/app/(seller)/seller/products/[id]/seller-product-sheet.tsx',
+    files: ['src/app/(seller)/seller/products/[id]/seller-product-sheet.tsx'],
     why: "Sotuvchi o'z mahsulotiga rasm qo'yadi.",
   },
   MENU_ITEM: {
-    file: 'src/app/(merchant)/merchant/menu/[id]/merchant-menu-content.tsx',
+    files: ['src/app/(merchant)/merchant/menu/[id]/merchant-menu-content.tsx'],
     why: "Restoran egasi taomga rasm qo'yadi.",
   },
   SHOP: {
-    file: 'src/app/(admin)/admin/businesses/business-images.tsx',
-    why: "Xodim do'kon rasmini qo'ya oladi — egasi biriktirilmagan bo'lsa ham.",
+    files: [
+      'src/app/(seller)/seller/seller-dashboard-content.tsx',
+      'src/app/(admin)/admin/businesses/business-images.tsx',
+    ],
+    why:
+      "Egasi o'z do'koniga rasm qo'yadi; xodim ham qo'ya oladi — egasi " +
+      "biriktirilmagan yoki yordam kerak bo'lgan holat uchun.",
   },
   RESTAURANT: {
-    file: 'src/app/(admin)/admin/businesses/business-images.tsx',
-    why: "Xodim restoran rasmini qo'ya oladi.",
+    files: [
+      'src/app/(merchant)/merchant/merchant-dashboard-content.tsx',
+      'src/app/(admin)/admin/businesses/business-images.tsx',
+    ],
+    why: "Egasi o'z restoraniga rasm qo'yadi; xodim ham qo'ya oladi.",
   },
   HOTEL: {
-    file: 'src/app/(admin)/admin/businesses/business-images.tsx',
+    files: ['src/app/(admin)/admin/businesses/business-images.tsx'],
     why: "Mehmonxonalarni platforma qo'shadi: `hotels` jadvalida egasi ustuni yo'q.",
   },
   HOTEL_ROOM: {
-    file: 'src/app/(admin)/admin/businesses/business-images.tsx',
+    files: ['src/app/(admin)/admin/businesses/business-images.tsx'],
     why: 'Mijoz mehmonxonani emas, XONANI tanlaydi — uning rasmi alohida kerak.',
   },
   COMPANY: {
-    file: null,
+    files: [],
     why:
       "Ish beruvchi kabinetida kompaniya sozlamalari ekrani hali yo'q — " +
       "faqat vakansiyalar va arizalar bor. Ekran paydo bo'lganda rasm " +
@@ -72,20 +80,27 @@ describe('katalog rasmlari uchun ekranlar', () => {
     }
   });
 
-  it.each(CATALOG_IMAGE_OWNERS.filter((owner) => OWNER_UI[owner].file !== null))(
+  it.each(CATALOG_IMAGE_OWNERS.filter((owner) => OWNER_UI[owner].files.length > 0))(
     '%s — ekrani mavjud va rasm boshqaruvchisini ishlatadi',
     (owner) => {
-      const { file } = OWNER_UI[owner];
+      for (const file of OWNER_UI[owner].files) {
+        expect(existsSync(file), `${file} topilmadi`).toBe(true);
 
-      expect(existsSync(file!), `${file} topilmadi`).toBe(true);
-      expect(readFileSync(file!, 'utf8'), `${file} da CatalogImageManager yo'q`).toContain(
-        'CatalogImageManager',
-      );
+        /*
+          Ekran boshqaruvchini TO'G'RIDAN-TO'G'RI yoki umumiy panel
+          orqali ishlatishi mumkin — ikkalasi ham to'g'ri.
+        */
+        const source = readFileSync(file, 'utf8');
+        const usesManager =
+          source.includes('CatalogImageManager') || source.includes('CatalogImagePanel');
+
+        expect(usesManager, `${file} da rasm boshqaruvchisi yo'q`).toBe(true);
+      }
     },
   );
 
   it("ekransiz turlar sababi bilan yozilgan", () => {
-    const missing = CATALOG_IMAGE_OWNERS.filter((owner) => OWNER_UI[owner].file === null);
+    const missing = CATALOG_IMAGE_OWNERS.filter((owner) => OWNER_UI[owner].files.length === 0);
 
     for (const owner of missing) {
       expect(OWNER_UI[owner].why.length, `${owner}: sabab juda qisqa`).toBeGreaterThan(40);
