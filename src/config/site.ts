@@ -3,9 +3,20 @@ import { clientEnv } from '@/lib/env';
 /** Brend va sayt darajasidagi umumiy sozlamalar. */
 export const siteConfig = {
   name: clientEnv.NEXT_PUBLIC_APP_NAME,
-  tagline: 'Markaziy Osiyoning yagona super ilovasi',
+  /**
+   * Sayt sarlavhasi va ijtimoiy tarmoq rasmlarida ishlatiladi.
+   *
+   * ── Nima uchun "super ilova" olib tashlandi ─────────────────────────
+   * Bu ibora ilovaning O'ZI haqida gapiradi, foydalanuvchi nima qila
+   * olishi haqida emas. Odam esa qidiruv natijasida yoki havolada
+   * "menga nima beradi?" degan savolga javob izlaydi.
+   *
+   * Shu sababli sarlavha endi qisqa va aniq: xizmat nomlari va
+   * ularning bitta joyda ekani.
+   */
+  tagline: 'Kundalik xizmatlar bitta ilovada',
   description:
-    "Taksi, ovqat yetkazish, marketplace, to'lovlar, ish qidirish va sayohat — barchasi bitta ilovada. AI yordamchi esa hammasini siz uchun boshqaradi.",
+    "Ovqat yetkazish, marketplace, to'lovlar va hamyon, ish qidirish, mehmonxona hamda sayohat bandlovi — bitta hisob bilan. AI yordamchi kerakli xizmatni bir jumladan topadi.",
   url: clientEnv.NEXT_PUBLIC_APP_URL,
   locale: 'uz-UZ',
   defaultCurrency: 'UZS',

@@ -7,7 +7,7 @@ import { loadSharePreview } from '@/modules/feed/share-preview.service';
  * BITTA POST uchun ulashish rasmi.
  *
  * ── Nima uchun umumiy rasmdan alohida ─────────────────────────────────
- * Ildizdagi rasm butun ilova haqida: "Navix — super ilova". Post
+ * Ildizdagi rasm butun ilova haqida: "Navix — xizmatlar". Post
  * havolasi bilan ulashilganda esa odam AYNAN o'sha postni ko'rmoqchi:
  * kim yozgan, nima haqida.
  *

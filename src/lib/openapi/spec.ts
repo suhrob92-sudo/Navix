@@ -17,7 +17,7 @@ export const openApiSpec = {
     title: `${siteConfig.name} API`,
     version: '0.1.0',
     description:
-      'Navix super ilovasining ochiq API hujjati. Barcha javoblar yagona formatda (envelope) qaytadi: `success`, `data` yoki `error`, va `meta`.',
+      'Navix platformasining ochiq API hujjati. Barcha javoblar yagona formatda (envelope) qaytadi: `success`, `data` yoki `error`, va `meta`.',
     contact: { name: "Navix qo'llab-quvvatlash", email: siteConfig.supportEmail },
   },
   servers: [

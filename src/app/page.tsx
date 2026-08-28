@@ -1,4 +1,4 @@
-import { ArrowRight, Bot, Layers, ShieldCheck, Sparkles, Zap } from 'lucide-react';
+import { ArrowRight, Bot, Layers, ShieldCheck, Zap } from 'lucide-react';
 import Link from 'next/link';
 
 import { SiteFooter } from '@/components/layout/site-footer';
@@ -7,12 +7,18 @@ import { AuroraBackground } from '@/components/shared/aurora-background';
 import { HeroActions } from '@/components/shared/hero-actions';
 import { ModuleCard } from '@/components/shared/module-card';
 import { SectionHeading } from '@/components/shared/section-heading';
+import { ServiceIcon } from '@/components/app/service-icon';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardDescription, CardTitle } from '@/components/ui/card';
 import { Container } from '@/components/ui/container';
-import { MODULE_CATEGORIES, ModuleStatus, getModulesByCategory, getPublicModules } from '@/config/modules';
-import { siteConfig } from '@/config/site';
+import {
+  MODULE_CATEGORIES,
+  ModuleStatus,
+  getModuleById,
+  getModulesByCategory,
+  getQuickServices,
+} from '@/config/modules';
 
 /** AI yordamchi nimalarni qila olishini ko'rsatuvchi namunalar. */
 const AI_EXAMPLES = [
@@ -44,15 +50,35 @@ const PLATFORM_PILLARS = [
   },
 ] as const;
 
+/**
+ * Bosh ekranda ko'rsatiladigan xizmatlar.
+ *
+ * ── Nima uchun faqat ISHLAYOTGANLARI ──────────────────────────────────
+ * Ilgari bu yerda "18 ta reja qilingan modul" degan raqam turardi.
+ * Bunday raqam foydalanuvchiga hech narsa bermaydi: u nima qila
+ * olishini emas, biz nima rejalashtirganimizni aytadi.
+ *
+ * Undan ham yomoni — sarlavhada "Taksi chaqiring" deb yozilgandi,
+ * holbuki taksi hali ishlamaydi. Bu va'da bajarilmasdi.
+ *
+ * Endi ro'yxat reyestrdan olinadi va faqat HOLATI "LIVE" bo'lgan
+ * xizmatlar chiqadi. Taksi ishga tushgan kuni u o'z-o'zidan paydo
+ * bo'ladi — kodni o'zgartirish shart emas.
+ */
+function heroServices() {
+  const quick = getQuickServices().filter((module) => module.status === ModuleStatus.LIVE);
+  const assistant = getModuleById('ai-assistant');
+
+  /*
+    AI yordamchi "tezkor xizmat" emas — u boshqalarini boshqaradi.
+    Shuning uchun reyestrda `quickOrder` yo'q, lekin bosh ekranda
+    ko'rinishi kerak: bu ilovaning eng ko'zga tashlanadigan imkoniyati.
+  */
+  return assistant && assistant.status === ModuleStatus.LIVE ? [...quick, assistant] : quick;
+}
+
 export default function HomePage() {
-  /**
-   * Sanoqlar FAQAT ochiq modullar bo'yicha.
-   *
-   * Admin paneli ham reyestrda turadi, lekin u mijozga taklif
-   * qilinadigan xizmat emas — sanoqqa qo'shilsa, raqam yolg'on bo'lardi.
-   */
-  const publicModules = getPublicModules();
-  const liveModuleCount = publicModules.filter((module) => module.status === ModuleStatus.LIVE).length;
+  const services = heroServices();
 
   return (
     <>
@@ -65,59 +91,69 @@ export default function HomePage() {
 
           <Container className="relative">
             <div className="mx-auto max-w-3xl text-center">
-              <div className="animate-fade-up flex justify-center">
-                <Badge className="gap-2 px-4 py-1.5 text-sm">
-                  <Sparkles className="size-3.5" aria-hidden="true" />
-                  {siteConfig.tagline}
-                </Badge>
-              </div>
-
-              <h1
-                className="animate-fade-up mt-6 text-4xl font-semibold tracking-tight text-balance sm:text-6xl"
-                style={{ animationDelay: '80ms' }}
-              >
-                Bitta ilova — <span className="text-gradient">butun hayotingiz</span> uchun
+              <h1 className="animate-fade-up text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
+                {/*
+                  Tire oldingi so'z bilan BIRGA qoladi (`&nbsp;`).
+                  Aks holda telefon ekranida yangi qator "—" bilan
+                  boshlanardi va sarlavha sinib ko'rinardi.
+                */}
+                Ovqat, xarid, to&apos;lov va sayohat&nbsp;—{' '}
+                <span className="text-gradient">bitta ilovada</span>
               </h1>
 
               <p
                 className="animate-fade-up text-muted-foreground mt-6 text-lg leading-relaxed text-pretty"
-                style={{ animationDelay: '160ms' }}
+                style={{ animationDelay: '80ms' }}
               >
-                Taksi chaqiring, ovqat buyurtma qiling, to&apos;lovlarni amalga oshiring, ish toping va sayohat
-                rejalashtiring. AI yordamchi esa bularning barchasini siz uchun bir jumla bilan bajaradi.
+                Har bir xizmat uchun alohida ilova va alohida hisob kerak emas. Bitta hisob, bitta
+                hamyon, buyurtmalar tarixi ham bitta joyda.
               </p>
 
-              <div className="animate-fade-up mt-9" style={{ animationDelay: '240ms' }}>
+              <div className="animate-fade-up mt-9" style={{ animationDelay: '160ms' }}>
                 <HeroActions />
               </div>
-
-              {/* Statistika */}
-              <dl
-                className="animate-fade-up mx-auto mt-14 grid max-w-lg grid-cols-3 gap-4"
-                style={{ animationDelay: '320ms' }}
-              >
-                {[
-                  { label: 'Reja qilingan modul', value: publicModules.length },
-                  { label: 'Ishga tushgan modul', value: liveModuleCount },
-                  { label: "Xizmat yo'nalishi", value: MODULE_CATEGORIES.length },
-                ].map((stat) => (
-                  <div key={stat.label} className="glass rounded-xl px-3 py-4">
-                    <dt className="text-muted-foreground text-xs">{stat.label}</dt>
-                    <dd className="mt-1 text-2xl font-semibold tabular-nums">{stat.value}</dd>
-                  </div>
-                ))}
-              </dl>
             </div>
+
+            {/*
+              Xizmatlar ro'yxati — bosh ekranning asosiy mazmuni.
+
+              Odam "bu ilova nima qila oladi?" degan savolga javobni
+              matndan emas, aynan shu ro'yxatdan oladi. Har biri bosiladi:
+              ro'yxat bezak emas, kirish nuqtasi.
+            */}
+            <ul className="animate-fade-up mx-auto mt-14 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+              {services.map((module, index) => (
+                <li key={module.id} style={{ animationDelay: `${240 + index * 50}ms` }}>
+                  <Link
+                    href={module.href}
+                    className="glass hover:border-primary/30 flex h-full flex-col items-center gap-2 rounded-2xl px-3 py-4 text-center transition-colors"
+                  >
+                    <ServiceIcon icon={module.icon} color={module.color} size="sm" />
+                    <span className="text-sm font-medium">{module.name}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </Container>
         </section>
 
         {/* ---------------- Modullar ---------------- */}
         <section id="modullar" className="scroll-mt-24 py-16 sm:py-20">
           <Container>
+            {/*
+              Sarlavha va'da bermaydi, YO'L KO'RSATADI.
+
+              Ilgari bu yerda "kerak bo'lgan hamma narsa" deb yozilgandi.
+              Pastdagi kartalarning bir qismida esa "Rejada" belgisi
+              turibdi — ya'ni matn kartalarning o'zi bilan ziddiyatda edi.
+
+              Endi sarlavha shu belgini tushuntiradi: odam qaysi xizmat
+              bugun ishlashini bir qarashda ajratadi.
+            */}
             <SectionHeading
               eyebrow="Xizmatlar"
-              title="Kundalik hayot uchun kerak bo'lgan hamma narsa"
-              description="Har bir xizmat mustaqil modul sifatida ishlab chiqiladi va bosqichma-bosqich ishga tushiriladi."
+              title="Har bir xizmat va uning holati"
+              description="Belgi xizmat bugun ishlayotganini yoki hali rejada ekanini ko'rsatadi."
             />
 
             <div className="mt-14 space-y-14">
