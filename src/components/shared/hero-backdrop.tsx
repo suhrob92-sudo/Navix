@@ -1,17 +1,14 @@
 /**
- * Bosh ekran foni — premium natural qatlam.
+ * Bosh ekran foni.
  *
  * ── Nima uchun `AuroraBackground` dan alohida ─────────────────────────
- * Shafaq foni butun ilovada ishlatiladi: kirish sahifasida, AI
- * bo'limida. Uning rangi ko'k va binafsha — brend rangi.
+ * Ranglar BIR XIL: ikkalasi ham brend tokenlaridan oladi. Farqi
+ * ishlashida — bu qatlam chekkalarni yumshatadi.
  *
- * Bosh ekran esa boshqa vazifani bajaradi: odam ilovani BIRINCHI
- * marta ko'radi va bir necha soniyada "bu jiddiy ilovami?" degan
- * qarorga keladi. Shu sababli bu yerda tabiiy palitra: qaymoq,
- * moyil yashil va yog'och rangi.
- *
- * Umumiy fonni o'zgartirsak, butun ilova o'zgarib ketardi. Shuning
- * uchun bu qatlam alohida va faqat shu ekranda ishlatiladi.
+ * Bo'lim yopishqoq panel ostidan boshlanadi va keyingi bo'limga
+ * tutashadi. Chekkalar keskin bo'lsa, o'sha joylarda ko'zga
+ * tashlanadigan chiziq paydo bo'ladi — buni ekran suratida ko'rdim.
+ * Shuning uchun yuqori va pastki chekka fonga singib ketadi.
  *
  * ── Nima uchun dog'lar deyarli ko'rinmaydi ────────────────────────────
  * Ular rang emas, HAVO berish uchun. Yorqin dog' fonni "bezak"ka
@@ -38,15 +35,15 @@ interface Shape {
  */
 const SHAPES: readonly Shape[] = [
   {
-    className: 'hero-glow hero-glow-ivory -top-32 -left-24 size-[26rem] sm:size-[34rem]',
+    className: 'hero-glow hero-glow-primary -top-32 -left-24 size-[26rem] sm:size-[34rem]',
     delaySeconds: 0,
   },
   {
-    className: 'hero-glow hero-glow-sage -top-16 -right-28 size-[24rem] sm:size-[30rem]',
+    className: 'hero-glow hero-glow-accent -top-16 -right-28 size-[24rem] sm:size-[30rem]',
     delaySeconds: -9,
   },
   {
-    className: 'hero-glow hero-glow-oak bottom-[-12rem] left-1/4 size-[22rem] sm:size-[28rem]',
+    className: 'hero-glow hero-glow-success bottom-[-12rem] left-1/4 size-[22rem] sm:size-[28rem]',
     delaySeconds: -17,
   },
 ];

@@ -105,7 +105,7 @@ export default function HomePage() {
 
   return (
     <>
-      <SiteHeader className="hero-header" />
+      <SiteHeader />
 
       <main className="flex-1">
         {/* ---------------- Bosh ekran (Hero) ---------------- */}
@@ -121,7 +121,7 @@ export default function HomePage() {
                   boshlanardi va sarlavha sinib ko'rinardi.
                 */}
                 Ovqat, xarid, to&apos;lov va sayohat&nbsp;—{' '}
-                <span className="hero-title-accent">bitta ilovada</span>
+                <span className="text-gradient">bitta ilovada</span>
               </h1>
 
               <p
