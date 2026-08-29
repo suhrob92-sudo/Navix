@@ -194,6 +194,15 @@
   */
   --animate-slide-up: slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-aurora: aurora 18s ease-in-out infinite;
+  /*
+    Kirish sahifasidagi 3D sahna.
+
+    Sekin va uzoq: 20 soniyalik davr diqqatni tortmaydi, lekin sahna
+    "jonli" bo'lib turadi. Tez harakat forma to'ldirayotgan odamni
+    chalg'itardi.
+  */
+  --animate-tile-float: tile-float 20s ease-in-out infinite;
+  --animate-card-rise: card-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-heart-pop: heart-pop 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -276,6 +285,46 @@
   }
   66% {
     transform: translate3d(-6%, 6%, 0) scale(0.95);
+  }
+}
+
+/*
+ * Kirish sahifasidagi xizmat kartachalari — sekin "suzish".
+ *
+ * ── Nima uchun faqat `translate3d` ─────────────────────────────────────
+ * Kartachaning 3D burchagi (rotateX/rotateY) TASHQI qatlamda turadi va
+ * o'zgarmaydi. Bu yerda faqat siljish bor.
+ *
+ * Sabab: animatsiya `transform` ni butunlay almashtiradi. Ikkalasi bir
+ * qatlamda bo'lsa, animatsiya burilishni o'chirib yuborardi va
+ * kartachalar tekislanib qolardi.
+ */
+@keyframes tile-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -14px, 0);
+  }
+}
+
+/*
+ * Forma kartasi chuqurlikdan chiqadi.
+ *
+ * ── Nima uchun oxirida TEKIS ───────────────────────────────────────────
+ * Doimiy qiyshaygan forma chiroyli ko'rinadi, lekin matn qiyshayadi va
+ * o'qish qiyinlashadi. Shuning uchun 3D faqat KIRISH lahzasida:
+ * karta chuqurlikdan ko'tariladi va tekis holatda to'xtaydi.
+ */
+@keyframes card-rise {
+  from {
+    opacity: 0;
+    transform: perspective(1000px) translate3d(0, 24px, -80px) rotateX(12deg);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(1000px) translate3d(0, 0, 0) rotateX(0deg);
   }
 }
 

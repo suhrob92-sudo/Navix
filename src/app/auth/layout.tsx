@@ -11,6 +11,11 @@ import { siteConfig } from '@/config/site';
  *
  * Bosh sahifadagi to'liq menyu bu yerda kerak emas — foydalanuvchi
  * bitta ishga (kirish yoki ro'yxatdan o'tish) e'tibor qaratishi kerak.
+ *
+ * Fonda sekin harakatlanuvchi shafaq turadi. Kirish sahifasi bunga
+ * qo'shimcha 3D sahna qo'shadi — u faqat o'sha sahifada, chunki
+ * ro'yxatdan o'tish formasi uzun va sahna matn ortiga tushib,
+ * o'qishni qiyinlashtirardi.
  */
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
