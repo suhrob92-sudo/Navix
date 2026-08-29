@@ -65,11 +65,10 @@ const OWNER_UI: Record<CatalogImageOwner, OwnerUi> = {
     why: 'Mijoz mehmonxonani emas, XONANI tanlaydi — uning rasmi alohida kerak.',
   },
   COMPANY: {
-    files: [],
+    files: ['src/app/(employer)/employer/employer-dashboard-content.tsx'],
     why:
-      "Ish beruvchi kabinetida kompaniya sozlamalari ekrani hali yo'q — " +
-      "faqat vakansiyalar va arizalar bor. Ekran paydo bo'lganda rasm " +
-      "boshqaruvchisi o'sha yerga qo'shiladi.",
+      "Ish beruvchi kompaniya logotipini o'zi qo'yadi — nomzod e'londa " +
+      'aynan shuni ko\'radi.',
   },
 };
 
@@ -110,6 +109,10 @@ describe('katalog rasmlari uchun ekranlar', () => {
       Ro'yxat qanchalik uzayganini ko'rsatib turadi. Yangi tur ekransiz
       qo'shilsa, bu son oshadi va sinov to'xtatadi.
     */
-    expect(missing.length, `Ekransiz turlar: ${missing.join(', ')}`).toBeLessThanOrEqual(1);
+    /*
+      Hozir ekransiz tur YO'Q. Yangisi qo'shilsa, bu son oshadi va
+      sinov to'xtatib, sababini yozishni talab qiladi.
+    */
+    expect(missing.length, `Ekransiz turlar: ${missing.join(', ')}`).toBe(0);
   });
 });

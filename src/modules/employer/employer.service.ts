@@ -15,6 +15,7 @@ import type {
   DecideApplicationInput,
   EmployerApplicationQuery,
   EmployerVacancyQuery,
+  UpdateCompanyInput,
   UpdateVacancyInput,
 } from '@/modules/employer/employer.schemas';
 import type {
@@ -73,6 +74,7 @@ export async function getEmployerOverview(
       id: true,
       slug: true,
       name: true,
+      description: true,
       industry: true,
       city: true,
       color: true,
@@ -91,6 +93,7 @@ export async function getEmployerOverview(
     id: row.id,
     slug: row.slug,
     name: row.name,
+    description: row.description,
     industry: row.industry,
     city: row.city,
     color: row.color as ServiceColor,
@@ -197,6 +200,65 @@ async function countPendingByVacancy(vacancyIds: string[]): Promise<Map<string, 
   });
 
   return new Map(rows.map((row) => [row.vacancyId, row._count._all]));
+}
+
+/**
+ * Kompaniya ma'lumotini o'zgartiradi.
+ *
+ * ── Nima uchun egalik SO'ROVDA tekshiriladi ───────────────────────────
+ * `where` ichida `ownerId` bor: begona kompaniya shunchaki topilmaydi.
+ * Agar avval o'qib, keyin kodda solishtirilsa, o'sha tekshiruvni
+ * unutish mumkin edi — bu esa boshqa birovning kompaniyasini
+ * tahrirlash degani.
+ */
+export async function updateEmployerCompany(
+  userId: string,
+  companyId: string,
+  input: UpdateCompanyInput,
+  meta: OperationMeta = {},
+): Promise<EmployerCompany> {
+  const company = await prisma.company.findFirst({
+    where: { id: companyId, ownerId: userId },
+    select: { id: true },
+  });
+
+  if (!company) {
+    // "Sizniki emas" emas, "topilmadi" — begona kompaniya borligini
+    // ham oshkor qilmaymiz.
+    throw new NotFoundError('Kompaniya');
+  }
+
+  await prisma.company.update({
+    where: { id: companyId },
+    data: {
+      // Nom o'zgarsa qidiruv ustuni ham yangilanadi.
+      ...(input.name === undefined ? {} : { name: input.name, searchName: toSearchText(input.name) }),
+      ...(input.description === undefined ? {} : { description: input.description }),
+      ...(input.industry === undefined ? {} : { industry: input.industry }),
+      ...(input.city === undefined ? {} : { city: input.city }),
+    },
+  });
+
+  await recordAudit({
+    actorId: userId,
+    action: AuditAction.EMPLOYER_COMPANY_UPDATED,
+    resourceType: 'Company',
+    resourceId: companyId,
+    module: MODULE,
+    metadata: { ...input },
+    ...meta,
+  });
+
+  logger.info({ userId, companyId, changed: Object.keys(input) }, "Kompaniya ma'lumoti o'zgartirildi");
+
+  const overview = await getEmployerOverview(userId);
+  const updated = overview.companies.find((item) => item.id === companyId);
+
+  if (!updated) {
+    throw new NotFoundError('Kompaniya');
+  }
+
+  return updated;
 }
 
 export async function listEmployerVacancies(

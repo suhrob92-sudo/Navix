@@ -22,6 +22,8 @@ export interface EmployerCompany {
   id: string;
   slug: string;
   name: string;
+  /** Kompaniya haqida — nomzod e'londa shuni o'qiydi. */
+  description: string;
   industry: string;
   city: string;
   color: ServiceColor;

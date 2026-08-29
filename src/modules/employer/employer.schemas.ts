@@ -79,6 +79,33 @@ const employmentTypeSchema = z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTE
 const experienceLevelSchema = z.enum(['NONE', 'JUNIOR', 'MIDDLE', 'SENIOR']);
 
 /** POST /api/v1/employer/vacancies */
+/**
+ * PATCH /api/v1/employer/companies/[id] — kompaniya ma'lumoti.
+ *
+ * ── Nima uchun manzil (`slug`) yo'q ───────────────────────────────────
+ * Manzil bir marta yasaladi va o'zgarmaydi: u nomzod ko'rgan e'londa
+ * va tashqi havolalarda turadi. Nomi o'zgarganda manzil ham o'zgarsa,
+ * eski havolalar ochilmay qolardi.
+ *
+ * ── Nima uchun rang va "faol" bayrog'i yo'q ───────────────────────────
+ * Rang — interfeys sozlamasi, uni platforma tanlaydi. "Faol" esa
+ * ADMIN qaroriga bog'liq: kompaniya o'zini ro'yxatdan chiqara olsa,
+ * ochiq vakansiyalar bilan birga arizalar ham osilib qolardi.
+ */
+export const updateCompanySchema = z.object({
+  name: z.string().trim().min(2, 'Nom juda qisqa').max(120, 'Nom juda uzun').optional(),
+  description: z
+    .string()
+    .trim()
+    .min(20, "Tavsif juda qisqa — nomzod kompaniya haqida o'qiydi")
+    .max(400, 'Tavsif juda uzun')
+    .optional(),
+  industry: z.string().trim().min(2, 'Soha juda qisqa').max(60, 'Soha juda uzun').optional(),
+  city: z.string().trim().min(2, 'Shahar nomi juda qisqa').max(80, 'Shahar nomi juda uzun').optional(),
+});
+
+export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>;
+
 export const createVacancySchema = z
   .object({
     companyId: z.uuid({ message: "Kompaniya noto'g'ri tanlangan" }),

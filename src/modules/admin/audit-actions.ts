@@ -48,6 +48,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   'seller.product.created': "Yangi mahsulot qo'shdi",
   'seller.product.updated': 'Mahsulotni tahrirladi',
   'seller.shop.updated': "Do'kon sozlamasini o'zgartirdi",
+  'merchant.restaurant.updated': "Restoran sozlamasini o'zgartirdi",
+  'employer.company.updated': "Kompaniya ma'lumotini o'zgartirdi",
   'seller.shop.assigned': "Do'kon biriktirildi",
   'seller.shop.unassigned': "Do'kon olib tashlandi",
 
@@ -150,6 +152,8 @@ export const AUDIT_GROUP_ACTIONS: Record<Exclude<AuditFilterGroup, 'ALL'>, reado
     'seller.product.created',
     'seller.product.updated',
     'seller.shop.updated',
+    'merchant.restaurant.updated',
+    'employer.company.updated',
     'courier.delivery.accepted',
     'courier.delivery.picked_up',
     'courier.delivery.released',

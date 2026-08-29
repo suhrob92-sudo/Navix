@@ -12,6 +12,8 @@ export interface SellerShop {
   id: string;
   slug: string;
   name: string;
+  /** Do'kon sahifasidagi matn — egasi sozlamalarda o'zgartiradi. */
+  description: string;
   color: ServiceColor;
   /** Sotuvchi boshqaradi: hozir buyurtma qabul qilyaptimi. */
   isOpen: boolean;

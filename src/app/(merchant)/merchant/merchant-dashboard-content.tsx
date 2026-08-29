@@ -4,6 +4,7 @@ import {
   ChevronRight,
   ClipboardList,
   Images,
+  Settings,
   Store,
   TrendingUp,
   UtensilsCrossed,
@@ -16,6 +17,7 @@ import { AdminHeader } from '@/components/admin/admin-header';
 import { StatCard } from '@/components/admin/stat-card';
 import { ServiceIcon } from '@/components/app/service-icon';
 import { CatalogImagePanel } from '@/components/catalog/catalog-image-panel';
+import { RestaurantSettingsForm } from '@/app/(merchant)/merchant/restaurant-settings-form';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -58,6 +60,8 @@ function DashboardBody() {
    * kabi. Bir egada bir nechta restoran bo'lishi mumkin.
    */
   const [imagesId, setImagesId] = useState<string | null>(null);
+  /** Sozlamalar paneli — rasmlar kabi, bir vaqtda bittasi. */
+  const [settingsId, setSettingsId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const restaurants = data?.restaurants ?? [];
@@ -238,6 +242,28 @@ function DashboardBody() {
                   <div className="mt-3">
                     {/* Sarlavha yuqoridagi tugmada — takrorlanmaydi. */}
                     <CatalogImagePanel owner="RESTAURANT" ownerId={restaurant.id} />
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  aria-expanded={settingsId === restaurant.id}
+                  onClick={() => setSettingsId(settingsId === restaurant.id ? null : restaurant.id)}
+                  className="border-border/60 text-muted-foreground hover:text-foreground mt-3 flex w-full items-center justify-between border-t pt-3 text-sm transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <Settings className="size-4" aria-hidden="true" />
+                    Sozlamalar
+                  </span>
+                  <ChevronRight
+                    className={`size-4 transition-transform ${settingsId === restaurant.id ? 'rotate-90' : ''}`}
+                    aria-hidden="true"
+                  />
+                </button>
+
+                {settingsId === restaurant.id && (
+                  <div className="mt-3">
+                    <RestaurantSettingsForm restaurant={restaurant} onSaved={reload} />
                   </div>
                 )}
               </li>

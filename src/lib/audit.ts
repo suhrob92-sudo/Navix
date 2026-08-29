@@ -78,6 +78,14 @@ export const AuditAction = {
   // Restoran kabineti.
   MERCHANT_ORDER_STATUS_CHANGED: 'merchant.order.status_changed',
   MERCHANT_ORDER_REJECTED: 'merchant.order.rejected',
+  /**
+   * Restoran sozlamasi o'zgardi.
+   *
+   * Bu yozuv PUL bilan bog'liq: sozlamalar ichida yetkazish narxi va
+   * minimal buyurtma bor. "Nega yetkazish qimmatlashdi?" degan savolga
+   * javob faqat shu jurnaldan topiladi.
+   */
+  MERCHANT_RESTAURANT_UPDATED: 'merchant.restaurant.updated',
 
   // Sotuvchi kabineti (Marketplace).
   //
@@ -119,6 +127,8 @@ export const AuditAction = {
   JOB_APPLICATION_REVIEWED: 'job.application.reviewed',
   EMPLOYER_ASSIGNED: 'employer.assigned',
   EMPLOYER_UNASSIGNED: 'employer.unassigned',
+  /** Kompaniya ma'lumoti o'zgardi — nomi, tavsifi, shahri. */
+  EMPLOYER_COMPANY_UPDATED: 'employer.company.updated',
 
   /**
    * Posilka — pul harakati bor, shuning uchun yozuv qoldiriladi.

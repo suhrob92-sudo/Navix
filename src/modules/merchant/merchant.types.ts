@@ -12,6 +12,8 @@ export interface MerchantRestaurant {
   id: string;
   slug: string;
   name: string;
+  /** Restoran sahifasidagi matn — egasi sozlamalarda o'zgartiradi. */
+  description: string;
   cuisine: string;
   color: ServiceColor;
   isOpen: boolean;

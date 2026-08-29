@@ -6,6 +6,7 @@ import { startOfTashkentDay, startOfTashkentDaysAgo } from '@/lib/date';
 import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
+import { toSearchText } from '@/lib/search';
 import type { ServiceColor } from '@/config/modules';
 import { GALLERY_SELECT, toGallery } from '@/modules/catalog/catalog-image.select';
 import { notifyUser } from '@/modules/notification/notification.service';
@@ -70,6 +71,7 @@ export async function getMerchantOverview(
       id: true,
       slug: true,
       name: true,
+      description: true,
       cuisine: true,
       color: true,
       isOpen: true,
@@ -104,6 +106,7 @@ export async function getMerchantOverview(
       id: row.id,
       slug: row.slug,
       name: row.name,
+      description: row.description,
       cuisine: row.cuisine,
       color: row.color as ServiceColor,
       isOpen: row.isOpen,
@@ -187,6 +190,7 @@ export async function updateMerchantRestaurant(
   userId: string,
   restaurantId: string,
   input: UpdateRestaurantInput,
+  meta: OperationMeta = {},
 ): Promise<MerchantRestaurant> {
   await assertOwnsRestaurant(userId, restaurantId);
 
@@ -195,7 +199,30 @@ export async function updateMerchantRestaurant(
     data: {
       ...(input.isOpen === undefined ? {} : { isOpen: input.isOpen }),
       ...(input.deliveryMinutes === undefined ? {} : { deliveryMinutes: input.deliveryMinutes }),
+      // Nom o'zgarsa qidiruv ustuni ham — sabab do'kon xizmatida.
+      ...(input.name === undefined ? {} : { name: input.name, searchName: toSearchText(input.name) }),
+      ...(input.description === undefined ? {} : { description: input.description }),
+      ...(input.deliveryFeeSom === undefined ? {} : { deliveryFee: somToTiyin(input.deliveryFeeSom) }),
+      ...(input.minOrderSom === undefined ? {} : { minOrder: somToTiyin(input.minOrderSom) }),
     },
+  });
+
+  /**
+   * Audit yozuvi — ilgari bu yerda YO'Q edi.
+   *
+   * Ilgari o'zgartiriladigan narsa "ochiq/yopiq" va yetkazish vaqti
+   * edi. Endi sozlamalar ichida PUL bor: yetkazish narxi va minimal
+   * buyurtma. "Nega yetkazish qimmatlashdi, kim o'zgartirdi?" degan
+   * savolga javob faqat jurnaldan topiladi.
+   */
+  await recordAudit({
+    actorId: userId,
+    action: AuditAction.MERCHANT_RESTAURANT_UPDATED,
+    resourceType: 'Restaurant',
+    resourceId: restaurantId,
+    module: MODULE,
+    metadata: { ...input },
+    ...meta,
   });
 
   logger.info({ userId, restaurantId, changed: Object.keys(input) }, "Restoran sozlamasi o'zgartirildi");

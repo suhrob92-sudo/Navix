@@ -1,11 +1,14 @@
 'use client';
 
-import { Briefcase, Building2, ChevronRight, MapPin, Users } from 'lucide-react';
+import { Briefcase, Building2, ChevronRight, MapPin, Settings, Users } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
 import { StatCard } from '@/components/admin/stat-card';
 import { ServiceIcon } from '@/components/app/service-icon';
+import { CatalogImagePanel } from '@/components/catalog/catalog-image-panel';
+import { CompanySettingsForm } from '@/app/(employer)/employer/company-settings-form';
 import { Alert } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -28,9 +31,12 @@ import type { EmployerOverviewResponse } from '@/modules/employer/employer.types
  */
 export function EmployerDashboardContent() {
   /** Har 60 soniyada yangilanadi — yangi ariza o'zi paydo bo'lsin. */
-  const { data, isLoading, error } = useApiQuery<EmployerOverviewResponse>('/api/v1/employer/companies', {
+  const { data, isLoading, error, reload } = useApiQuery<EmployerOverviewResponse>('/api/v1/employer/companies', {
     refreshIntervalMs: 60_000,
   });
+
+  /** Logotip va ma'lumot paneli — bir vaqtda bittasi ochiladi. */
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const companies = data?.companies ?? [];
   const stats = data?.stats;
@@ -141,6 +147,42 @@ export function EmployerDashboardContent() {
                   <Link href={`/employer/applications?companyId=${company.id}`}>Nomzodlar</Link>
                 </Button>
               </div>
+
+              {/*
+                LOGOTIP va ma'lumot — nomzod e'londa aynan shularni
+                ko'radi. Ilgari ularni faqat platforma o'zgartira
+                olardi.
+              */}
+              <button
+                type="button"
+                aria-expanded={openId === company.id}
+                onClick={() => setOpenId(openId === company.id ? null : company.id)}
+                className="border-border/60 text-muted-foreground hover:text-foreground mt-3 flex w-full items-center justify-between border-t pt-3 text-sm transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Settings className="size-4" aria-hidden="true" />
+                  Logotip va ma&apos;lumot
+                </span>
+                <ChevronRight
+                  className={`size-4 transition-transform ${openId === company.id ? 'rotate-90' : ''}`}
+                  aria-hidden="true"
+                />
+              </button>
+
+              {openId === company.id && (
+                <div className="mt-4 space-y-5">
+                  {/*
+                    Sarlavha faqat panel ichida: tashqarida ham
+                    "Logotip" deb yozilsa, bir xil so'z ikki qatorda
+                    takrorlanardi.
+                  */}
+                  <CatalogImagePanel owner="COMPANY" ownerId={company.id} title="Logotip" />
+
+                  <div className="border-border/60 border-t pt-4">
+                    <CompanySettingsForm company={company} onSaved={reload} />
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>

@@ -81,6 +81,7 @@ export async function getSellerOverview(userId: string): Promise<{ shops: Seller
       id: true,
       slug: true,
       name: true,
+      description: true,
       color: true,
       isOpen: true,
       isActive: true,
@@ -126,6 +127,7 @@ export async function getSellerOverview(userId: string): Promise<{ shops: Seller
     id: row.id,
     slug: row.slug,
     name: row.name,
+    description: row.description,
     color: row.color as ServiceColor,
     isOpen: row.isOpen,
     isActive: row.isActive,
@@ -226,6 +228,24 @@ export async function updateSellerShop(
     data: {
       ...(input.isOpen === undefined ? {} : { isOpen: input.isOpen }),
       ...(input.deliveryDays === undefined ? {} : { deliveryDays: input.deliveryDays }),
+      /*
+        Nom o'zgarsa, QIDIRUV ustuni ham yangilanadi.
+
+        Aks holda do'kon eski nomi bo'yicha topilardi va yangisi
+        bo'yicha topilmasdi — bu xato darhol ko'rinmaydi, chunki
+        ro'yxatda hammasi joyida turadi.
+      */
+      ...(input.name === undefined ? {} : { name: input.name, searchName: toSearchText(input.name) }),
+      ...(input.description === undefined ? {} : { description: input.description }),
+      /*
+        Manzil (`slug`) ATAYLAB o'zgarmaydi.
+
+        U havolada turadi: do'kon nomini o'zgartirsa, eski havola
+        ochilmay qolardi — ijtimoiy tarmoqdagi post ham, mijozning
+        saqlagan sahifasi ham.
+      */
+      ...(input.deliveryFeeSom === undefined ? {} : { deliveryFee: somToTiyin(input.deliveryFeeSom) }),
+      ...(input.minOrderSom === undefined ? {} : { minOrder: somToTiyin(input.minOrderSom) }),
     },
   });
 

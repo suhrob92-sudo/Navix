@@ -48,6 +48,22 @@ export const updateRestaurantSchema = z.object({
     .min(10, 'Eng kami 10 daqiqa')
     .max(180, "Ko'pi bilan 180 daqiqa")
     .optional(),
+  name: z.string().trim().min(2, 'Nom juda qisqa').max(120, 'Nom juda uzun').optional(),
+  description: z.string().trim().min(10, 'Tavsif juda qisqa').max(255, 'Tavsif juda uzun').optional(),
+  /** Yetkazish narxi — SO'MDA. Chegaralar sababi do'kon sxemasida. */
+  deliveryFeeSom: z
+    .number({ message: 'Yetkazish narxini kiriting' })
+    .int("Butun so'mda yozing")
+    .min(0, "Manfiy bo'lishi mumkin emas")
+    .max(500_000, 'Yetkazish narxi juda katta')
+    .optional(),
+  /** Minimal buyurtma — SO'MDA. */
+  minOrderSom: z
+    .number({ message: 'Minimal summani kiriting' })
+    .int("Butun so'mda yozing")
+    .min(0, "Manfiy bo'lishi mumkin emas")
+    .max(50_000_000, 'Minimal summa juda katta')
+    .optional(),
 });
 
 export type UpdateRestaurantInput = z.infer<typeof updateRestaurantSchema>;

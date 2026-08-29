@@ -87,6 +87,33 @@ export const updateSellerShopSchema = z.object({
     .min(1, 'Eng kami 1 kun')
     .max(30, "Ko'pi bilan 30 kun")
     .optional(),
+  name: z.string().trim().min(2, 'Nom juda qisqa').max(120, 'Nom juda uzun').optional(),
+  description: z.string().trim().min(10, 'Tavsif juda qisqa').max(255, 'Tavsif juda uzun').optional(),
+  /**
+   * Yetkazish narxi — SO'MDA (bazada tiyinda).
+   *
+   * Nol ruxsat etiladi: "bepul yetkazish" keng tarqalgan taklif.
+   * Yuqori chegara esa xato kiritishdan saqlaydi — 500 000 so'mlik
+   * yetkazish deyarli har doim tiyinni so'm deb yozish oqibati.
+   */
+  deliveryFeeSom: z
+    .number({ message: 'Yetkazish narxini kiriting' })
+    .int("Butun so'mda yozing")
+    .min(0, "Manfiy bo'lishi mumkin emas")
+    .max(500_000, 'Yetkazish narxi juda katta')
+    .optional(),
+  /**
+   * Minimal buyurtma summasi — SO'MDA.
+   *
+   * Nol — "chegara yo'q". Yuqori chegara 50 million: undan kattasi
+   * do'konni amalda yopib qo'yardi va bu ko'pincha xato bo'ladi.
+   */
+  minOrderSom: z
+    .number({ message: 'Minimal summani kiriting' })
+    .int("Butun so'mda yozing")
+    .min(0, "Manfiy bo'lishi mumkin emas")
+    .max(50_000_000, 'Minimal summa juda katta')
+    .optional(),
 });
 
 export type UpdateSellerShopInput = z.infer<typeof updateSellerShopSchema>;
