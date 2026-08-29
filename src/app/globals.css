@@ -816,6 +816,18 @@
  * Tailwind qatlami keyinroq keladi. Ikki marta yozilgan sinf
  * aniqlikni oshiradi va `!important` ishlatish shart bo'lmaydi.
  */
+/*
+ * Tugma — jismoniy tugmacha.
+ *
+ * ── Nima uchun pastida QATTIQ chiziq bor ─────────────────────────────
+ * Yumshoq soya "narsa stol ustida yotibdi" deydi. Qattiq, siljimaydigan
+ * pastki qirra esa "narsaning QALINLIGI bor" deydi — xuddi klaviatura
+ * tugmasi kabi.
+ *
+ * Bosilganda tugma o'sha qalinlik ichiga cho'kadi: qirra qisqaradi va
+ * tugma pastga siljiydi. Bu telefonda ham seziladi, chunki sichqoncha
+ * kerak emas.
+ */
 .hero-cta {
   position: relative;
   overflow: hidden;
@@ -835,8 +847,10 @@
   */
   box-shadow:
     inset 0 1px 0 oklch(1 0 0 / 0.75),
-    0 1px 2px oklch(0.2 0.02 80 / 0.28),
-    0 12px 28px -14px oklch(0.3 0.05 70 / 0.55);
+    0 5px 0 oklch(0.62 0.07 72),
+    0 6px 2px oklch(0.2 0.02 80 / 0.3),
+    0 16px 30px -14px oklch(0.3 0.05 70 / 0.6);
+  transform: translateY(0);
 }
 
 /* Yorug'lik ustidan o'tadi — faqat sichqoncha tekkanda. */
@@ -853,6 +867,14 @@
   animation: hero-sheen 0.9s ease-out;
 }
 
+.hero-cta:active {
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.6),
+    0 1px 0 oklch(0.62 0.07 72),
+    0 2px 2px oklch(0.2 0.02 80 / 0.3),
+    0 8px 16px -10px oklch(0.3 0.05 70 / 0.5);
+}
+
 /* Ikkinchi darajali tugma — shisha, qaymoq chegara bilan. */
 .hero-cta-quiet {
   border: 1px solid var(--hero-card-border);
@@ -860,8 +882,20 @@
   color: inherit;
   backdrop-filter: blur(18px) saturate(150%);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
+  /*
+    Qalinlik bor, lekin ASOSIY tugmanikidan ingichka (3px va 5px).
+    Ikkalasi bir xil bo'lsa, qaysi biri asosiy ekani bilinmasdi.
+  */
   box-shadow:
     inset 0 1px 0 oklch(1 0 0 / 0.18),
+    0 3px 0 oklch(0.62 0.06 72 / 0.35),
+    var(--hero-card-shadow);
+}
+
+.hero-cta-quiet:active {
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.14),
+    0 1px 0 oklch(0.62 0.06 72 / 0.35),
     var(--hero-card-shadow);
 }
 
@@ -872,8 +906,41 @@
  * pastdagi yumshoq soya. Barmoq tekkanda karta bir oz ko'tariladi
  * va soyasi kuchayadi — xuddi qog'ozni ko'targandek.
  */
+/*
+ * Kartalar HAQIQIY fazoda turadi.
+ *
+ * ── Nima uchun soya yetarli emas edi ─────────────────────────────────
+ * Birinchi urinishda chuqurlik faqat soya va yorug'lik bilan berilgan
+ * edi. Natijada kartalar "yumshoq" ko'rindi, lekin baribir TEKIS
+ * to'rtburchak bo'lib qoldi — foydalanuvchi buni darhol payqadi.
+ *
+ * Endi geometriyaning o'zi uch o'lchamli: to'r `perspective` ichida
+ * turadi, kartalar sal burilgan, ikonka esa karta YUZASIDAN
+ * ko'tarilgan (`translateZ`). Ikonka va matn har xil chuqurlikda
+ * bo'lgani uchun telefonni qimirlatganda ular birga emas, alohida
+ * siljiganday ko'rinadi — 3D aynan shundan seziladi.
+ *
+ * ── Nima uchun burchak KICHIK ────────────────────────────────────────
+ * 4–6 daraja yetarli: shundagina karta hajmli ko'rinadi, lekin matn
+ * qiyshaymaydi va o'qish qiyinlashmaydi. Kattaroq burchak "o'yin
+ * menyusi" taassurotini berardi.
+ */
+.hero-card-grid {
+  perspective: 1100px;
+  perspective-origin: 50% 40%;
+}
+
 .hero-card {
+  --hero-tilt: 0deg;
+  transform-style: preserve-3d;
+  transform: rotateY(var(--hero-tilt)) rotateX(5deg);
   border: 1px solid var(--hero-card-border);
+  /*
+    Yuza gradienti burilish bilan bir yo'nalishda: yorug'lik yuqori
+    chapdan tushadi. Shu ikkisi mos kelmasa, ko'z "bu rasm" deb
+    biladi va hajm sezilmaydi.
+  */
+  background-image: linear-gradient(160deg, oklch(1 0 0 / 0.1), transparent 55%);
   background-color: var(--hero-card);
   backdrop-filter: blur(18px) saturate(150%);
   -webkit-backdrop-filter: blur(18px) saturate(150%);
@@ -881,22 +948,74 @@
     inset 0 1px 0 oklch(1 0 0 / 0.15),
     var(--hero-card-shadow);
   transition:
-    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-    box-shadow 0.25s ease,
-    border-color 0.25s ease;
+    transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
 }
 
+/* Chap ustun o'ngga, o'ng ustun chapga buriladi — markazga qarab. */
+.hero-card-grid > li:nth-child(odd) .hero-card {
+  --hero-tilt: 6deg;
+}
+
+.hero-card-grid > li:nth-child(even) .hero-card {
+  --hero-tilt: -6deg;
+}
+
+/* Keng ekranda to'rt ustun — burchaklar markazdan chetga o'sadi. */
+@media (min-width: 640px) {
+  .hero-card-grid > li:nth-child(4n + 1) .hero-card {
+    --hero-tilt: 8deg;
+  }
+  .hero-card-grid > li:nth-child(4n + 2) .hero-card {
+    --hero-tilt: 3deg;
+  }
+  .hero-card-grid > li:nth-child(4n + 3) .hero-card {
+    --hero-tilt: -3deg;
+  }
+  .hero-card-grid > li:nth-child(4n) .hero-card {
+    --hero-tilt: -8deg;
+  }
+}
+
+/*
+ * Ikonka karta yuzasidan KO'TARILGAN.
+ *
+ * Bu shunchaki "kattaroq" emas: u boshqa chuqurlikda turadi va
+ * kartaning o'z soyasini tashlaydi. Aynan shu narsa yassi rasmni
+ * hajmli obyektga aylantiradi.
+ */
+.hero-card-icon {
+  position: relative;
+  transform: translateZ(34px);
+  /*
+    Ikonka o'z soyasini tashlaydi — u kartaning YUZASIDA emas,
+    undan yuqorida turgani shundan bilinadi.
+  */
+  filter: drop-shadow(0 6px 8px oklch(0.15 0.02 70 / 0.45));
+}
+
+.hero-card-label {
+  transform: translateZ(12px);
+}
+
+/*
+ * Tekkanda karta YUZLANADI.
+ *
+ * Burilish nolga qaytadi va karta yaqinlashadi — go'yo uni qo'lga
+ * olib, ko'z oldiga to'g'riladingiz.
+ */
 .hero-card:hover,
 .hero-card:focus-visible {
-  transform: translate3d(0, -4px, 0) scale(1.02);
+  transform: rotateY(0deg) rotateX(0deg) translate3d(0, -6px, 30px);
   border-color: oklch(0.72 0.05 148 / 0.45);
   box-shadow:
     inset 0 1px 0 oklch(1 0 0 / 0.22),
-    0 26px 52px -26px oklch(0.2 0.04 70 / 0.7);
+    0 30px 60px -28px oklch(0.2 0.04 70 / 0.75);
 }
 
 .hero-card:active {
-  transform: translate3d(0, -1px, 0) scale(0.99);
+  transform: rotateY(0deg) rotateX(0deg) translate3d(0, -2px, 10px);
 }
 
 /*

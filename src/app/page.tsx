@@ -149,7 +149,7 @@ export default function HomePage() {
               matndan emas, aynan shu ro'yxatdan oladi. Har biri bosiladi:
               ro'yxat bezak emas, kirish nuqtasi.
             */}
-            <ul className="mx-auto mt-12 grid max-w-3xl grid-cols-2 gap-3 sm:mt-14 sm:grid-cols-4">
+            <ul className="hero-card-grid mx-auto mt-12 grid max-w-3xl grid-cols-2 gap-3 sm:mt-14 sm:grid-cols-4">
               {services.map((module, index) => (
                 <li
                   key={module.id}
@@ -163,7 +163,7 @@ export default function HomePage() {
                     <span className="hero-card-icon">
                       <ServiceIcon icon={module.icon} color={module.color} size="sm" />
                     </span>
-                    <span className="text-[0.8125rem] leading-tight font-medium sm:text-sm">
+                    <span className="hero-card-label text-[0.8125rem] leading-tight font-medium sm:text-sm">
                       {module.name}
                     </span>
                   </Link>
