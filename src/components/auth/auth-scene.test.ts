@@ -23,9 +23,9 @@ describe('kirish sahifasidagi sahna', () => {
   });
 
   it('faqat ishlayotgan xizmatlar', () => {
-    const planned = modules.filter((module) => module.status !== ModuleStatus.LIVE);
+    const planned = modules.filter((service) => service.status !== ModuleStatus.LIVE);
 
-    expect(planned.map((module) => module.name), 'Rejadagi modul sahnaga tushib qolgan').toEqual([]);
+    expect(planned.map((service) => service.name), 'Rejadagi modul sahnaga tushib qolgan').toEqual([]);
   });
 
   it("oltitadan oshmaydi", () => {
@@ -38,9 +38,13 @@ describe('kirish sahifasidagi sahna', () => {
   });
 
   it('har birining ikonkasi va rangi bor', () => {
-    for (const module of modules) {
-      expect(module.icon, `${module.name}: ikonka yo'q`).toBeDefined();
-      expect(module.color, `${module.name}: rang yo'q`).toBeTruthy();
+    /*
+      O'zgaruvchi `module` deb atalmaydi: Next.js buni taqiqlaydi,
+      chunki u modul tizimidagi global nom bilan to'qnashadi.
+    */
+    for (const service of modules) {
+      expect(service.icon, `${service.name}: ikonka yo'q`).toBeDefined();
+      expect(service.color, `${service.name}: rang yo'q`).toBeTruthy();
     }
   });
 });
