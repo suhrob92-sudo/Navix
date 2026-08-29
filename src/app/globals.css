@@ -203,6 +203,9 @@
   */
   --animate-tile-float: tile-float 20s ease-in-out infinite;
   --animate-card-rise: card-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* Bosh ekrandagi shakllar juda sekin suziladi — diqqatni tortmaydi. */
+  --animate-hero-drift: hero-drift 26s ease-in-out infinite;
+  --animate-hero-pop: hero-pop 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-shimmer: shimmer 2s linear infinite;
   --animate-heart-pop: heart-pop 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
@@ -325,6 +328,45 @@
   to {
     opacity: 1;
     transform: perspective(1000px) translate3d(0, 0, 0) rotateX(0deg);
+  }
+}
+
+/*
+ * Bosh ekrandagi fon shakllari.
+ *
+ * Sekin va kichik amplituda: 26 soniyada bir aylanish. Tez harakat
+ * matnni o'qiyotgan odamni chalg'itardi, umuman harakatsiz fon esa
+ * "rasm" bo'lib qolardi.
+ */
+@keyframes hero-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(3%, -4%, 0) scale(1.08);
+  }
+}
+
+/* Tugmalar chuqurlikdan chiqadi — sahifa ochilganda. */
+@keyframes hero-pop {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+/* Tugma ustidan o'tadigan yumshoq yorug'lik. */
+@keyframes hero-sheen {
+  from {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  to {
+    transform: translateX(220%) skewX(-18deg);
   }
 }
 
@@ -634,4 +676,299 @@
   .pb-safe {
     padding-bottom: var(--safe-bottom);
   }
+}
+
+/*
+ * ─────────────────────────────────────────────────────────────────────
+ * BOSH EKRAN (hero) — premium natural uslub
+ * ─────────────────────────────────────────────────────────────────────
+ *
+ * ── Nima uchun hammasi `.hero-premium` ichida ─────────────────────────
+ * Bu ranglar va effektlar FAQAT bosh ekran uchun. Ular umumiy tokenlarga
+ * yozilsa, butun ilova (kabinet, admin panel, kirish sahifasi) ham
+ * o'zgarib ketardi — holbuki o'zgartirish so'ralgan joy bitta ekran.
+ *
+ * Shuning uchun palitra shu blokda yashaydi va tashqariga chiqmaydi.
+ *
+ * ── Nima uchun `@layer` ICHIDA emas ──────────────────────────────────
+ * Avval bu qoidalar `@layer components` ichida edi va tugma matni
+ * o'qilmay qoldi: yorug' rejimda oq matn qaymoq fonda yozildi.
+ *
+ * Sabab CSS qatlamlarida: `utilities` qatlami `components` dan
+ * KEYIN turadi va qatlam tartibi ANIQLIKDAN (specificity) ustun.
+ * Ya'ni Tailwind'ning `text-primary-foreground` sinfi bu yerdagi
+ * istalgan qoidani yengardi — sinfni ikki marta yozish ham
+ * yordam bermasdi.
+ *
+ * Qatlamsiz (unlayered) qoida esa barcha qatlamlardan ustun turadi.
+ * Shu sababli bu blok ataylab hech qanday `@layer` ichida emas.
+ *
+ * ── Palitra ──────────────────────────────────────────────────────────
+ * Ivory (qaymoq), Sage (moyil yashil), Oak (tabiiy yog'och) va matte
+ * qora. Ko'k/binafsha asosiy rang emas — u faqat mavjud tugmalarda
+ * nozik urg'u bo'lib qoladi.
+ */
+
+/*
+ * Palitra `:root` da e'lon qilinadi, lekin FAQAT `hero-*` sinflari uni
+ * o'qiydi. Ya'ni u boshqa hech qayerga ta'sir qilmaydi.
+ *
+ * ── Nima uchun bo'lim ichida emas ────────────────────────────────────
+ * Yuqori panel bo'lim TASHQARISIDA turadi (u yopishqoq va butun
+ * sahifaga tegishli). Tokenlar bo'lim ichida bo'lsa, panel ularni
+ * ko'ra olmasdi va panel ostida rang chegarasi bo'lib qolardi.
+ */
+:root {
+  --hero-ivory: oklch(0.94 0.02 92);
+  --hero-sage: oklch(0.72 0.05 148);
+  --hero-oak: oklch(0.7 0.08 68);
+  --hero-warm-gray: oklch(0.62 0.012 90);
+
+  /* Yorug' rejim: iliq qaymoq fon. */
+  --hero-surface: oklch(0.99 0.006 92);
+  --hero-card: oklch(1 0 0 / 0.72);
+  --hero-card-border: oklch(0.62 0.06 68 / 0.28);
+  --hero-card-shadow: 0 18px 40px -24px oklch(0.3 0.03 70 / 0.45);
+  --hero-glow-strength: 0.5;
+}
+
+/*
+ * Qorong'i rejim — MATTE qora.
+ *
+ * Toza qora (#000) emas: unda fon "teshik" bo'lib ko'rinadi va
+ * elementlar suzib turgandek emas, yopishgandek tuyuladi. Iliq
+ * ottenka esa qaymoq va yog'och ranglari bilan bir oilada turadi.
+ */
+.dark {
+  --hero-surface: oklch(0.17 0.008 85);
+  --hero-card: oklch(0.94 0.02 92 / 0.06);
+  --hero-card-border: oklch(0.94 0.02 92 / 0.17);
+  --hero-card-shadow: 0 24px 48px -28px oklch(0 0 0 / 0.8);
+  --hero-glow-strength: 0.85;
+}
+
+/* Fon qatlami — bo'yoq shu yerda, kontent ustida turadi. */
+.hero-backdrop {
+  background-color: var(--hero-surface);
+}
+
+/*
+ * Yumshoq yorug'lik dog'lari.
+ *
+ * `blur` katta, shaffoflik past: ular ko'zga "rang" bo'lib emas,
+ * "havo" bo'lib tushadi. Aynan shu narsa tekis fonni jonli qiladi.
+ */
+.hero-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+  opacity: var(--hero-glow-strength);
+  will-change: transform;
+}
+
+.hero-glow-ivory {
+  background: radial-gradient(circle, var(--hero-ivory) 0%, transparent 70%);
+  opacity: calc(var(--hero-glow-strength) * 0.28);
+}
+
+.hero-glow-sage {
+  background: radial-gradient(circle, var(--hero-sage) 0%, transparent 70%);
+  opacity: calc(var(--hero-glow-strength) * 0.34);
+}
+
+.hero-glow-oak {
+  background: radial-gradient(circle, var(--hero-oak) 0%, transparent 70%);
+  opacity: calc(var(--hero-glow-strength) * 0.3);
+}
+
+/*
+ * Sarlavhadagi urg'u.
+ *
+ * Neon yo'q: gradient qaymoqdan yashilga o'tadi va matn atrofida
+ * yorug'lik tarqalmaydi. Neon glow o'qishni qiyinlashtiradi va
+ * "gaming" hissini beradi — bu yerda kerak emas.
+ */
+.hero-title-accent {
+  /*
+    YORUG' rejimda qaymoq rang oq fonda ko'rinmaydi — shuning uchun
+    bu yerda to'q tomondan boshlanadi: yashil va yog'och.
+  */
+  background-image: linear-gradient(100deg, oklch(0.52 0.06 148), oklch(0.48 0.09 68) 70%, oklch(0.42 0.05 90));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/*
+  QORONG'I rejimda teskarisi: qaymoq yorug'lik beradi, yashil esa
+  uni tabiiy qiladi. Yog'och rangi oxirida — juda oz, iliqlik uchun.
+*/
+.dark .hero-title-accent {
+  background-image: linear-gradient(100deg, var(--hero-ivory), oklch(0.84 0.05 148) 60%, oklch(0.82 0.06 72));
+}
+
+/*
+ * Asosiy tugma — shisha va qattiq fonning aralashmasi.
+ *
+ * ── Nima uchun ikki marta `.hero-cta` ────────────────────────────
+ * Tugmaning o'z ko'rinishi Tailwind sinflari bilan berilgan
+ * (`bg-primary` va h.k.). Bitta sinf ularni yenga olmasdi, chunki
+ * Tailwind qatlami keyinroq keladi. Ikki marta yozilgan sinf
+ * aniqlikni oshiradi va `!important` ishlatish shart bo'lmaydi.
+ */
+.hero-cta {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid oklch(0.98 0.01 92 / 0.55);
+  background-color: var(--hero-ivory);
+  background-image: linear-gradient(
+    180deg,
+    oklch(0.98 0.012 92) 0%,
+    var(--hero-ivory) 55%,
+    oklch(0.88 0.03 88) 100%
+  );
+  color: oklch(0.24 0.015 80);
+  /*
+    Uch qatlamli soya: ichkaridagi oq chiziq "yorug'lik yuqoridan
+    tushyapti" deydi, ikkita tashqi soya esa balandlikni beradi.
+    Aynan shu uchlik tugmani tekis emas, hajmli qiladi.
+  */
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.75),
+    0 1px 2px oklch(0.2 0.02 80 / 0.28),
+    0 12px 28px -14px oklch(0.3 0.05 70 / 0.55);
+}
+
+/* Yorug'lik ustidan o'tadi — faqat sichqoncha tekkanda. */
+.hero-cta::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.55), transparent);
+  transform: translateX(-120%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.hero-cta:hover::after {
+  animation: hero-sheen 0.9s ease-out;
+}
+
+/* Ikkinchi darajali tugma — shisha, qaymoq chegara bilan. */
+.hero-cta-quiet {
+  border: 1px solid var(--hero-card-border);
+  background-color: var(--hero-card);
+  color: inherit;
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.18),
+    var(--hero-card-shadow);
+}
+
+/*
+ * Xizmat kartachasi.
+ *
+ * Chuqurlik ikki narsadan: yuqoridagi ichki yorug'lik chizig'i va
+ * pastdagi yumshoq soya. Barmoq tekkanda karta bir oz ko'tariladi
+ * va soyasi kuchayadi — xuddi qog'ozni ko'targandek.
+ */
+.hero-card {
+  border: 1px solid var(--hero-card-border);
+  background-color: var(--hero-card);
+  backdrop-filter: blur(18px) saturate(150%);
+  -webkit-backdrop-filter: blur(18px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.15),
+    var(--hero-card-shadow);
+  transition:
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+}
+
+.hero-card:hover,
+.hero-card:focus-visible {
+  transform: translate3d(0, -4px, 0) scale(1.02);
+  border-color: oklch(0.72 0.05 148 / 0.45);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.22),
+    0 26px 52px -26px oklch(0.2 0.04 70 / 0.7);
+}
+
+.hero-card:active {
+  transform: translate3d(0, -1px, 0) scale(0.99);
+}
+
+/*
+ * Ikonka ortidagi yumshoq halqa.
+ *
+ * Ikonkaning o'z rangi reyestrdan keladi (har xizmat o'z rangida).
+ * Bu halqa esa rangsiz — u faqat chuqurlik beradi va rangni
+ * "yoqib yubormaydi".
+ */
+.hero-card-icon {
+  position: relative;
+}
+
+.hero-card-icon::before {
+  content: '';
+  position: absolute;
+  inset: -35%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, oklch(0.94 0.02 92 / 0.16) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/*
+ * Bosh sahifadagi yuqori panel.
+ *
+ * Panelning O'ZI o'zgarmaydi — u boshqa uch sahifada ham ishlatiladi.
+ * Bu yerda faqat bosh sahifaga tegishli nozik bezak: iliqroq chegara,
+ * chuqurroq soya va logotip ortidagi tabiiy yorug'lik.
+ *
+ * Fon xira (opaque) qolishi SHART: sahifa kontenti aynan panel
+ * ostidan suriladi va shaffof fonda matn "sizib" chiqardi.
+ */
+/*
+ * Panel sahifa ochilganda yumshoq paydo bo'ladi.
+ *
+ * Faqat bosh sahifada: boshqa sahifalarda panel darhol turadi va
+ * bunga tegilmadi.
+ */
+.hero-header {
+  animation: var(--animate-fade-in);
+}
+
+.hero-header .glass-chrome {
+  border-color: oklch(0.7 0.08 68 / 0.22);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.14),
+    0 10px 30px -18px oklch(0.3 0.04 70 / 0.5);
+}
+
+.dark .hero-header .glass-chrome {
+  border-color: oklch(0.94 0.02 92 / 0.12);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.08),
+    0 14px 34px -20px oklch(0 0 0 / 0.75);
+}
+
+/*
+ * Logotip ortidagi yorug'lik.
+ *
+ * Brend rangi (ko'k-binafsha) belgining O'ZIDA qoladi — u brend
+ * belgisi va o'zgarmaydi. Atrofidagi yorug'lik esa iliq va zo'rg'a
+ * seziladi: u belgini "yoqib" yubormaydi, faqat undan ajratib turadi.
+ */
+.hero-header [data-logo-mark] {
+  position: relative;
+}
+
+.hero-header [data-logo-mark]::before {
+  content: '';
+  position: absolute;
+  inset: -45%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, oklch(0.8 0.06 80 / 0.2) 0%, transparent 70%);
+  pointer-events: none;
 }

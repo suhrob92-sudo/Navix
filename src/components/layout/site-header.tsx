@@ -11,6 +11,7 @@ import { UserMenu } from '@/components/layout/user-menu';
 import { Button } from '@/components/ui/button';
 import { Container } from '@/components/ui/container';
 import { mainNavigation } from '@/config/site';
+import { cn } from '@/lib/utils';
 
 /**
  * Saytning yuqori paneli.
@@ -22,7 +23,22 @@ import { mainNavigation } from '@/config/site';
  *    bo'lgani uchun kabinetda bosilsa hech narsa qilmaydi va foydalanuvchini
  *    chalkashtiradi. Kabinet navigatsiyasi yon menyu va pastki panelda.
  */
-export function SiteHeader() {
+interface SiteHeaderProps {
+  /**
+   * Qo'shimcha sinf.
+   *
+   * ── Nima uchun kerak ──────────────────────────────────────────────
+   * Panel to'rtta sahifada ishlatiladi (bosh sahifa, huquqiy hujjatlar,
+   * navbat, topilmadi). Bosh sahifada unga tabiiy palitradagi nozik
+   * bezak qo'shiladi, qolganlarida esa hech narsa o'zgarmasligi kerak.
+   *
+   * Shuning uchun bezak shu yerdan emas, CHAQIRUVCHIDAN keladi: sinf
+   * berilmasa, panel avvalgidek qoladi.
+   */
+  className?: string;
+}
+
+export function SiteHeader({ className }: SiteHeaderProps = {}) {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -37,7 +53,7 @@ export function SiteHeader() {
      * kartochka yumaloq va atrofida bo'sh joy qoladi, sahifa kontenti esa
      * o'sha bo'shliqdan surilib o'tadi va matn "sizib" chiqadi.
      */
-    <header className="bg-background/90 sticky top-0 z-50 w-full backdrop-blur-md">
+    <header className={cn('bg-background/90 sticky top-0 z-50 w-full backdrop-blur-md', className)}>
       <Container className="pt-3 pb-2">
         <div className="glass-chrome flex h-14 items-center justify-between rounded-2xl px-3 sm:px-4">
           <Logo />

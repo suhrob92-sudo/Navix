@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { SiteFooter } from '@/components/layout/site-footer';
 import { SiteHeader } from '@/components/layout/site-header';
 import { AuroraBackground } from '@/components/shared/aurora-background';
+import { HeroBackdrop } from '@/components/shared/hero-backdrop';
 import { HeroActions } from '@/components/shared/hero-actions';
 import { ModuleCard } from '@/components/shared/module-card';
 import { SectionHeading } from '@/components/shared/section-heading';
@@ -104,34 +105,39 @@ export default function HomePage() {
 
   return (
     <>
-      <SiteHeader />
+      <SiteHeader className="hero-header" />
 
       <main className="flex-1">
         {/* ---------------- Bosh ekran (Hero) ---------------- */}
-        <section className="relative overflow-hidden pt-12 pb-20 sm:pt-20 sm:pb-28">
-          <AuroraBackground />
+        <section className="hero-premium relative overflow-hidden pt-12 pb-20 sm:pt-20 sm:pb-28">
+          <HeroBackdrop />
 
           <Container className="relative">
             <div className="mx-auto max-w-3xl text-center">
-              <h1 className="animate-fade-up text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
+              <h1 className="animate-fade-up text-[2.1rem] leading-[1.12] font-semibold tracking-[-0.02em] text-balance sm:text-6xl sm:leading-[1.05]">
                 {/*
                   Tire oldingi so'z bilan BIRGA qoladi (`&nbsp;`).
                   Aks holda telefon ekranida yangi qator "—" bilan
                   boshlanardi va sarlavha sinib ko'rinardi.
                 */}
                 Ovqat, xarid, to&apos;lov va sayohat&nbsp;—{' '}
-                <span className="text-gradient">bitta ilovada</span>
+                <span className="hero-title-accent">bitta ilovada</span>
               </h1>
 
               <p
-                className="animate-fade-up text-muted-foreground mt-6 text-lg leading-relaxed text-pretty"
-                style={{ animationDelay: '80ms' }}
+                className="animate-fade-up text-muted-foreground mx-auto mt-6 max-w-xl text-base leading-relaxed text-pretty sm:text-lg"
+                style={{ animationDelay: '90ms' }}
               >
                 Har bir xizmat uchun alohida ilova va alohida hisob kerak emas. Bitta hisob, bitta
                 hamyon, buyurtmalar tarixi ham bitta joyda.
               </p>
 
-              <div className="animate-fade-up mt-9" style={{ animationDelay: '160ms' }}>
+              {/*
+                Tugmalar chuqurlikdan chiqadi — sarlavha va matndan
+                keyin. Ketma-ketlik ko'zni yuqoridan pastga olib
+                boradi: sarlavha, izoh, keyin amal.
+              */}
+              <div className="animate-hero-pop mt-9" style={{ animationDelay: '200ms' }}>
                 <HeroActions />
               </div>
             </div>
@@ -143,15 +149,23 @@ export default function HomePage() {
               matndan emas, aynan shu ro'yxatdan oladi. Har biri bosiladi:
               ro'yxat bezak emas, kirish nuqtasi.
             */}
-            <ul className="animate-fade-up mx-auto mt-14 grid max-w-3xl grid-cols-2 gap-3 sm:grid-cols-4">
+            <ul className="mx-auto mt-12 grid max-w-3xl grid-cols-2 gap-3 sm:mt-14 sm:grid-cols-4">
               {services.map((module, index) => (
-                <li key={module.id} style={{ animationDelay: `${240 + index * 50}ms` }}>
+                <li
+                  key={module.id}
+                  className="animate-fade-up"
+                  style={{ animationDelay: `${300 + index * 60}ms` }}
+                >
                   <Link
                     href={module.href}
-                    className="glass hover:border-primary/30 flex h-full flex-col items-center gap-2 rounded-2xl px-3 py-4 text-center transition-colors"
+                    className="hero-card flex h-full flex-col items-center gap-2.5 rounded-2xl px-3 py-5 text-center"
                   >
-                    <ServiceIcon icon={module.icon} color={module.color} size="sm" />
-                    <span className="text-sm font-medium">{module.name}</span>
+                    <span className="hero-card-icon">
+                      <ServiceIcon icon={module.icon} color={module.color} size="sm" />
+                    </span>
+                    <span className="text-[0.8125rem] leading-tight font-medium sm:text-sm">
+                      {module.name}
+                    </span>
                   </Link>
                 </li>
               ))}

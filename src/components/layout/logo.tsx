@@ -23,7 +23,17 @@ export function Logo({ className, iconOnly = false }: LogoProps) {
         aynan shuni chizadi. Ilgari bu yerda alohida "N" chizilgan edi va
         ikkita joyda ikki xil brend ko'rinardi.
       */}
-      <span className="from-brand-from to-brand-to shadow-brand-from/30 inline-flex size-9 items-center justify-center rounded-xl bg-gradient-to-br shadow-lg">
+      {/*
+        `data-logo-mark` — belgini tashqaridan topish uchun nishon.
+
+        Bosh sahifa unga nozik tabiiy yorug'lik qo'shadi. Nishon
+        ko'rinishga ta'sir qilmaydi, ya'ni boshqa sahifalarda logotip
+        avvalgidek qoladi.
+      */}
+      <span
+        data-logo-mark
+        className="from-brand-from to-brand-to shadow-brand-from/30 inline-flex size-9 items-center justify-center rounded-xl bg-gradient-to-br shadow-lg"
+      >
         <NavixMark className="text-brand-foreground size-6" />
       </span>
       {!iconOnly && <span className="text-lg font-semibold tracking-tight">{siteConfig.name}</span>}
