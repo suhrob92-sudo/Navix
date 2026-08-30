@@ -73,6 +73,19 @@ npm run dev
 
 ---
 
+## Claude bilan ishlash
+
+Yangi suhbatda Claude loyiha haqida hech narsa bilmaydi. Har safar
+boshidan tushuntirmaslik uchun tayyor tanishtiruv matni bor:
+
+```bash
+cat docs/loyiha-tanishtiruvi.md
+```
+
+U yerda uchta narsa bor: qisqa va to'liq tanishtiruv (nusxalab
+yuborish uchun), savolni qanday berish kerakligi va NIMA
+YUBORMASLIK kerakligi (kalitlar, parollar).
+
 ## Foydali buyruqlar
 
 | Buyruq                      | Nima qiladi                                                        |
