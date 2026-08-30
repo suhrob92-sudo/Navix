@@ -1,0 +1,472 @@
+<!doctype html>
+<!--
+  Navix loyiha hisoboti - PDF manbasi.
+  PDF ni qayta yasash (Codespaces yoki Linux):
+    chromium --headless --no-sandbox --print-to-pdf-no-header \
+      --print-to-pdf=docs/Navix-loyiha-hisoboti.pdf \
+      "file://$PWD/docs/loyiha-hisoboti.html"
+  Raqamlarni yangilash uchun docs/loyiha-tanishtiruvi.md dagi buyruqlarga qarang.
+-->
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<title>Navix — loyiha hisoboti</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm 20mm 16mm; }
+
+  :root {
+    --ink: #14161c;
+    --muted: #5b616e;
+    --line: #e3e5ea;
+    --brand: #4338ca;
+    --brand-soft: #eef0fe;
+    --ok: #157a4a;
+    --warn: #9a6212;
+    --bg-soft: #f7f8fa;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif;
+    font-size: 10.2pt;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+
+  h1, h2, h3 { line-height: 1.2; margin: 0; }
+
+  /* ── Muqova ──────────────────────────────────────────────── */
+  .cover {
+    height: 247mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    page-break-after: always;
+  }
+  .cover .mark {
+    width: 54px; height: 54px; border-radius: 16px;
+    background: linear-gradient(135deg, #4f46e5, #a855f7);
+    color: #fff; font-size: 26px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 26px;
+  }
+  .cover h1 { font-size: 34pt; letter-spacing: -0.5pt; }
+  .cover .sub { font-size: 13pt; color: var(--muted); margin-top: 10px; max-width: 130mm; }
+  .cover .meta {
+    margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line);
+    font-size: 9.5pt; color: var(--muted);
+  }
+  .cover .meta b { color: var(--ink); font-weight: 600; }
+
+  /* ── Bo'limlar ───────────────────────────────────────────── */
+  section { page-break-inside: auto; }
+  h2 {
+    font-size: 16pt; margin: 26px 0 12px;
+    padding-bottom: 7px; border-bottom: 2px solid var(--brand);
+    page-break-after: avoid;
+  }
+  h2 .num { color: var(--brand); font-weight: 700; margin-right: 8px; }
+  h3 { font-size: 11.5pt; margin: 18px 0 7px; page-break-after: avoid; }
+  p { margin: 0 0 10px; }
+  ul, ol { margin: 0 0 12px; padding-left: 18px; }
+  li { margin-bottom: 5px; }
+  strong { font-weight: 600; }
+
+  .lead { font-size: 11pt; color: var(--muted); margin-bottom: 16px; }
+
+  /* ── Raqamlar ────────────────────────────────────────────── */
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 18px; }
+  .stat {
+    flex: 1 1 30%; min-width: 44mm;
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; background: var(--bg-soft);
+  }
+  .stat .v { font-size: 17pt; font-weight: 700; color: var(--brand); line-height: 1.1; }
+  .stat .k { font-size: 8.6pt; color: var(--muted); margin-top: 3px; }
+
+  /* ── Jadval ──────────────────────────────────────────────── */
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 9.4pt; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--brand-soft); font-weight: 600; font-size: 9pt; }
+  tr { page-break-inside: avoid; }
+
+  .tag { font-size: 8.2pt; font-weight: 600; padding: 1px 7px; border-radius: 20px; white-space: nowrap; }
+  .tag-ok { background: #e4f4ec; color: var(--ok); }
+  .tag-plan { background: #fdf1de; color: var(--warn); }
+
+  /* ── Qutilar ─────────────────────────────────────────────── */
+  .box {
+    border: 1px solid var(--line); border-left: 3px solid var(--brand);
+    border-radius: 0 8px 8px 0; padding: 11px 14px; margin: 12px 0;
+    background: var(--bg-soft); page-break-inside: avoid;
+  }
+  .box.warn { border-left-color: #d08a1e; }
+  .box .t { font-weight: 600; margin-bottom: 4px; }
+
+  .timeline { border-left: 2px solid var(--line); padding-left: 16px; margin: 12px 0; }
+  .timeline .item { margin-bottom: 14px; position: relative; page-break-inside: avoid; }
+  .timeline .item::before {
+    content: ''; position: absolute; left: -21px; top: 5px;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--brand);
+  }
+  .timeline .when { font-size: 8.6pt; color: var(--brand); font-weight: 600; }
+  .timeline .what { font-weight: 600; margin: 1px 0 2px; }
+  .timeline .desc { font-size: 9.4pt; color: var(--muted); }
+
+  .page-break { page-break-before: always; }
+  .muted { color: var(--muted); }
+  .small { font-size: 9pt; }
+</style>
+</head>
+<body>
+
+<!-- ══════════ MUQOVA ══════════ -->
+<div class="cover">
+  <div class="mark">N</div>
+  <h1>Navix</h1>
+  <div class="sub">O'zbekiston uchun ko'p xizmatli ilova: noldan hozirgi holatgacha va kelajak rejasi</div>
+  <div class="meta">
+    <b>Hujjat sanasi:</b> 2026-yil 30-avgust<br>
+    <b>Loyiha boshlangan:</b> 2026-yil 2-avgust<br>
+    <b>Holati:</b> ishga tushirishga tayyorlanmoqda<br>
+    <b>Hujjatdagi barcha raqamlar</b> loyiha kodidan o'lchab olingan
+  </div>
+</div>
+
+<!-- ══════════ 1 ══════════ -->
+<section>
+<h2><span class="num">1.</span>Loyiha nima uchun boshlandi</h2>
+
+<p class="lead">Muammo oddiy: bugun O'zbekistonda oddiy kun uchun odam
+telefoniga oltitagacha alohida ilova o'rnatadi.</p>
+
+<p>Taksi uchun bittasi, ovqat uchun ikkinchisi, xarid uchun uchinchisi,
+kommunal to'lov uchun to'rtinchisi, ish qidirish uchun beshinchisi.
+Har birida alohida ro'yxatdan o'tish, alohida parol, alohida karta
+ma'lumoti va alohida buyurtmalar tarixi.</p>
+
+<p><strong>Navixning g'oyasi:</strong> bularning barchasi bitta ilovada,
+bitta hisob va bitta hamyon bilan ishlashi kerak. Buyurtmalar tarixi
+ham bitta joyda bo'ladi.</p>
+
+<div class="box">
+  <div class="t">Nima uchun bu shunchaki "ko'p bo'limli ilova" emas</div>
+  Har bir xizmat alohida modul sifatida yoziladi va bir-biriga
+  bog'lanmaydi. Hamyon esa umumiy: ovqat uchun to'langan pul ham,
+  mehmonxona uchun to'langani ham bitta joydan chiqadi va bitta
+  tarixda ko'rinadi. Aynan shu narsa alohida ilovalar bera olmaydi.
+</div>
+</section>
+
+<!-- ══════════ 2 ══════════ -->
+<section>
+<h2><span class="num">2.</span>Qanday qurildi</h2>
+
+<p>Loyiha 2026-yil 2-avgustda noldan boshlandi. Ish bosqichma-bosqich
+olib borildi: har bir bosqich yakunlanib, tekshirilib, keyin
+keyingisiga o'tildi.</p>
+
+<div class="stats">
+  <div class="stat"><div class="v">29 kun</div><div class="k">2-avgustdan 30-avgustgacha</div></div>
+  <div class="stat"><div class="v">53</div><div class="k">yakunlangan bosqich</div></div>
+  <div class="stat"><div class="v">187</div><div class="k">kod o'zgarishi (commit)</div></div>
+</div>
+
+<div class="timeline">
+  <div class="item">
+    <div class="when">1–10 bosqich</div>
+    <div class="what">Poydevor</div>
+    <div class="desc">Autentifikatsiya, shaxsiy kabinet, rollar va
+    ruxsatlar tizimi, admin panel, audit jurnali.</div>
+  </div>
+  <div class="item">
+    <div class="when">11–25 bosqich</div>
+    <div class="what">Asosiy xizmatlar</div>
+    <div class="desc">Hamyon, xizmat to'lovlari, ovqat yetkazish,
+    marketplace, kuryer va yetkazib berish.</div>
+  </div>
+  <div class="item">
+    <div class="when">26–40 bosqich</div>
+    <div class="what">Ijtimoiy qism va AI</div>
+    <div class="desc">Lenta, xabarlar, qo'ng'iroqlar, hikoyalar,
+    AI yordamchi, qidiruv.</div>
+  </div>
+  <div class="item">
+    <div class="when">41–53 bosqich</div>
+    <div class="what">Chuqurlashtirish</div>
+    <div class="desc">Mehmonxona filtrlari va xaritasi, sayohat
+    chiptalari va o'rin tanlash, ish qidirish, buyurtmani jonli
+    kuzatish, yagona qidiruv.</div>
+  </div>
+  <div class="item">
+    <div class="when">Rejadan keyin</div>
+    <div class="what">Beshta audit</div>
+    <div class="desc">Ruxsatlar, pul oqimi, ma'lumot sizib chiqishi,
+    tezlik va qolgan bo'shliqlar. Natijalari 4-bo'limda.</div>
+  </div>
+</div>
+</section>
+
+<!-- ══════════ 3 ══════════ -->
+<section class="page-break">
+<h2><span class="num">3.</span>Hozirgi holat</h2>
+
+<div class="stats">
+  <div class="stat"><div class="v">14</div><div class="k">ishlaydigan modul</div></div>
+  <div class="stat"><div class="v">230</div><div class="k">API yo'li</div></div>
+  <div class="stat"><div class="v">89</div><div class="k">baza jadvali</div></div>
+  <div class="stat"><div class="v">2 868</div><div class="k">avtomatik sinov</div></div>
+  <div class="stat"><div class="v">81</div><div class="k">baza migratsiyasi</div></div>
+  <div class="stat"><div class="v">~161 000</div><div class="k">qator kod</div></div>
+</div>
+
+<h3>Modullar holati</h3>
+<table>
+  <tr><th style="width:34%">Modul</th><th style="width:16%">Holati</th><th>Nima qiladi</th></tr>
+  <tr><td>Ovqat yetkazish</td><td><span class="tag tag-ok">Ishlaydi</span></td><td>Restoranlar, menyu, buyurtma, kuryer</td></tr>
+  <tr><td>Marketplace</td><td><span class="tag tag-ok">Ishlaydi</span></td><td>Do'konlar, mahsulotlar, savat, qaytarish</td></tr>
+  <tr><td>Hamyon</td><td><span class="tag tag-ok">Ishlaydi</span></td><td>To'ldirish, o'tkazma, tarix</td></tr>
+  <tr><td>To'lovlar</td><td><span class="tag tag-ok">Ishlaydi</span></td><td>Kommunal, internet, mobil aloqa</td></tr>
+  <tr><td>Ish qidirish</td><td><span class="tag tag-ok">Ishlaydi</span></td><td>Vakansiyalar, arizalar, ish beruvchi kabineti</td></tr>
+  <tr><td>Mehmonxona</td><td><span class="tag tag-ok">Ishlaydi</span></td><td>Qidiruv, filtr, xarita, bandlov</td></tr>
+  <tr><td>Sayohat</td><td><span class="tag tag-ok">Ishlaydi</span></td><td>Reyslar, o'rin tanlash, QR chipta</td></tr>
+  <tr><td>Yetkazib berish</td><td><span class="tag tag-ok">Ishlaydi</span></td><td>Posilka, kuryer, jonli kuzatish</td></tr>
+  <tr><td>Xabarlar</td><td><span class="tag tag-ok">Ishlaydi</span></td><td>Suhbat, guruh, qo'ng'iroq</td></tr>
+  <tr><td>AI yordamchi</td><td><span class="tag tag-ok">Ishlaydi</span></td><td>Bir jumla bilan kerakli modulni ochadi</td></tr>
+  <tr><td>Sotuvchi kabineti</td><td><span class="tag tag-ok">Ishlaydi</span></td><td>Ombor, buyurtma, sozlama, rasm</td></tr>
+  <tr><td>Admin panel</td><td><span class="tag tag-ok">Ishlaydi</span></td><td>Bizneslar, foydalanuvchilar, jurnal</td></tr>
+  <tr><td>Taksi</td><td><span class="tag tag-plan">Rejada</span></td><td>Mashina chaqirish, yo'lni kuzatish</td></tr>
+  <tr><td>Biznes kabinet</td><td><span class="tag tag-plan">Rejada</span></td><td>Biznes uchun umumiy boshqaruv</td></tr>
+  <tr><td>Xaritalar</td><td><span class="tag tag-plan">Rejada</span></td><td>Yaqin atrofdagi xizmatlar</td></tr>
+  <tr><td>Moliya markazi</td><td><span class="tag tag-plan">Rejada</span></td><td>Xarajat tahlili, byudjet</td></tr>
+</table>
+
+<h3>Texnik poydevor</h3>
+<table>
+  <tr><th style="width:30%">Qism</th><th>Texnologiya</th></tr>
+  <tr><td>Interfeys</td><td>Next.js 16, React 19, TypeScript, Tailwind CSS 4</td></tr>
+  <tr><td>Baza</td><td>PostgreSQL 16, Prisma 7</td></tr>
+  <tr><td>Kesh va sessiya</td><td>Redis</td></tr>
+  <tr><td>Xavfsizlik</td><td>JWT, bcrypt, rollar va ruxsatlar (RBAC)</td></tr>
+  <tr><td>Sinovlar</td><td>Vitest</td></tr>
+  <tr><td>Joylashuv</td><td>Vercel (sayt), Neon (baza), Upstash (Redis)</td></tr>
+</table>
+</section>
+
+<!-- ══════════ 4 ══════════ -->
+<section class="page-break">
+<h2><span class="num">4.</span>Xavfsizlik: beshta audit natijasi</h2>
+
+<p class="lead">Reja tugagandan keyin ilova beshta yo'nalish bo'yicha
+maxsus tekshirildi. Har bir tekshiruv jonli so'rovlar bilan
+o'tkazildi — faqat kod o'qish bilan emas.</p>
+
+<h3>A. Ruxsatlar (RBAC)</h3>
+<p><strong>Topildi:</strong> bitta haqiqiy teshik — sotuvchi
+qaytarishlar yo'lida rol tekshirilmasdi. Ya'ni admin sotuvchidan
+rolni olib tashlasa ham, o'sha odam qaytarishlarni tasdiqlashda
+davom etardi. Yana to'rtta mo'rt joy topildi.</p>
+<p><strong>Tuzatildi</strong> va qaytmasligi uchun 110 ta tekshiruvli
+qo'riqchi sinov yozildi.</p>
+
+<h3>B. Pul oqimi</h3>
+<p><strong>Topildi:</strong> mijoz yuboradigan takroriylik kaliti
+butun baza bo'ylab umumiy edi. Jonli sinovda tasdiqlandi: bir xil
+kalit yuborgan ikkinchi foydalanuvchi <strong>birinchisining hamyon
+yozuvini va balansini</strong> ko'rdi, o'zining puli esa
+qo'shilmadi.</p>
+<p>Ikkinchi oqibat: buyurtma raqamini biladigan odam server kalitini
+oldindan band qilib, xaridorning pul qaytarishini buzishi mumkin
+edi.</p>
+<p><strong>Tuzatildi:</strong> kalit endi egasiga bog'lanadi.
+Qo'shimcha ravishda <code>npm run money:check</code> buyrug'i
+yozildi — u balans kirim va chiqimga mos kelishini tekshiradi.</p>
+
+<h3>C. Begona ma'lumotni ko'rish</h3>
+<p><strong>95 ta jonli tekshiruv</strong> o'tkazildi: begona
+buyurtma, xabar, ariza, qo'ng'iroq, biznes kabineti. Har bir
+holatda ikki so'rov — egasi (ochilishi kerak) va begona (ochilmasligi
+kerak).</p>
+<p><strong>Natija: teshik topilmadi.</strong> Holat qo'riqchi sinov
+bilan qotirib qo'yildi.</p>
+
+<h3>D. Tezlik</h3>
+<p><strong>Topildi:</strong> ikkita indeks so'rovga mos emasdi.
+Bildirishnomalarda indeks bor edi, lekin boshqa ustun bo'yicha.
+Audit jurnalida sana bo'yicha indeks umuman yo'q edi.</p>
+<p>O'lchov haqiqiy hajmda o'tkazildi (300 000 va 500 000 yozuv):</p>
+<table>
+  <tr><th>So'rov</th><th style="width:20%">Oldin</th><th style="width:20%">Keyin</th></tr>
+  <tr><td>Bildirishnomalar ro'yxati</td><td>12,5 ms</td><td>1,2 ms</td></tr>
+  <tr><td>O'qilmaganlar soni</td><td>14,4 ms</td><td>0,7 ms</td></tr>
+  <tr><td>Admin audit jurnali</td><td>49 ms</td><td>0,09 ms</td></tr>
+</table>
+
+<h3>E. Qolgan bo'shliqlar</h3>
+<p><strong>Topildi:</strong> rasm tizimi yettita tur bilan ishlardi,
+lekin ekran faqat ikkitasiga bor edi. Mehmonxonaga rasm qo'yish
+ilova ichida <strong>umuman imkonsiz</strong> edi.</p>
+<p><strong>Tuzatildi:</strong> admin panelga va biznes kabinetlariga
+rasm boshqaruvi qo'shildi. Endi ekransiz tur qolmadi.</p>
+
+<div class="box">
+  <div class="t">Nima uchun bu muhim</div>
+  Beshta auditning uchtasida haqiqiy xato topildi va ularning
+  hammasi jimgina ishlaydigan turdagi xato edi: sinovlar yashil,
+  xato xabari yo'q, sahifa ochiladi. Ular faqat maxsus qidirilganda
+  ko'rindi.
+</div>
+</section>
+
+<!-- ══════════ 5 ══════════ -->
+<section class="page-break">
+<h2><span class="num">5.</span>Sifat qanday ushlab turiladi</h2>
+
+<p>Kodda 2 868 ta avtomatik sinov bor. Ular orasida oddiy
+tekshiruvlardan tashqari <strong>qo'riqchi sinovlar</strong> ham
+bor — ular allaqachon tuzatilgan xato qaytib kelmasligini
+kuzatadi:</p>
+
+<table>
+  <tr><th style="width:42%">Qo'riqchi</th><th>Nimani ushlaydi</th></tr>
+  <tr><td>Ruxsat qo'riqchisi</td><td>Yangi yo'lda rol tekshiruvi unutilsa</td></tr>
+  <tr><td>Pul kaliti qo'riqchisi</td><td>Kalit egasiga bog'lanmasa</td></tr>
+  <tr><td>Egalik qo'riqchisi</td><td>Shaxsiy yozuv egasiz o'qilsa</td></tr>
+  <tr><td>Indeks qo'riqchisi</td><td>Ko'p ishlatiladigan so'rov indekssiz qolsa</td></tr>
+  <tr><td>Rasm ekrani qo'riqchisi</td><td>Yangi rasm turi ekransiz qo'shilsa</td></tr>
+  <tr><td>Matn qo'riqchisi</td><td>Olib tashlangan reklama iborasi qaytsa</td></tr>
+</table>
+
+<p>Bundan tashqari har bir jiddiy o'zgarishdan keyin haqiqiy
+brauzerda ko'rinish sinovi o'tkaziladi: telefon (375–430 piksel),
+planshet va kompyuter, yorug' va qorong'i rejimda.</p>
+</section>
+
+<!-- ══════════ 6 ══════════ -->
+<section>
+<h2><span class="num">6.</span>Nima qolgan</h2>
+
+<h3>Ilova ichidagi ishlar</h3>
+<table>
+  <tr><th style="width:34%">Ish</th><th style="width:18%">Hajmi</th><th>Izoh</th></tr>
+  <tr><td>Taksi moduli</td><td>Katta</td><td>Haydovchi ilovasi, buyurtma taqsimlash, narx hisoblash</td></tr>
+  <tr><td>Xaritalar</td><td>O'rta</td><td>Yaqin atrofdagi xizmatlar, yo'nalish</td></tr>
+  <tr><td>Moliya markazi</td><td>O'rta</td><td>Xarajat tahlili, byudjet</td></tr>
+  <tr><td>Biznes kabinet</td><td>O'rta</td><td>Biznes uchun umumiy boshqaruv</td></tr>
+  <tr><td>Mehmonxona rasmlari</td><td>Kichik</td><td>Ekran tayyor, rasmlarning o'zi kerak</td></tr>
+</table>
+
+<h3>Tashqi ishlar — ular ishga tushirishni bloklaydi</h3>
+<p>Bu ishlarni dasturchi bajara olmaydi: ular shartnoma va hujjat
+talab qiladi.</p>
+
+<table>
+  <tr><th style="width:34%">Ish</th><th style="width:18%">Muhimligi</th><th>Nima uchun</th></tr>
+  <tr><td>eskiz.uz SMS shartnomasi</td><td><span class="tag tag-plan">Bloklaydi</span></td><td>Busiz hech kim ro'yxatdan o'ta olmaydi — tasdiqlash kodi yuborilmaydi</td></tr>
+  <tr><td>Kalitlarni almashtirish</td><td><span class="tag tag-plan">Bloklaydi</span></td><td>Baza paroli va JWT kalitlari ishlab chiqish paytida ochilgan</td></tr>
+  <tr><td>Payme yoki Click shartnomasi</td><td><span class="tag tag-plan">Bloklaydi</span></td><td>Hozir to'lov simulyatsiya qilinadi</td></tr>
+  <tr><td>Yuridik shaxs rekvizitlari</td><td>Yuqori</td><td>Shartnomalar va soliq uchun</td></tr>
+  <tr><td>Ma'lumot joylashuvi bo'yicha maslahat</td><td>Yuqori</td><td>O'zbekiston qonuni fuqarolar ma'lumotini mamlakat ichida saqlashni talab qiladi</td></tr>
+  <tr><td>TURN server</td><td>O'rta</td><td>Ba'zi mobil tarmoqlarda qo'ng'iroq ulanmaydi</td></tr>
+</table>
+
+<div class="box warn">
+  <div class="t">Eng muhim to'siq</div>
+  Hozir ilovaga faqat <strong>siz</strong> kira olasiz: tasdiqlash
+  kodi haqiqiy SMS orqali emas, server logida ko'rinadi. Boshqa
+  odamlar ro'yxatdan o'ta olmaydi. Shuning uchun SMS shartnomasi
+  birinchi navbatdagi ish.
+</div>
+</section>
+
+<!-- ══════════ 7 ══════════ -->
+<section class="page-break">
+<h2><span class="num">7.</span>Kelajakda nimani kutamiz</h2>
+
+<p class="lead">Quyidagi reja shartli: muddatlar tashqi ishlarga
+(SMS, to'lov shartnomasi) bog'liq va ular sizdan bog'liq.</p>
+
+<div class="timeline">
+  <div class="item">
+    <div class="when">1-bosqich — ishga tushirish</div>
+    <div class="what">Birinchi haqiqiy foydalanuvchilar</div>
+    <div class="desc">SMS ulanadi, kalitlar almashtiriladi, ilova
+    ochiladi. Maqsad: 50–100 odam bilan haqiqiy ishlashni sinash.
+    Bu bosqichda yangi funksiya qo'shilmaydi — faqat kuzatuv va
+    xatolarni tuzatish.</div>
+  </div>
+  <div class="item">
+    <div class="when">2-bosqich — haqiqiy pul</div>
+    <div class="what">Payme yoki Click</div>
+    <div class="desc">Hamyonni haqiqiy to'lov bilan to'ldirish.
+    Shundan keyingina ilova o'z-o'zini qoplay boshlaydi.</div>
+  </div>
+  <div class="item">
+    <div class="when">3-bosqich — bizneslar</div>
+    <div class="what">Restoran, do'kon va mehmonxonalarni jalb qilish</div>
+    <div class="desc">Ular uchun kabinet tayyor: buyurtma, ombor,
+    rasm va sozlamalarni o'zlari boshqaradi. Kerak bo'lgani —
+    shartnoma va o'rgatish.</div>
+  </div>
+  <div class="item">
+    <div class="when">4-bosqich — taksi</div>
+    <div class="what">Eng katta modul</div>
+    <div class="desc">Haydovchi uchun alohida ilova, buyurtmani
+    taqsimlash, narx hisoblash va jonli kuzatish. Buni boshqa
+    modullar barqaror ishlagandan keyin boshlash to'g'ri.</div>
+  </div>
+  <div class="item">
+    <div class="when">Doimiy</div>
+    <div class="what">Kuzatuv va sifat</div>
+    <div class="desc">Xatolar jurnali, pul hisobi tekshiruvi
+    (<code>money:check</code>) va tezlik o'lchovi muntazam
+    bajariladi.</div>
+  </div>
+</div>
+
+<h3>Nimani kutmaslik kerak</h3>
+<ul>
+  <li><strong>Bir kechada minglab foydalanuvchi.</strong> Ilova texnik
+  jihatdan tayyor, lekin haqiqiy yuklama hali sinalmagan. Birinchi
+  yuzta foydalanuvchi eng ko'p ma'lumot beradi.</li>
+  <li><strong>Barcha modul bir vaqtda to'lishini.</strong> Har bir
+  modulga biznes kerak: restoransiz ovqat moduli bo'sh turadi.</li>
+  <li><strong>Reklama bilan tez o'sishni.</strong> Avval xizmat
+  sifati: bitta shaharda yaxshi ishlagan model keyin kengayadi.</li>
+</ul>
+</section>
+
+<!-- ══════════ 8 ══════════ -->
+<section>
+<h2><span class="num">8.</span>Xulosa</h2>
+
+<p>29 kun ichida noldan ishlaydigan platforma qurildi: 14 ta modul,
+230 ta API yo'li, 89 ta baza jadvali va 2 868 ta avtomatik sinov.</p>
+
+<p>Beshta audit o'tkazildi va uchtasida haqiqiy xavfsizlik xatosi
+topilib tuzatildi. Har bir tuzatish qaytmasligi uchun qo'riqchi
+sinov bilan mustahkamlandi.</p>
+
+<p><strong>Ilova texnik jihatdan ishga tushirishga tayyor.</strong>
+Qolgan to'siqlar texnik emas: SMS shartnomasi, to'lov tizimi
+shartnomasi va kalitlarni almashtirish. Ularsiz ilova ochilsa ham,
+undan boshqa odamlar foydalana olmaydi.</p>
+
+<div class="box">
+  <div class="t">Keyingi qadam</div>
+  eskiz.uz bilan SMS shartnomasi. Bu bitta ish qolgan hamma
+  narsani ochib beradi: ro'yxatdan o'tish, birinchi foydalanuvchilar
+  va haqiqiy ma'lumot.
+</div>
+
+<p class="small muted" style="margin-top:24px; padding-top:12px; border-top:1px solid var(--line);">
+Hujjatdagi barcha raqamlar loyiha kodidan o'lchab olingan:
+modullar reyestri, baza sxemasi, API yo'llari va sinov natijalari.
+Taxminiy qiymatlar ishlatilmagan.
+</p>
+</section>
+
+</body>
+</html>
