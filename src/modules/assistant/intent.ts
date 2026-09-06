@@ -37,6 +37,15 @@ export const Intent = {
   FOOD_STATUS: 'FOOD_STATUS',
   /** Marketplace'dan mahsulot sotib olish. */
   MARKET_ORDER: 'MARKET_ORDER',
+  /**
+   * Taksi chaqirish.
+   *
+   * ── Nima uchun alohida niyat ──────────────────────────────────────
+   * "Uyga taksi" gapida na summa bor, na katalog nomi — ya'ni mavjud
+   * niyatlarning hech biriga tushmaydi. Ustiga, taksining o'ziga xos
+   * savoli bor: QAYERGA. Buni umumiy niyatga tiqib bo'lmaydi.
+   */
+  BOOK_TAXI: 'BOOK_TAXI',
   /** Yordam — nima qila olasan. */
   HELP: 'HELP',
   /**
@@ -78,6 +87,18 @@ export interface ParsedMessage {
   quantity: number | null;
   /** Ro'yxatdan tanlangan raqam: "2. Lag'mon — Milliy Taomlar" → 2. */
   ordinal: number | null;
+  /**
+   * Taksi qayerga: saqlangan manzil TURI.
+   *
+   * ── Nima uchun bu yerda faqat TUR bor, manzilning o'zi yo'q ─────────
+   * Bu fayl SOF: bazaga murojaat qilmaydi. "Uy" so'zini manzilga
+   * aylantirish uchun esa foydalanuvchining saqlangan manzillari
+   * kerak — u `assistant.taxi-flow.ts` da o'qiladi.
+   *
+   * Shunday bo'linish testni ham osonlashtiradi: matnni tushunish
+   * alohida, manzilni topish alohida sinaladi.
+   */
+  taxiDestination: 'HOME' | 'WORK' | null;
 }
 
 /**
@@ -528,6 +549,84 @@ export function extractOrdinal(rawText: string): number | null {
  * "hisobni to'ldir" ham "to'la" so'ziga o'xshaydi, shuning uchun
  * TOPUP tekshiruvi PAY_SERVICE dan oldin turadi.
  */
+/**
+ * TAKSI buyruqlari.
+ *
+ * ── Nima uchun tayyor iboralar ro'yxati EMAS ──────────────────────────
+ * Birinchi urinishda "uyga taksi", "uyga qaytmoqchiman" kabi to'liq
+ * iboralar ro'yxati yozilgandi. U mo'rt: "uyga eng arzon taksi" yoki
+ * "taksi chaqir uyga" ro'yxatda yo'q va tushunilmasdi.
+ *
+ * Shuning uchun buyruq IKKI BELGIDAN yig'iladi:
+ *
+ *   1. VOSITA aytilganmi — "taksi";
+ *   2. yoki MANZIL va HARAKAT birga aytilganmi — "uyga" + "ketmoqchiman".
+ *
+ * Bunda so'z tartibi ham, oradagi ortiqcha so'zlar ham ahamiyatsiz.
+ *
+ * ── Nima uchun "mashina" ro'yxatda yo'q ───────────────────────────────
+ * Marketplace'da mashina jihozlari sotiladi va "mashina uchun gilam
+ * sotib ol" taksi buyrug'i emas. "Mashina chaqir" esa MANZIL +
+ * HARAKAT qoidasi orqali baribir tushuniladi.
+ */
+const TAXI_VEHICLE_WORDS = ['taksi', 'taxi'];
+
+/**
+ * Harakat so'zlari — "borish" ma'nosini bildiradi.
+ *
+ * "Buyur", "sotib ol", "yetkazib ber" ATAYLAB yo'q: ular ovqat va
+ * Marketplace buyruqlari va ular bu ro'yxatga tushsa, "uyga ovqat
+ * buyur" taksi chaqirishga aylanardi.
+ */
+const TAXI_MOVE_WORDS = [
+  'ketmoqchiman',
+  'ketaman',
+  'qaytmoqchiman',
+  'qaytaman',
+  'boraman',
+  'bormoqchiman',
+  'olib bor',
+  'olib ket',
+  'chaqir',
+];
+
+/** Saqlangan manzilga ishora qiluvchi so'zlar. */
+const TAXI_HOME_WORDS = ['uyga', 'uyimga'];
+const TAXI_WORK_WORDS = ['ishga', 'ishxonaga'];
+
+/**
+ * Matn taksi chaqirish haqidami.
+ *
+ * ── Nima uchun KURYER alohida chiqarib tashlanadi ─────────────────────
+ * "Uyga kuryer chaqir" gapida ham manzil, ham harakat bor — qoida
+ * bo'yicha u taksi bo'lib qolardi. Holbuki kuryer boshqa modul va u
+ * allaqachon ishlaydi.
+ */
+function isTaxiRequest(text: string): boolean {
+  if (matchWords(text, ['kuryer'])) return false;
+
+  if (matchWords(text, TAXI_VEHICLE_WORDS)) return true;
+
+  const hasPlace = matchWords(text, [...TAXI_HOME_WORDS, ...TAXI_WORK_WORDS]);
+  const hasMove = matchWords(text, TAXI_MOVE_WORDS);
+
+  return hasPlace && hasMove;
+}
+
+/**
+ * Matn qaysi SAQLANGAN manzilga ishora qilmoqda.
+ *
+ * `null` — manzil aytilmagan. Bunday holatda yordamchi qayerga
+ * borishni SO'RAYDI, taxmin qilmaydi: noto'g'ri manzilga taksi
+ * chaqirish foydalanuvchiga pul va vaqt yo'qotadi.
+ */
+function detectTaxiDestination(text: string): 'HOME' | 'WORK' | null {
+  if (matchWords(text, TAXI_WORK_WORDS)) return 'WORK';
+  if (matchWords(text, TAXI_HOME_WORDS)) return 'HOME';
+
+  return null;
+}
+
 const PHRASE_INTENTS: { intent: IntentName; words: string[] }[] = [
   { intent: Intent.HELP, words: ['yordam', 'nima qila olasan', 'nimalar qila', 'qanday ishlaysan'] },
   /**
@@ -621,7 +720,21 @@ export function parseMessage(rawText: string): ParsedMessage {
   const isShopping = intent === Intent.FOOD_ORDER || intent === Intent.MARKET_ORDER;
   const foodQuery = isShopping ? extractFoodQuery(withoutPhone) : null;
 
-  return { intent, amountSom, phone, providerCode, category, accountNumber, foodQuery, quantity, ordinal };
+  /* Manzil turi FAQAT taksi buyrug'ida ajratiladi — boshqa joyda u ortiqcha ish. */
+  const taxiDestination = intent === Intent.BOOK_TAXI ? detectTaxiDestination(text) : null;
+
+  return {
+    intent,
+    amountSom,
+    phone,
+    providerCode,
+    category,
+    accountNumber,
+    foodQuery,
+    quantity,
+    ordinal,
+    taxiDestination,
+  };
 }
 
 /**
@@ -651,6 +764,19 @@ function detectIntent(text: string): IntentName {
    */
   const byPhrase = PHRASE_INTENTS.find((entry) => matchWords(text, entry.words))?.intent;
   if (byPhrase) return byPhrase;
+
+  /*
+    TAKSI — aniq iboralardan KEYIN, katalog nomlaridan OLDIN.
+
+    Keyin: "buyurtmam qayerda" gapida ham "buyurtma" bor, lekin u
+    yangi taksi emas.
+
+    Oldin: "uyga taksi" gapida hech qanday taom yoki mahsulot nomi
+    yo'q, lekin "taksi" so'zining o'zi yetarli aniq. Agar katalog
+    tekshiruvidan keyin qo'yilsa, ro'yxatlar o'sganda tasodifiy
+    to'qnashuv ehtimoli paydo bo'lardi.
+  */
+  if (isTaxiRequest(text)) return Intent.BOOK_TAXI;
 
   if (matchExactWords(text, DISH_WORDS)) return Intent.FOOD_ORDER;
   if (matchExactWords(text, PRODUCT_WORDS)) return Intent.MARKET_ORDER;

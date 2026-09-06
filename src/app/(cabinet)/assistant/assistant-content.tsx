@@ -48,12 +48,12 @@ const GREETING: ChatMessage = {
   id: 'greeting',
   author: 'assistant',
   text:
-    "Salom! Men Navix yordamchisiman. To'lov, pul o'tkazish, ovqat va mahsulot buyurtmasi — " +
+    "Salom! Men Navix yordamchisiman. To'lov, pul o'tkazish, taksi, ovqat va mahsulot buyurtmasi — " +
     'hammasini oddiy tilda yozing. Masalan "gazga 50 ming to\'la", "2 ta lag\'mon buyur" ' +
     'yoki "telefon qidir".',
 };
 
-const STARTER_PROMPTS = ['Balansim qancha', 'Ovqat buyur', 'Telefon qidir', 'Nima qila olasan'];
+const STARTER_PROMPTS = ['Balansim qancha', 'Uyga taksi', 'Ovqat buyur', 'Nima qila olasan'];
 
 /**
  * Tanishtiruvdan keyingi BIRINCHI xabar.
@@ -74,7 +74,7 @@ const WELCOME_GREETING: ChatMessage = {
 };
 
 /** Yangi foydalanuvchiga ko'rsatiladigan birinchi qadamlar. */
-const WELCOME_PROMPTS = ['Nima qila olasan', 'Ovqat buyur', 'Balansim qancha', 'Telefon qidir'];
+const WELCOME_PROMPTS = ['Nima qila olasan', 'Uyga taksi', 'Ovqat buyur', 'Balansim qancha'];
 
 export function AssistantContent() {
   const router = useRouter();
@@ -117,6 +117,39 @@ export function AssistantContent() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [messages, isThinking]);
 
+  /**
+   * Joriy joylashuvni SO'RAYDI, lekin kutib qolmaydi.
+   *
+   * ── Nima uchun har xabarda qaytadan so'raladi ───────────────────────
+   * Odam yordamchi bilan gaplashib turib joyini o'zgartirishi mumkin:
+   * restorandan chiqdi, ko'chaga tushdi. Bir marta olingan nuqta
+   * eskirib qolardi.
+   *
+   * ── Nima uchun XATO ushlanadi va e'tiborsiz qoldiriladi ─────────────
+   * Joylashuv yordamchining ko'p buyrug'iga kerak emas: balans,
+   * to'lov, ovqat. Ruxsat berilmagani uchun butun suhbatni to'xtatish
+   * noto'g'ri bo'lardi. Kerak bo'lganda (taksi) yordamchining o'zi
+   * sababni tushuntiradi.
+   */
+  async function currentLocation(): Promise<{ latitude: number; longitude: number } | undefined> {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return undefined;
+
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) =>
+          resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+        () => resolve(undefined),
+        /*
+          Qisqa kutish: yordamchi javobi TEZ kelishi kerak. GPS
+          10 soniya o'ylasa, odam ilova qotib qoldi deb o'ylardi.
+          Aniqlik ham past talab qilinadi — taksi uchun 100 metr
+          xato muhim emas, u baribir eng yaqin ko'chaga keladi.
+        */
+        { enableHighAccuracy: false, timeout: 4_000, maximumAge: 60_000 },
+      );
+    });
+  }
+
   async function send(text: string) {
     const trimmed = text.trim();
     if (!trimmed || isThinking) return;
@@ -129,9 +162,11 @@ export function AssistantContent() {
     setIsThinking(true);
 
     try {
+      const location = await currentLocation();
+
       const result = await request<AssistantReply>('/api/v1/assistant', {
         method: 'POST',
-        body: { message: trimmed, state },
+        body: { message: trimmed, state, ...(location ? { location } : {}) },
       });
 
       setMessages((current) => [
@@ -235,6 +270,41 @@ export function AssistantContent() {
             author: 'assistant',
             text: `Taxminan ${action.deliveryMinutes} daqiqada yetkaziladi. Holatini kuzatib borishingiz mumkin.`,
             action: { kind: 'navigate', href: `/orders/${order.id}`, label: "Buyurtmani ko'rish" },
+            actionState: 'pending',
+          },
+        ]);
+      } else if (action.kind === 'confirm_taxi_order') {
+        /**
+         * Safar ODATDAGI endpoint orqali yaratiladi — taksi ekrani
+         * ham xuddi shu yo'ldan yuradi.
+         *
+         * Narx, masofa chegarasi, balans va "bir vaqtda bitta safar"
+         * qoidasi SERVERDA qaytadan tekshiriladi. Yordamchi ularni
+         * chetlab o'ta olmaydi: u faqat maydonlarni to'ldiradi.
+         */
+        const { ride } = await request<{ ride: { id: string } }>('/api/v1/taxi/rides', {
+          method: 'POST',
+          body: {
+            tariff: action.tariff,
+            fromLat: action.fromLat,
+            fromLng: action.fromLng,
+            fromAddress: action.fromAddress,
+            toLat: action.toLat,
+            toLng: action.toLng,
+            toAddress: action.toAddress,
+            idempotencyKey,
+          },
+        });
+
+        finish('done', 'Taksi chaqirildi. Haydovchi qidirilmoqda.');
+
+        setMessages((current) => [
+          ...current,
+          {
+            id: `assistant-ride-${ride.id}`,
+            author: 'assistant',
+            text: `Haydovchi topilishi bilan xabar beraman. Taxminan ${action.minutes} daqiqada yetib borasiz.`,
+            action: { kind: 'navigate', href: `/taxi/${ride.id}`, label: 'Safarni kuzatish' },
             actionState: 'pending',
           },
         ]);
@@ -525,6 +595,17 @@ function ConfirmCard({ action, actionState, resultText, isBusy, onConfirm, onCan
     rows.push({ label: 'Manzil', value: action.addressLine, wrap: true });
     rows.push({ label: 'Mahsulotlar', value: formatTiyin(action.subtotalSom * 100) });
     rows.push({ label: 'Yetkazish', value: formatTiyin(action.deliveryFeeSom * 100) });
+  } else if (action.kind === 'confirm_taxi_order') {
+    amountSom = action.amountSom;
+    /*
+      Manzil BIRINCHI: foydalanuvchi eng avval "to'g'ri joygami?"
+      degan savolga javob izlaydi. Narx keyin keladi.
+    */
+    rows.push({ label: 'Qayerga', value: action.toAddress, wrap: true });
+    rows.push({ label: 'Qayerdan', value: action.fromAddress, wrap: true });
+    rows.push({ label: 'Tarif', value: action.tariffLabel });
+    rows.push({ label: 'Masofa', value: `${action.distanceKm.toFixed(1)} km` });
+    rows.push({ label: 'Vaqt', value: `~${action.minutes} daqiqa` });
   } else {
     amountSom = action.amountSom;
     rows.push({ label: 'Xizmat', value: action.providerName });

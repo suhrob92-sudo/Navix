@@ -405,3 +405,104 @@ describe('parseMessage — marketplace', () => {
     expect(parseMessage("hisobni to'ldir").intent).toBe(Intent.TOPUP);
   });
 });
+
+/**
+ * TAKSI buyruqlari.
+ *
+ * ── Nima uchun bu sinovlar ko'p ───────────────────────────────────────
+ * Taksi tanish IKKI belgidan yig'iladi: vosita nomi yoki
+ * "manzil + harakat". Bunday qoida kuchli, lekin u begona gaplarni
+ * ham tortib olishi mumkin — masalan "uyga ovqat buyur".
+ *
+ * Shuning uchun har bir sinovda IKKI tomon tekshiriladi: kerakli
+ * gap tushunilsinmi va KERAKSIZ gap tortib olinmasinmi.
+ */
+describe('taksi buyruqlari', () => {
+  it("vosita nomi aytilganda taniydi", () => {
+    for (const text of ['uyga taksi', 'taksi chaqir', 'menga taxi kerak', 'Navix, uyga taxi']) {
+      expect(parseMessage(text).intent, text).toBe(Intent.BOOK_TAXI);
+    }
+  });
+
+  /**
+   * ENG MUHIM TEKSHIRUV.
+   *
+   * Bu gaplarda "taksi" so'zi UMUMAN yo'q. Tayyor iboralar ro'yxatiga
+   * tayansak, ular tushunilmasdi — holbuki odam eng ko'p aynan
+   * shunday gapiradi.
+   */
+  it("'taksi' so'zisiz ham taniydi", () => {
+    for (const text of [
+      'uyga qaytmoqchiman',
+      'uyga ketmoqchiman',
+      'meni uyimga olib bor',
+      'ishga boraman',
+      'uyga olib ket',
+    ]) {
+      expect(parseMessage(text).intent, text).toBe(Intent.BOOK_TAXI);
+    }
+  });
+
+  /**
+   * So'z tartibi va oradagi ortiqcha so'zlar ahamiyatsiz.
+   *
+   * "Uyga eng arzon taksi" tayyor iboralar ro'yxatida bo'lmasdi.
+   */
+  it("so'z tartibi va ortiqcha so'zlarga bog'liq emas", () => {
+    for (const text of ['uyga eng arzon taksi', 'taksi chaqir uyga', 'tezroq uyga ketmoqchiman']) {
+      expect(parseMessage(text).intent, text).toBe(Intent.BOOK_TAXI);
+    }
+  });
+
+  it('manzil turini ajratadi', () => {
+    expect(parseMessage('uyga taksi').taxiDestination).toBe('HOME');
+    expect(parseMessage('uyimga olib bor').taxiDestination).toBe('HOME');
+    expect(parseMessage('ishga taksi').taxiDestination).toBe('WORK');
+    expect(parseMessage('ishxonaga olib bor').taxiDestination).toBe('WORK');
+  });
+
+  it("manzil aytilmasa null qaytaradi — yordamchi so'raydi", () => {
+    expect(parseMessage('taksi chaqir').taxiDestination).toBeNull();
+  });
+
+  /**
+   * ── Begona buyruqlarni TORTIB OLMASLIK ──────────────────────────────
+   * Bu sinovlar bo'lmasa, taksi qoidasi ovqat va Marketplace
+   * buyruqlarini o'g'irlab ketardi va foydalanuvchi "taksi
+   * chaqiraymi?" degan javobni olardi.
+   */
+  it('ovqat buyrug\'ini tortib olmaydi', () => {
+    expect(parseMessage('uyga ovqat buyur').intent).not.toBe(Intent.BOOK_TAXI);
+    expect(parseMessage('uyga lagmon yetkazib ber').intent).not.toBe(Intent.BOOK_TAXI);
+  });
+
+  it("Marketplace buyrug'ini tortib olmaydi", () => {
+    expect(parseMessage('mashina uchun gilam sotib ol').intent).not.toBe(Intent.BOOK_TAXI);
+  });
+
+  it('kuryer buyrug\'ini tortib olmaydi', () => {
+    expect(parseMessage('uyga kuryer chaqir').intent).not.toBe(Intent.BOOK_TAXI);
+  });
+
+  it('pul buyruqlarini tortib olmaydi', () => {
+    expect(parseMessage('balansim qancha').intent).toBe(Intent.BALANCE);
+    expect(parseMessage('901234567 ga 50 ming yubor').intent).not.toBe(Intent.BOOK_TAXI);
+  });
+
+  it("'buyurtmam qayerda' savolini tortib olmaydi", () => {
+    expect(parseMessage('buyurtmam qayerda').intent).toBe(Intent.FOOD_STATUS);
+  });
+
+  /**
+   * Taksi endi ISHLAYDI, ya'ni "tez orada" javobi berilmasligi kerak.
+   *
+   * 54-bosqichda modul LIVE bo'lgach, "taksi chaqir" iborasi
+   * `COMING_SOON` ro'yxatidan chiqib ketdi va bir muddat hech qanday
+   * niyatga tushmay qoldi. Bu sinov o'sha bo'shliq qaytmasligini
+   * qo'riqlaydi.
+   */
+  it("'tez orada' javobini bermaydi — taksi allaqachon ishlaydi", () => {
+    expect(parseMessage('taksi chaqir').intent).not.toBe(Intent.COMING_SOON);
+    expect(parseMessage('uyga taksi').intent).not.toBe(Intent.COMING_SOON);
+  });
+});

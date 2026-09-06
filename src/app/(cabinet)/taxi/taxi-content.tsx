@@ -9,6 +9,7 @@ import { AppHeader } from '@/components/app/app-header';
 import { RideMap } from '@/components/map/ride-map';
 import { PlaceField } from '@/components/taxi/place-field';
 import { DEFAULT_CENTER, PlaceSheet, type ChosenPlace } from '@/components/taxi/place-sheet';
+import { QuickPlaces, type QuickAddress } from '@/components/taxi/quick-places';
 import { RecentPlaces } from '@/components/taxi/recent-places';
 import { TariffOption } from '@/components/taxi/tariff-option';
 import { Alert } from '@/components/ui/alert';
@@ -72,6 +73,14 @@ export function TaxiContent() {
   */
   const ridesQuery = useApiQuery<RidesResponse>('/api/v1/taxi/rides?pageSize=20');
   const rides = ridesQuery.data?.rides ?? [];
+
+  /*
+    Manzillar SHU YERDA bir marta so'raladi va ikki joyga beriladi:
+    "Uy / Ish" tugmalariga va tanlash oynasiga. Har biri o'zi
+    so'raganda, oyna ochilganda ikkinchi marta so'rov ketardi.
+  */
+  const addressesQuery = useApiQuery<{ addresses: QuickAddress[] }>('/api/v1/addresses');
+  const addresses = addressesQuery.data?.addresses ?? [];
 
   const activeRide = rides.find((item) => isRideActive(item.status)) ?? null;
 
@@ -169,6 +178,14 @@ export function TaxiContent() {
             />
           </div>
         </section>
+
+        {/*
+          ── Uy va Ish ─────────────────────────────────────────────
+          Manzil qatorlaridan KEYIN va oxirgi manzillardan OLDIN:
+          bu ikkisi eng ko'p ishlatiladigan tanlov, shuning uchun
+          barmoqqa eng yaqin joyda turadi.
+        */}
+        {!to && <QuickPlaces addresses={addresses} onPick={setTo} />}
 
         {/*
           ── Oxirgi manzillar ──────────────────────────────────────
@@ -288,6 +305,7 @@ export function TaxiContent() {
       {sheet && (
         <PlaceSheet
           title={sheet === 'from' ? 'Qayerdan olamiz?' : 'Qayerga boramiz?'}
+          addresses={addresses}
           fallbackCenter={mapCenter}
           onChoose={handleChoose}
           onClose={() => setSheet(null)}

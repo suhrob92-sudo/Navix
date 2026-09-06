@@ -127,6 +127,31 @@ export type AssistantAction =
       /** Hamyondan yechiladigan yakuniy summa. */
       amountSom: number;
       deliveryDays: number;
+    }
+  | {
+      /**
+       * Taksi buyurtmasi — TASDIQ kutmoqda.
+       *
+       * Boshqa `confirm_*` lar bilan bir xil qoida: bu yerda hech
+       * qanday safar yaratilmaydi va pul yechilmaydi. Foydalanuvchi
+       * tugmani bosgandan keyingina mijoz odatdagi
+       * `POST /api/v1/taxi/rides` ga so'rov yuboradi va narx
+       * serverda QAYTADAN hisoblanadi.
+       */
+      kind: 'confirm_taxi_order';
+      tariff: 'ECONOM' | 'COMFORT';
+      tariffLabel: string;
+      fromLat: number;
+      fromLng: number;
+      fromAddress: string;
+      toLat: number;
+      toLng: number;
+      toAddress: string;
+      distanceKm: number;
+      /** Taxminiy safar vaqti — DAQIQADA. */
+      minutes: number;
+      /** Hamyondan yechiladigan summa. */
+      amountSom: number;
     };
 
 export interface AssistantReply {
@@ -139,7 +164,25 @@ export interface AssistantReply {
   state: AssistantState;
 }
 
+/**
+ * Foydalanuvchining HOZIRGI joylashuvi.
+ *
+ * ── Nima uchun BRAUZERDAN keladi ──────────────────────────────────────
+ * Server foydalanuvchi qayerdaligini bilmaydi: IP manzil shahar
+ * darajasida ham noto'g'ri bo'lishi mumkin (mobil operator, VPN).
+ * Aniq nuqtani faqat telefonning o'zi biladi.
+ *
+ * Shuning uchun u so'rov bilan yuboriladi. Ixtiyoriy: ruxsat
+ * berilmagan bo'lsa ham yordamchining qolgan hamma buyrug'i
+ * ishlayveradi.
+ */
+export interface AssistantLocation {
+  latitude: number;
+  longitude: number;
+}
+
 export interface AssistantRequestBody {
   message: string;
   state?: AssistantState;
+  location?: AssistantLocation;
 }

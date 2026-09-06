@@ -20,7 +20,16 @@ export const POST = withApiHandler(async (request: NextRequest, { requestId }) =
   const auth = await requireAuth(request);
   const input = await parseJsonBody(request, assistantMessageSchema);
 
-  const result = await respond(auth.userId, input.message, input.state ?? { slots: {} });
+  /*
+    Joylashuv IXTIYORIY: kelmasa `null` uzatiladi va yordamchi
+    joylashuv talab qiladigan buyruqda sababini o'zi tushuntiradi.
+  */
+  const result = await respond(
+    auth.userId,
+    input.message,
+    input.state ?? { slots: {} },
+    input.location ?? null,
+  );
 
   return apiSuccess(result, { requestId, headers: { 'cache-control': 'no-store' } });
 });

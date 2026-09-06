@@ -6,28 +6,12 @@ import { useCallback, useState } from 'react';
 import { PickMap } from '@/components/map/pick-map';
 import { Button } from '@/components/ui/button';
 import type { Point } from '@/config/delivery-eta';
+import type { QuickAddress } from '@/components/taxi/quick-places';
 import { isInsideUzbekistan } from '@/config/taxi';
-import { useApiQuery } from '@/hooks/use-api';
 
 /** Tanlangan joy — koordinata va uning nomi. */
 export interface ChosenPlace extends Point {
   address: string;
-}
-
-interface AddressRow {
-  id: string;
-  /** `HOME`, `WORK` yoki `OTHER` — belgisi shunga qarab tanlanadi. */
-  type: string;
-  label: string;
-  city: string;
-  street: string;
-  building: string | null;
-  latitude: number;
-  longitude: number;
-}
-
-interface AddressesResponse {
-  addresses: AddressRow[];
 }
 
 /**
@@ -55,6 +39,17 @@ interface AddressesResponse {
 
 export interface PlaceSheetProps {
   title: string;
+  /**
+   * Saqlangan manzillar — OTA-komponentdan keladi.
+   *
+   * ── Nima uchun o'zi so'ramaydi ──────────────────────────────────────
+   * Ilgari bu oyna manzillarni o'zi so'rardi. Lekin taksi ekranida
+   * ular allaqachon "Uy / Ish" tugmalari uchun olingan edi — ya'ni
+   * oyna har ochilganda ikkinchi, keraksiz so'rov ketardi.
+   *
+   * Endi bitta so'rov ikkala joyga xizmat qiladi.
+   */
+  addresses: readonly QuickAddress[];
   /** Xarita qayerdan ochilsin — odatda foydalanuvchining hozirgi joyi. */
   fallbackCenter: Point;
   onChoose: (place: ChosenPlace) => void;
@@ -64,7 +59,7 @@ export interface PlaceSheetProps {
 /** Toshkent markazi — hech narsa ma'lum bo'lmaganda xarita shu yerdan ochiladi. */
 export const DEFAULT_CENTER: Point = { latitude: 41.3111, longitude: 69.2797 };
 
-function addressText(row: AddressRow): string {
+function addressText(row: QuickAddress): string {
   const parts = [row.street, row.building].filter(Boolean).join(', ');
 
   return parts ? `${row.label} — ${parts}` : row.label;
@@ -87,9 +82,13 @@ function pointText(point: Point): string {
   return `Xaritadagi nuqta (${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)})`;
 }
 
-export function PlaceSheet({ title, fallbackCenter, onChoose, onClose }: PlaceSheetProps) {
-  const { data } = useApiQuery<AddressesResponse>('/api/v1/addresses');
-
+export function PlaceSheet({
+  title,
+  addresses,
+  fallbackCenter,
+  onChoose,
+  onClose,
+}: PlaceSheetProps) {
   /**
    * Xarita markazi va "kalit".
    *
@@ -148,7 +147,7 @@ export function PlaceSheet({ title, fallbackCenter, onChoose, onClose }: PlaceSh
     );
   }, []);
 
-  const saved = data?.addresses ?? [];
+  const saved = addresses;
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black/45 backdrop-blur-sm">

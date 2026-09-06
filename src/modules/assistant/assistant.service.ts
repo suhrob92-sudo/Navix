@@ -5,6 +5,7 @@ import { Intent, normalize, parseMessage, type IntentName } from '@/modules/assi
 import { comingSoonReply, findPlannedModule } from '@/modules/assistant/assistant.modules';
 import { handleFoodOrder, handleFoodStatus } from '@/modules/assistant/assistant.food-flow';
 import { handleMarketOrder, handleMarketStatus } from '@/modules/assistant/assistant.market-flow';
+import { handleTaxiOrder } from '@/modules/assistant/assistant.taxi-flow';
 import { findDishes } from '@/modules/assistant/assistant.food';
 import { findProducts } from '@/modules/assistant/assistant.market';
 import { getLatestMarketOrder } from '@/modules/assistant/assistant.market';
@@ -13,6 +14,7 @@ import { getWalletSummary } from '@/modules/wallet/wallet.service';
 import { listSavedAccounts } from '@/modules/payment/payment.service';
 import type {
   AssistantAction,
+  AssistantLocation,
   AssistantReply,
   AssistantSlots,
   AssistantState,
@@ -50,7 +52,15 @@ function reply(
 /** Suhbat tugadi — holat tozalanadi. */
 const EMPTY_STATE: AssistantState = { slots: {} };
 
-const DEFAULT_SUGGESTIONS = ['Balansim qancha', 'Ovqat buyur', 'Telefon qidir', 'Nima qila olasan'];
+/**
+ * Boshlang'ich takliflar — tugma sifatida ko'rsatiladi.
+ *
+ * "Uyga taksi" ro'yxatga qo'shildi: yangi imkoniyat haqida
+ * foydalanuvchi boshqa yo'l bilan bilib olmaydi. Ro'yxat qisqa
+ * qolishi uchun eng kam ishlatiladigan "Telefon qidir" olib
+ * tashlandi — u qidiruv orqali ham topiladi.
+ */
+const DEFAULT_SUGGESTIONS = ['Balansim qancha', 'Uyga taksi', 'Ovqat buyur', 'Nima qila olasan'];
 
 /**
  * Ovqat buyurtmasida summa CHEGARA sifatida tushuniladi.
@@ -86,6 +96,7 @@ function handleHelp(): AssistantReply {
       '• Pul o\'tkazaman — "901234567 ga 20 ming yubor"\n' +
       '• Ovqat buyurtma qilaman — "2 ta lag\'mon buyur"\n' +
       '• Marketplace\'dan mahsulot topaman — "telefon qidir"\n' +
+      '• Taksi chaqiraman — "uyga taksi"\n' +
       '• Buyurtmangiz qayerdaligini aytaman — "buyurtmam qayerda"\n' +
       '• Tarixni ko\'rsataman — "to\'lovlar tarixi"\n\n' +
       'Shunchaki oddiy tilda yozing.',
@@ -344,6 +355,7 @@ export async function respond(
   userId: string,
   message: string,
   state: AssistantState = EMPTY_STATE,
+  location: AssistantLocation | null = null,
 ): Promise<AssistantReply> {
   const parsed = parseMessage(message);
 
@@ -400,6 +412,9 @@ export async function respond(
 
     case Intent.MARKET_ORDER:
       return handleShopping(userId, slots, parsed, 'market');
+
+    case Intent.BOOK_TAXI:
+      return handleTaxiOrder({ userId, location, destination: parsed.taxiDestination });
 
     case Intent.COMING_SOON:
       return handleComingSoon(normalize(message));
@@ -527,7 +542,7 @@ async function handleShopping(
 /** Bosh sahifada ko'rsatiladigan boshlang'ich taklif. */
 export function getGreeting(): AssistantReply {
   return reply(
-    "Salom! Men Navix yordamchisiman. To'lov, pul o'tkazish, ovqat va mahsulot buyurtmasi — " +
+    "Salom! Men Navix yordamchisiman. To'lov, pul o'tkazish, taksi, ovqat va mahsulot buyurtmasi — " +
       'hammasini oddiy tilda yozing. Masalan "gazga 50 ming to\'la", "2 ta lag\'mon buyur" ' +
       'yoki "telefon qidir".',
     { suggestions: DEFAULT_SUGGESTIONS },

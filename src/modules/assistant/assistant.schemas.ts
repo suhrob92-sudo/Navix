@@ -69,10 +69,27 @@ export const assistantStateSchema = z.object({
   slots: assistantSlotsSchema.default({}),
 });
 
+/**
+ * Foydalanuvchining hozirgi joylashuvi.
+ *
+ * ── Nima uchun IXTIYORIY ──────────────────────────────────────────────
+ * Yordamchining buyruqlari ko'pchiligiga joylashuv kerak emas: balans,
+ * to'lov, ovqat. Uni majburiy qilsak, joylashuvga ruxsat bermagan
+ * odam yordamchidan umuman foydalana olmasdi.
+ *
+ * Kelganda esa chegara tekshiriladi: yaroqsiz koordinata bilan taksi
+ * chaqirilmasin.
+ */
+export const assistantLocationSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+});
+
 /** POST /api/v1/assistant */
 export const assistantMessageSchema = z.object({
   message: z.string().trim().min(1, "Xabar bo'sh").max(500, 'Xabar juda uzun'),
   state: assistantStateSchema.optional(),
+  location: assistantLocationSchema.optional(),
 });
 
 export type AssistantMessageInput = z.infer<typeof assistantMessageSchema>;
