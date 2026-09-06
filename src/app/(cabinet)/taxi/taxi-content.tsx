@@ -1,6 +1,7 @@
 'use client';
 
-import { ArrowRight, Car, Clock } from 'lucide-react';
+import { ArrowRight, Car, ChevronRight, Clock, History } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -8,6 +9,7 @@ import { AppHeader } from '@/components/app/app-header';
 import { RideMap } from '@/components/map/ride-map';
 import { PlaceField } from '@/components/taxi/place-field';
 import { DEFAULT_CENTER, PlaceSheet, type ChosenPlace } from '@/components/taxi/place-sheet';
+import { RecentPlaces } from '@/components/taxi/recent-places';
 import { TariffOption } from '@/components/taxi/tariff-option';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -16,6 +18,7 @@ import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatDistance } from '@/config/delivery-eta';
 import type { TaxiTariffName } from '@/config/taxi';
+import { isRideActive } from '@/modules/taxi/taxi.types';
 import type {
   RideResponse,
   RidesResponse,
@@ -60,9 +63,17 @@ export function TaxiContent() {
    */
   const [idempotencyKey] = useState(() => crypto.randomUUID());
 
-  /* Faol safar bormi — bo'lsa, darhol kuzatuvga o'tamiz. */
-  const activeQuery = useApiQuery<RidesResponse>('/api/v1/taxi/rides?active=true&pageSize=1');
-  const activeRide = activeQuery.data?.rides?.[0] ?? null;
+  /*
+    Safarlar ro'yxati BIR MARTA so'raladi va IKKI ishga xizmat qiladi:
+    faol safar bormi va oxirgi manzillar qaysi.
+
+    Ikkita alohida so'rov yuborish mumkin edi, lekin ekran ochilishida
+    ikkita so'rov — ikki barobar kutish. Ro'yxat baribir kichik.
+  */
+  const ridesQuery = useApiQuery<RidesResponse>('/api/v1/taxi/rides?pageSize=20');
+  const rides = ridesQuery.data?.rides ?? [];
+
+  const activeRide = rides.find((item) => isRideActive(item.status)) ?? null;
 
   useEffect(() => {
     if (activeRide) router.replace(`/taxi/${activeRide.id}`);
@@ -159,20 +170,43 @@ export function TaxiContent() {
           </div>
         </section>
 
-        {/* ── Xarita ────────────────────────────────────────────── */}
-        <section className="border-border overflow-hidden rounded-3xl border shadow-sm">
-          <RideMap
-            from={from}
-            to={to}
-            fallbackCenter={DEFAULT_CENTER}
-            height={220}
-            label={
-              from && to
-                ? 'Xarita: olish va tushish nuqtalari'
-                : "Xarita — manzillarni tanlaganingizdan keyin yo'l ko'rinadi"
-            }
-          />
-        </section>
+        {/*
+          ── Oxirgi manzillar ──────────────────────────────────────
+          Manzil qatorlari OSTIDA turadi: odam avval "qayerga?" degan
+          savolni ko'radi, keyin tayyor javoblarni. Teskarisi bo'lsa,
+          ro'yxat savoldan oldin kelib, uning ma'nosi yo'qolardi.
+        */}
+        {!to && <RecentPlaces rides={rides} onPick={setTo} />}
+
+        {/*
+          ── Xarita ────────────────────────────────────────────────
+          Faqat kamida BITTA nuqta tanlanganda ko'rsatiladi.
+
+          ── Nima uchun boshida yo'q ──────────────────────────────
+          Bo'sh xarita hech narsa aytmaydi: u shunchaki shaharning
+          tasodifiy bo'lagi. Ustiga, u ekranning uchdan birini
+          egallab, ostidagi "oxirgi manzillar" ro'yxatini pastga
+          surib yuborardi — holbuki odam eng ko'p aynan o'sha
+          ro'yxatdan foydalanadi.
+
+          Nuqta tanlanishi bilan xarita MA'NOGA ega bo'ladi va
+          o'zi paydo bo'ladi.
+        */}
+        {(from || to) && (
+          <section className="border-border overflow-hidden rounded-3xl border shadow-sm">
+            <RideMap
+              from={from}
+              to={to}
+              fallbackCenter={DEFAULT_CENTER}
+              height={220}
+              label={
+                from && to
+                  ? 'Xarita: olish va tushish nuqtalari'
+                  : "Xarita: tanlangan nuqta"
+              }
+            />
+          </section>
+        )}
 
         {/* ── Tarif ─────────────────────────────────────────────── */}
         {from && to && (
@@ -231,6 +265,24 @@ export function TaxiContent() {
           {quote ? 'Taksi chaqirish' : 'Manzilni tanlang'}
           {quote && <ArrowRight className="size-4" aria-hidden="true" />}
         </Button>
+      </div>
+
+      {/*
+        Tarixga o'tish — CHAQIRISH tugmasidan keyin.
+
+        `RecentPlaces` ichidagi "Barchasi" havolasi tarix bo'sh
+        bo'lganda ko'rinmaydi. Bu qator esa har doim turadi, ya'ni
+        tarixga borish yo'li hech qachon yopilmaydi.
+      */}
+      <div className="px-4 pb-6">
+        <Link
+          href="/taxi/tarix"
+          className="border-border hover:bg-secondary/50 flex w-full items-center gap-3 rounded-2xl border px-4 py-3 transition-colors"
+        >
+          <History className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+          <span className="flex-1 text-sm font-medium">Safarlar tarixi</span>
+          <ChevronRight className="text-muted-foreground/60 size-4 shrink-0" aria-hidden="true" />
+        </Link>
       </div>
 
       {sheet && (
