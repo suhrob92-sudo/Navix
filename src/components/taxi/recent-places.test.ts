@@ -19,6 +19,7 @@ function ride(address: string, latitude = 41.31, longitude = 69.28): RideView {
     priceTiyin: 1_800_000,
     driver: null,
     driverLocation: null,
+    rider: { name: 'Sinov Foydalanuvchi', phone: '+998901112233' },
     rating: null,
     cancelReason: null,
     createdAt: '2026-09-01T10:00:00.000Z',

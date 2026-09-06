@@ -205,6 +205,24 @@ export const APP_MODULES: readonly AppModule[] = [
     aiIntents: ['kuryer kabineti', 'topshiriqlarim', 'yetkazishlarim'],
   },
   {
+    id: 'driver',
+    name: 'Haydovchi kabineti',
+    description: 'Buyurtma oling va har safar uchun haq oling.',
+    href: '/driver',
+    icon: Car,
+    category: ModuleCategory.MOBILITY,
+    /**
+     * 55-bosqichda ishga tushdi.
+     *
+     * Kuryer kabinetidagi bilan bir xil mantiq: bu modul MIJOZ
+     * uchun emas, HAYDOVCHI uchun. Shuning uchun `quickOrder` yo'q —
+     * bosh sahifadagi tezkor xizmatlar mijozga mo'ljallangan.
+     */
+    status: ModuleStatus.LIVE,
+    color: 'amber',
+    aiIntents: ['haydovchi kabineti', 'safarlarim', 'buyurtma olaman'],
+  },
+  {
     id: 'delivery',
     name: 'Yetkazib berish',
     description: "Viloyatlararo yuk va posilkalarni kuzatuv bilan jo'nating.",

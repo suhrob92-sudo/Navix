@@ -118,6 +118,25 @@ const RIDE_SELECT = {
       user: { select: { firstName: true, lastName: true, phone: true } },
     },
   },
+  /*
+    Yo'lovchining nomi va telefoni.
+
+    ── Nima uchun kerak ────────────────────────────────────────────
+    Haydovchi manzilga yetib kelib, mijozni topa olmasligi mumkin:
+    hovlida ikkita darvoza bor, uy raqami ko'rinmaydi, mijoz
+    boshqa tomonda turibdi. Qo'ng'iroqsiz u shunchaki kutadi va
+    ikkalasi ham vaqt yo'qotadi.
+
+    ── Nima uchun bu SIZIB CHIQISH emas ────────────────────────────
+    Bu maydon `RideView` ga tushadi, `RideView` esa FAQAT ikki
+    joydan qaytariladi: yo'lovchining o'z safaridan (o'z raqamini
+    ko'radi) va haydovchining QABUL QILGAN safaridan.
+
+    Ochiq buyurtmalar ro'yxati (`listRideOffers`) BOSHQA select
+    ishlatadi va unda telefon YO'Q — ya'ni buyurtmani olmagan
+    haydovchi hech kimning raqamini ko'rmaydi.
+  */
+  rider: { select: { firstName: true, lastName: true, phone: true } },
 } as const;
 
 type RideRow = Prisma.TaxiRideGetPayload<{ select: typeof RIDE_SELECT }>;
@@ -196,6 +215,8 @@ function toRideView(row: RideRow): RideView {
             reportedAt: row.locationAt.toISOString(),
           }
         : null,
+
+    rider: { name: fullName(row.rider), phone: row.rider.phone },
 
     rating: row.rating,
     cancelReason: row.cancelReason,
@@ -577,6 +598,8 @@ export async function rateRide(
 
 const DRIVER_SELECT = {
   id: true,
+  lastLat: true,
+  lastLng: true,
   carModel: true,
   carColor: true,
   plateNumber: true,
@@ -624,6 +647,37 @@ async function requireDriver(userId: string): Promise<DriverRow> {
 export async function getDriverProfile(userId: string): Promise<DriverProfileView> {
   const row = await requireDriver(userId);
 
+  return withRideCount(row);
+}
+
+/**
+ * Profilni topadi, TOPILMASA `null` qaytaradi.
+ *
+ * ── Nima uchun `getDriverProfile` dan alohida ─────────────────────────
+ * Kabinet ochilganda birinchi savol: "bu odamning profili bormi?".
+ * Yo'q bo'lsa — unga to'ldirish formasi ko'rsatiladi, bu XATO emas,
+ * bu birinchi qadam.
+ *
+ * `getDriverProfile` esa xato tashlaydi va u to'g'ri: bosqichni
+ * oldinga suruvchi amallar profilsiz umuman bajarilmasligi kerak.
+ *
+ * Ikkalasini bitta funksiyaga tiqib, "xatoni ushlab, null qil" desak,
+ * chaqiruvchi joylar boshqa sabablardan chiqqan xatoni ham
+ * "profil yo'q" deb tushunardi.
+ */
+export async function findDriverProfile(userId: string): Promise<DriverProfileView | null> {
+  const row = await prisma.taxiDriver.findFirst({
+    where: { userId, deletedAt: null },
+    select: DRIVER_SELECT,
+  });
+
+  if (!row) return null;
+
+  return withRideCount(row);
+}
+
+/** Profilga yakunlangan safarlar sonini qo'shadi. */
+async function withRideCount(row: DriverRow): Promise<DriverProfileView> {
   const completedRides = await prisma.taxiRide.count({
     where: { driverId: row.id, status: TaxiRideStatus.COMPLETED },
   });
@@ -686,11 +740,7 @@ export async function saveDriverProfile(
     });
   }
 
-  const completedRides = await prisma.taxiRide.count({
-    where: { driverId: row.id, status: TaxiRideStatus.COMPLETED },
-  });
-
-  return toDriverView(row, completedRides);
+  return withRideCount(row);
 }
 
 /**
@@ -786,7 +836,22 @@ export async function listRideOffers(
   const driver = await requireDriver(userId);
 
   const radius = input.radiusKm ?? TAXI_SEARCH_RADIUS_KM;
-  const here: Point = { latitude: input.latitude, longitude: input.longitude };
+
+  /*
+    Joylashuv: avval SO'ROVDAN, bo'lmasa BAZADAN.
+
+    So'rovdagi nuqta yangiroq — u telefondan hozir keldi. Bazadagi
+    esa oxirgi yuborilgani va u ham yetarli: haydovchi kabinetda
+    kuzatuvni yoqqan bo'lsa, nuqta bir necha soniya oldin yozilgan.
+
+    Ikkalasi ham yo'q bo'lsa, ro'yxat BO'SH qaytadi — xato emas.
+    Xato tashlansa, ekran qizil ogohlantirish ko'rsatardi, holbuki
+    haydovchi hech narsa noto'g'ri qilmagan: u shunchaki hali
+    "Ishdasiz" tugmasini bosmagan.
+  */
+  const here = resolveDriverPoint(input, driver);
+
+  if (!here) return [];
 
   const rows = await prisma.taxiRide.findMany({
     where: {
@@ -841,6 +906,27 @@ export async function listRideOffers(
     .filter((offer) => offer.pickupDistanceKm <= radius)
     /* Eng yaqini birinchi: haydovchi eng tez yetadigan buyurtmani ko'radi. */
     .sort((left, right) => left.pickupDistanceKm - right.pickupDistanceKm);
+}
+
+/**
+ * Qidiruv uchun boshlang'ich nuqtani tanlaydi.
+ *
+ * So'rovdagi koordinata ustunroq: u hozir kelgan. Bazadagi nuqta —
+ * zaxira. Ikkalasi ham bo'lmasa `null`.
+ */
+function resolveDriverPoint(
+  input: RideOffersInput,
+  driver: Pick<DriverRow, 'lastLat' | 'lastLng'>,
+): Point | null {
+  if (input.latitude !== undefined && input.longitude !== undefined) {
+    return { latitude: input.latitude, longitude: input.longitude };
+  }
+
+  if (driver.lastLat !== null && driver.lastLng !== null) {
+    return { latitude: toNumber(driver.lastLat), longitude: toNumber(driver.lastLng) };
+  }
+
+  return null;
 }
 
 /**

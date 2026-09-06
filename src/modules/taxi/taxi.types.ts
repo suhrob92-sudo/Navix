@@ -63,6 +63,18 @@ export interface RideView {
   driver: RideDriverView | null;
 
   /**
+   * Yo'lovchi — HAYDOVCHI uchun.
+   *
+   * Haydovchi manzilda mijozni topa olmasa qo'ng'iroq qiladi. Mijoz
+   * o'z safarini ochganda bu yerda o'z raqamini ko'radi — bu
+   * zararsiz va alohida shart yozishga arzimaydi.
+   *
+   * Buyurtmani hali OLMAGAN haydovchi bu ma'lumotni ko'rmaydi:
+   * ochiq buyurtmalar ro'yxati boshqa maydonlarni qaytaradi.
+   */
+  rider: { name: string | null; phone: string };
+
+  /**
    * Haydovchining oxirgi joylashuvi — xarita uchun.
    *
    * `null` bo'lishi mumkin: haydovchi kuzatuvni yoqmagan bo'lsa.
@@ -140,8 +152,12 @@ export interface RideOffersResponse {
   offers: RideOfferView[];
 }
 
+/**
+ * `driver` NULL bo'lishi mumkin: haydovchi hali profilini
+ * to'ldirmagan. Bu xato emas — kabinetning birinchi qadami.
+ */
 export interface DriverProfileResponse {
-  driver: DriverProfileView;
+  driver: DriverProfileView | null;
 }
 
 /**

@@ -166,13 +166,20 @@ export type DriverLocationInput = z.infer<typeof driverLocationSchema>;
 /**
  * Yaqin atrofdagi ochiq buyurtmalar — GET /api/v1/taxi/driver/offers.
  *
- * Haydovchining joylashuvi so'rovda keladi, bazadagi oxirgi nuqtadan
- * emas: u ekranni ochgan zahoti ro'yxat kerak, joylashuv yuborilishini
- * kutmasdan.
+ * ── Nima uchun koordinata IXTIYORIY ───────────────────────────────────
+ * Ilgari u majburiy edi va bu ekranni boshi berk ko'chaga olib
+ * kelgandi: buyurtmalar sahifasida joylashuv so'raydigan tugma yo'q,
+ * shuning uchun brauzer ruxsat so'ramasdi va sahifa abadiy
+ * "joylashuv kutilmoqda" deb turardi.
+ *
+ * Endi koordinata berilmasa, SERVER haydovchining oxirgi ma'lum
+ * nuqtasini ishlatadi — u kabinetdagi kuzatuvdan yozilgan. Ya'ni
+ * bitta kuzatuv ikkala ekranga xizmat qiladi va telefon batareyasi
+ * ikki marta sarflanmaydi.
  */
 export const rideOffersSchema = z.object({
-  latitude: latitudeSchema,
-  longitude: longitudeSchema,
+  latitude: latitudeSchema.optional(),
+  longitude: longitudeSchema.optional(),
   radiusKm: z.coerce.number().min(1).max(TAXI_MAX_DISTANCE_KM).optional(),
 });
 
