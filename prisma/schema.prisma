@@ -5199,6 +5199,16 @@ enum TaxiTariff {
   ECONOM
   /// Kengroq va yangiroq mashina.
   COMFORT
+  /// Biznes klass — premium avtomobil.
+  ///
+  /// ── Nima uchun eng OXIRIDA qo'shildi ────────────────────────────
+  /// PostgreSQL enum qiymatlari saqlash tartibiga ega. Yangi qiymatni
+  /// o'rtaga qo'yish jadval qulflanishini talab qiladi; oxiriga
+  /// qo'shish esa bir zumda bajariladi.
+  ///
+  /// Bu yerda tartib baribir ahamiyatsiz: ekranda tariflar
+  /// `config/taxi.ts` dagi ro'yxat bo'yicha chiqadi.
+  BUSINESS
 }
 
 /// Haydovchi profili.

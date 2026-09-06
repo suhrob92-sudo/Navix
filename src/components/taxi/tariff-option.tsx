@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Clock, Users } from 'lucide-react';
+import { Check, Users } from 'lucide-react';
 
 import { formatTiyin } from '@/lib/money';
 import { cn } from '@/lib/utils';
@@ -50,15 +50,20 @@ export function TariffOption({ option, selected, onSelect }: TariffOptionProps) 
 
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold">{option.label}</span>
-        <span className="text-muted-foreground mt-1 flex items-center gap-3 text-xs">
-          <span className="flex items-center gap-1">
-            <Clock className="size-3.5" aria-hidden="true" />
-            {option.minutes} daq
-          </span>
-          <span className="flex items-center gap-1">
-            <Users className="size-3.5" aria-hidden="true" />
-            {option.seats} o&apos;rin
-          </span>
+        {/*
+          Safar VAQTI bu yerda ko'rsatilmaydi.
+
+          ── Nima uchun olib tashlandi ───────────────────────────────
+          Vaqt masofaga bog'liq, tarifga emas: uchala mashina ham bir
+          xil ko'chada, bir xil tezlikda yuradi. Uchinchi tarif
+          qo'shilganda ekranda "12 daq" yozuvi UCH MARTA takrorlanib,
+          hech qanday yangi ma'lumot bermay qoldi.
+
+          Endi u ro'yxat tepasida, masofa yonida BIR MARTA turadi.
+        */}
+        <span className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
+          <Users className="size-3.5" aria-hidden="true" />
+          {option.seats} o&apos;rin
         </span>
       </span>
 

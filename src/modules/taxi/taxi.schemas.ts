@@ -48,7 +48,7 @@ const addressTextSchema = z
   .min(2, 'Manzilni yozing')
   .max(255, 'Manzil juda uzun');
 
-const tariffSchema = z.enum(['ECONOM', 'COMFORT'], { message: 'Tarifni tanlang' });
+const tariffSchema = z.enum(['ECONOM', 'COMFORT', 'BUSINESS'], { message: 'Tarifni tanlang' });
 
 const idempotencyKeySchema = z
   .string()

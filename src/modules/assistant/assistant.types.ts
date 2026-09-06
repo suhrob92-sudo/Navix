@@ -139,7 +139,7 @@ export type AssistantAction =
        * serverda QAYTADAN hisoblanadi.
        */
       kind: 'confirm_taxi_order';
-      tariff: 'ECONOM' | 'COMFORT';
+      tariff: 'ECONOM' | 'COMFORT' | 'BUSINESS';
       tariffLabel: string;
       fromLat: number;
       fromLng: number;

@@ -140,7 +140,17 @@ async function onlineDriverCounts(here: Point): Promise<Record<TaxiTariffName, n
     _count: { _all: true },
   });
 
-  const counts = { ECONOM: 0, COMFORT: 0 } as Record<TaxiTariffName, number>;
+  /*
+    Boshlang'ich nollar REYESTRDAN yasaladi.
+
+    Ilgari bu yerda `{ ECONOM: 0, COMFORT: 0 }` qo'lda yozilgandi.
+    Uchinchi tarif qo'shilganda uning soni `undefined` bo'lib
+    qolardi va solishtirish jimgina noto'g'ri ishlardi —
+    TypeScript esa `as` tufayli buni ushlay olmasdi.
+  */
+  const counts = Object.fromEntries(
+    (Object.keys(TAXI_TARIFFS) as TaxiTariffName[]).map((name) => [name, 0]),
+  ) as Record<TaxiTariffName, number>;
 
   for (const row of rows) {
     counts[row.tariff as TaxiTariffName] = row._count._all;
@@ -168,19 +178,15 @@ async function chooseTariff(
   preference: 'CHEAPEST' | 'FASTEST' | null,
   requested: 'ECONOM' | 'COMFORT' | 'BUSINESS' | null,
 ): Promise<TariffChoice> {
-  if (requested === 'ECONOM' || requested === 'COMFORT') {
-    return { tariff: requested, note: '' };
-  }
-
   /*
-    BUSINESS tarifi hozircha YO'Q.
+    Ataylab aytilgan tarif — eng aniq xohish.
 
-    Jimgina Komfort berish mumkin edi, lekin o'shanda odam o'zi
-    so'ramagan xizmatga pul to'lardi va buni safar tugagach bilib
-    qolardi. Rost aytish qimmatroq emas.
+    Tekshiruv REYESTR bo'yicha: yangi tarif qo'shilganda bu yer
+    o'zi ishlayveradi. Ilgari bu yerda nomlar qo'lda sanalgandi va
+    Biznes tarifi qo'shilganda u "mavjud emas" deb qolgandi.
   */
-  if (requested === 'BUSINESS') {
-    return { tariff: 'COMFORT', note: "Biznes tarifi hozircha yo'q — Komfort taklif qilaman." };
+  if (requested && requested in TAXI_TARIFFS) {
+    return { tariff: requested as TaxiTariffName, note: '' };
   }
 
   if (preference === 'CHEAPEST') {

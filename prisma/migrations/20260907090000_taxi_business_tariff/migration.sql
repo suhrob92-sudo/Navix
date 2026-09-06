@@ -1,0 +1,11 @@
+-- Biznes tarifi.
+--
+-- ── Nima uchun bu migratsiya XAVFSIZ ──────────────────────────────────
+-- Enum'ga OXIRIDAN qiymat qo'shish jadvalni qayta yozmaydi va uni
+-- qulflamaydi. Mavjud qatorlar tegilmaydi: ularning tarifi o'zgarmaydi.
+--
+-- Teskari yo'l yo'q: PostgreSQL enum qiymatini o'chirishga ruxsat
+-- bermaydi. Shuning uchun qiymat qo'shishdan oldin u haqiqatan
+-- kerakligiga ishonch hosil qilish kerak — bu yerda kerak: uchinchi
+-- tarif ekranda ham, AI buyruqlarida ham talab qilingan.
+ALTER TYPE "TaxiTariff" ADD VALUE IF NOT EXISTS 'BUSINESS';

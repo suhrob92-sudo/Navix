@@ -9,6 +9,7 @@ import { AppHeader } from '@/components/app/app-header';
 import { RideMap } from '@/components/map/ride-map';
 import { PlaceField } from '@/components/taxi/place-field';
 import { DEFAULT_CENTER, PlaceSheet, type ChosenPlace } from '@/components/taxi/place-sheet';
+import { PaymentRow } from '@/components/taxi/payment-row';
 import { QuickPlaces, type QuickAddress } from '@/components/taxi/quick-places';
 import { RecentPlaces } from '@/components/taxi/recent-places';
 import { TariffOption } from '@/components/taxi/tariff-option';
@@ -81,6 +82,17 @@ export function TaxiContent() {
   */
   const addressesQuery = useApiQuery<{ addresses: QuickAddress[] }>('/api/v1/addresses');
   const addresses = addressesQuery.data?.addresses ?? [];
+
+  /*
+    Hamyon balansi — pul QAYERDAN yechilishini ko'rsatish uchun.
+
+    Bu so'rov faqat tarif tanlanadigan bosqichda kerak, lekin ekran
+    ochilishida yuborilgani ma'qul: aks holda tarif chiqqan lahzada
+    balans "yuklanmoqda" bo'lib turardi va narx bilan yonma-yon
+    bo'sh joy ko'rinardi.
+  */
+  const walletQuery = useApiQuery<{ balance: number }>('/api/v1/wallet');
+  const balanceTiyin = walletQuery.data?.balance ?? 0;
 
   const activeRide = rides.find((item) => isRideActive(item.status)) ?? null;
 
@@ -231,10 +243,18 @@ export function TaxiContent() {
             <div className="mb-2.5 flex items-end justify-between px-1">
               <h2 className="text-sm font-semibold">Tarifni tanlang</h2>
 
+              {/*
+                Masofa va vaqt BIRGA, bir marta.
+
+                Vaqt ilgari har bir tarif kartochkasida turardi va
+                uchala joyda bir xil son edi — u tarifga emas,
+                masofaga bog'liq.
+              */}
               {quote && (
                 <span className="text-muted-foreground flex items-center gap-1 text-xs">
                   <Clock className="size-3.5" aria-hidden="true" />
                   {formatDistance(quote.distanceKm)}
+                  {quote.options[0] ? ` · ~${quote.options[0].minutes} daqiqa` : ''}
                 </span>
               )}
             </div>
@@ -258,6 +278,21 @@ export function TaxiContent() {
                     onSelect={() => setTariff(option.tariff)}
                   />
                 ))}
+              </div>
+            )}
+
+            {/*
+              To'lov manbai tarifdan KEYIN turadi: odam avval qancha
+              to'lashini, keyin qayerdan to'lashini biladi.
+            */}
+            {quote && (
+              <div className="mt-3">
+                <PaymentRow
+                  balanceTiyin={balanceTiyin}
+                  priceTiyin={
+                    quote.options.find((option) => option.tariff === tariff)?.priceTiyin ?? null
+                  }
+                />
               </div>
             )}
 

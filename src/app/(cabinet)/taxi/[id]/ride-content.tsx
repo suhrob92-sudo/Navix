@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistance } from '@/config/delivery-eta';
+import { TAXI_TARIFFS } from '@/config/taxi';
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatUzPhone } from '@/lib/phone';
@@ -276,7 +277,14 @@ function RideFacts({ ride }: { ride: RideView }) {
       <div className="grid grid-cols-3 gap-2 text-center">
         <Fact icon={Route} label="Masofa" value={formatDistance(ride.distanceKm)} />
         <Fact icon={Wallet} label="Narx" value={formatTiyin(ride.priceTiyin)} />
-        <Fact icon={Timer} label="Tarif" value={ride.tariff === 'ECONOM' ? 'Ekonom' : 'Komfort'} />
+        {/*
+          Tarif nomi REYESTRDAN olinadi.
+
+          Ilgari bu yerda ikki tarmoqli shart turardi ("Ekonom yoki
+          Komfort"). Uchinchi tarif qo'shilganda u jimgina "Komfort"
+          deb ko'rsatardi va TypeScript buni ushlay olmasdi.
+        */}
+        <Fact icon={Timer} label="Tarif" value={TAXI_TARIFFS[ride.tariff].label} />
       </div>
 
       <div className="border-border mt-4 space-y-2.5 border-t pt-3.5">

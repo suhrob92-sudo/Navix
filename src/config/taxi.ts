@@ -33,6 +33,24 @@ export const TAXI_TARIFFS = {
     perKmSom: 3_000,
     seats: 4,
   },
+  /**
+   * Biznes klass.
+   *
+   * ── MUHIM: bu narxlar TAXMINIY ────────────────────────────────────
+   * Ekonom va Komfort narxlari kabi, bular ham ilova egasi
+   * belgilaydigan qiymat. Bu yerdagi sonlar bozorni o'rganmasdan
+   * qo'yilgan: Komfortdan taxminan ikki barobar qimmat.
+   *
+   * Ishga tushirishdan oldin haqiqiy raqamlar bilan almashtirilishi
+   * kerak.
+   */
+  BUSINESS: {
+    label: 'Biznes',
+    description: 'Premium avtomobil va tajribali haydovchi',
+    baseSom: 30_000,
+    perKmSom: 6_000,
+    seats: 4,
+  },
 } as const;
 
 export type TaxiTariffName = keyof typeof TAXI_TARIFFS;
