@@ -137,6 +137,13 @@ export const AuditAction = {
    * (qabul qiluvchi). "Kim, qachon, kimning raqamini kiritdi" degan
    * savolga javob shu yerdan topiladi.
    */
+  /** Taksi. */
+  TAXI_RIDE_CREATED: 'taxi.ride.created',
+  TAXI_RIDE_CANCELLED: 'taxi.ride.cancelled',
+  TAXI_RIDE_ACCEPTED: 'taxi.ride.accepted',
+  TAXI_RIDE_COMPLETED: 'taxi.ride.completed',
+  TAXI_DRIVER_REGISTERED: 'taxi.driver.registered',
+
   PARCEL_CREATED: 'parcel.created',
   PARCEL_CANCELLED: 'parcel.cancelled',
 

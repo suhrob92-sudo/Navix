@@ -132,6 +132,26 @@ const SAMPLES = {
     companyName: 'Navix Tech',
     note: null,
   },
+  'taxi.driver_found': {
+    rideId: '9d2e6b14-8c3f-4a7d-b5e1-2f8a4c6d9b37',
+    driverName: 'Sardor Aliyev',
+    carModel: 'Cobalt',
+    carColor: 'oq',
+    plateNumber: '01A777AA',
+  },
+  'taxi.driver_arrived': {
+    rideId: '9d2e6b14-8c3f-4a7d-b5e1-2f8a4c6d9b37',
+    plateNumber: '01A777AA',
+  },
+  'taxi.ride_completed': {
+    rideId: '9d2e6b14-8c3f-4a7d-b5e1-2f8a4c6d9b37',
+    amountTiyin: 2_400_000,
+  },
+  'taxi.ride_cancelled': {
+    rideId: '9d2e6b14-8c3f-4a7d-b5e1-2f8a4c6d9b37',
+    refundTiyin: 2_400_000,
+    byDriver: true,
+  },
   'parcel.created': {
     parcelId: '7c1f9a52-3e4b-4d8a-9f2c-6b5e1a3d7c94',
     parcelNumber: 'NVX-P-20260806-A1B2C3',

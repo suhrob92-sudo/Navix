@@ -65,6 +65,7 @@ const PRIVATE_MODELS = [
   'supportTicket',
   'collabOffer',
   'resume',
+  'taxiRide',
 ] as const;
 
 /**

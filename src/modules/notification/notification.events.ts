@@ -153,6 +153,27 @@ export interface NotificationEventData {
     companyName: string;
     note: string | null;
   };
+  'taxi.driver_found': {
+    rideId: string;
+    driverName: string;
+    carModel: string;
+    carColor: string;
+    plateNumber: string;
+  };
+  'taxi.driver_arrived': {
+    rideId: string;
+    plateNumber: string;
+  };
+  'taxi.ride_completed': {
+    rideId: string;
+    amountTiyin: number;
+  };
+  'taxi.ride_cancelled': {
+    rideId: string;
+    refundTiyin: number;
+    /** Kim bekor qildi — matn shunga qarab o'zgaradi. */
+    byDriver: boolean;
+  };
   'parcel.created': {
     parcelId: string;
     parcelNumber: string;
@@ -602,6 +623,42 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
    * Kuzatuv raqami MATNGA yoziladi: foydalanuvchi uni qabul
    * qiluvchiga yuboradi va u posilkani shu raqam bo'yicha so'raydi.
    */
+  /**
+   * Haydovchi topildi.
+   *
+   * Mashina RANGI, RUSUMI va RAQAMI matnga yoziladi: mijoz ko'chada
+   * turib, ilovani ochmasdan kelayotgan mashinani taniy olishi kerak.
+   */
+  'taxi.driver_found': ({ rideId, driverName, carModel, carColor, plateNumber }) => ({
+    title: 'Haydovchi topildi',
+    body: `${driverName} yo'lda — ${carColor} ${carModel}, ${plateNumber}.`,
+    actionUrl: `/taxi/${rideId}`,
+    sourceModule: 'taxi',
+  }),
+
+  'taxi.driver_arrived': ({ rideId, plateNumber }) => ({
+    title: 'Haydovchi yetib keldi',
+    body: `${plateNumber} raqamli mashina sizni kutmoqda.`,
+    actionUrl: `/taxi/${rideId}`,
+    sourceModule: 'taxi',
+  }),
+
+  'taxi.ride_completed': ({ rideId, amountTiyin }) => ({
+    title: 'Safar yakunlandi',
+    body: `${formatTiyin(amountTiyin)} hamyoningizdan yechildi. Haydovchini baholang.`,
+    actionUrl: `/taxi/${rideId}`,
+    sourceModule: 'taxi',
+  }),
+
+  'taxi.ride_cancelled': ({ rideId, refundTiyin, byDriver }) => ({
+    title: 'Safar bekor qilindi',
+    body: byDriver
+      ? `Haydovchi safarni bekor qildi. ${formatTiyin(refundTiyin)} hamyoningizga qaytarildi.`
+      : `Safar bekor qilindi. ${formatTiyin(refundTiyin)} hamyoningizga qaytarildi.`,
+    actionUrl: `/taxi/${rideId}`,
+    sourceModule: 'taxi',
+  }),
+
   'parcel.created': ({ parcelId, parcelNumber, toRegion, amountTiyin }) => ({
     title: 'Posilka qabul qilindi',
     body: `${parcelNumber} — ${toRegion} yo'nalishi. ${formatTiyin(amountTiyin)} yechildi. Kuryer tez orada olib ketadi.`,

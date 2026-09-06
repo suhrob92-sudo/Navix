@@ -232,7 +232,7 @@ async function main(): Promise<void> {
              t."createdAt" AS "createdAt"
       FROM "wallet_transactions" t
       WHERE t."idempotencyKey" NOT LIKE 'client:%'
-        AND t."idempotencyKey" !~ '^(market-refund|market-return|booking-refund|food-refund|parcel-refund|ticket-refund|delivery-payout|refund)-'
+        AND t."idempotencyKey" !~ '^(market-refund|market-return|booking-refund|food-refund|parcel-refund|ticket-refund|delivery-payout|taxi-refund|taxi-payout|refund)-'
       ORDER BY t."createdAt" DESC
       LIMIT 20
     `;

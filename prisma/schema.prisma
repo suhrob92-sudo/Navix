@@ -407,6 +407,8 @@ model User {
   supportMessages   SupportMessage[]     @relation("SupportMessages")
   contentRemovals   ContentRemoval[]     @relation("RemovalOwner")
   removalsIssued    ContentRemoval[]     @relation("RemovalModerator")
+  taxiDriver        TaxiDriver?          @relation("TaxiDriverProfile")
+  taxiRides         TaxiRide[]           @relation("TaxiRider")
 
   @@index([status])
   @@index([createdAt])
@@ -5160,4 +5162,188 @@ enum ContentRemovalReason {
   MISLEADING
   PRIVACY
   OTHER
+}
+
+// ---------------------------------------------------------------------------
+// Taksi (Taxi)
+// ---------------------------------------------------------------------------
+
+/// Safarning holati.
+///
+/// ── Nima uchun `Delivery` holatlari qayta ishlatilmadi ────────────────
+/// Yetkazishda buyurtma "olib chiqildi" bo'ladi, taksida esa YO'LOVCHI
+/// mashinaga o'tiradi. Oradagi ikki bosqich butunlay boshqacha:
+/// haydovchi mijozning oldiga YETIB KELADI va uni KUTADI. Yetkazishda
+/// bunday kutish yo'q.
+///
+/// Bir enumga ikkala tushunchani tiqish "PICKED_UP yo'lovchi uchun
+/// nimani anglatadi" degan doimiy savolni tug'dirardi.
+enum TaxiRideStatus {
+  /// Haydovchi qidirilmoqda — buyurtma barcha onlayn haydovchilarga ochiq.
+  SEARCHING
+  /// Haydovchi qabul qildi va mijozning oldiga ketyapti.
+  ACCEPTED
+  /// Haydovchi manzilga yetib keldi va mijozni kutmoqda.
+  ARRIVED
+  /// Yo'lovchi mashinada, safar davom etmoqda.
+  IN_PROGRESS
+  /// Safar yakunlandi va pul yechildi.
+  COMPLETED
+  /// Bekor qilindi — mijoz yoki haydovchi tomonidan.
+  CANCELLED
+}
+
+/// Tarif turi. Narx koeffitsiyenti `src/config/taxi.ts` da.
+enum TaxiTariff {
+  /// Eng arzon — oddiy yengil avtomobil.
+  ECONOM
+  /// Kengroq va yangiroq mashina.
+  COMFORT
+}
+
+/// Haydovchi profili.
+///
+/// ── Nima uchun `User` ga ustun qo'shilmadi ────────────────────────────
+/// Mashina rusumi, raqami va rangi FAQAT haydovchiga tegishli. Ularni
+/// `users` jadvaliga qo'shish har bir foydalanuvchi qatorini — jami
+/// yuz minglab qatorni — hech qachon to'ldirilmaydigan bo'sh ustunlar
+/// bilan og'irlashtirardi.
+///
+/// Bu jadval esa faqat haydovchilar sonicha qator saqlaydi va
+/// `users` yengil qoladi (`UserProfile` bilan bir xil sabab).
+///
+/// ── Nima uchun joylashuv shu yerda ham bor ────────────────────────────
+/// Safar boshlanmasdan OLDIN ham haydovchining qayerdaligi kerak:
+/// mijoz "yaqinimda mashina bormi" deb ko'radi va tizim eng yaqin
+/// haydovchini topadi. Safarga bog'lasak, safar yaratilmaguncha bu
+/// ma'lumot mavjud bo'lmasdi.
+model TaxiDriver {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Qaysi foydalanuvchi. Bitta odam — bitta haydovchi profili.
+  userId String @unique @db.Uuid
+
+  /// Mashina rusumi — mijoz ko'chada tanishi uchun. Masalan "Cobalt".
+  carModel    String @db.VarChar(60)
+  /// Mashina rangi — masalan "oq".
+  carColor    String @db.VarChar(30)
+  /// Davlat raqami. Butun tizimda YAGONA: bitta mashina ikki
+  /// haydovchida turolmaydi.
+  plateNumber String @unique @db.VarChar(20)
+
+  tariff TaxiTariff @default(ECONOM)
+
+  /// Haydovchi hozir buyurtma qabul qilayaptimi.
+  ///
+  /// Bu TUGMA holati, bandlik emas: haydovchi safarda bo'lsa ham
+  /// `isOnline` yoqiq qoladi. Bandlikni faol safar borligi
+  /// bildiradi va u so'rovda tekshiriladi.
+  isOnline Boolean @default(false)
+
+  /// Oxirgi ma'lum joylashuv — eng yaqin haydovchini topish uchun.
+  ///
+  /// Tarix saqlanmaydi: `deliveries` dagi bilan bir xil sabab —
+  /// har 20 soniyada qator yozilsa, kunlik millionlab qator
+  /// yig'ilardi va ulardan hech kim foydalanmasdi.
+  lastLat    Decimal?  @db.Decimal(10, 7)
+  lastLng    Decimal?  @db.Decimal(10, 7)
+  locationAt DateTime?
+
+  /// Reyting YIG'INDI va SON sifatida saqlanadi, o'rtacha emas.
+  ///
+  /// O'rtachani saqlasak, yangi baho qo'shilganda eski o'rtachadan
+  /// qayta hisoblash kerak bo'lardi va har hisobda kasr xatosi
+  /// to'planardi. Yig'indi esa aniq: o'rtacha o'qishda bo'linadi.
+  ratingSum   Int @default(0)
+  ratingCount Int @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  /// Yumshoq o'chirish — safarlar tarixi haydovchisiz qolmasligi uchun.
+  deletedAt DateTime?
+
+  user  User       @relation("TaxiDriverProfile", fields: [userId], references: [id], onDelete: Cascade)
+  rides TaxiRide[] @relation("TaxiRideDriver")
+
+  /// "Onlayn haydovchilar" — eng tez-tez so'rov.
+  @@index([isOnline, tariff])
+  @@map("taxi_drivers")
+}
+
+/// Bitta safar.
+model TaxiRide {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// Yo'lovchi.
+  riderId String @db.Uuid
+
+  /// Haydovchi. `null` — hali hech kim qabul qilmagan.
+  ///
+  /// Haydovchi profili o'chirilsa safar tarixi qolaveradi — shuning
+  /// uchun `SetNull`, `Cascade` emas.
+  driverId String? @db.Uuid
+
+  status TaxiRideStatus @default(SEARCHING)
+  tariff TaxiTariff
+
+  /// Qayerdan.
+  fromLat     Decimal @db.Decimal(10, 7)
+  fromLng     Decimal @db.Decimal(10, 7)
+  fromAddress String  @db.VarChar(255)
+
+  /// Qayerga.
+  toLat     Decimal @db.Decimal(10, 7)
+  toLng     Decimal @db.Decimal(10, 7)
+  toAddress String  @db.VarChar(255)
+
+  /// Hisoblangan masofa — KILOMETRDA.
+  ///
+  /// Safar yozuviga NUSXA qilinadi: ertaga hisob formulasi
+  /// o'zgarsa ham, kelishilgan masofa va narx o'zgarmasligi kerak.
+  distanceKm Decimal @db.Decimal(6, 2)
+
+  /// Mijoz to'laydigan summa — TIYINDA.
+  priceTiyin     BigInt
+  /// Haydovchiga tegadigan qism — TIYINDA.
+  driverFeeTiyin BigInt
+
+  /// Mijozdan pul yechilgan tranzaksiya.
+  paymentTransactionId String? @db.Uuid
+  /// Haydovchiga daromad yozilgan tranzaksiya.
+  payoutTransactionId  String? @db.Uuid
+
+  /// Takroriy bosishdan himoya — mijozning kaliti.
+  ///
+  /// Kalit `client:{userId}:{kalit}` ko'rinishida saqlanadi: begona
+  /// odamning bir xil kaliti bizning safarimizni topib olmasligi
+  /// uchun (27-bosqichdagi pul auditi qoidasi).
+  idempotencyKey String? @unique @db.VarChar(200)
+
+  /// Haydovchining oxirgi joylashuvi — mijozning xaritasi uchun.
+  driverLat  Decimal?  @db.Decimal(10, 7)
+  driverLng  Decimal?  @db.Decimal(10, 7)
+  locationAt DateTime?
+
+  /// Mijozning bahosi — 1 dan 5 gacha. `null` — hali baholanmagan.
+  rating Int?
+
+  cancelReason String? @db.VarChar(255)
+
+  createdAt   DateTime  @default(now())
+  acceptedAt  DateTime?
+  arrivedAt   DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  rider  User        @relation("TaxiRider", fields: [riderId], references: [id], onDelete: Cascade)
+  driver TaxiDriver? @relation("TaxiRideDriver", fields: [driverId], references: [id], onDelete: SetNull)
+
+  /// Ochiq buyurtmalar ro'yxati — haydovchi ekranidagi asosiy so'rov.
+  @@index([status, createdAt])
+  /// "Mening safarlarim" — mijoz tarixi.
+  @@index([riderId, createdAt])
+  /// Haydovchining o'z safarlari.
+  @@index([driverId, createdAt])
+  @@map("taxi_rides")
 }
