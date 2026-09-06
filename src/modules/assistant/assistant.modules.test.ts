@@ -6,9 +6,9 @@ import { comingSoonReply, findPlannedModule } from '@/modules/assistant/assistan
 import { Intent, parseMessage } from '@/modules/assistant/intent';
 
 describe('tayyor bo\'lmagan modulni topish', () => {
-  it('taksi buyrug\'ini taniydi', () => {
-    expect(findPlannedModule('taksi chaqir')?.id).toBe('taxi');
-    expect(findPlannedModule('mashina chaqir')?.id).toBe('taxi');
+  it('xarita buyrug\'ini taniydi', () => {
+    expect(findPlannedModule('xarita och')?.id).toBe('maps');
+    expect(findPlannedModule('manzil top')?.id).toBe('maps');
   });
 
   /**
@@ -23,10 +23,11 @@ describe('tayyor bo\'lmagan modulni topish', () => {
   });
 
   it('ISHLAYOTGAN modulni "tayyor emas" demaydi', () => {
-    // Ovqat, Marketplace va kuryer allaqachon ishlaydi.
+    // Ovqat, Marketplace, kuryer va taksi allaqachon ishlaydi.
     expect(findPlannedModule('ovqat buyur')).toBeNull();
     expect(findPlannedModule('mahsulot qidir')).toBeNull();
     expect(findPlannedModule('kuryer kabineti')).toBeNull();
+    expect(findPlannedModule('taksi chaqir')).toBeNull();
   });
 
   it('bo\'sh matnda hech narsa qaytarmaydi', () => {
@@ -34,10 +35,10 @@ describe('tayyor bo\'lmagan modulni topish', () => {
   });
 
   it('javobda modul NOMI bor', () => {
-    const taxi = findPlannedModule('taksi chaqir');
+    const maps = findPlannedModule('xarita och');
 
-    expect(taxi).not.toBeNull();
-    expect(comingSoonReply(taxi!)).toContain(taxi!.name);
+    expect(maps).not.toBeNull();
+    expect(comingSoonReply(maps!)).toContain(maps!.name);
   });
 });
 
@@ -69,13 +70,13 @@ describe('reyestr bilan bog\'liqlik', () => {
 });
 
 describe('niyat sifatida COMING_SOON', () => {
-  it('taksi buyrug\'i COMING_SOON beradi', () => {
-    expect(parseMessage('taksi chaqir').intent).toBe(Intent.COMING_SOON);
+  it('xarita buyrug\'i COMING_SOON beradi', () => {
+    expect(parseMessage('xarita och').intent).toBe(Intent.COMING_SOON);
   });
 
   it('chaqiruv so\'zi bilan ham ishlaydi', () => {
-    // Ovoz bilan aytilganda odam "Navix, taksi chaqir" deydi.
-    expect(parseMessage('navix taksi chaqir').intent).toBe(Intent.COMING_SOON);
+    // Ovoz bilan aytilganda odam "Navix, xarita och" deydi.
+    expect(parseMessage('navix xarita och').intent).toBe(Intent.COMING_SOON);
   });
 
   it('ishlaydigan buyruqni buzmaydi', () => {

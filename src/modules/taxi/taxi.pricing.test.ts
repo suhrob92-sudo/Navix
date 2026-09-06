@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { TAXI_DRIVER_SHARE_PERCENT, TAXI_MIN_FARE_SOM, TAXI_TARIFFS } from '@/config/taxi';
-import { calculateTaxiFare, isTaxiDistanceAllowed, routeDistanceKm } from '@/modules/taxi/taxi.pricing';
+import {
+  calculateTaxiFare,
+  isTaxiDistanceAllowed,
+  routeDistanceKm,
+  taxiMinutes,
+} from '@/modules/taxi/taxi.pricing';
 
 /**
  * Narx — modulning eng nozik joyi, shuning uchun chegaralar
@@ -125,5 +130,44 @@ describe('isTaxiDistanceAllowed', () => {
   it("son bo'lmagan qiymatni rad etadi", () => {
     expect(isTaxiDistanceAllowed(Number.NaN)).toBe(false);
     expect(isTaxiDistanceAllowed(Number.POSITIVE_INFINITY)).toBe(false);
+  });
+});
+
+describe('taxiMinutes', () => {
+  /**
+   * Bu sinov AYNAN topilgan xatoni qo'riqlaydi.
+   *
+   * Ilgari `travelMinutes` ishlatilardi va u 5.3 km uchun 23 daqiqa
+   * berardi: koeffitsient ikki marta hisoblanib, ustiga kuryer
+   * tezligi olinardi. Shahar ichida 5 km ni 23 daqiqada bosib
+   * o'tish — piyoda yurishdan sal tezroq.
+   */
+  it("5 km lik safar 15 daqiqadan oshmaydi", () => {
+    expect(taxiMinutes(5.33)).toBeLessThanOrEqual(15);
+    expect(taxiMinutes(5.33)).toBeGreaterThanOrEqual(8);
+  });
+
+  it("uzoq safar ham mantiqiy chiqadi", () => {
+    // 26 km/soat da 26 km — taxminan bir soat.
+    expect(taxiMinutes(26)).toBeGreaterThanOrEqual(50);
+    expect(taxiMinutes(26)).toBeLessThanOrEqual(70);
+  });
+
+  it("hech qachon noldan kichik bo'lmaydi", () => {
+    expect(taxiMinutes(0)).toBe(1);
+    expect(taxiMinutes(-5)).toBe(1);
+    expect(taxiMinutes(Number.NaN)).toBe(1);
+    expect(taxiMinutes(0.05)).toBe(1);
+  });
+
+  it('masofa uzayganda vaqt kamaymaydi', () => {
+    let previous = 0;
+
+    for (const km of [0.3, 1, 5, 10, 25, 60]) {
+      const minutes = taxiMinutes(km);
+
+      expect(minutes).toBeGreaterThanOrEqual(previous);
+      previous = minutes;
+    }
   });
 });

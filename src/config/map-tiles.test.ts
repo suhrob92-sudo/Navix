@@ -9,11 +9,13 @@ import {
   centerOf,
   clusterMarkers,
   fitZoom,
+  fromScreen,
   tileGrid,
   tileUrl,
   toScreen,
   worldPoint,
 } from '@/config/map-tiles';
+import type { Point } from '@/config/delivery-eta';
 
 /**
  * Xarita hisobi — testlar.
@@ -267,5 +269,52 @@ describe('belgilarni guruhlash', () => {
   it('masofa sozlanadi', () => {
     // Kichik chegara bilan hamma alohida qoladi.
     expect(clusterMarkers([at(0, 0), at(40, 0)], screenOf, 10)).toHaveLength(2);
+  });
+});
+
+describe('teskari hisob — ekrandan koordinataga', () => {
+  const center: Point = { latitude: 41.3111, longitude: 69.2797 };
+  const WIDTH = 360;
+  const HEIGHT = 300;
+
+  /**
+   * Eng muhim xossa: ikkala funksiya bir-birini QAYTARADI.
+   *
+   * Bu tekshiruvsiz teskari formulada belgi xatosi (masalan `+` o'rniga
+   * `-`) sezilmasdan qolardi: xarita baribir chizilaverardi, faqat
+   * bosilgan joy bilan qo'yilgan nuqta boshqa-boshqa bo'lardi.
+   */
+  it("toScreen bilan fromScreen bir-birini qaytaradi", () => {
+    const points: Point[] = [
+      { latitude: 41.3111, longitude: 69.2797 },
+      { latitude: 41.3255, longitude: 69.2345 },
+      { latitude: 39.6542, longitude: 66.9597 },
+      { latitude: 45.1, longitude: 61.5 },
+    ];
+
+    for (const zoom of [10, 13, 16]) {
+      for (const point of points) {
+        const screen = toScreen(point, center, zoom, WIDTH, HEIGHT);
+        const back = fromScreen(screen, center, zoom, WIDTH, HEIGHT);
+
+        expect(back.latitude).toBeCloseTo(point.latitude, 5);
+        expect(back.longitude).toBeCloseTo(point.longitude, 5);
+      }
+    }
+  });
+
+  it('markaz nuqtasi markazga qaytadi', () => {
+    const back = fromScreen({ x: WIDTH / 2, y: HEIGHT / 2 }, center, 14, WIDTH, HEIGHT);
+
+    expect(back.latitude).toBeCloseTo(center.latitude, 6);
+    expect(back.longitude).toBeCloseTo(center.longitude, 6);
+  });
+
+  it("o'ngga bosilsa uzunlik OSHADI, pastga bosilsa kenglik KAMAYADI", () => {
+    const right = fromScreen({ x: WIDTH / 2 + 50, y: HEIGHT / 2 }, center, 14, WIDTH, HEIGHT);
+    const down = fromScreen({ x: WIDTH / 2, y: HEIGHT / 2 + 50 }, center, 14, WIDTH, HEIGHT);
+
+    expect(right.longitude).toBeGreaterThan(center.longitude);
+    expect(down.latitude).toBeLessThan(center.latitude);
   });
 });

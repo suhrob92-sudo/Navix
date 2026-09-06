@@ -6,7 +6,7 @@ import { clientIdempotencyKey, runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
-import { isAccurateEnough, travelMinutes, type Point } from '@/config/delivery-eta';
+import { isAccurateEnough, type Point } from '@/config/delivery-eta';
 import {
   TAXI_SEARCH_RADIUS_KM,
   TAXI_TARIFFS,
@@ -24,6 +24,7 @@ import {
   calculateTaxiFare,
   isTaxiDistanceAllowed,
   routeDistanceKm,
+  taxiMinutes,
 } from '@/modules/taxi/taxi.pricing';
 import {
   canCancelRide,
@@ -243,7 +244,7 @@ export function quoteRide(input: TaxiQuoteInput): TaxiQuote {
       description: rate.description,
       seats: rate.seats,
       priceTiyin: fare.priceTiyin,
-      minutes: travelMinutes(km),
+      minutes: taxiMinutes(km),
     };
   });
 

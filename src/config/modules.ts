@@ -160,11 +160,20 @@ export const APP_MODULES: readonly AppModule[] = [
   {
     id: 'taxi',
     name: 'Taksi',
-    description: "Bir tugma bilan mashina chaqiring va yo'lni jonli kuzating.",
+    description: "Manzilni tanlang, narxni oldindan ko'ring va mashina chaqiring.",
     href: '/taxi',
     icon: Car,
     category: ModuleCategory.MOBILITY,
-    status: ModuleStatus.PLANNED,
+    /**
+     * 54-bosqichda ishga tushdi.
+     *
+     * Xarita OpenStreetMap kafellaridan chiziladi va yo'l uzunligi
+     * to'g'ri chiziqdan taxmin qilinadi (`ROUTE_FACTOR`). Ko'chalar
+     * bo'ylab aniq marshrut uchun yo'nalish xizmati kerak — u
+     * ulanganda faqat `taxi.pricing.ts` dagi masofa manbai
+     * o'zgaradi.
+     */
+    status: ModuleStatus.LIVE,
     color: 'amber',
     quickOrder: 1,
     aiIntents: [

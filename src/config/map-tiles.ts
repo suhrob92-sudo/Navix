@@ -141,6 +141,46 @@ export function toScreen(
   };
 }
 
+/**
+ * Ekrandagi bosilgan nuqtani KOORDINATAGA aylantiradi.
+ *
+ * ── Nima uchun kerak bo'ldi ───────────────────────────────────────────
+ * Yetkazishda xarita faqat KO'RSATARDI: kuryer shu yerda, manzil ana
+ * u yerda. Taksida esa odam manzilni O'ZI tanlaydi va uni xaritaga
+ * barmoq bilan qo'yish — eng tez usul.
+ *
+ * Bu `toScreen` ning aynan teskarisi: o'sha formulalar teskari
+ * tartibda bajariladi. Ikkalasi yonma-yon turgani muhim — biri
+ * o'zgarsa, ikkinchisi ham o'zgarishi kerakligi ko'rinib turadi.
+ */
+export function fromScreen(
+  screen: ScreenPoint,
+  center: Point,
+  zoom: number,
+  width: number,
+  height: number,
+): Point {
+  const middle = worldPoint(center, zoom);
+  const scale = TILE_SIZE * 2 ** zoom;
+
+  /* Ekran nuqtasidan "dunyo pikseli" ga qaytamiz. */
+  const x = middle.x + (screen.x - width / 2);
+  const y = middle.y + (screen.y - height / 2);
+
+  const longitude = (x / scale) * 360 - 180;
+
+  /*
+    Kenglik uchun Mercator formulasining teskarisi.
+
+    `atan(sinh(...))` — bu standart teskari Mercator: `worldPoint`
+    dagi `log(tan + 1/cos)` ning aynan qaytarilishi.
+  */
+  const n = Math.PI * (1 - (2 * y) / scale);
+  const latitude = (Math.atan(Math.sinh(n)) * 180) / Math.PI;
+
+  return { latitude, longitude };
+}
+
 /** Xaritani qoplaydigan bitta kafel. */
 export interface MapTile {
   /** Kafel manzilidagi raqamlar. */

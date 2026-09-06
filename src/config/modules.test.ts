@@ -130,7 +130,7 @@ describe('pageExists tekshiruvi ishonchli', () => {
 
   it("mavjud bo'lmagan sahifani topmaydi", () => {
     expect(pageExists('/chat')).toBe(false);
-    expect(pageExists('/taxi')).toBe(false);
+    expect(pageExists('/maps')).toBe(false);
     expect(pageExists('/bunday-sahifa-yoq')).toBe(false);
   });
 });

@@ -1,6 +1,7 @@
 import { ROUTE_FACTOR, distanceKm, type Point } from '@/config/delivery-eta';
 import {
   TAXI_DRIVER_SHARE_PERCENT,
+  TAXI_SPEED_KMH,
   TAXI_MAX_DISTANCE_KM,
   TAXI_MIN_DISTANCE_KM,
   TAXI_MIN_FARE_SOM,
@@ -112,4 +113,25 @@ export function calculateTaxiFare(tariff: TaxiTariffName, km: number): TaxiFare 
       minFareApplied,
     },
   };
+}
+
+/**
+ * Safar necha daqiqa davom etadi.
+ *
+ * ── Nima uchun `travelMinutes` ishlatilmaydi ──────────────────────────
+ * Ikkita sabab, ikkalasi ham vaqtni ikki barobar oshirib yuborardi:
+ *
+ *  1. U `ROUTE_FACTOR` ni O'ZI qo'llaydi. Bizning `km` esa allaqachon
+ *     yo'l uzunligi (`routeDistanceKm` da koeffitsient qo'llangan) —
+ *     ya'ni koeffitsient ikki marta hisoblanardi.
+ *
+ *  2. U kuryer tezligidan (18 km/soat) foydalanadi. Taksi tezroq.
+ *
+ * Ikkovi birgalikda 5 km lik safarni 23 daqiqa qilib ko'rsatgan edi —
+ * bu haqiqatdan ikki barobar ko'p va bunday ETA ishonchni yo'qotadi.
+ */
+export function taxiMinutes(km: number): number {
+  if (!Number.isFinite(km) || km <= 0) return 1;
+
+  return Math.max(1, Math.round((km * 60) / TAXI_SPEED_KMH));
 }

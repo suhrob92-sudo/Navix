@@ -86,6 +86,19 @@ export const TAXI_MAX_DISTANCE_KM = 60;
 export const TAXI_MIN_DISTANCE_KM = 0.3;
 
 /**
+ * Shahar ichidagi o'rtacha tezlik — KM/SOAT.
+ *
+ * ── Nima uchun `COURIER_SPEED_KMH` (18) ishlatilmaydi ─────────────────
+ * U kuryer uchun: motosikl yoki velosiped, ustiga har manzilda
+ * to'xtab, uy raqamini izlash. Taksi esa to'xtamasdan yuradi.
+ *
+ * 26 km/soat — Toshkentda svetoforlar va tirbandlik hisobga
+ * olingan "eshikdan eshikkacha" tezlik. Undan yuqori son ETA ni
+ * chiroyli qilardi, lekin u har safar buzilardi.
+ */
+export const TAXI_SPEED_KMH = 26;
+
+/**
  * Haydovchi qidiruv radiusi — KILOMETRDA.
  *
  * Bundan uzoqdagi haydovchiga buyurtma ko'rsatilmaydi: u yetib
