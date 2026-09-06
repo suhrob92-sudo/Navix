@@ -1,6 +1,7 @@
 'use client';
 
-import { Phone, Route, Star, Timer, Wallet } from 'lucide-react';
+import { MessageCircle, Phone, Route, Star, Timer, Wallet } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
@@ -46,6 +47,7 @@ import {
 const REFRESH_MS = 5_000;
 
 export function RideContent({ rideId }: { rideId: string }) {
+  const router = useRouter();
   const request = useApiClient();
 
   const query = useApiQuery<RideResponse>(`/api/v1/taxi/rides/${rideId}`, {
@@ -57,6 +59,35 @@ export function RideContent({ rideId }: { rideId: string }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [isWorking, setIsWorking] = useState(false);
   const [askCancel, setAskCancel] = useState(false);
+  const [isChatOpening, setIsChatOpening] = useState(false);
+
+  /**
+   * Haydovchi bilan suhbatni ochadi.
+   *
+   * ── Nima uchun avval SERVERGA murojaat qilinadi ─────────────────────
+   * Suhbat manzilini oldindan bilib bo'lmaydi: u hali mavjud
+   * bo'lmasligi mumkin. Server uni yaratadi yoki mavjudini
+   * qaytaradi va ID beradi.
+   *
+   * Takroriy bosish zarar qilmaydi: ikkinchi so'rov o'sha suhbatni
+   * qaytaradi.
+   */
+  const openChat = useCallback(async () => {
+    setIsChatOpening(true);
+    setActionError(null);
+
+    try {
+      const result = await request<{ conversationId: string }>(
+        `/api/v1/taxi/rides/${rideId}/chat`,
+        { method: 'POST' },
+      );
+
+      router.push(`/messages/${result.conversationId}`);
+    } catch (error) {
+      setActionError(toUserMessage(error));
+      setIsChatOpening(false);
+    }
+  }, [request, rideId, router]);
 
   const act = useCallback(
     async (path: string, body: unknown) => {
@@ -117,7 +148,7 @@ export function RideContent({ rideId }: { rideId: string }) {
         <StatusBanner ride={ride} />
 
         {ride.driver ? (
-          <DriverCard ride={ride} />
+          <DriverCard ride={ride} onChat={openChat} isChatOpening={isChatOpening} />
         ) : (
           isRideActive(ride.status) && (
             <section className="bg-card border-border rounded-3xl border p-5 text-center shadow-sm">
@@ -208,7 +239,15 @@ function StatusBanner({ ride }: { ride: RideView }) {
 }
 
 /** Haydovchi kartochkasi — mashina, reyting va qo'ng'iroq tugmasi. */
-function DriverCard({ ride }: { ride: RideView }) {
+function DriverCard({
+  ride,
+  onChat,
+  isChatOpening,
+}: {
+  ride: RideView;
+  onChat: () => void;
+  isChatOpening: boolean;
+}) {
   const driver = ride.driver;
 
   if (!driver) return null;
@@ -235,18 +274,38 @@ function DriverCard({ ride }: { ride: RideView }) {
         </div>
 
         {/*
-          Qo'ng'iroq tugmasi faqat safar DAVOM etayotganda.
+          Aloqa tugmalari faqat safar DAVOM etayotganda.
           Tugagach haydovchining raqami kerak emas va uni ko'rsatib
           turish — uning shaxsiy ma'lumotini keraksiz ochish.
+
+          ── Nima uchun IKKITA yo'l ──────────────────────────────────
+          Qo'ng'iroq tez, lekin u har doim ham qulay emas: shovqinli
+          joyda, yig'ilishda yoki chet tilida gaplashadigan haydovchi
+          bilan yozish osonroq.
+
+          Chat BIRINCHI turadi va u kamroq bezovta qiladi: haydovchi
+          ruldan uzilmasdan o'qiy oladi.
         */}
         {isRideActive(ride.status) && (
-          <a
-            href={`tel:${driver.phone}`}
-            aria-label={`Haydovchiga qo'ng'iroq: ${formatUzPhone(driver.phone)}`}
-            className="bg-primary text-primary-foreground shadow-primary/25 flex size-11 shrink-0 items-center justify-center rounded-2xl shadow-lg transition-transform active:scale-95"
-          >
-            <Phone className="size-5" aria-hidden="true" />
-          </a>
+          <span className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={onChat}
+              disabled={isChatOpening}
+              aria-label="Haydovchiga yozish"
+              className="bg-secondary text-foreground flex size-11 items-center justify-center rounded-2xl transition-transform active:scale-95 disabled:opacity-50"
+            >
+              <MessageCircle className="size-5" aria-hidden="true" />
+            </button>
+
+            <a
+              href={`tel:${driver.phone}`}
+              aria-label={`Haydovchiga qo'ng'iroq: ${formatUzPhone(driver.phone)}`}
+              className="bg-primary text-primary-foreground shadow-primary/25 flex size-11 items-center justify-center rounded-2xl shadow-lg transition-transform active:scale-95"
+            >
+              <Phone className="size-5" aria-hidden="true" />
+            </a>
+          </span>
         )}
       </div>
 

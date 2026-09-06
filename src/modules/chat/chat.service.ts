@@ -5,7 +5,7 @@ import { logger } from '@/lib/logger';
 import { groupTypingUserIds, isOnline, isTyping, isViewing, markGroupTyping, markTyping } from '@/lib/presence';
 import { prisma } from '@/lib/prisma';
 import { listCallsForConversation } from '@/modules/call/call.service';
-import { requireCanMessage } from '@/modules/moderation/moderation.service';
+import { findBlock, requireCanMessage } from '@/modules/moderation/moderation.service';
 import { sendPush } from '@/modules/notification/push.service';
 import { deleteImageByUrl } from '@/modules/upload/upload.service';
 import { resolveWallpaper, type ChatWallpaperName } from '@/config/chat-wallpapers';
@@ -363,7 +363,26 @@ async function openDirectConversation(viewerId: string, username: string): Promi
    */
   await requireCanMessage(viewerId, target.id);
 
-  const pairKey = buildDirectKey(viewerId, target.id);
+  return openWithUser(viewerId, target.id);
+}
+
+/**
+ * Ikki foydalanuvchi orasida suhbat ochadi yoki MAVJUDINI qaytaradi.
+ *
+ * ── Nima uchun alohida yordamchi ──────────────────────────────────────
+ * Bu qadam ikki xil yo'ldan chaqiriladi: odam profildan "Xabar"
+ * bosganda va XIZMAT suhbat ochganda (masalan taksi safari).
+ *
+ * Farqi faqat RUXSATDA: profildan yozishda maxfiylik sozlamasi
+ * tekshiriladi, xizmatda esa boshqacha qoida ishlaydi (sabab
+ * `openServiceConversation` da).
+ *
+ * Suhbat YARATISH qismi esa ikkalasida bir xil va u shu yerda
+ * turadi — nusxalansa, `pairKey` mantiqiga tegishli tuzatish
+ * bittasida qolib ketardi.
+ */
+async function openWithUser(viewerId: string, targetId: string): Promise<OpenConversationResponse> {
+  const pairKey = buildDirectKey(viewerId, targetId);
 
   const existing = await prisma.conversation.findUnique({ where: { pairKey }, select: { id: true } });
 
@@ -376,17 +395,58 @@ async function openDirectConversation(viewerId: string, username: string): Promi
       data: {
         kind: ConversationKind.DIRECT,
         pairKey,
-        members: { create: [{ userId: viewerId }, { userId: target.id }] },
+        members: { create: [{ userId: viewerId }, { userId: targetId }] },
       },
       select: { id: true },
     });
 
-    logger.info({ viewerId, targetId: target.id }, 'Yangi suhbat ochildi');
+    logger.info({ viewerId, targetId }, 'Yangi suhbat ochildi');
 
     return { conversationId: created.id, isNew: true };
   } catch (error) {
     return recoverFromDuplicate(error, pairKey);
   }
+}
+
+/**
+ * XIZMAT suhbati — safar, buyurtma va shunga o'xshash holatlar uchun.
+ *
+ * ── Nima uchun maxfiylik sozlamasi tekshirilmaydi ─────────────────────
+ * "Menga hech kim yozmasin" sozlamasi BEGONA odamlardan himoya qiladi.
+ * Safardagi haydovchi esa begona emas: foydalanuvchining o'zi uni
+ * chaqirgan va u hozir uning oldiga kelmoqda.
+ *
+ * Sozlamani hurmat qilsak, haydovchi "sizga yozib bo'lmaydi" degan
+ * javobni olardi va mijozga "ko'k darvoza oldidaman" deb ayta
+ * olmasdi — holbuki mijozning o'zi uni kutmoqda.
+ *
+ * ── Nima uchun BLOK baribir hurmat qilinadi ───────────────────────────
+ * Blok — bu maxfiylik emas, xavfsizlik. Kimnidir bloklagan odam
+ * undan xabar olishni istamaydi va bu xohish xizmat suhbatida ham
+ * kuchda qoladi. Bunday holatda aloqa uchun QO'NG'IROQ qoladi.
+ *
+ * ── Chaqiruvchi NIMANI kafolatlashi kerak ─────────────────────────────
+ * Bu funksiya "sizlar bir-biringizga bog'liqmisiz" degan savolni
+ * TEKSHIRMAYDI. Uni chaqiruvchi modul tekshiradi: masalan taksi
+ * moduli safar FAOL ekanini va odam o'sha safarning tomoni ekanini
+ * aniqlaydi. Aks holda istalgan odam istalgan kishiga suhbat ochib
+ * olardi.
+ */
+export async function openServiceConversation(
+  viewerId: string,
+  targetId: string,
+): Promise<OpenConversationResponse> {
+  if (viewerId === targetId) {
+    throw new ConflictError("O'zingizga xabar yozib bo'lmaydi.");
+  }
+
+  const block = await findBlock(viewerId, targetId);
+
+  if (block.blockedByMe || block.blockedByThem) {
+    throw new ForbiddenError("Bu odam bilan yozishib bo'lmaydi. Qo'ng'iroq qilishingiz mumkin.");
+  }
+
+  return openWithUser(viewerId, targetId);
 }
 
 async function openBusinessConversation(

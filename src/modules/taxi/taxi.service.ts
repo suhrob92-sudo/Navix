@@ -26,8 +26,10 @@ import {
   routeDistanceKm,
   taxiMinutes,
 } from '@/modules/taxi/taxi.pricing';
+import { openServiceConversation } from '@/modules/chat/chat.service';
 import {
   canCancelRide,
+  isRideActive,
   type DriverProfileView,
   type RideOfferView,
   type RideView,
@@ -1227,6 +1229,67 @@ export async function driverCancelRide(
   });
 
   return loadDriverRide(driver.id, row.id);
+}
+
+/**
+ * Safar ichida haydovchi va yo'lovchi o'rtasida suhbat ochadi.
+ *
+ * ── Nima uchun bu funksiya TAKSI modulida ─────────────────────────────
+ * Chat moduli "kim kimga yozishi mumkin" degan savolga umumiy javob
+ * beradi: blok bormi, maxfiylik sozlamasi qanday. Lekin u safar
+ * haqida hech narsa bilmaydi.
+ *
+ * "Bu ikkovi bir safarning tomonimi va safar hali davom etyaptimi"
+ * degan savolga faqat shu modul javob bera oladi. Shuning uchun
+ * RUXSAT shu yerda tekshiriladi, suhbatni ochish esa chat moduliga
+ * topshiriladi.
+ *
+ * ── Nima uchun faqat FAOL safarda ─────────────────────────────────────
+ * Safar tugagach yozishmaning ma'nosi yo'qoladi: yetkazib qo'yilgan
+ * odam bilan gaplashadigan mavzu qolmaydi. Ochiq qoldirilsa, u
+ * haydovchi uchun keraksiz bezovtalik manbaiga aylanardi.
+ *
+ * Suhbatning O'ZI o'chirilmaydi — u xabarlar ro'yxatida qoladi va
+ * eski yozishmalarni o'qish mumkin. Faqat safar orqali YANGI suhbat
+ * ochilmaydi.
+ */
+export async function openRideChat(
+  userId: string,
+  rideId: string,
+): Promise<{ conversationId: string }> {
+  /*
+    Egalik SO'ROVNING ichida: odam yo yo'lovchi, yo o'sha safarning
+    haydovchisi bo'lishi kerak. Begona ID shunchaki "topilmadi"
+    qaytaradi va hech qanday ma'lumot sizmaydi.
+  */
+  const row = await prisma.taxiRide.findFirst({
+    where: {
+      id: rideId,
+      OR: [{ riderId: userId }, { driver: { userId } }],
+    },
+    select: {
+      status: true,
+      riderId: true,
+      driver: { select: { userId: true } },
+    },
+  });
+
+  if (!row) throw new NotFoundError('Safar topilmadi');
+
+  if (!row.driver) {
+    throw new ConflictError('Haydovchi hali topilmadi.');
+  }
+
+  if (!isRideActive(row.status)) {
+    throw new ConflictError("Safar tugagan — yozishma xabarlar bo'limida qoldi.");
+  }
+
+  /* Suhbatdoshi — o'zi bo'lmagan ikkinchi tomon. */
+  const otherId = userId === row.riderId ? row.driver.userId : row.riderId;
+
+  const { conversationId } = await openServiceConversation(userId, otherId);
+
+  return { conversationId };
 }
 
 /** Haydovchining o'z safarlari — kabinet tarixi uchun. */

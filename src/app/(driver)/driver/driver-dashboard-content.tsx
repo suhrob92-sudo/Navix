@@ -1,7 +1,17 @@
 'use client';
 
-import { Car, CheckCircle2, ChevronRight, MapPin, Navigation, Phone, Star } from 'lucide-react';
+import {
+  Car,
+  CheckCircle2,
+  ChevronRight,
+  MapPin,
+  MessageCircle,
+  Navigation,
+  Phone,
+  Star,
+} from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 
 import { AdminHeader } from '@/components/admin/admin-header';
@@ -40,6 +50,7 @@ import {
  * Statistika pastda: u qiziq, lekin shoshilinch emas.
  */
 export function DriverDashboardContent() {
+  const router = useRouter();
   const request = useApiClient();
 
   const profileQuery = useApiQuery<DriverProfileResponse>('/api/v1/taxi/driver');
@@ -64,6 +75,33 @@ export function DriverDashboardContent() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [isWorking, setIsWorking] = useState(false);
   const [askCancel, setAskCancel] = useState(false);
+  const [isChatOpening, setIsChatOpening] = useState(false);
+
+  /**
+   * Yo'lovchi bilan suhbatni ochadi.
+   *
+   * Yo'lovchi ekranidagi bilan AYNI yo'l ishlatiladi: server kim
+   * so'rayotganini o'zi aniqlaydi va ikkinchi tomonni topadi.
+   */
+  const openChat = useCallback(
+    async (rideId: string) => {
+      setIsChatOpening(true);
+      setActionError(null);
+
+      try {
+        const result = await request<{ conversationId: string }>(
+          `/api/v1/taxi/rides/${rideId}/chat`,
+          { method: 'POST' },
+        );
+
+        router.push(`/messages/${result.conversationId}`);
+      } catch (error) {
+        setActionError(toUserMessage(error));
+        setIsChatOpening(false);
+      }
+    },
+    [request, router],
+  );
 
   const toggleOnline = useCallback(
     async (next: boolean) => {
@@ -172,9 +210,11 @@ export function DriverDashboardContent() {
           <ActiveRideCard
             ride={ride}
             disabled={isWorking}
+            isChatOpening={isChatOpening}
             onStep={(step) => act(`/api/v1/taxi/driver/rides/${ride.id}/step`, { step })}
             onComplete={() => act(`/api/v1/taxi/driver/rides/${ride.id}/complete`, {})}
             onCancel={() => setAskCancel(true)}
+            onChat={() => openChat(ride.id)}
           />
         ) : (
           <Link
@@ -318,15 +358,19 @@ const NEXT_STEP: Record<string, { label: string; icon: typeof MapPin } | undefin
 function ActiveRideCard({
   ride,
   disabled,
+  isChatOpening,
   onStep,
   onComplete,
   onCancel,
+  onChat,
 }: {
   ride: RideView;
   disabled: boolean;
+  isChatOpening: boolean;
   onStep: (step: 'ARRIVED' | 'START') => void;
   onComplete: () => void;
   onCancel: () => void;
+  onChat: () => void;
 }) {
   const next = NEXT_STEP[ride.status];
   const Icon = next?.icon ?? Car;
@@ -364,6 +408,23 @@ function ActiveRideCard({
               {ride.rider.name ?? 'Mijoz'}
             </span>
           </span>
+
+          {/*
+            Chat qo'ng'iroqdan OLDIN turadi.
+
+            Haydovchi rulda: yozishmani svetoforda o'qish mumkin,
+            qo'ng'iroq esa e'tiborni butunlay tortadi. Shuning
+            uchun kamroq xavfli yo'l birinchi.
+          */}
+          <button
+            type="button"
+            onClick={onChat}
+            disabled={isChatOpening}
+            aria-label="Yo'lovchiga yozish"
+            className="bg-background text-foreground border-border flex size-10 shrink-0 items-center justify-center rounded-xl border transition-transform active:scale-95 disabled:opacity-50"
+          >
+            <MessageCircle className="size-4" aria-hidden="true" />
+          </button>
 
           <a
             href={`tel:${ride.rider.phone}`}
