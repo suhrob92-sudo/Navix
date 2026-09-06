@@ -1,4 +1,9 @@
-import { isInsideUzbekistan, TAXI_TARIFFS, type TaxiTariffName } from '@/config/taxi';
+import {
+  isInsideUzbekistan,
+  TAXI_SEARCH_RADIUS_KM,
+  TAXI_TARIFFS,
+  type TaxiTariffName,
+} from '@/config/taxi';
 import type { Point } from '@/config/delivery-eta';
 import { prisma } from '@/lib/prisma';
 import { formatTiyin } from '@/lib/money';
@@ -43,6 +48,10 @@ export interface TaxiFlowParams {
   location: AssistantLocation | null;
   /** Matndan topilgan manzil turi. `null` — aytilmagan. */
   destination: 'HOME' | 'WORK' | null;
+  /** "Eng arzon" yoki "eng tez". `null` — aytilmagan. */
+  preference?: 'CHEAPEST' | 'FASTEST' | null;
+  /** Ataylab aytilgan tarif nomi. `null` — aytilmagan. */
+  requestedTariff?: 'ECONOM' | 'COMFORT' | 'BUSINESS' | null;
 }
 
 interface SavedPlace {
@@ -77,13 +86,141 @@ async function findSavedPlace(userId: string, type: 'HOME' | 'WORK'): Promise<Sa
   };
 }
 
+/** Tanlangan tarif va uning SABABI — matnda tushuntirish uchun. */
+interface TariffChoice {
+  tariff: TaxiTariffName;
+  /** Ekranda ko'rsatiladigan qo'shimcha izoh. Bo'sh bo'lishi mumkin. */
+  note: string;
+}
+
+/**
+ * Eng ARZON tarifni topadi.
+ *
+ * ── Nima uchun ro'yxatdan birinchisi olinmaydi ────────────────────────
+ * "Ekonom har doim arzon" deb yozib qo'yish oson, lekin u narxlar
+ * o'zgarganda jimgina yolg'onga aylanardi. Bu yerda esa HAQIQIY
+ * narxlar solishtiriladi — masofa hisobga olingan holda.
+ */
+function cheapestTariff(km: number): TaxiTariffName {
+  const names = Object.keys(TAXI_TARIFFS) as TaxiTariffName[];
+
+  return names.reduce((best, name) =>
+    calculateTaxiFare(name, km).priceTiyin < calculateTaxiFare(best, km).priceTiyin ? name : best,
+  );
+}
+
+/**
+ * Yaqin atrofda qaysi tarifda nechta mashina onlayn.
+ *
+ * ── Nima uchun "eng tez" AYNAN shu bilan o'lchanadi ───────────────────
+ * Ikkala tarifdagi mashina ham bir xil ko'chada, bir xil tezlikda
+ * yuradi — tarif mashinaning tezligini o'zgartirmaydi.
+ *
+ * Haqiqiy farq KUTISHDA: yaqin atrofda qaysi tarifda ko'proq mashina
+ * bo'lsa, o'shanisi tezroq keladi. Bu — o'ylab topilgan emas, bazadan
+ * o'qilgan haqiqat.
+ *
+ * ── Nima uchun masofa DASTURDA hisoblanmaydi ──────────────────────────
+ * Bu yerda faqat SON kerak, tartib emas. Radius o'rniga oddiy
+ * to'rtburchak chegara ishlatiladi: u indeksdan foydalanadi va
+ * bir necha kilometrlik xato bu qarorda ahamiyatsiz.
+ */
+async function onlineDriverCounts(here: Point): Promise<Record<TaxiTariffName, number>> {
+  /* Taxminan qidiruv radiusiga teng to'rtburchak — 1 daraja ≈ 111 km. */
+  const span = TAXI_SEARCH_RADIUS_KM / 111;
+
+  const rows = await prisma.taxiDriver.groupBy({
+    by: ['tariff'],
+    where: {
+      isOnline: true,
+      deletedAt: null,
+      lastLat: { gte: here.latitude - span, lte: here.latitude + span },
+      lastLng: { gte: here.longitude - span, lte: here.longitude + span },
+    },
+    _count: { _all: true },
+  });
+
+  const counts = { ECONOM: 0, COMFORT: 0 } as Record<TaxiTariffName, number>;
+
+  for (const row of rows) {
+    counts[row.tariff as TaxiTariffName] = row._count._all;
+  }
+
+  return counts;
+}
+
+/**
+ * Qaysi tarifda chaqiramiz.
+ *
+ * ── Tartib MUHIM ──────────────────────────────────────────────────────
+ * 1. ATAYLAB aytilgan nom ("komfort chaqir") — eng aniq xohish;
+ * 2. maqsad ("eng arzon", "eng tez");
+ * 3. standart.
+ *
+ * "Eng arzon komfort" degan gapda ikkalasi ham bor. Bunday holatda
+ * NOM ustun: odam mashina turini tanlagan, arzonlik esa uning ichida
+ * qidiriladi. Teskarisi bo'lsa, aytilgan mashina turi e'tiborsiz
+ * qolardi.
+ */
+async function chooseTariff(
+  km: number,
+  here: Point,
+  preference: 'CHEAPEST' | 'FASTEST' | null,
+  requested: 'ECONOM' | 'COMFORT' | 'BUSINESS' | null,
+): Promise<TariffChoice> {
+  if (requested === 'ECONOM' || requested === 'COMFORT') {
+    return { tariff: requested, note: '' };
+  }
+
+  /*
+    BUSINESS tarifi hozircha YO'Q.
+
+    Jimgina Komfort berish mumkin edi, lekin o'shanda odam o'zi
+    so'ramagan xizmatga pul to'lardi va buni safar tugagach bilib
+    qolardi. Rost aytish qimmatroq emas.
+  */
+  if (requested === 'BUSINESS') {
+    return { tariff: 'COMFORT', note: "Biznes tarifi hozircha yo'q — Komfort taklif qilaman." };
+  }
+
+  if (preference === 'CHEAPEST') {
+    return { tariff: cheapestTariff(km), note: 'Eng arzon tarifni tanladim.' };
+  }
+
+  if (preference === 'FASTEST') {
+    const counts = await onlineDriverCounts(here);
+    const names = Object.keys(TAXI_TARIFFS) as TaxiTariffName[];
+
+    const best = names.reduce((left, right) => (counts[right] > counts[left] ? right : left));
+
+    /*
+      Hech qayerda mashina bo'lmasa, tanlashning ma'nosi yo'q va
+      buni AYTAMIZ: aks holda odam "eng tez" so'rab, uzoq kutib
+      o'tirardi va sababini bilmasdi.
+    */
+    if (counts[best] === 0) {
+      return {
+        tariff: cheapestTariff(km),
+        note: "Hozir yaqin atrofda onlayn mashina ko'rinmadi — kutish uzayishi mumkin.",
+      };
+    }
+
+    return {
+      tariff: best,
+      note: `Yaqin atrofda ${TAXI_TARIFFS[best].label} tarifida ${counts[best]} ta mashina bor — tezroq keladi.`,
+    };
+  }
+
+  return { tariff: DEFAULT_TARIFF, note: '' };
+}
+
 /** Javobni bir joydan yasaymiz — takrorlanadigan maydonlar unutilmasin. */
 function reply(text: string, suggestions: string[] = []): AssistantReply {
   return { text, suggestions, action: { kind: 'none' }, state: { slots: {} } };
 }
 
 export async function handleTaxiOrder(params: TaxiFlowParams): Promise<AssistantReply> {
-  const { userId, location, destination } = params;
+  const { userId, location, destination, preference = null, requestedTariff = null } = params;
 
   /*
     1. QAYERGA — bu birinchi savol.
@@ -145,7 +282,8 @@ export async function handleTaxiOrder(params: TaxiFlowParams): Promise<Assistant
     );
   }
 
-  const fare = calculateTaxiFare(DEFAULT_TARIFF, km);
+  const choice = await chooseTariff(km, from, preference, requestedTariff);
+  const fare = calculateTaxiFare(choice.tariff, km);
   const amountSom = fare.priceTiyin / 100;
 
   /*
@@ -170,15 +308,19 @@ export async function handleTaxiOrder(params: TaxiFlowParams): Promise<Assistant
 
   const minutes = taxiMinutes(km);
 
+  /* Sabab bo'lsa, u ASOSIY matndan oldin turadi: odam avval "nima uchun
+     bu tarif?" degan savolga javob oladi, keyin narxni ko'radi. */
+  const explanation = choice.note ? `${choice.note} ` : '';
+
   return {
     text:
-      `${label} manzilingizgacha ${km.toFixed(1)} km, taxminan ${minutes} daqiqa. ` +
-      `${TAXI_TARIFFS[DEFAULT_TARIFF].label} tarifida ${formatTiyin(fare.priceTiyin)}. Chaqiraymi?`,
+      `${explanation}${label} manzilingizgacha ${km.toFixed(1)} km, taxminan ${minutes} daqiqa. ` +
+      `${TAXI_TARIFFS[choice.tariff].label} tarifida ${formatTiyin(fare.priceTiyin)}. Chaqiraymi?`,
     suggestions: [],
     action: {
       kind: 'confirm_taxi_order',
-      tariff: DEFAULT_TARIFF,
-      tariffLabel: TAXI_TARIFFS[DEFAULT_TARIFF].label,
+      tariff: choice.tariff,
+      tariffLabel: TAXI_TARIFFS[choice.tariff].label,
       fromLat: from.latitude,
       fromLng: from.longitude,
       /*

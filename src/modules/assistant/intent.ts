@@ -99,6 +99,23 @@ export interface ParsedMessage {
    * alohida, manzilni topish alohida sinaladi.
    */
   taxiDestination: 'HOME' | 'WORK' | null;
+  /**
+   * Taksi tanlashda NIMA muhim: arzonlik yoki tezlik.
+   *
+   * Tarifning NOMIDAN alohida saqlanadi. "Eng arzon" — bu tarif emas,
+   * bu MAQSAD: qaysi tarif arzon ekanini narxlar hal qiladi va ular
+   * ertaga o'zgarishi mumkin.
+   */
+  taxiPreference: 'CHEAPEST' | 'FASTEST' | null;
+  /**
+   * Foydalanuvchi ATAYLAB aytgan tarif nomi.
+   *
+   * `BUSINESS` ham taniladi, garchi bunday tarif hozircha yo'q bo'lsa
+   * ham. Tanimasak, "biznes chaqir" degan odam jimgina Ekonom olardi
+   * va buni safar tugagach bilib qolardi. Tanisak esa rost javob
+   * bera olamiz: "bunday tarif yo'q".
+   */
+  taxiTariff: 'ECONOM' | 'COMFORT' | 'BUSINESS' | null;
 }
 
 /**
@@ -231,7 +248,7 @@ export function extractPhone(text: string): string | null {
 const PROVIDER_KEYWORDS: { code: string; words: string[] }[] = [
   { code: 'hududgaz', words: ['hududgaz', 'gaz', 'gazga', 'gazni'] },
   { code: 'suvoqova', words: ['suvoqova', 'suv', 'suvga', 'suvni'] },
-  { code: 'hududiy-elektr', words: ['elektr', 'svet', 'svetga', 'yorugliк', 'toк'] },
+  { code: 'hududiy-elektr', words: ['elektr', 'svet', 'svetga', 'yoruglik', 'tok'] },
   { code: 'issiqlik-manbai', words: ['issiqlik', 'isitish', 'otoplenie'] },
   { code: 'beeline', words: ['beeline', 'bilayn', 'bilain'] },
   { code: 'ucell', words: ['ucell', 'yusel', 'usel'] },
@@ -594,6 +611,9 @@ const TAXI_MOVE_WORDS = [
 const TAXI_HOME_WORDS = ['uyga', 'uyimga'];
 const TAXI_WORK_WORDS = ['ishga', 'ishxonaga'];
 
+/** Tarif NOMLARI — `detectTaxiTariff` bilan bir xil ro'yxat. */
+const TAXI_TARIFF_WORDS = ['ekonom', 'econom', 'komfort', 'comfort', 'biznes', 'business'];
+
 /**
  * Matn taksi chaqirish haqidami.
  *
@@ -610,7 +630,52 @@ function isTaxiRequest(text: string): boolean {
   const hasPlace = matchWords(text, [...TAXI_HOME_WORDS, ...TAXI_WORK_WORDS]);
   const hasMove = matchWords(text, TAXI_MOVE_WORDS);
 
-  return hasPlace && hasMove;
+  /*
+    TARIF NOMI ham harakat kabi kuchli belgi.
+
+    "Uyga eng arzon komfort" gapida na "taksi" so'zi bor, na harakat
+    fe'li — lekin manzil va tarif nomi birga aytilgan bo'lsa, boshqa
+    ma'no yo'q.
+
+    Tarif nomi YOLG'IZ o'zi yetarli emas: "komfort divan" —
+    Marketplace qidiruvi. Shuning uchun MANZIL bilan birga talab
+    qilinadi.
+  */
+  const hasTariffName = matchWords(text, TAXI_TARIFF_WORDS);
+
+  return hasPlace && (hasMove || hasTariffName);
+}
+
+/**
+ * Nima muhim: arzonlik yoki tezlik.
+ *
+ * ── Nima uchun TARIF NOMIDAN ajratilgan ───────────────────────────────
+ * "Eng arzon" — tarif emas, MAQSAD. Bugun Ekonom arzon, ertaga yangi
+ * tarif qo'shilib, u arzonroq bo'lishi mumkin. Maqsadni saqlasak,
+ * javob o'zi to'g'rilanadi; tarif nomini saqlasak — qotib qolardi.
+ *
+ * Ikkalasi birga aytilishi ham mumkin: "eng arzon komfort". Bunday
+ * holatda ATAYLAB aytilgan nom ustun turadi (`taxi-flow.ts` da).
+ */
+function detectTaxiPreference(text: string): 'CHEAPEST' | 'FASTEST' | null {
+  if (matchWords(text, ['arzon', 'arzonroq'])) return 'CHEAPEST';
+  if (matchWords(text, ['tez', 'tezroq', 'tezda'])) return 'FASTEST';
+
+  return null;
+}
+
+/**
+ * Foydalanuvchi tarif NOMINI aytdimi.
+ *
+ * "Biznes" ro'yxatda bor, garchi bunday tarif yo'q bo'lsa ham —
+ * sababi `ParsedMessage.taxiTariff` izohida yozilgan.
+ */
+function detectTaxiTariff(text: string): 'ECONOM' | 'COMFORT' | 'BUSINESS' | null {
+  if (matchWords(text, ['biznes', 'business'])) return 'BUSINESS';
+  if (matchWords(text, ['komfort', 'comfort'])) return 'COMFORT';
+  if (matchWords(text, ['ekonom', 'econom'])) return 'ECONOM';
+
+  return null;
 }
 
 /**
@@ -720,8 +785,17 @@ export function parseMessage(rawText: string): ParsedMessage {
   const isShopping = intent === Intent.FOOD_ORDER || intent === Intent.MARKET_ORDER;
   const foodQuery = isShopping ? extractFoodQuery(withoutPhone) : null;
 
-  /* Manzil turi FAQAT taksi buyrug'ida ajratiladi — boshqa joyda u ortiqcha ish. */
-  const taxiDestination = intent === Intent.BOOK_TAXI ? detectTaxiDestination(text) : null;
+  /*
+    Taksi maydonlari FAQAT taksi buyrug'ida ajratiladi.
+
+    Boshqa joyda bu ortiqcha ish va xato manba: "arzon telefon qidir"
+    gapidagi "arzon" Marketplace qidiruvi uchun, taksi tarifi uchun
+    emas.
+  */
+  const isTaxi = intent === Intent.BOOK_TAXI;
+  const taxiDestination = isTaxi ? detectTaxiDestination(text) : null;
+  const taxiPreference = isTaxi ? detectTaxiPreference(text) : null;
+  const taxiTariff = isTaxi ? detectTaxiTariff(text) : null;
 
   return {
     intent,
@@ -734,6 +808,8 @@ export function parseMessage(rawText: string): ParsedMessage {
     quantity,
     ordinal,
     taxiDestination,
+    taxiPreference,
+    taxiTariff,
   };
 }
 

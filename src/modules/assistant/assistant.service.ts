@@ -414,7 +414,13 @@ export async function respond(
       return handleShopping(userId, slots, parsed, 'market');
 
     case Intent.BOOK_TAXI:
-      return handleTaxiOrder({ userId, location, destination: parsed.taxiDestination });
+      return handleTaxiOrder({
+        userId,
+        location,
+        destination: parsed.taxiDestination,
+        preference: parsed.taxiPreference,
+        requestedTariff: parsed.taxiTariff,
+      });
 
     case Intent.COMING_SOON:
       return handleComingSoon(normalize(message));

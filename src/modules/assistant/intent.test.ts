@@ -506,3 +506,74 @@ describe('taksi buyruqlari', () => {
     expect(parseMessage('uyga taksi').intent).not.toBe(Intent.COMING_SOON);
   });
 });
+
+/**
+ * SMART taksi buyruqlari — "eng arzon", "eng tez", tarif nomi.
+ *
+ * ── Nima uchun maqsad va NOM alohida ──────────────────────────────────
+ * "Eng arzon" bugun Ekonomni, ertaga boshqa tarifni anglatishi
+ * mumkin. Shuning uchun matndan MAQSAD ajratiladi, tarif esa
+ * narxlar bo'yicha keyin tanlanadi.
+ */
+describe('smart taksi buyruqlari', () => {
+  it("'eng arzon' maqsadini ajratadi", () => {
+    for (const text of ['uyga eng arzon taksi', 'uyga arzonroq taksi', 'arzon taksi uyga']) {
+      expect(parseMessage(text).taxiPreference, text).toBe('CHEAPEST');
+    }
+  });
+
+  it("'eng tez' maqsadini ajratadi", () => {
+    for (const text of ['uyga eng tez taksi', 'uyga tezroq taksi', 'tezda uyga taksi']) {
+      expect(parseMessage(text).taxiPreference, text).toBe('FASTEST');
+    }
+  });
+
+  it('tarif nomini ajratadi', () => {
+    expect(parseMessage('uyga komfort chaqir').taxiTariff).toBe('COMFORT');
+    expect(parseMessage('uyga ekonom taksi').taxiTariff).toBe('ECONOM');
+  });
+
+  /**
+   * BUSINESS tarifi hozircha YO'Q, lekin u TANILADI.
+   *
+   * Tanimasak, "biznes chaqir" degan odam jimgina Ekonom olardi va
+   * buni safar tugagach bilib qolardi. Tanisak — rost javob beramiz.
+   */
+  it("mavjud bo'lmagan Biznes tarifini ham taniydi", () => {
+    expect(parseMessage('uyga biznes chaqir').taxiTariff).toBe('BUSINESS');
+  });
+
+  it('maqsad va nom birga aytilsa ikkalasi ham ajratiladi', () => {
+    const parsed = parseMessage('uyga eng arzon komfort');
+
+    expect(parsed.taxiPreference).toBe('CHEAPEST');
+    expect(parsed.taxiTariff).toBe('COMFORT');
+  });
+
+  it('manzil ham birga ajratiladi', () => {
+    const parsed = parseMessage('ishga eng tez taksi');
+
+    expect(parsed.intent).toBe(Intent.BOOK_TAXI);
+    expect(parsed.taxiDestination).toBe('WORK');
+    expect(parsed.taxiPreference).toBe('FASTEST');
+  });
+
+  /**
+   * ── BOSHQA buyruqlarga ta'sir qilmasligi ────────────────────────────
+   * "Arzon telefon qidir" — bu Marketplace qidiruvi. Agar taksi
+   * maydonlari har buyruqda ajratilsa, bu gapdagi "arzon" taksi
+   * tarifi deb o'qilardi.
+   */
+  it("boshqa buyruqlarda taksi maydonlari bo'sh qoladi", () => {
+    const market = parseMessage('arzon telefon qidir');
+
+    expect(market.intent).not.toBe(Intent.BOOK_TAXI);
+    expect(market.taxiPreference).toBeNull();
+    expect(market.taxiTariff).toBeNull();
+  });
+
+  it('oddiy taksi buyrug\'ida maqsad null qoladi', () => {
+    expect(parseMessage('uyga taksi').taxiPreference).toBeNull();
+    expect(parseMessage('uyga taksi').taxiTariff).toBeNull();
+  });
+});
