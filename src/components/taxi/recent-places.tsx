@@ -72,9 +72,16 @@ export function RecentPlaces({ rides, onPick }: RecentPlacesProps) {
       <div className="flex items-center justify-between px-4 pt-3.5 pb-1">
         <h2 className="text-sm font-semibold">Oxirgi manzillar</h2>
 
+        {/*
+          `tap-target` — bosiladigan maydon 44 pikselgacha
+          kengayadi, matn esa o'sha o'lchamda qoladi.
+
+          Havola 67x16 piksel edi: barmoq izi undan uch barobar
+          katta va odam bosaman deb yonidagi sarlavhaga tegardi.
+        */}
         <Link
           href="/taxi/tarix"
-          className="text-primary flex items-center gap-1 text-xs font-medium"
+          className="tap-target text-primary flex items-center gap-1 text-xs font-medium"
         >
           <History className="size-3.5" aria-hidden="true" />
           Barchasi

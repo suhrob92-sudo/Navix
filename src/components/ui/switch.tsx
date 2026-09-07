@@ -46,6 +46,22 @@ export function Switch({ id, checked, onCheckedChange, disabled = false, label, 
         disabled={disabled}
         onClick={() => onCheckedChange(!checked)}
         className={cn(
+          /*
+            `tap-target-y` — bosiladigan maydonni BALANDLIK bo'yicha
+            44 pikselgacha kengaytiradi, ko'rinishni o'zgartirmasdan.
+
+            ── Nima uchun kerak bo'ldi ─────────────────────────────
+            Tugma 44x24 piksel edi. Kengligi yetarli, balandligi esa
+            barmoq izidan (~9 mm) ikki barobar kichik: odam bosaman
+            deb yonidagi joyga tegib ketardi.
+
+            Bu mobil tekshiruvda O'LCHAB topildi — ekranda u
+            normal ko'rinardi.
+
+            Faqat balandlik: yonida boshqa element bo'lishi mumkin
+            va kengaygan maydon uni yopib qo'yardi.
+          */
+          'tap-target tap-target-y',
           'focus-visible:ring-ring focus-visible:ring-offset-background relative mt-0.5 inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors',
           'focus-visible:ring-2 focus-visible:ring-offset-2',
           'disabled:cursor-not-allowed disabled:opacity-60',
