@@ -143,6 +143,7 @@ export const AuditAction = {
   TAXI_RIDE_ACCEPTED: 'taxi.ride.accepted',
   TAXI_RIDE_COMPLETED: 'taxi.ride.completed',
   TAXI_DRIVER_REGISTERED: 'taxi.driver.registered',
+  TAXI_RIDE_ALERT: 'taxi.ride.alert',
 
   PARCEL_CREATED: 'parcel.created',
   PARCEL_CANCELLED: 'parcel.cancelled',

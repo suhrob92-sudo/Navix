@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { Prisma, TaxiRideStatus } from '@/generated/prisma/client';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
@@ -13,6 +15,7 @@ import {
   type TaxiTariffName,
 } from '@/config/taxi';
 import { notifyUser } from '@/modules/notification/notification.service';
+import { createTicket } from '@/modules/support/support.service';
 import {
   chargeWallet,
   creditEarning,
@@ -30,6 +33,7 @@ import { openServiceConversation } from '@/modules/chat/chat.service';
 import {
   canCancelRide,
   isRideActive,
+  type SharedRideView,
   type DriverProfileView,
   type RideOfferView,
   type RideView,
@@ -1229,6 +1233,241 @@ export async function driverCancelRide(
   });
 
   return loadDriverRide(driver.id, row.id);
+}
+
+/**
+ * FAVQULODDA xabar — SOS tugmasi.
+ *
+ * ── Bu tugma NIMA QILADI va nima QILMAYDI ─────────────────────────────
+ * Qiladi: Navix qo'llab-quvvatlash xizmatiga safar tafsilotlari va
+ * OXIRGI ma'lum joylashuv bilan murojaat ochadi. Xodim uni darhol
+ * ko'radi va haydovchi bilan bog'lana oladi.
+ *
+ * QILMAYDI: politsiyaga qo'ng'iroq qilmaydi va tez yordam
+ * chaqirmaydi. Bunday va'da berish yolg'on bo'lardi — bizda
+ * favqulodda xizmatlar bilan bog'lanish yo'q.
+ *
+ * Shuning uchun ekranda 102 raqamiga QO'NG'IROQ tugmasi ham turadi:
+ * u haqiqiy va u eng tez yo'l. Bu funksiya esa qo'shimcha —
+ * "kim, qayerda va kim bilan ketayotgani" yozib qo'yiladi.
+ *
+ * ── Nima uchun murojaat chegarasi chetlab o'tiladi ────────────────────
+ * Uchta ochiq murojaati bor odam ham xavf ostida qolishi mumkin.
+ * "Chegaraga yetdingiz" degan javob bu yerda qabul qilib bo'lmas.
+ *
+ * Suiiste'moldan himoya boshqacha: SOS faqat FAOL safarda ishlaydi
+ * va bir safar uchun bir marta.
+ */
+export async function raiseRideAlert(
+  userId: string,
+  rideId: string,
+  meta: OperationMeta = {},
+): Promise<{ ticketId: string }> {
+  const row = await prisma.taxiRide.findFirst({
+    where: {
+      id: rideId,
+      OR: [{ riderId: userId }, { driver: { userId } }],
+    },
+    select: {
+      id: true,
+      status: true,
+      fromAddress: true,
+      toAddress: true,
+      driverLat: true,
+      driverLng: true,
+      locationAt: true,
+      driver: { select: { plateNumber: true, carColor: true, carModel: true } },
+    },
+  });
+
+  if (!row) throw new NotFoundError('Safar topilmadi');
+
+  if (!isRideActive(row.status)) {
+    throw new ConflictError("Safar tugagan. Yordam kerak bo'lsa oddiy murojaat oching.");
+  }
+
+  /*
+    Joylashuv XABAR MATNIGA yoziladi.
+
+    Alohida maydonga saqlash mumkin edi, lekin qo'llab-quvvatlash
+    xodimi murojaatni O'QIYDI — koordinata ko'z oldida turishi
+    kerak, uni boshqa ekranda qidirmasin.
+  */
+  const place =
+    row.driverLat !== null && row.driverLng !== null
+      ? `Oxirgi joylashuv: ${Number(row.driverLat).toFixed(5)}, ${Number(row.driverLng).toFixed(5)}` +
+        (row.locationAt ? ` (${row.locationAt.toISOString()})` : '')
+      : "Joylashuv noma'lum — haydovchi kuzatuvni yoqmagan.";
+
+  const car = row.driver
+    ? `${row.driver.carColor} ${row.driver.carModel}, ${row.driver.plateNumber}`
+    : 'Haydovchi hali topilmagan';
+
+  const ticket = await createTicket(
+    userId,
+    {
+      subject: 'SOS — taksi safarida yordam kerak',
+      category: 'OTHER',
+      message: [
+        'Foydalanuvchi safar davomida SOS tugmasini bosdi.',
+        `Safar: ${row.id}`,
+        `Holat: ${row.status}`,
+        `Mashina: ${car}`,
+        `Yo'nalish: ${row.fromAddress} → ${row.toAddress}`,
+        place,
+      ].join('\n'),
+    },
+    meta,
+    { ignoreOpenLimit: true },
+  );
+
+  await recordAudit({
+    actorId: userId,
+    action: AuditAction.TAXI_RIDE_ALERT,
+    resourceType: 'TaxiRide',
+    resourceId: row.id,
+    module: MODULE,
+    metadata: { ticketId: ticket.id, status: row.status },
+    ...meta,
+  });
+
+  logger.warn({ userId, rideId: row.id, ticketId: ticket.id }, 'Safarda SOS bosildi');
+
+  return { ticketId: ticket.id };
+}
+
+/**
+ * Safarni ulashish havolasini beradi.
+ *
+ * ── Nima uchun kalit BIR MARTA yaratiladi ─────────────────────────────
+ * Har bosishda yangi kalit yasalsa, avval yuborilgan havola
+ * ishlamay qolardi: odam onasiga havola yuborib, keyin
+ * tasodifan tugmani yana bossa, ona "safar topilmadi" degan
+ * sahifani ko'rardi.
+ *
+ * Kalit mavjud bo'lsa — o'shanisi qaytariladi.
+ *
+ * ── Nima uchun FAOL safarda ───────────────────────────────────────────
+ * Ulashishning maqsadi — kuzatish. Tugagan safarni kuzatib bo'lmaydi
+ * va unga havola yasashning ma'nosi yo'q.
+ */
+export async function createRideShare(
+  userId: string,
+  rideId: string,
+): Promise<{ token: string }> {
+  const row = await prisma.taxiRide.findFirst({
+    where: { id: rideId, riderId: userId },
+    select: { id: true, status: true, shareToken: true },
+  });
+
+  if (!row) throw new NotFoundError('Safar topilmadi');
+
+  if (!isRideActive(row.status)) {
+    throw new ConflictError("Tugagan safarni ulashib bo'lmaydi.");
+  }
+
+  if (row.shareToken) return { token: row.shareToken };
+
+  /*
+    Kalit TASODIFIY va uzun.
+
+    Qisqa kalit (masalan 6 belgi) havolani chiroyli qilardi, lekin
+    uni saralab topish mumkin bo'lardi: kimdir ketma-ket urinib,
+    begona odamning safarini ochib ko'rardi.
+
+    32 bayt — taxmin qilib bo'lmaydigan uzunlik.
+  */
+  const token = randomBytes(24).toString('base64url');
+
+  await prisma.taxiRide.update({ where: { id: row.id }, data: { shareToken: token } });
+
+  logger.info({ userId, rideId }, 'Safar ulashildi');
+
+  return { token };
+}
+
+/**
+ * Havola orqali ochilgan safar.
+ *
+ * ── Nima uchun bu funksiya AUTENTIFIKATSIYASIZ ishlaydi ───────────────
+ * Havolani olgan odam ilovaga kirmagan bo'lishi mumkin — u
+ * shunchaki kuzatayotgan qarindosh. Ro'yxatdan o'tishni talab
+ * qilsak, ulashishning butun ma'nosi yo'qolardi.
+ *
+ * Himoya — KALITNING O'ZIDA: uni bilmagan odam hech narsa ko'rmaydi.
+ * Qaytariladigan ma'lumot esa ataylab kambag'al (`SharedRideView`).
+ */
+export async function getSharedRide(token: string): Promise<SharedRideView> {
+  const row = await prisma.taxiRide.findFirst({
+    where: { shareToken: token },
+    select: {
+      status: true,
+      fromLat: true,
+      fromLng: true,
+      fromAddress: true,
+      toLat: true,
+      toLng: true,
+      toAddress: true,
+      driverLat: true,
+      driverLng: true,
+      locationAt: true,
+      createdAt: true,
+      completedAt: true,
+      cancelledAt: true,
+      driver: {
+        select: {
+          carModel: true,
+          carColor: true,
+          plateNumber: true,
+          user: { select: { firstName: true, lastName: true } },
+        },
+      },
+    },
+  });
+
+  if (!row) throw new NotFoundError('Safar topilmadi');
+
+  const active = isRideActive(row.status);
+
+  return {
+    status: row.status,
+    from: {
+      latitude: toNumber(row.fromLat),
+      longitude: toNumber(row.fromLng),
+      address: row.fromAddress,
+    },
+    to: {
+      latitude: toNumber(row.toLat),
+      longitude: toNumber(row.toLng),
+      address: row.toAddress,
+    },
+    driver: row.driver
+      ? {
+          name: fullName(row.driver.user),
+          carModel: row.driver.carModel,
+          carColor: row.driver.carColor,
+          plateNumber: row.driver.plateNumber,
+        }
+      : null,
+    /*
+      Joylashuv FAQAT safar davomida.
+
+      Tugagandan keyin ham bersak, havolani olgan odam
+      haydovchining keyingi harakatini kuzatib turardi — bu esa
+      haydovchining shaxsiy ma'lumoti.
+    */
+    driverLocation:
+      active && row.driverLat !== null && row.driverLng !== null && row.locationAt !== null
+        ? {
+            latitude: toNumber(row.driverLat),
+            longitude: toNumber(row.driverLng),
+            reportedAt: row.locationAt.toISOString(),
+          }
+        : null,
+    createdAt: row.createdAt.toISOString(),
+    completedAt: row.completedAt?.toISOString() ?? null,
+    cancelledAt: row.cancelledAt?.toISOString() ?? null,
+  };
 }
 
 /**

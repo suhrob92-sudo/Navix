@@ -43,6 +43,15 @@ const FILES = [
   'src/modules/assistant/assistant.taxi-flow.ts',
   'src/config/modules.ts',
   'src/config/search-groups.ts',
+  /*
+    Taksi xizmati ham ro'yxatda.
+
+    U foydalanuvchi matnini solishtirmaydi, lekin uning IZOHLARIDA
+    kirill harfi paydo bo'ldi (55-bosqichda "bosса" deb yozilgandi).
+    Aralashuv keyingi nusxalashda kodga o'tib ketishi mumkin.
+  */
+  'src/modules/taxi/taxi.service.ts',
+  'src/config/taxi.ts',
 ];
 
 describe('buyruq so\'zlari lotin harfida', () => {

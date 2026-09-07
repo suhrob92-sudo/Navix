@@ -111,19 +111,40 @@ function toListItem(row: {
  * xabarsiz murojaat xodimga bo'sh ko'rinardi va u nima haqida
  * ekanini bilmasdi.
  */
+/** Murojaat yaratishning qo'shimcha sozlamalari. */
+export interface CreateTicketOptions {
+  /**
+   * Ochiq murojaatlar CHEGARASINI chetlab o'tish.
+   *
+   * ── Nima uchun bunday imkoniyat bor ─────────────────────────────────
+   * Chegara spamdan himoya qiladi va u to'g'ri. Lekin FAVQULODDA
+   * xabar uchun u xavfli bo'lib qoladi: uchta ochiq murojaati bor
+   * odam taksida xavf ostida qolsa, "chegaraga yetdingiz" degan
+   * javobni olardi.
+   *
+   * Shuning uchun faqat shunday holatlar uchun eshik ochiq. Uni
+   * ishlatadigan joy o'zi cheklovga ega bo'lishi kerak (masalan
+   * SOS faqat FAOL safarda bosiladi).
+   */
+  ignoreOpenLimit?: boolean;
+}
+
 export async function createTicket(
   userId: string,
   input: CreateTicketInput,
   meta: OperationMeta = {},
+  options: CreateTicketOptions = {},
 ): Promise<SupportTicketView> {
-  const openCount = await prisma.supportTicket.count({
-    where: { userId, status: { in: [SupportTicketStatus.OPEN, SupportTicketStatus.ANSWERED] } },
-  });
+  if (!options.ignoreOpenLimit) {
+    const openCount = await prisma.supportTicket.count({
+      where: { userId, status: { in: [SupportTicketStatus.OPEN, SupportTicketStatus.ANSWERED] } },
+    });
 
-  if (openCount >= MAX_OPEN_TICKETS) {
-    throw new ConflictError(
-      `Sizda ${MAX_OPEN_TICKETS} ta ochiq murojaat bor. Javobni kuting yoki eskisini yakunlang.`,
-    );
+    if (openCount >= MAX_OPEN_TICKETS) {
+      throw new ConflictError(
+        `Sizda ${MAX_OPEN_TICKETS} ta ochiq murojaat bor. Javobni kuting yoki eskisini yakunlang.`,
+      );
+    }
   }
 
   const ticket = await prisma.$transaction(async (tx) => {

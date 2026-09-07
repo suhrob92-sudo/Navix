@@ -1,10 +1,11 @@
 'use client';
 
-import { MessageCircle, Phone, Route, Star, Timer, Wallet } from 'lucide-react';
+import { MessageCircle, Phone, Route, ShieldCheck, Star, Timer, Wallet } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
+import { SafetySheet } from '@/components/taxi/safety-sheet';
 import { RideMap } from '@/components/map/ride-map';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -60,6 +61,7 @@ export function RideContent({ rideId }: { rideId: string }) {
   const [isWorking, setIsWorking] = useState(false);
   const [askCancel, setAskCancel] = useState(false);
   const [isChatOpening, setIsChatOpening] = useState(false);
+  const [showSafety, setShowSafety] = useState(false);
 
   /**
    * Haydovchi bilan suhbatni ochadi.
@@ -147,6 +149,32 @@ export function RideContent({ rideId }: { rideId: string }) {
 
         <StatusBanner ride={ride} />
 
+        {/*
+          Xavfsizlik tugmasi holat lentasidan KEYIN, haydovchi
+          kartochkasidan OLDIN turadi.
+
+          ── Nima uchun aynan shu yerda ──────────────────────────────
+          U ekranning yuqori yarmida, bosh barmoq yetadigan joyda
+          bo'lishi kerak: xavf paytida odam sahifani surib o'tirmaydi.
+
+          Pastga qo'ysak, u faqat tinch paytda ko'rinardi.
+        */}
+        {isRideActive(ride.status) && (
+          <button
+            type="button"
+            onClick={() => setShowSafety(true)}
+            className="border-border hover:bg-secondary/50 flex w-full items-center gap-3 rounded-2xl border px-4 py-3 transition-colors"
+          >
+            <ShieldCheck className="text-primary size-5 shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1 text-left">
+              <span className="block text-sm font-medium">Xavfsizlik</span>
+              <span className="text-muted-foreground block text-xs">
+                Safarni ulashish, 102 va yordam
+              </span>
+            </span>
+          </button>
+        )}
+
         {ride.driver ? (
           <DriverCard ride={ride} onChat={openChat} isChatOpening={isChatOpening} />
         ) : (
@@ -198,6 +226,8 @@ export function RideContent({ rideId }: { rideId: string }) {
           </Button>
         )}
       </div>
+
+      {showSafety && <SafetySheet rideId={ride.id} onClose={() => setShowSafety(false)} />}
 
       <ConfirmDialog
         open={askCancel}

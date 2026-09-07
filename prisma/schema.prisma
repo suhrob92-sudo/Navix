@@ -5337,6 +5337,21 @@ model TaxiRide {
   /// Mijozning bahosi — 1 dan 5 gacha. `null` — hali baholanmagan.
   rating Int?
 
+  /// Safarni ULASHISH kaliti.
+  ///
+  /// ── Nima uchun ID emas, alohida kalit ─────────────────────────────
+  /// Safar ID'si ilova ichida ishlatiladi va u boshqa joylarda ham
+  /// uchraydi (manzil qatorida, bildirishnomada). Uni ulashish
+  /// havolasiga qo'ysak, havolani olgan odam ID'ni bilib olardi.
+  ///
+  /// Alohida kalit esa FAQAT ulashish uchun yaratiladi va uni
+  /// bekor qilish mumkin — safar ID'sini esa o'zgartirib bo'lmaydi.
+  ///
+  /// ── Nima uchun `null` bo'lishi mumkin ─────────────────────────────
+  /// Ko'pchilik safar ulashilmaydi. Har safarga kalit yasash —
+  /// keraksiz ish va keraksiz maxfiy qiymat.
+  shareToken String? @unique @db.VarChar(64)
+
   cancelReason String? @db.VarChar(255)
 
   createdAt   DateTime  @default(now())

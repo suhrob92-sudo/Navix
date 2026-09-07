@@ -161,6 +161,63 @@ export interface DriverProfileResponse {
 }
 
 /**
+ * ULASHILGAN safar — havola orqali ochiladigan ko'rinish.
+ *
+ * ── Nima uchun `RideView` dan ALOHIDA ─────────────────────────────────
+ * Havolani olgan odam KIRMAGAN bo'lishi mumkin — u shunchaki
+ * "yaxshi yetib bordingmi?" deb kuzatayotgan qarindosh yoki do'st.
+ *
+ * `RideView` da esa yo'lovchining telefon raqami, narx va safar
+ * ID'si bor. Ularni havolaga qo'yish — nozik ma'lumotni butun
+ * internetga ochish demak.
+ *
+ * Shuning uchun bu tur ATAYLAB kambag'al: unda faqat kuzatish
+ * uchun zarur narsa bor.
+ *
+ * QO'SHILMAGAN va qo'shilmasligi kerak:
+ *  · yo'lovchining ismi va telefoni — u kuzatuvchiga allaqachon ma'lum;
+ *  · haydovchining telefoni — begona odamga bermaymiz;
+ *  · narx — bu shaxsiy moliyaviy ma'lumot;
+ *  · safar ID'si — u ilova ichida ishlatiladi.
+ */
+export interface SharedRideView {
+  status: TaxiRideStatusName;
+
+  from: RidePlace;
+  to: RidePlace;
+
+  /** Haydovchi — mashinani tanish uchun. Telefon YO'Q. */
+  driver: {
+    name: string | null;
+    carModel: string;
+    carColor: string;
+    plateNumber: string;
+  } | null;
+
+  /**
+   * Haydovchining joylashuvi — FAQAT safar davom etayotganda.
+   *
+   * Safar tugagach `null` bo'ladi: yakunlangan safarni kuzatishning
+   * ma'nosi yo'q va haydovchining keyingi harakati begona odamga
+   * tegishli emas.
+   */
+  driverLocation: { latitude: number; longitude: number; reportedAt: string } | null;
+
+  createdAt: string;
+  completedAt: string | null;
+  cancelledAt: string | null;
+}
+
+export interface SharedRideResponse {
+  ride: SharedRideView;
+}
+
+export interface RideShareResponse {
+  /** To'liq havola — ulashishga tayyor. */
+  url: string;
+}
+
+/**
  * Safar hali davom etyaptimi.
  *
  * Bitta joyda aniqlanadi: ekran ham, xizmat ham shu funksiyaga
