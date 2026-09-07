@@ -11,6 +11,7 @@ import type { RideView } from '@/modules/taxi/taxi.types';
 function ride(address: string, latitude = 41.31, longitude = 69.28): RideView {
   return {
     id: `${address}-${latitude}`,
+    rideNumber: 'NVX-T-20260907-A1B2C3',
     status: 'COMPLETED',
     tariff: 'ECONOM',
     from: { latitude: 41.3, longitude: 69.2, address: 'Boshlanish' },

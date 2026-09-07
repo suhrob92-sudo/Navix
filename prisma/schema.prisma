@@ -5284,6 +5284,18 @@ model TaxiDriver {
 model TaxiRide {
   id String @id @default(uuid()) @db.Uuid
 
+  /// Odam o'qiydigan safar raqami: `NVX-T-20260907-A1B2C3`.
+  ///
+  /// ── Nima uchun ID yetarli emas ────────────────────────────────────
+  /// Nizo chiqqanda odam qo'llab-quvvatlashga QO'NG'IROQ qiladi va
+  /// safarni og'zaki aytishi kerak. UUID'ni telefonda aytib bo'lmaydi:
+  /// u 36 belgi va unda o'xshash harflar ko'p.
+  ///
+  /// Bu raqam esa chekda turadi va uni aytish oson. Posilka
+  /// (`parcelNumber`) va mehmonxona (`bookingNumber`) da ham
+  /// aynan shu sabab.
+  rideNumber String @unique @db.VarChar(40)
+
   /// Yo'lovchi.
   riderId String @db.Uuid
 

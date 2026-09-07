@@ -1,6 +1,17 @@
 'use client';
 
-import { MessageCircle, Phone, Route, ShieldCheck, Star, Timer, Wallet } from 'lucide-react';
+import {
+  ChevronRight,
+  MessageCircle,
+  Phone,
+  ReceiptText,
+  Route,
+  ShieldCheck,
+  Star,
+  Timer,
+  Wallet,
+} from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
 
@@ -212,6 +223,23 @@ export function RideContent({ rideId }: { rideId: string }) {
             <Star className="fill-primary text-primary size-4" aria-hidden="true" />
             Bahoyingiz: {ride.rating} / 5
           </p>
+        )}
+
+        {/*
+          Chek FAQAT safar tugagach.
+
+          Davom etayotgan safarda summa hali yakuniy emas —
+          bekor qilinsa u qaytariladi.
+        */}
+        {!isRideActive(ride.status) && (
+          <Link
+            href={`/taxi/${ride.id}/chek`}
+            className="border-border hover:bg-secondary/50 flex w-full items-center gap-3 rounded-2xl border px-4 py-3 transition-colors"
+          >
+            <ReceiptText className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+            <span className="flex-1 text-left text-sm font-medium">Chekni ko&apos;rish</span>
+            <ChevronRight className="text-muted-foreground/60 size-4 shrink-0" aria-hidden="true" />
+          </Link>
         )}
 
         {canCancelRide(ride.status) && (

@@ -2,7 +2,7 @@
 
 import { ArrowRight, Car, ChevronRight, Clock, History } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
@@ -19,7 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useApiClient, useApiQuery } from '@/hooks/use-api';
 import { toUserMessage } from '@/lib/api-client';
 import { formatDistance } from '@/config/delivery-eta';
-import type { TaxiTariffName } from '@/config/taxi';
+import { isInsideUzbekistan, type TaxiTariffName } from '@/config/taxi';
 import { isRideActive } from '@/modules/taxi/taxi.types';
 import type {
   RideResponse,
@@ -45,12 +45,53 @@ import type {
  *
  * Faol safar bo'lsa, ekran uni KUZATISH sahifasiga olib o'tadi.
  */
+/**
+ * So'rov parametrlaridan manzilni o'qiydi.
+ *
+ * ── Nima uchun har bir maydon TEKSHIRILADI ────────────────────────────
+ * Havolani kimdir qo'lda tahrirlashi mumkin. Yaroqsiz koordinata
+ * bilan xarita butunlay boshqa joyni ko'rsatardi va narx ham
+ * noto'g'ri chiqardi.
+ *
+ * Bittasi ham yaroqsiz bo'lsa — butun manzil e'tiborsiz qoldiriladi
+ * va ekran odatdagidek bo'sh ochiladi. Yarim to'ldirilgan holat eng
+ * yomoni bo'lardi: odam manzil tanlaganini o'ylab, aslida boshqa
+ * joyga ketardi.
+ *
+ * Server baribir qayta tekshiradi — bu faqat ekranni himoya qiladi.
+ */
+function placeFromParams(
+  search: ReturnType<typeof useSearchParams>,
+  prefix: 'from' | 'to',
+): ChosenPlace | null {
+  const latitude = Number(search.get(`${prefix}Lat`));
+  const longitude = Number(search.get(`${prefix}Lng`));
+  const address = search.get(`${prefix}Address`)?.trim();
+
+  if (!address) return null;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (!isInsideUzbekistan({ latitude, longitude })) return null;
+
+  return { latitude, longitude, address };
+}
+
 export function TaxiContent() {
   const router = useRouter();
+  const search = useSearchParams();
   const request = useApiClient();
 
-  const [from, setFrom] = useState<ChosenPlace | null>(null);
-  const [to, setTo] = useState<ChosenPlace | null>(null);
+  /*
+    ── Qayta buyurtma ───────────────────────────────────────────────
+    Chekdagi "Shu yo'nalishga yana" havolasi manzillarni so'rov
+    parametrlarida uzatadi. Ular BOSHLANG'ICH qiymat bo'ladi:
+    keyin odam ularni o'zgartirishi mumkin.
+
+    Effekt ishlatilmaydi — qiymat boshlang'ich holatda o'qiladi.
+    Effekt bo'lsa, sahifa avval bo'sh chizilib, keyin sakrab
+    to'lardi.
+  */
+  const [from, setFrom] = useState<ChosenPlace | null>(() => placeFromParams(search, 'from'));
+  const [to, setTo] = useState<ChosenPlace | null>(() => placeFromParams(search, 'to'));
   const [sheet, setSheet] = useState<'from' | 'to' | null>(null);
   const [tariff, setTariff] = useState<TaxiTariffName>('ECONOM');
 

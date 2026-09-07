@@ -96,8 +96,15 @@ export function TaxiHistoryContent() {
  */
 function RideRow({ ride }: { ride: RideView }) {
   return (
+    /*
+      Tugagan safar CHEKKA, davom etayotgani KUZATUVGA olib boradi.
+
+      Ilgari ikkalasi ham kuzatuv ekraniga borardi. Tugagan safarda
+      esa u yerda ko'radigan narsa yo'q: xarita qotib turadi va
+      tugmalar ishlamaydi. Chek esa aynan shu holat uchun.
+    */
     <Link
-      href={`/taxi/${ride.id}`}
+      href={isRideActive(ride.status) ? `/taxi/${ride.id}` : `/taxi/${ride.id}/chek`}
       className="bg-card border-border hover:bg-secondary/40 block rounded-3xl border p-4 shadow-sm transition-colors"
     >
       <div className="flex items-start gap-3">

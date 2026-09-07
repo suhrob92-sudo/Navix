@@ -93,6 +93,7 @@ const ACTIVE_STATUSES: TaxiRideStatus[] = [
 
 const RIDE_SELECT = {
   id: true,
+  rideNumber: true,
   status: true,
   tariff: true,
   fromLat: true,
@@ -147,6 +148,31 @@ const RIDE_SELECT = {
 
 type RideRow = Prisma.TaxiRideGetPayload<{ select: typeof RIDE_SELECT }>;
 
+/**
+ * Safar raqami: `NVX-T-20260907-A1B2C3`.
+ *
+ * ── Nima uchun bunday shakl ───────────────────────────────────────────
+ * `parcelNumber` va `bookingNumber` bilan bir xil: `NVX` — ilova,
+ * `T` — taksi, keyin sana va tasodifiy qism.
+ *
+ * Sana raqamning ichida turgani qulay: qo'llab-quvvatlash xodimi
+ * qaysi kunga qarashni darhol biladi.
+ *
+ * Tasodifiy qism 6 belgi — bir kunda millionlab safar bo'lsa ham
+ * to'qnashuv ehtimoli juda past. To'qnashsa, bazadagi `@unique`
+ * uni ushlaydi.
+ */
+function generateRideNumber(): string {
+  const date = new Date();
+  const stamp = [
+    date.getUTCFullYear(),
+    String(date.getUTCMonth() + 1).padStart(2, '0'),
+    String(date.getUTCDate()).padStart(2, '0'),
+  ].join('');
+
+  return `NVX-T-${stamp}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+}
+
 export interface OperationMeta {
   ipAddress?: string | null;
   userAgent?: string | null;
@@ -179,6 +205,7 @@ function toNumber(value: Prisma.Decimal): number {
 function toRideView(row: RideRow): RideView {
   return {
     id: row.id,
+    rideNumber: row.rideNumber,
     status: row.status,
     tariff: row.tariff as TaxiTariffName,
 
@@ -357,11 +384,13 @@ async function performCreateRide(
 
   const fare = calculateTaxiFare(input.tariff, km);
   const wallet = await getOrCreateWallet(userId);
+  const rideNumber = generateRideNumber();
 
   const created = await prisma.$transaction(async (tx) => {
     const ride = await tx.taxiRide.create({
       data: {
         riderId: userId,
+        rideNumber,
         status: TaxiRideStatus.SEARCHING,
         tariff: input.tariff,
         fromLat: new Prisma.Decimal(input.fromLat),
@@ -382,7 +411,7 @@ async function performCreateRide(
       userId,
       walletId: wallet.id,
       amountTiyin: BigInt(fare.priceTiyin),
-      description: `Taksi — ${input.toAddress}`,
+      description: `Taksi ${rideNumber} — ${input.toAddress}`,
       sourceModule: MODULE,
       sourceId: ride.id,
       idempotencyKey: clientIdempotencyKey(userId, input.idempotencyKey),
@@ -402,6 +431,7 @@ async function performCreateRide(
     resourceId: created.id,
     module: MODULE,
     metadata: {
+      rideNumber,
       tariff: input.tariff,
       distanceKm: fare.distanceKm.toString(),
       amountTiyin: fare.priceTiyin.toString(),

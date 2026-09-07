@@ -50,6 +50,8 @@ export interface RideDriverView {
 
 export interface RideView {
   id: string;
+  /** Odam o'qiydigan raqam — chekda va nizoda ishlatiladi. */
+  rideNumber: string;
   status: TaxiRideStatusName;
   tariff: TaxiTariffName;
 
@@ -246,6 +248,35 @@ export function canCancelRide(status: TaxiRideStatusName): boolean {
 /** Safarni baholash mumkinmi — faqat yakunlangan va hali baholanmagan. */
 export function canRateRide(ride: Pick<RideView, 'status' | 'rating'>): boolean {
   return ride.status === 'COMPLETED' && ride.rating === null;
+}
+
+/**
+ * "Shu yo'nalishga yana" havolasi.
+ *
+ * ── Nima uchun HAVOLA, tugma emas ─────────────────────────────────────
+ * Bosilganda buyurtma DARHOL berilmaydi: narx o'zgargan bo'lishi
+ * mumkin (tarif yangilangan, masofa boshqacha hisoblangan) va odam
+ * uni ko'rib tasdiqlashi kerak.
+ *
+ * Shuning uchun havola chaqirish ekraniga olib boradi va manzillarni
+ * OLDINDAN to'ldiradi — qolgani odatdagidek.
+ *
+ * ── Nima uchun manzil MATNI ham uzatiladi ─────────────────────────────
+ * Faqat koordinata uzatilsa, ekranda "Xaritadagi nuqta (41.31, 69.28)"
+ * deb chiqardi — holbuki odam "Uy" deb saqlagan joyga ketmoqda.
+ * Matnsiz qayta buyurtma tanib bo'lmaydigan bo'lardi.
+ */
+export function rebookHref(ride: Pick<RideView, 'from' | 'to'>): string {
+  const params = new URLSearchParams({
+    fromLat: String(ride.from.latitude),
+    fromLng: String(ride.from.longitude),
+    fromAddress: ride.from.address,
+    toLat: String(ride.to.latitude),
+    toLng: String(ride.to.longitude),
+    toAddress: ride.to.address,
+  });
+
+  return `/taxi?${params.toString()}`;
 }
 
 /** Holatning odam o'qiydigan nomi. */
