@@ -132,8 +132,8 @@ export function summarizeMonth(month: string, rows: readonly FinanceRow[]): Mont
  * Modullarni diagramma bo'laklariga aylantiradi.
  *
  * ── Nima uchun kichiklari BIRLASHTIRILADI ─────────────────────────────
- * O'n to'rtta bo'lakli halqani o'qib bo'lmaydi: eng kichiklari ip
- * kabi ingichka bo'lib qoladi va yorlig'i ham sig'maydi.
+ * O'n to'rtta ustun telefon ekraniga sig'maydi va odam ularni bir
+ * qarashda solishtira olmaydi — varaqlashga majbur bo'ladi.
  *
  * Beshtasi alohida, qolgani "Boshqa" — jami baribir to'g'ri qoladi.
  */
@@ -148,7 +148,6 @@ function toSlices(
       return {
         code,
         label: category.label,
-        color: category.color,
         amountTiyin: value.amount,
         count: value.count,
         percent: 0,

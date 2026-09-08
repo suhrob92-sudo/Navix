@@ -1,5 +1,5 @@
 /**
- * Moliya markazi — modul nomlari va ranglari.
+ * Moliya markazi — modul nomlari va rang shkalasi.
  *
  * ── Nima uchun `APP_MODULES` dan olinmaydi ────────────────────────────
  * Tranzaksiyadagi `sourceModule` va modullar reyestridagi `id` HAR
@@ -16,10 +16,10 @@
  * qolardi. Bu yerdagi ro'yxat esa TRANZAKSIYA tomonidan yozilgan
  * qiymatlarga to'g'ridan-to'g'ri javob beradi.
  *
- * ── Ranglar nima uchun bu yerda ───────────────────────────────────────
+ * ── Rang shkalasi nima uchun bu yerda ─────────────────────────────────
  * Diagramma va ro'yxat BIR XIL rangni ishlatishi kerak: odam
- * diagrammadagi bo'lakni ro'yxatdagi qator bilan rang orqali
- * bog'laydi. Ikki joyda alohida yozilsa, ular ertaga ajralib
+ * diagrammadagi ustunni ro'yxatdagi qator bilan rang orqali
+ * bog'laydi. Ikki joyda alohida hisoblansa, ular ertaga ajralib
  * qolardi.
  */
 
@@ -28,31 +28,43 @@ export interface FinanceCategory {
   /** Tranzaksiyadagi `sourceModule` qiymati. */
   code: string;
   label: string;
-  /** Diagramma rangi — CSS qiymati. */
-  color: string;
 }
 
 /**
  * Xarajat toifalari.
  *
- * Tartib MUHIM: diagrammada ranglar shu tartibda beriladi va u
- * har safar bir xil bo'lishi kerak.
+ * ── Nima uchun bu yerda RANG YO'Q ─────────────────────────────────────
+ * Birinchi urinishda har bir toifaga o'z rangi berilgandi. Bu
+ * KATEGORIK bo'yash — u seriyalarni bir-biridan farqlash uchun
+ * ishlatiladi.
+ *
+ * Lekin bu ekranda o'quvchining vazifasi boshqa: "qaysi toifaga
+ * ko'p ketdi?" — ya'ni KATTALIKNI solishtirish. Bunday holatda
+ * to'g'ri yechim bitta rangli ketma-ket shkala: ko'proq — to'qroq.
+ *
+ * Ustiga, kategorik palitra tekshiruvdan o'tmadi: o'n to'rtta
+ * toifadan istalgan beshtasi chiqishi mumkin va ba'zi juftliklar
+ * rang ko'rligida ajratib bo'lmas darajada yaqin edi
+ * (deutan ΔE 6.1, me'yor 8).
+ *
+ * Ketma-ket shkalada bunday muammo umuman yo'q va har bir ustun
+ * baribir o'z YORLIG'I bilan turadi — ma'no rangda emas.
  */
 export const FINANCE_CATEGORIES: readonly FinanceCategory[] = [
-  { code: 'food', label: 'Ovqat', color: 'oklch(0.62 0.19 25)' },
-  { code: 'market', label: 'Marketplace', color: 'oklch(0.55 0.2 268)' },
-  { code: 'taxi', label: 'Taksi', color: 'oklch(0.7 0.16 75)' },
-  { code: 'delivery', label: 'Yetkazib berish', color: 'oklch(0.6 0.18 340)' },
-  { code: 'parcel', label: 'Posilka', color: 'oklch(0.6 0.18 340)' },
-  { code: 'hotel', label: 'Mehmonxona', color: 'oklch(0.62 0.19 305)' },
-  { code: 'travel', label: 'Sayohat', color: 'oklch(0.6 0.15 195)' },
-  { code: 'payments', label: "Kommunal to'lovlar", color: 'oklch(0.58 0.16 150)' },
-  { code: 'wallet', label: "Pul o'tkazmalari", color: 'oklch(0.55 0.02 260)' },
-  { code: 'jobs', label: 'Ish qidirish', color: 'oklch(0.6 0.14 230)' },
-  { code: 'live', label: 'Jonli efir', color: 'oklch(0.65 0.2 15)' },
-  { code: 'feed', label: 'Lenta', color: 'oklch(0.6 0.16 290)' },
-  { code: 'collab', label: 'Hamkorlik', color: 'oklch(0.62 0.14 120)' },
-  { code: 'call', label: "Qo'ng'iroqlar", color: 'oklch(0.6 0.12 210)' },
+  { code: 'food', label: 'Ovqat' },
+  { code: 'market', label: 'Marketplace' },
+  { code: 'taxi', label: 'Taksi' },
+  { code: 'delivery', label: 'Yetkazib berish' },
+  { code: 'parcel', label: 'Posilka' },
+  { code: 'hotel', label: 'Mehmonxona' },
+  { code: 'travel', label: 'Sayohat' },
+  { code: 'payments', label: "Kommunal to'lovlar" },
+  { code: 'wallet', label: "Pul o'tkazmalari" },
+  { code: 'jobs', label: 'Ish qidirish' },
+  { code: 'live', label: 'Jonli efir' },
+  { code: 'feed', label: 'Lenta' },
+  { code: 'collab', label: 'Hamkorlik' },
+  { code: 'call', label: "Qo'ng'iroqlar" },
 ] as const;
 
 /**
@@ -63,14 +75,49 @@ export const FINANCE_CATEGORIES: readonly FinanceCategory[] = [
  * O'shanda uning xarajati YO'QOLIB qolmasligi kerak: jami summa
  * bo'laklar yig'indisiga teng bo'lmay qolardi va odam buni
  * darhol sezardi.
- *
- * Shuning uchun noma'lum modul "Boshqa" bo'lib ko'rinadi.
  */
-export const OTHER_CATEGORY: FinanceCategory = {
-  code: 'other',
-  label: 'Boshqa',
-  color: 'oklch(0.6 0.02 260)',
-};
+export const OTHER_CATEGORY: FinanceCategory = { code: 'other', label: 'Boshqa' };
+
+/**
+ * Ustun rangi — KATTALIKKA qarab.
+ *
+ * ── Nima uchun CSS o'zgaruvchisi ──────────────────────────────────────
+ * Diagramma SVG chizadi va unda rang qiymat sifatida beriladi.
+ * Agar rang JavaScript'da tanlansa, mavzu almashtirilganda
+ * diagramma eski rangda qolib ketardi — uni qayta chizish kerak
+ * bo'lardi.
+ *
+ * `var(--...)` esa SVG `fill` da ham ishlaydi va mavzu bilan
+ * O'ZI o'zgaradi: qorong'i rejimda shkala teskari yo'nalishda
+ * (ko'proq — YORUGROQ), chunki fon to'q.
+ *
+ * ── Nima uchun besh qadam ─────────────────────────────────────────────
+ * Ekranda ko'pi bilan olti ustun bo'ladi. Undan ko'p qadam
+ * qo'shni ustunlarni bir-biridan ajratmay qo'yardi.
+ */
+const RAMP_STEPS = 5;
+
+/**
+ * Summaga mos rang beradi.
+ *
+ * @param amount Shu toifaning summasi.
+ * @param max Eng katta toifaning summasi.
+ */
+export function rampColor(amount: number, max: number): string {
+  if (max <= 0) return 'var(--finance-1)';
+
+  /*
+    Nisbat bo'yicha qadam: eng kattasi eng to'q qadamni oladi.
+
+    TARTIB bo'yicha emas, SUMMA bo'yicha — shunda ikkita yaqin
+    toifa bir xil rangda chiqadi va bu to'g'ri: ular haqiqatan
+    ham teng.
+  */
+  const ratio = amount / max;
+  const step = Math.max(1, Math.ceil(ratio * RAMP_STEPS));
+
+  return `var(--finance-${step})`;
+}
 
 const BY_CODE = new Map(FINANCE_CATEGORIES.map((item) => [item.code, item]));
 
@@ -80,14 +127,14 @@ export function financeCategory(code: string): FinanceCategory {
 }
 
 /**
- * Diagrammada alohida ko'rsatiladigan eng ko'p bo'lak.
+ * Diagrammada alohida ko'rsatiladigan eng ko'p toifa.
  *
  * ── Nima uchun chegara bor ────────────────────────────────────────────
- * O'n to'rtta bo'lakli halqa o'qib bo'lmaydigan bo'ladi: eng
- * kichiklari ip kabi ingichka chiziqqa aylanadi va ularning
- * yorlig'i ham sig'maydi.
+ * O'n to'rtta ustun telefon ekraniga sig'maydi: har biri 40
+ * pikseldan bo'lsa ham 560 piksel kerak bo'lardi va odam
+ * diagrammani ko'rish uchun varaqlashga majbur bo'lardi —
+ * solishtirish esa BIR QARASHDA bo'lishi kerak.
  *
- * Beshta katta bo'lak + "Boshqa" — telefon ekranida o'qiladigan
- * eng katta miqdor.
+ * Beshta katta toifa + "Boshqa" — o'qiladigan eng katta miqdor.
  */
 export const MAX_CHART_SLICES = 5;

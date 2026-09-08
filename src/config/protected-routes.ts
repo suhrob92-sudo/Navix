@@ -55,6 +55,8 @@ export const PROTECTED_PREFIXES = [
   '/security',
   '/wallet',
   '/payments',
+  /** Moliya markazi: shaxsiy xarajatlar hisoboti. */
+  '/finance',
   '/food',
   '/orders',
   '/marketplace',

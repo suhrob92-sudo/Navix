@@ -942,3 +942,41 @@
 .hero-card:active {
   transform: rotateY(0deg) rotateX(0deg) translate3d(0, -2px, 10px);
 }
+
+/*
+  ── Moliya diagrammasining ketma-ket shkalasi ─────────────────────────
+  Bitta ko'k rangning besh qadami: ko'proq xarajat — to'qroq ustun.
+
+  Nima uchun KATEGORIK palitra emas: bu ekranda o'quvchi
+  kattaliklarni solishtiradi, seriyalarni farqlamaydi. Ustiga,
+  o'n to'rtta toifadan istalgan beshtasi chiqishi mumkin va
+  kategorik palitra rang ko'rligi tekshiruvidan o'tmadi.
+
+  Qiymatlar tekshirilgan ko'k shkaladan olingan va yorug'lik
+  bo'yicha bir tekis o'sadi — ketma-ket shkalaning yagona sharti
+  shu.
+
+  SVG `fill` da `var(...)` ishlaydi, shuning uchun mavzu
+  almashtirilganda diagramma O'ZI qayta bo'yaladi: JavaScript
+  aralashmaydi.
+*/
+:root {
+  --finance-1: #9ec5f4;
+  --finance-2: #6da7ec;
+  --finance-3: #3987e5;
+  --finance-4: #256abf;
+  --finance-5: #1c5cab;
+}
+
+/*
+  Qorong'i rejimda shkala TESKARI yo'nalishda: fon to'q, shuning
+  uchun ko'proq xarajat — YORUGROQ ustun. To'q fonda to'q ustun
+  ko'rinmasdi.
+*/
+.dark {
+  --finance-1: #1c5cab;
+  --finance-2: #256abf;
+  --finance-3: #3987e5;
+  --finance-4: #6da7ec;
+  --finance-5: #9ec5f4;
+}

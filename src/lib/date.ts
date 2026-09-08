@@ -136,6 +136,27 @@ export function formatUzDate(value: Date | string, style: 'long' | 'short' = 'sh
     : `${day}-${MONTHS_SHORT[monthIndex]}`;
 }
 
+/**
+ * Oy nomi: `"2026-08"` -> `"avgust 2026"`.
+ *
+ * ── Nima uchun `Date` ga o'girilmaydi ─────────────────────────────────
+ * `new Date('2026-08')` UTC bo'yicha 1-avgust 00:00 ni beradi. Uni
+ * Toshkent vaqtiga surganda 1-avgust 05:00 chiqadi — oy to'g'ri.
+ * Lekin TESKARI yo'nalishda (dekabr) chegaraga yaqin holatlar
+ * chalkashishi mumkin edi. Satrni bo'lish esa har doim aniq.
+ *
+ * Noto'g'ri satr berilsa, kirgan qiymatning o'zi qaytadi — ekranda
+ * bo'sh joy qolmaydi.
+ */
+export function formatUzMonth(month: string): string {
+  const [year, monthNumber] = month.split('-');
+  const index = Number(monthNumber) - 1;
+
+  if (!year || !MONTHS_LONG[index]) return month;
+
+  return `${MONTHS_LONG[index]} ${year}`;
+}
+
 /** Sana va vaqt: "3-avgust, 2026, 14:30" yoki "3-avg, 14:30". */
 export function formatUzDateTime(value: Date | string, style: 'long' | 'short' = 'short'): string {
   return `${formatUzDate(value, style)}, ${formatUzTime(value)}`;

@@ -10,7 +10,13 @@ export interface SpendingSlice {
   /** Tranzaksiyadagi `sourceModule`. */
   code: string;
   label: string;
-  color: string;
+  /*
+    RANG bu yerda YO'Q.
+
+    U ekranda, summaga qarab hisoblanadi (`rampColor`): ko'proq
+    xarajat — to'qroq rang. Serverdan yuborilsa, mavzu
+    almashtirilganda eski rang qolib ketardi.
+  */
   /** Shu toifaga ketgan summa — TIYINDA. */
   amountTiyin: number;
   /** Umumiy xarajatdagi ulush — FOIZDA, bir xonagacha. */
