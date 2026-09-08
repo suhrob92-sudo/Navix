@@ -46,6 +46,16 @@ export const Intent = {
    * savoli bor: QAYERGA. Buni umumiy niyatga tiqib bo'lmaydi.
    */
   BOOK_TAXI: 'BOOK_TAXI',
+  /**
+   * Oylik moliyaviy hisobot: "shu oyda qancha sarfladim".
+   *
+   * ── Nima uchun HISTORY dan alohida ────────────────────────────────
+   * `HISTORY` amallar RO'YXATINI ochadi — u "qaysi to'lov?" degan
+   * savolga javob beradi. Bu yerdagi savol esa boshqa: "JAMI qancha
+   * va nimaga?". Ro'yxatni ko'rsatib "o'zingiz qo'shib chiqing"
+   * deyish javob emas.
+   */
+  FINANCE_REPORT: 'FINANCE_REPORT',
   /** Yordam — nima qila olasan. */
   HELP: 'HELP',
   /**
@@ -72,6 +82,14 @@ export interface ParsedMessage {
   providerCode: string | null;
   /** Xizmat toifasi — aniq provayder aytilmagan bo'lsa. */
   category: 'UTILITY' | 'INTERNET' | 'MOBILE' | 'TV' | null;
+  /**
+   * Hisobot qaysi oy uchun so'ralgan.
+   *
+   * `PREVIOUS` — "o'tgan oyda qancha sarfladim". Boshqa hollarda
+   * joriy oy: odam ko'pincha SHU oy haqida so'raydi va har safar
+   * "qaysi oy?" deb qayta so'rash suhbatni cho'zardi.
+   */
+  financeMonth: 'CURRENT' | 'PREVIOUS';
   /** Hisob raqami (kommunal shaxsiy hisob, shartnoma raqami). */
   accountNumber: string | null;
   /**
@@ -692,7 +710,73 @@ function detectTaxiDestination(text: string): 'HOME' | 'WORK' | null {
   return null;
 }
 
+/**
+ * Moliyaviy hisobot so'ralganini aniqlovchi so'zlar.
+ *
+ * ── Nima uchun "sarf" bitta so'z bilan yetarli ────────────────────────
+ * `matchWords` so'z BOSHIDAN solishtiradi, ya'ni "sarf" bitta o'zi
+ * "sarfladim", "sarfladingiz", "sarflagan", "sarfim" va "sarf
+ * qildim" ni ham qamrab oladi. Ularni alohida yozish ro'yxatni
+ * uzaytirardi, foydasi esa nol.
+ *
+ * ── Nima uchun "solishtir" YOLG'IZ yozilmagan ─────────────────────────
+ * "Narxlarni solishtir" — bu moliyaviy hisobot emas, xarid.
+ * Shuning uchun so'z faqat OY bilan birga hisobga olinadi.
+ */
+const FINANCE_WORDS = [
+  'sarf',
+  'xarajat',
+  'qancha ketdi',
+  'qayerga ketdi',
+  'nimaga ketdi',
+  'nimalarga ketdi',
+  'moliyaviy hisobot',
+  'moliya markazi',
+  'oylik hisobot',
+  'hisobotim',
+  'hisobotni korsat',
+  'oy bilan solishtir',
+  'oylarni solishtir',
+];
+
+/**
+ * Hisobot QAYSI oy uchun so'ralgan.
+ *
+ * Aytilmasa — joriy oy. Odam ko'pincha "shu oyda qancha sarfladim"
+ * deb so'raydi va har safar "qaysi oy?" deb qayta so'rash suhbatni
+ * behuda cho'zardi.
+ */
+function detectFinanceMonth(text: string): 'CURRENT' | 'PREVIOUS' {
+  /*
+    ── "O'tgan oy bilan SOLISHTIR" — bu o'tgan oy hisoboti EMAS ────────
+    Gapda "o'tgan oy" bor, lekin odam JORIY oyni so'rayapti: o'tgan
+    oy faqat o'lchov nuqtasi.
+
+    Agar buni sezmasak, javob "avgustda 604 000 sarfladingiz" bo'lardi
+    va odam so'ragan solishtirish umuman aytilmasdi.
+  */
+  if (matchWords(text, ['solishtir'])) return 'CURRENT';
+
+  /*
+    Apostrof `toSearchText` da olib tashlanadi: "o'tgan" -> "otgan".
+    Shuning uchun ro'yxatda apostrofsiz yozilgan.
+  */
+  return matchWords(text, ['otgan oy', 'utgan oy', 'avvalgi oy', 'oldingi oy', 'gecha oy'])
+    ? 'PREVIOUS'
+    : 'CURRENT';
+}
+
 const PHRASE_INTENTS: { intent: IntentName; words: string[] }[] = [
+  /*
+    FINANCE_REPORT eng BOSHIDA turadi.
+
+    Sababi ikkita quyidagi ro'yxat bilan to'qnashuvda:
+     - "shu oyda qancha PUL sarfladim" gapida `BALANCE` ning
+       "qancha pul" iborasi ham bor, lekin bu balans savoli emas;
+     - "xarajatlar TARIXI" gapida `HISTORY` ning "tarix" so'zi bor,
+       lekin odam ro'yxatni emas, JAMI summani so'rayapti.
+  */
+  { intent: Intent.FINANCE_REPORT, words: FINANCE_WORDS },
   { intent: Intent.HELP, words: ['yordam', 'nima qila olasan', 'nimalar qila', 'qanday ishlaysan'] },
   /**
    * FOOD_STATUS — FOOD_ORDER dan OLDIN: "buyurtmam qayerda" gapida
@@ -810,6 +894,7 @@ export function parseMessage(rawText: string): ParsedMessage {
     taxiDestination,
     taxiPreference,
     taxiTariff,
+    financeMonth: detectFinanceMonth(text),
   };
 }
 

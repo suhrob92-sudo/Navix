@@ -193,7 +193,7 @@ describe('extractFoodQuery', () => {
     expect(extractFoodQuery('bir porsiya osh buyurtma qil')).toBe('osh');
   });
 
-  it('sinonimni bazadagi so\'zga almashtiradi', () => {
+  it("sinonimni bazadagi so'zga almashtiradi", () => {
     expect(extractFoodQuery('pizza istayman')).toBe('pitsa');
     expect(extractFoodQuery('sushi buyur')).toBe('rol');
     expect(extractFoodQuery('qahva ichgim keldi')).toContain('kofe');
@@ -209,7 +209,7 @@ describe('extractFoodQuery', () => {
     expect(extractFoodQuery('ovqat buyur')).toBeNull();
   });
 
-  it('raqamlarni qidiruvga qo\'shmaydi', () => {
+  it("raqamlarni qidiruvga qo'shmaydi", () => {
     expect(extractFoodQuery('3 ta burger')).toBe('burger');
   });
 });
@@ -360,7 +360,7 @@ describe('parseMessage — marketplace', () => {
    */
   it("mobil to'lov mahsulot bilan chalkashmaydi", () => {
     expect(parseMessage("telefonga to'la").intent).toBe(Intent.PAY_SERVICE);
-    expect(parseMessage("telefonga 10 ming sol").category).toBe('MOBILE');
+    expect(parseMessage('telefonga 10 ming sol').category).toBe('MOBILE');
   });
 
   it('marketplace buyruqlarida ham qidiruv matni ajratiladi', () => {
@@ -381,7 +381,7 @@ describe('parseMessage — marketplace', () => {
   });
 
   it("ro'yxatdan tanlash matnini tushunadi", () => {
-    const result = parseMessage('2. Redmi Note 14 6/128GB — Texnomart · 2 690 000 so\'m');
+    const result = parseMessage("2. Redmi Note 14 6/128GB — Texnomart · 2 690 000 so'm");
 
     expect(result.ordinal).toBe(2);
   });
@@ -418,7 +418,7 @@ describe('parseMessage — marketplace', () => {
  * gap tushunilsinmi va KERAKSIZ gap tortib olinmasinmi.
  */
 describe('taksi buyruqlari', () => {
-  it("vosita nomi aytilganda taniydi", () => {
+  it('vosita nomi aytilganda taniydi', () => {
     for (const text of ['uyga taksi', 'taksi chaqir', 'menga taxi kerak', 'Navix, uyga taxi']) {
       expect(parseMessage(text).intent, text).toBe(Intent.BOOK_TAXI);
     }
@@ -471,7 +471,7 @@ describe('taksi buyruqlari', () => {
    * buyruqlarini o'g'irlab ketardi va foydalanuvchi "taksi
    * chaqiraymi?" degan javobni olardi.
    */
-  it('ovqat buyrug\'ini tortib olmaydi', () => {
+  it("ovqat buyrug'ini tortib olmaydi", () => {
     expect(parseMessage('uyga ovqat buyur').intent).not.toBe(Intent.BOOK_TAXI);
     expect(parseMessage('uyga lagmon yetkazib ber').intent).not.toBe(Intent.BOOK_TAXI);
   });
@@ -480,7 +480,7 @@ describe('taksi buyruqlari', () => {
     expect(parseMessage('mashina uchun gilam sotib ol').intent).not.toBe(Intent.BOOK_TAXI);
   });
 
-  it('kuryer buyrug\'ini tortib olmaydi', () => {
+  it("kuryer buyrug'ini tortib olmaydi", () => {
     expect(parseMessage('uyga kuryer chaqir').intent).not.toBe(Intent.BOOK_TAXI);
   });
 
@@ -572,8 +572,69 @@ describe('smart taksi buyruqlari', () => {
     expect(market.taxiTariff).toBeNull();
   });
 
-  it('oddiy taksi buyrug\'ida maqsad null qoladi', () => {
+  it("oddiy taksi buyrug'ida maqsad null qoladi", () => {
     expect(parseMessage('uyga taksi').taxiPreference).toBeNull();
     expect(parseMessage('uyga taksi').taxiTariff).toBeNull();
+  });
+});
+
+describe('moliyaviy hisobot buyruqlari', () => {
+  it('xarajat haqidagi savollarni tanadi', () => {
+    const commands = [
+      'shu oyda qancha sarfladim',
+      'qancha sarfladim',
+      'xarajatlarim',
+      'moliyaviy hisobot',
+      'oylik hisobot',
+      'hisobotim',
+      'eng kop nimaga ketdi',
+      'pulim qayerga ketdi',
+      'moliya markazini och',
+    ];
+
+    for (const command of commands) {
+      expect(parseMessage(command).intent, command).toBe(Intent.FINANCE_REPORT);
+    }
+  });
+
+  it("o'tgan oy so'ralganini ajratadi", () => {
+    expect(parseMessage("o'tgan oyda qancha sarfladim").financeMonth).toBe('PREVIOUS');
+    expect(parseMessage('avvalgi oyda qancha sarfladim').financeMonth).toBe('PREVIOUS');
+    expect(parseMessage('oldingi oy xarajatlarim').financeMonth).toBe('PREVIOUS');
+  });
+
+  it('oy aytilmasa joriy oy tushuniladi', () => {
+    expect(parseMessage('qancha sarfladim').financeMonth).toBe('CURRENT');
+    expect(parseMessage('shu oyda qancha sarfladim').financeMonth).toBe('CURRENT');
+  });
+
+  /**
+   * ── "O'tgan oy bilan SOLISHTIR" ─────────────────────────────────────
+   * Gapda "o'tgan oy" bor, lekin odam JORIY oyni so'rayapti — o'tgan
+   * oy faqat o'lchov nuqtasi. Agar bu sezilmasa, javob o'tgan oy
+   * hisoboti bo'lardi va so'ralgan solishtirish umuman aytilmasdi.
+   */
+  it("solishtirish so'ralganda joriy oy qaytadi", () => {
+    const parsed = parseMessage("o'tgan oy bilan solishtir");
+
+    expect(parsed.intent).toBe(Intent.FINANCE_REPORT);
+    expect(parsed.financeMonth).toBe('CURRENT');
+  });
+
+  /**
+   * ── MAVJUD buyruqlar buzilmasligi ───────────────────────────────────
+   * `FINANCE_REPORT` iboralar ro'yxatining eng boshida turadi, ya'ni
+   * u boshqa hamma narsadan oldin tekshiriladi. Shuning uchun uning
+   * qo'shni buyruqlarni "o'g'irlab" ketmasligi shu yerda qulflanadi.
+   */
+  it('balans, tarix va boshqa buyruqlarga tegmaydi', () => {
+    expect(parseMessage('balansim qancha').intent).toBe(Intent.BALANCE);
+    expect(parseMessage('qancha pulim bor').intent).toBe(Intent.BALANCE);
+    expect(parseMessage("to'lovlar tarixi").intent).toBe(Intent.HISTORY);
+    expect(parseMessage("gazga 50 ming to'la").intent).toBe(Intent.PAY_SERVICE);
+    expect(parseMessage("hisobni to'ldir").intent).toBe(Intent.TOPUP);
+    expect(parseMessage('uyga taksi').intent).toBe(Intent.BOOK_TAXI);
+    /* "Narxlarni solishtir" — bu xarid, moliyaviy hisobot emas. */
+    expect(parseMessage('narxlarni solishtir').intent).not.toBe(Intent.FINANCE_REPORT);
   });
 });

@@ -73,6 +73,15 @@ const WELCOME_GREETING: ChatMessage = {
     'masalan "Navix, ovqat buyur" deng.',
 };
 
+/**
+ * Joylashuvni kutishning ENG UZOQ muddati — MILLISEKUNDDA.
+ *
+ * Brauzerning o'z `timeout` sozlamasiga ishonib bo'lmaydi: u ruxsat
+ * berilgandan KEYIN sanay boshlaydi. Bu muddat esa ruxsat oynasi
+ * ochilgan zahoti ishga tushadi.
+ */
+const LOCATION_WAIT_MS = 4_000;
+
 /** Yangi foydalanuvchiga ko'rsatiladigan birinchi qadamlar. */
 const WELCOME_PROMPTS = ['Nima qila olasan', 'Uyga taksi', 'Ovqat buyur', 'Balansim qancha'];
 
@@ -135,17 +144,41 @@ export function AssistantContent() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) return undefined;
 
     return new Promise((resolve) => {
+      /*
+        ── HAQIQIY XATO: yordamchi ABADIY "..." bo'lib qotib qolardi ─────
+        `getCurrentPosition` ning `timeout` sozlamasi FAQAT ruxsat
+        berilgandan KEYIN sanay boshlaydi. Agar odam ruxsat
+        oynasiga umuman javob bermasa (yoki brauzer uni jimgina
+        bloklasa), na birinchi, na ikkinchi funksiya chaqiriladi —
+        va`await` shu yerda mangu turib qolardi.
+
+        Natijada BALANS savoli ham javobsiz qolardi, garchi unga
+        joylashuv umuman kerak bo'lmasa ham.
+
+        Shuning uchun kutish MUDDATI o'zimizda: belgilangan vaqt
+        o'tsa, javob joylashuvsiz yuboriladi.
+      */
+      let settled = false;
+
+      const finish = (value: { latitude: number; longitude: number } | undefined) => {
+        if (settled) return;
+
+        settled = true;
+        resolve(value);
+      };
+
+      window.setTimeout(() => finish(undefined), LOCATION_WAIT_MS);
+
       navigator.geolocation.getCurrentPosition(
-        (position) =>
-          resolve({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
-        () => resolve(undefined),
+        (position) => finish({ latitude: position.coords.latitude, longitude: position.coords.longitude }),
+        () => finish(undefined),
         /*
           Qisqa kutish: yordamchi javobi TEZ kelishi kerak. GPS
           10 soniya o'ylasa, odam ilova qotib qoldi deb o'ylardi.
           Aniqlik ham past talab qilinadi — taksi uchun 100 metr
           xato muhim emas, u baribir eng yaqin ko'chaga keladi.
         */
-        { enableHighAccuracy: false, timeout: 4_000, maximumAge: 60_000 },
+        { enableHighAccuracy: false, timeout: LOCATION_WAIT_MS, maximumAge: 60_000 },
       );
     });
   }

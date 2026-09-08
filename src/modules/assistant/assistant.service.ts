@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { matchModuleByIntent, ModuleStatus } from '@/config/modules';
 import { Intent, normalize, parseMessage, type IntentName } from '@/modules/assistant/intent';
 import { comingSoonReply, findPlannedModule } from '@/modules/assistant/assistant.modules';
+import { handleFinanceReport } from '@/modules/assistant/assistant.finance-flow';
 import { handleFoodOrder, handleFoodStatus } from '@/modules/assistant/assistant.food-flow';
 import { handleMarketOrder, handleMarketStatus } from '@/modules/assistant/assistant.market-flow';
 import { handleTaxiOrder } from '@/modules/assistant/assistant.taxi-flow';
@@ -98,7 +99,8 @@ function handleHelp(): AssistantReply {
       '• Marketplace\'dan mahsulot topaman — "telefon qidir"\n' +
       '• Taksi chaqiraman — "uyga taksi"\n' +
       '• Buyurtmangiz qayerdaligini aytaman — "buyurtmam qayerda"\n' +
-      '• Tarixni ko\'rsataman — "to\'lovlar tarixi"\n\n' +
+      '• Tarixni ko\'rsataman — "to\'lovlar tarixi"\n' +
+      '• Oylik hisobotni aytaman — "shu oyda qancha sarfladim"\n\n' +
       'Shunchaki oddiy tilda yozing.',
     { suggestions: DEFAULT_SUGGESTIONS },
   );
@@ -391,6 +393,9 @@ export async function respond(
 
     case Intent.HISTORY:
       return handleHistory();
+
+    case Intent.FINANCE_REPORT:
+      return handleFinanceReport({ userId, month: parsed.financeMonth });
 
     case Intent.TOPUP:
       return handleTopUp(slots);
