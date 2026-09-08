@@ -53,9 +53,31 @@ export function monthRange(month: string): { start: Date; end: Date } {
 export function previousMonth(month: string): string {
   const [year, index] = month.split('-').map(Number);
 
-  return index === 1
-    ? `${year - 1}-12`
-    : `${year}-${String(index - 1).padStart(2, '0')}`;
+  return index === 1 ? `${year - 1}-12` : `${year}-${String(index - 1).padStart(2, '0')}`;
+}
+
+/** Keyingi oy: `2026-12` -> `2027-01`. */
+export function nextMonth(month: string): string {
+  const [year, index] = month.split('-').map(Number);
+
+  return index === 12 ? `${year + 1}-01` : `${year}-${String(index + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Ikki oy orasidagi farq — OYLARDA.
+ *
+ * ── Nima uchun kerak ──────────────────────────────────────────────────
+ * Oy tanlagichda "qanchalik orqaga qaytish mumkin" chegarasi bor.
+ * Uni sanash uchun oylarni birma-bir aylanib chiqish mumkin edi,
+ * lekin ayirma bir qatorda hisoblanadi.
+ *
+ * Natija manfiy bo'lishi ham mumkin: `from` `to` dan keyin bo'lsa.
+ */
+export function monthsBetween(from: string, to: string): number {
+  const [fromYear, fromIndex] = from.split('-').map(Number);
+  const [toYear, toIndex] = to.split('-').map(Number);
+
+  return (toYear - fromYear) * 12 + (toIndex - fromIndex);
 }
 
 /** Oy yozuvi to'g'ri shakldami. */
@@ -137,10 +159,7 @@ export function summarizeMonth(month: string, rows: readonly FinanceRow[]): Mont
  *
  * Beshtasi alohida, qolgani "Boshqa" — jami baribir to'g'ri qoladi.
  */
-function toSlices(
-  byModule: Map<string, { amount: number; count: number }>,
-  total: number,
-): SpendingSlice[] {
+function toSlices(byModule: Map<string, { amount: number; count: number }>, total: number): SpendingSlice[] {
   const all = [...byModule.entries()]
     .map(([code, value]) => {
       const category = financeCategory(code);

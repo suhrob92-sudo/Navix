@@ -6,6 +6,8 @@ import {
   isValidMonth,
   monthKey,
   monthRange,
+  monthsBetween,
+  nextMonth,
   previousMonth,
   summarizeMonth,
   type FinanceRow,
@@ -33,7 +35,7 @@ const inflow = (type: string, amount: number, module = 'wallet'): FinanceRow => 
 });
 
 describe('summarizeMonth', () => {
-  it('chiqimlarni qo\'shadi va toifalarga ajratadi', () => {
+  it("chiqimlarni qo'shadi va toifalarga ajratadi", () => {
     const result = summarizeMonth('2026-09', [out('food', 5_000_00), out('taxi', 18_660_00)]);
 
     expect(result.spentTiyin).toBe(23_660_00);
@@ -58,10 +60,7 @@ describe('summarizeMonth', () => {
    * ishlamagan pulni daromad deb ko'rardi.
    */
   it('qaytarilgan pulni tushum deb sanamaydi', () => {
-    const result = summarizeMonth('2026-09', [
-      out('taxi', 18_660_00),
-      inflow('REFUND', 18_660_00, 'taxi'),
-    ]);
+    const result = summarizeMonth('2026-09', [out('taxi', 18_660_00), inflow('REFUND', 18_660_00, 'taxi')]);
 
     expect(result.refundedTiyin).toBe(18_660_00);
     expect(result.receivedTiyin).toBe(0);
@@ -87,10 +86,7 @@ describe('summarizeMonth', () => {
    * "Bu oyda -50 000 so'm sarfladingiz" hech qanday ma'no bermaydi.
    */
   it("sof xarajat manfiy bo'lmaydi", () => {
-    const result = summarizeMonth('2026-09', [
-      out('food', 10_000),
-      inflow('REFUND', 90_000, 'food'),
-    ]);
+    const result = summarizeMonth('2026-09', [out('food', 10_000), inflow('REFUND', 90_000, 'food')]);
 
     expect(result.netTiyin).toBe(0);
     /* Yalpi chiqim esa o'zgarmaydi — u haqiqatan bo'lgan. */
@@ -98,11 +94,7 @@ describe('summarizeMonth', () => {
   });
 
   it('foizlar jami 100 ga yaqin', () => {
-    const result = summarizeMonth('2026-09', [
-      out('food', 50_000),
-      out('taxi', 30_000),
-      out('market', 20_000),
-    ]);
+    const result = summarizeMonth('2026-09', [out('food', 50_000), out('taxi', 30_000), out('market', 20_000)]);
 
     const sum = result.categories.reduce((total, slice) => total + slice.percent, 0);
 
@@ -117,8 +109,8 @@ describe('summarizeMonth', () => {
    * summadan kam chiqardi va odam buni darhol sezardi.
    */
   it("ortiqcha toifalarni 'Boshqa' ga yig'adi va jami saqlanadi", () => {
-    const rows = ['food', 'taxi', 'market', 'hotel', 'travel', 'jobs', 'live', 'call'].map(
-      (name, index) => out(name, (10 - index) * 1_000),
+    const rows = ['food', 'taxi', 'market', 'hotel', 'travel', 'jobs', 'live', 'call'].map((name, index) =>
+      out(name, (10 - index) * 1_000),
     );
 
     const result = summarizeMonth('2026-09', rows);
@@ -149,7 +141,7 @@ describe('summarizeMonth', () => {
 });
 
 describe('oy hisobi', () => {
-  it('sanadan oy nomini beradi — UTC bo\'yicha', () => {
+  it("sanadan oy nomini beradi — UTC bo'yicha", () => {
     expect(monthKey(new Date('2026-09-08T23:30:00Z'))).toBe('2026-09');
     expect(monthKey(new Date('2026-01-01T00:00:00Z'))).toBe('2026-01');
   });
@@ -161,9 +153,36 @@ describe('oy hisobi', () => {
     expect(end.toISOString()).toBe('2026-03-01T00:00:00.000Z');
   });
 
-  it('yanvardan oldingi oy — o\'tgan yil dekabri', () => {
+  it("yanvardan oldingi oy — o'tgan yil dekabri", () => {
     expect(previousMonth('2026-01')).toBe('2025-12');
     expect(previousMonth('2026-09')).toBe('2026-08');
+  });
+
+  it('dekabrdan keyingi oy — kelasi yil yanvari', () => {
+    expect(nextMonth('2026-12')).toBe('2027-01');
+    expect(nextMonth('2026-09')).toBe('2026-10');
+  });
+
+  it('oldinga va orqaga yurish bir joyga qaytaradi', () => {
+    /*
+      Oy tanlagichda odam oldinga-orqaga bosib yuradi. Agar bu
+      ikki funksiya bir-birining teskarisi bo'lmasa, u boshqa
+      oyga tushib qolardi va buni sezmasdi ham.
+    */
+    for (const month of ['2026-01', '2026-12', '2025-06', '2027-03']) {
+      expect(nextMonth(previousMonth(month))).toBe(month);
+      expect(previousMonth(nextMonth(month))).toBe(month);
+    }
+  });
+
+  it('ikki oy orasidagi farqni sanaydi', () => {
+    expect(monthsBetween('2026-09', '2026-09')).toBe(0);
+    expect(monthsBetween('2026-08', '2026-09')).toBe(1);
+    /* Yil chegarasi orqali. */
+    expect(monthsBetween('2025-12', '2026-01')).toBe(1);
+    expect(monthsBetween('2025-09', '2026-09')).toBe(12);
+    /* Kelajakdagi oy — manfiy. */
+    expect(monthsBetween('2026-10', '2026-09')).toBe(-1);
   });
 
   it("noto'g'ri oy yozuvini rad etadi", () => {

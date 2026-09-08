@@ -1,10 +1,22 @@
 'use client';
 
-import { ArrowDownRight, ArrowUpRight, Minus, PiggyBank, TrendingDown, Undo2, Wallet } from 'lucide-react';
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ChevronRight,
+  Minus,
+  PiggyBank,
+  TrendingDown,
+  Undo2,
+  Wallet,
+} from 'lucide-react';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
+import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
 import { CategoryList } from '@/components/finance/category-list';
+import { MonthPicker } from '@/components/finance/month-picker';
 import { StatTile } from '@/components/finance/stat-tile';
 import { Alert } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
@@ -13,6 +25,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useApiQuery } from '@/hooks/use-api';
 import { formatUzMonth } from '@/lib/date';
 import { formatTiyin } from '@/lib/money';
+import { monthKey } from '@/modules/finance/finance.calc';
 import type { FinanceSummaryResponse } from '@/modules/finance/finance.types';
 
 /*
@@ -42,10 +55,33 @@ const SpendingChart = dynamic(
  * sezilarli kechikish demak.
  */
 export function FinanceContent() {
-  const { data, isLoading, error } = useApiQuery<FinanceSummaryResponse>('/api/v1/finance/summary');
+  /*
+    Joriy oy BIR MARTA hisoblanadi.
+
+    Har chizishda `new Date()` chaqirilsa, yarim tunda ochiq turgan
+    ekran o'zi sakrab ketardi.
+  */
+  const [latestMonth] = useState(() => monthKey(new Date()));
+  const [month, setMonth] = useState(latestMonth);
+
+  const { data, isLoading, error } = useApiQuery<FinanceSummaryResponse>(`/api/v1/finance/summary?month=${month}`);
 
   const summary = data?.summary ?? null;
   const current = summary?.current ?? null;
+
+  /*
+    ── HAQIQIY XATO: eski oyning raqamlari YANGI oy nomi ostida ────────
+    Oy almashtirilganda so'rov qayta yuboriladi, lekin javob
+    kelguncha ekranda AVVALGI oyning raqamlari turadi. Sarlavhada
+    esa yangi oy nomi yozilgan bo'ladi — ya'ni odam "avgustda
+    1 189 320 so'm sarfladim" degan YOLG'ON raqamni o'qiydi.
+
+    Javobning o'zida oy yozilgan, shuning uchun uni tanlangan oy
+    bilan solishtiramiz. Mos kelmasa — hali yuklanyapti.
+  */
+  const isStale = current !== null && current.month !== month;
+  const isBusy = isLoading || isStale;
+
   const isEmpty = current !== null && current.transactionCount === 0;
 
   return (
@@ -53,7 +89,9 @@ export function FinanceContent() {
       <AppHeader title="Moliya markazi" showBack backHref="/profile" />
 
       <div className="space-y-4 px-4 pt-4">
-        {isLoading && (
+        <MonthPicker value={month} latest={latestMonth} onChange={setMonth} />
+
+        {isBusy && (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <Skeleton className="h-24 rounded-xl" />
@@ -64,17 +102,15 @@ export function FinanceContent() {
           </div>
         )}
 
-        {!isLoading && error && (
+        {!isBusy && error && (
           <Alert variant="error" title="Hisobotni yuklab bo'lmadi">
             {error}
           </Alert>
         )}
 
-        {!isLoading && !error && summary && current && (
+        {!isBusy && !error && summary && current && (
           <>
-            <p className="text-muted-foreground text-sm">
-              {formatUzMonth(current.month)} &middot; {current.transactionCount} ta amal
-            </p>
+            <p className="text-muted-foreground text-center text-xs">{current.transactionCount} ta amal</p>
 
             {isEmpty ? (
               <Card padding="none">
@@ -135,6 +171,22 @@ export function FinanceContent() {
                     <CategoryList slices={current.categories} />
                   </div>
                 </Card>
+
+                {/*
+                  Hisobotdan TARIXGA o'tish.
+
+                  Diagramma "qayerga ketdi" degan savolga javob
+                  beradi, lekin "aynan qaysi to'lov?" degan savol
+                  darhol ortidan keladi. Havola aynan SHU oyni
+                  ochadi — odam tarixda oyni qaytadan izlamaydi.
+                */}
+                <Link
+                  href={`/wallet/history?month=${current.month}`}
+                  className="border-border bg-card tap-target flex items-center justify-between gap-2 rounded-xl border p-4"
+                >
+                  <span className="text-sm font-medium">{formatUzMonth(current.month)} amallari</span>
+                  <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+                </Link>
               </>
             )}
           </>

@@ -12,6 +12,7 @@ import { clientIdempotencyKey, runIdempotent } from '@/lib/idempotency';
 import { logger } from '@/lib/logger';
 import { somToTiyin, tiyinToNumber } from '@/lib/money';
 import { prisma } from '@/lib/prisma';
+import { monthRange } from '@/modules/finance/finance.calc';
 import { notifyUser } from '@/modules/notification/notification.service';
 import type { TopUpInput, TransactionQuery, TransferInput } from '@/modules/wallet/wallet.schemas';
 
@@ -193,9 +194,22 @@ export async function listTransactions(
   const wallet = await getOrCreateWallet(userId);
   const { skip, take } = toPrismaPagination(query);
 
+  /*
+    Oy filtri IXTIYORIY.
+
+    Yuborilmasa, `where` ilgarigidek qoladi va so'rov butun tarixni
+    qaytaradi — mavjud ekranlar uchun hech narsa o'zgarmaydi.
+
+    Chegara: oyning boshi KIRADI, keyingi oyning boshi KIRMAYDI —
+    hisobotdagi `monthRange` bilan bir xil qoida. Aks holda bir
+    xil oy uchun tarix va hisobot boshqacha son ko'rsatardi.
+  */
+  const range = query.month ? monthRange(query.month) : null;
+
   const where = {
     walletId: wallet.id,
     ...(query.type === 'ALL' ? {} : { type: query.type as TransactionType }),
+    ...(range ? { createdAt: { gte: range.start, lt: range.end } } : {}),
   };
 
   const [rows, total] = await Promise.all([
@@ -313,12 +327,7 @@ export async function topUp(
   meta: OperationMeta = {},
 ): Promise<WalletTransactionPayload> {
   const storedKey = clientIdempotencyKey(userId, input.idempotencyKey);
-  const duplicate = await findOwnTransaction(
-    storedKey,
-    userId,
-    TransactionType.TOP_UP,
-    TransactionDirection.IN,
-  );
+  const duplicate = await findOwnTransaction(storedKey, userId, TransactionType.TOP_UP, TransactionDirection.IN);
   if (duplicate) return duplicate;
 
   /**

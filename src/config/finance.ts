@@ -138,3 +138,17 @@ export function financeCategory(code: string): FinanceCategory {
  * Beshta katta toifa + "Boshqa" — o'qiladigan eng katta miqdor.
  */
 export const MAX_CHART_SLICES = 5;
+
+/**
+ * Necha oy orqaga qarash mumkin.
+ *
+ * ── Nima uchun chegara bor ────────────────────────────────────────────
+ * Chegarasiz tugma odamni HECH QACHON to'xtamaydigan yo'lga
+ * boshlaydi: u 2019-yilga qadar bosib borishi mumkin va har
+ * bosishda bo'sh ekran ko'radi. "Ma'lumot yo'q" degan javob esa
+ * xatoga o'xshaydi.
+ *
+ * O'n ikki oy — hisobot uchun ma'noli eng uzoq muddat: undan
+ * narisi endi tahlil emas, arxiv.
+ */
+export const FINANCE_MONTHS_BACK = 12;

@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { MAX_TOP_UP_SOM, MAX_TRANSFER_SOM, MIN_TOP_UP_SOM } from '@/lib/money';
 import { paginationQuerySchema } from '@/lib/api/pagination';
+import { isValidMonth } from '@/modules/finance/finance.calc';
 import { phoneSchema } from '@/modules/auth/auth.schemas';
 
 /**
@@ -84,9 +85,24 @@ export const TRANSACTION_TYPE_FILTERS = [
   { value: 'EARNING', label: 'Daromad' },
 ] as const;
 
-/** GET /api/v1/wallet/transactions */
+/**
+ * GET /api/v1/wallet/transactions
+ *
+ * ── Nima uchun `month` IXTIYORIY ──────────────────────────────────────
+ * Bu filtr moliya markazidan kelgan havola uchun qo'shildi
+ * (`/wallet/history?month=2026-09`). Tarixning o'zi esa avvalgidek
+ * BUTUN vaqtni ko'rsatishda davom etadi — parametr yuborilmasa,
+ * so'rov ilgarigidek ishlaydi.
+ *
+ * Shakl `isValidMonth` bilan tekshiriladi: hisobot bilan BIR XIL
+ * qoida bo'lishi kerak, aks holda bir joyda ishlagan havola
+ * ikkinchisida xato berardi.
+ */
 export const transactionQuerySchema = paginationQuerySchema.extend({
-  type: z.enum(['ALL', 'TOP_UP', 'WITHDRAWAL', 'PAYMENT', 'REFUND', 'TRANSFER', 'BONUS', 'EARNING']).default('ALL'),
+  type: z
+    .enum(['ALL', 'TOP_UP', 'WITHDRAWAL', 'PAYMENT', 'REFUND', 'TRANSFER', 'BONUS', 'EARNING'])
+    .default('ALL'),
+  month: z.string().refine(isValidMonth, { message: "Oy 'YYYY-MM' ko'rinishida bo'lishi kerak" }).optional(),
 });
 
 export type TransactionQuery = z.infer<typeof transactionQuerySchema>;
