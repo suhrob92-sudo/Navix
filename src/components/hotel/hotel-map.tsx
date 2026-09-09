@@ -184,11 +184,7 @@ export function HotelMap({ hotels, dates, className }: HotelMapProps) {
                   setSelectedId(index === -1 ? first.id : (next?.id ?? null));
                 }}
                 aria-pressed={isSelected}
-                aria-label={
-                  isGroup
-                    ? `${cluster.items.length} ta mehmonxona shu atrofda`
-                    : first.name
-                }
+                aria-label={isGroup ? `${cluster.items.length} ta mehmonxona shu atrofda` : first.name}
                 className={cn(
                   'absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap shadow-md transition-transform active:scale-95',
                   isSelected
@@ -240,12 +236,16 @@ export function HotelMap({ hotels, dates, className }: HotelMapProps) {
                   <p className="truncate text-sm font-semibold">{selected.name}</p>
 
                   <p className="text-muted-foreground mt-0.5 flex items-center gap-2 text-xs">
-                    <span className="text-amber-500" aria-label={`${selected.stars} yulduz`}>
+                    {/* Kartochkadagi bilan BIR XIL qoida — izohi `hotel-card.tsx` da. */}
+                    <span className="text-amber-700 dark:text-amber-500" aria-label={`${selected.stars} yulduz`}>
                       {formatStars(selected.stars)}
                     </span>
                     {selected.ratingCount > 0 && (
                       <span className="inline-flex items-center gap-0.5">
-                        <Star className="size-3 fill-current text-amber-500" aria-hidden="true" />
+                        <Star
+                          className="size-3 fill-current text-amber-700 dark:text-amber-500"
+                          aria-hidden="true"
+                        />
                         {formatRating(selected.rating, selected.ratingCount)}
                       </span>
                     )}

@@ -70,7 +70,20 @@ export function HotelCard({ hotel, dates, index = 0 }: HotelCardProps) {
       <p className="text-muted-foreground mt-2 line-clamp-2 text-sm leading-relaxed">{hotel.description}</p>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="text-amber-500 text-xs" aria-label={`${hotel.stars} yulduz`}>
+        {/*
+          ── Yorug' rejimda TO'QROQ oltin ────────────────────────────
+          `amber-500` oq fonda 2.15:1 kontrast beradi — me'yor esa
+          4.5:1. Yulduzlar HARF sifatida chiziladi (★), ya'ni ular
+          matn qoidasiga bo'ysunadi.
+
+          Quyoshli kunda telefon ekranida bu yulduzlar deyarli
+          ko'rinmasdi. `amber-700` 5.02:1 beradi va oltin tusi
+          saqlanadi.
+
+          Qorong'i rejimda o'zgarish kerak emas: u yerda fon to'q va
+          `amber-500` allaqachon 5.6:1.
+        */}
+        <span className="text-xs text-amber-700 dark:text-amber-500" aria-label={`${hotel.stars} yulduz`}>
           {formatStars(hotel.stars)}
         </span>
         {hotel.amenities.slice(0, 3).map((amenity) => (
