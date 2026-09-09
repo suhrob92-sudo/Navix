@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -76,7 +76,7 @@ describe('APP_MODULES — yozuvlarning butunligi', () => {
     expect(new Set(hrefs).size).toBe(hrefs.length);
   });
 
-  it("har bir modulda nom, tavsif va kamida bitta ibora bor", () => {
+  it('har bir modulda nom, tavsif va kamida bitta ibora bor', () => {
     for (const entry of APP_MODULES) {
       expect(entry.name.length, entry.id).toBeGreaterThan(0);
       expect(entry.description.length, entry.id).toBeGreaterThan(0);
@@ -92,7 +92,7 @@ describe('APP_MODULES — yozuvlarning butunligi', () => {
     }
   });
 
-  it("tezkor xizmatlar tartibi takrorlanmaydi", () => {
+  it('tezkor xizmatlar tartibi takrorlanmaydi', () => {
     const orders = getQuickServices().map((module) => module.quickOrder);
 
     expect(new Set(orders).size).toBe(orders.length);
@@ -115,6 +115,89 @@ describe('LIVE modullarning sahifasi mavjud', () => {
 });
 
 /**
+ * LIVE modulga ILOVA ICHIDAN yetib borish mumkinmi.
+ *
+ * ── HAQIQIY XATO ──────────────────────────────────────────────────────
+ * Moliya markazi "ishlamoqda" deb belgilandi, sahifasi ham bor edi —
+ * lekin unga BIRORTA ekrandan havola yo'q edi. Yagona yo'l qidiruv
+ * bo'lib qoldi, ya'ni odam bo'limning BORLIGINI bilishi kerak edi.
+ * Oyiga bir marta ochiladigan ekranni esa hech kim qidirmaydi.
+ *
+ * Bosh ekrandagi katakchada turadigan modullarda (`quickOrder`) bu
+ * muammo yo'q — shuning uchun ular tekshirilmaydi.
+ *
+ * `isInternal` modullar ham tashqarida: admin panelga havola
+ * ataylab qo'yilmaydi.
+ */
+describe('LIVE modulga havola bor', () => {
+  const SOURCE_DIRS = [
+    join(process.cwd(), 'src', 'app'),
+    join(process.cwd(), 'src', 'components'),
+    /*
+      Menyular `src/config` da yozilgan (`app-nav.ts`,
+      `cabinet-nav.ts`), ya'ni havolalarning bir qismi ekran
+      faylida emas, ro'yxatda turadi.
+    */
+    join(process.cwd(), 'src', 'config'),
+  ];
+
+  /**
+   * Bu ikki fayl HAVOLA emas.
+   *
+   * `modules.ts` — reyestrning o'zi: undagi `href` sinovni har doim
+   * o'tkazib yuborardi va sinov ma'nosini yo'qotardi.
+   * `protected-routes.ts` esa faqat himoya ro'yxati, unda hech kim
+   * bosadigan havola yo'q.
+   */
+  const NOT_LINKS = ['modules.ts', 'protected-routes.ts'];
+
+  /** Butun manba matnini bir marta o'qiymiz — har sinovda emas. */
+  const SOURCE = (() => {
+    let text = '';
+
+    function walk(dir: string) {
+      for (const entry of readdirSync(dir)) {
+        const full = join(dir, entry);
+
+        if (statSync(full).isDirectory()) {
+          walk(full);
+
+          continue;
+        }
+
+        const isSource = entry.endsWith('.tsx') || entry.endsWith('.ts');
+        const isTest = entry.includes('.test.');
+
+        if (isSource && !isTest && !NOT_LINKS.includes(entry)) {
+          text += readFileSync(full, 'utf8');
+        }
+      }
+    }
+
+    for (const dir of SOURCE_DIRS) walk(dir);
+
+    return text;
+  })();
+
+  const orphanCandidates = APP_MODULES.filter(
+    (item) => item.status === ModuleStatus.LIVE && item.quickOrder === undefined && !item.isInternal,
+  );
+
+  for (const entry of orphanCandidates) {
+    it(`${entry.id} → ${entry.href}`, () => {
+      /*
+        Manzil qo'shtirnoq ichida turishi kerak: `href="/finance"`
+        yoki `push('/finance')`. Shunda `/feed` `/feedback` ga
+        tasodifan mos kelmaydi.
+      */
+      const quoted = [`"${entry.href}"`, `'${entry.href}'`, `\`${entry.href}\``];
+
+      expect(quoted.some((needle) => SOURCE.includes(needle))).toBe(true);
+    });
+  }
+});
+
+/**
  * Teskari tomoni: sahifasi YO'Q modul "ishlamoqda" bo'lib qolmasin.
  *
  * Bu sinov yuqoridagining nusxasi emas: u tekshiruv funksiyasining
@@ -122,7 +205,7 @@ describe('LIVE modullarning sahifasi mavjud', () => {
  * qaytarsa, yuqoridagi sinovlar ma'nosiz bo'lardi.
  */
 describe('pageExists tekshiruvi ishonchli', () => {
-  it("mavjud sahifani topadi", () => {
+  it('mavjud sahifani topadi', () => {
     expect(pageExists('/dashboard')).toBe(true);
     expect(pageExists('/messages')).toBe(true);
     expect(pageExists('/wallet/history')).toBe(true);

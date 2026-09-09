@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, Receipt } from 'lucide-react';
+import { ChartColumn, ChevronRight, Receipt } from 'lucide-react';
 import Link from 'next/link';
 
 import { AppHeader } from '@/components/app/app-header';
@@ -50,6 +50,35 @@ export function WalletContent() {
             )}
 
             <BalanceCard balance={data.balance} reserved={data.reserved} />
+
+            {/*
+              Moliya markaziga KIRISH yo'li.
+
+              ── Nima uchun aynan bu yerda ─────────────────────────────
+              Modul reyestrda bor, lekin unga faqat QIDIRUV orqali
+              yetib borish mumkin edi. Oyiga bir marta qaraydigan
+              ekranni odam qidiruvdan izlamaydi — u shunchaki
+              borligini bilmay qoladi.
+
+              Hamyon esa aynan to'g'ri joy: odam balansiga qarab
+              turib "shu pul qayerga ketyapti?" degan savolni
+              beradi.
+            */}
+            <Link
+              href="/finance"
+              className="border-border bg-card tap-target mt-4 flex items-center gap-3 rounded-xl border p-4"
+            >
+              <span className="bg-secondary text-muted-foreground inline-flex size-9 shrink-0 items-center justify-center rounded-full">
+                <ChartColumn className="size-4" aria-hidden="true" />
+              </span>
+
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium">Moliya markazi</span>
+                <span className="text-muted-foreground block text-xs">Oylik xarajatlar tahlili</span>
+              </span>
+
+              <ChevronRight className="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
+            </Link>
 
             <Card variant="glass" padding="none" className="animate-fade-up mt-4">
               <div className="border-border/60 flex items-center justify-between border-b px-4 py-3">

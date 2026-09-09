@@ -425,7 +425,7 @@ export const APP_MODULES: readonly AppModule[] = [
     href: '/finance',
     icon: Banknote,
     category: ModuleCategory.FINANCE,
-    status: ModuleStatus.PLANNED,
+    status: ModuleStatus.LIVE,
     color: 'amber',
     aiIntents: ['xarajatlarim', 'moliyaviy hisobot', 'qancha sarfladim'],
   },

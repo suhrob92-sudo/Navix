@@ -86,7 +86,7 @@ export function FinanceContent() {
 
   return (
     <>
-      <AppHeader title="Moliya markazi" showBack backHref="/profile" />
+      <AppHeader title="Moliya markazi" showBack backHref="/wallet" />
 
       <div className="space-y-4 px-4 pt-4">
         <MonthPicker value={month} latest={latestMonth} onChange={setMonth} />
