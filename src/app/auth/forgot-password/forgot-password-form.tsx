@@ -73,7 +73,7 @@ export function ForgotPasswordForm() {
 
       <Link
         href="/auth/login"
-        className="text-muted-foreground hover:text-foreground flex items-center justify-center gap-1.5 text-sm transition-colors"
+        className="text-muted-foreground hover:text-foreground tap-target-y flex items-center justify-center gap-1.5 text-sm transition-colors"
       >
         <ArrowLeft className="size-3.5" aria-hidden="true" />
         Kirish sahifasiga qaytish

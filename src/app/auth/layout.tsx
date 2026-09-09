@@ -38,10 +38,13 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <span>
             © {new Date().getFullYear()} {siteConfig.name}
           </span>
-          <Link href="/" className="hover:text-foreground transition-colors">
+          <Link href="/" className="tap-target-y hover:text-foreground transition-colors">
             Bosh sahifa
           </Link>
-          <a href={`mailto:${siteConfig.supportEmail}`} className="hover:text-foreground transition-colors">
+          <a
+            href={`mailto:${siteConfig.supportEmail}`}
+            className="tap-target-y hover:text-foreground transition-colors"
+          >
             Yordam
           </a>
         </Container>

@@ -161,7 +161,8 @@ export function HotelContent() {
                 onClick={() => setView(option.value)}
                 aria-pressed={view === option.value}
                 className={cn(
-                  'inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors',
+                  /* `tap-target-y` — ikki tugma yonma-yon, faqat balandlik. */
+                  'tap-target-y inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-colors',
                   view === option.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground',
                 )}
               >

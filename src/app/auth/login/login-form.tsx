@@ -105,7 +105,10 @@ export function LoginForm() {
       </Field>
 
       <div className="flex justify-end">
-        <Link href="/auth/forgot-password" className="text-primary text-sm font-medium hover:underline">
+        <Link
+          href="/auth/forgot-password"
+          className="text-primary tap-target-y text-sm font-medium hover:underline"
+        >
           Parolni unutdingizmi?
         </Link>
       </div>
@@ -117,7 +120,7 @@ export function LoginForm() {
 
       <p className="text-muted-foreground text-center text-sm">
         Hisobingiz yo&apos;qmi?{' '}
-        <Link href="/auth/register" className="text-primary font-medium hover:underline">
+        <Link href="/auth/register" className="text-primary tap-target-y font-medium hover:underline">
           Ro&apos;yxatdan o&apos;tish
         </Link>
       </p>

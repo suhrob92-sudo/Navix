@@ -73,7 +73,16 @@ export function FavoriteButton({
         void favorites.toggle(target, targetId).then(setError);
       }}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-full transition-transform active:scale-90',
+        /*
+          `tap-target` — bosish maydoni 44px, KO'RINISH esa
+          o'zgarmaydi (u `::after` orqali qilinadi).
+
+          Yurakcha ataylab kichik chizilgan: u kartochkadagi asosiy
+          narsa emas. Lekin 28x28 barmoq uchun juda kichik — odam
+          sevimlilarga qo'shmoqchi bo'lib, kartochkani ochib
+          yuborardi.
+        */
+        'tap-target inline-flex shrink-0 items-center justify-center rounded-full transition-transform active:scale-90',
         SIZE_CLASSES[size],
         variant === 'overlay'
           ? 'bg-black/45 text-white backdrop-blur-sm hover:bg-black/60'
@@ -81,13 +90,7 @@ export function FavoriteButton({
         className,
       )}
     >
-      <Heart
-        aria-hidden="true"
-        className={cn(
-          'transition-colors',
-          isFavorite && 'fill-red-500 text-red-500',
-        )}
-      />
+      <Heart aria-hidden="true" className={cn('transition-colors', isFavorite && 'fill-red-500 text-red-500')} />
     </button>
   );
 }

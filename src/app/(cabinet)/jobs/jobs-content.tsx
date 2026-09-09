@@ -14,12 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useApiQuery } from '@/hooks/use-api';
-import {
-  SALARY_STEPS,
-  activeJobFilterCount,
-  describeJobFilters,
-  salaryRangeError,
-} from '@/config/job-filters';
+import { SALARY_STEPS, activeJobFilterCount, describeJobFilters, salaryRangeError } from '@/config/job-filters';
 import { formatCompactTiyin } from '@/lib/money';
 import { useJobFilters } from '@/modules/job/use-job-filters';
 import { cn } from '@/lib/utils';
@@ -56,12 +51,8 @@ export function JobsContent() {
 
   const [search, setSearch] = useState(filters.search ?? '');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [minText, setMinText] = useState(
-    filters.minSalarySom === undefined ? '' : String(filters.minSalarySom),
-  );
-  const [maxText, setMaxText] = useState(
-    filters.maxSalarySom === undefined ? '' : String(filters.maxSalarySom),
-  );
+  const [minText, setMinText] = useState(filters.minSalarySom === undefined ? '' : String(filters.minSalarySom));
+  const [maxText, setMaxText] = useState(filters.maxSalarySom === undefined ? '' : String(filters.maxSalarySom));
 
   const categories = useApiQuery<JobCategoriesResponse>('/api/v1/jobs/categories');
   const cities = useApiQuery<CitiesResponse>('/api/v1/jobs/cities');
@@ -157,8 +148,11 @@ export function JobsContent() {
                 onClick={() => update({ sort: option.value })}
                 aria-pressed={filters.sort === option.value}
                 className={cn(
-                  'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-                  filters.sort === option.value ? 'border-primary text-primary' : 'border-border text-muted-foreground',
+                  /* `tap-target-y` — yonma-yon turgani uchun faqat balandlik. */
+                  'tap-target-y rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                  filters.sort === option.value
+                    ? 'border-primary text-primary'
+                    : 'border-border text-muted-foreground',
                 )}
               >
                 {option.label}
@@ -292,7 +286,7 @@ export function JobsContent() {
           tashlamoqchi bo'ladi.
         */}
         {chips.length > 0 && (
-          <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="-mx-4 mt-3 flex [scrollbar-width:none] gap-2 overflow-x-auto px-4 pb-1 [&::-webkit-scrollbar]:hidden">
             {chips.map((chip) => (
               <button
                 key={chip.key}

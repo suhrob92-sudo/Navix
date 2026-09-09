@@ -15,7 +15,9 @@ export function Logo({ className, iconOnly = false }: LogoProps) {
   return (
     <Link
       href="/"
-      className={cn('inline-flex items-center gap-2.5 rounded-lg', className)}
+      /* `tap-target-y` — faqat BALANDLIK kengayadi: yonida boshqa
+         bosiladigan element bo'lishi mumkin. */
+      className={cn('tap-target-y inline-flex items-center gap-2.5 rounded-lg', className)}
       aria-label={`${siteConfig.name} — bosh sahifa`}
     >
       {/*

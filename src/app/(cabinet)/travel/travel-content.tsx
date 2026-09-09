@@ -171,7 +171,8 @@ export function TravelContent() {
                 onClick={() => setSort(option.value)}
                 aria-pressed={sort === option.value}
                 className={cn(
-                  'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+                  /* `tap-target-y` — yonma-yon turgani uchun faqat balandlik. */
+                  'tap-target-y rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
                   sort === option.value ? 'border-primary text-primary' : 'border-border text-muted-foreground',
                 )}
               >

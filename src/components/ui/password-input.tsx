@@ -25,7 +25,14 @@ export const PasswordInput = React.forwardRef<HTMLInputElement, Omit<InputProps,
             onClick={() => setIsVisible((visible) => !visible)}
             aria-label={isVisible ? 'Parolni yashirish' : "Parolni ko'rsatish"}
             aria-pressed={isVisible}
-            className="text-muted-foreground hover:text-foreground hover:bg-secondary flex size-9 items-center justify-center rounded-md transition-colors"
+            /*
+              `tap-target` — bosish maydonini 44px ga kengaytiradi,
+              tugmaning KO'RINISHI esa o'zgarmaydi (u `::after`
+              orqali qilinadi). 36x36 barmoq uchun kichik: odam
+              parolni ko'rsatmoqchi bo'lib, maydonning yoniga
+              bosib qo'yardi.
+            */
+            className="text-muted-foreground hover:text-foreground hover:bg-secondary tap-target flex size-9 items-center justify-center rounded-md transition-colors"
           >
             {isVisible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>

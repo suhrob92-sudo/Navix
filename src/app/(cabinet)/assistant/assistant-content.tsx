@@ -422,7 +422,8 @@ export function AssistantContent() {
               key={prompt}
               type="button"
               onClick={() => void send(prompt)}
-              className="bg-card border-border hover:border-ring shrink-0 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors"
+              /* `tap-target-y` — takliflar yonma-yon, faqat balandlik. */
+              className="bg-card border-border hover:border-ring tap-target-y shrink-0 rounded-full border px-3.5 py-2 text-sm font-medium transition-colors"
             >
               {prompt}
             </button>
@@ -444,7 +445,7 @@ export function AssistantContent() {
             onClick={voice.toggle}
             aria-pressed={voice.isEnabled}
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
+              'tap-target inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
               voice.isEnabled ? 'border-primary text-primary' : 'border-border text-muted-foreground',
             )}
           >

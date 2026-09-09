@@ -621,11 +621,26 @@
   kattaroq bo'lsa, qatlam uni KICHRAYTIRMAYDI.
 */
 @layer utilities {
-  .tap-target {
+  /*
+    ── HAQIQIY XATO: `tap-target-y` YOLG'IZ ishlatilsa, hech narsa
+       qilmasdi ─────────────────────────────────────────────────────────
+    Ilgari `content` faqat `.tap-target::after` da turardi. Ya'ni
+    `tap-target-y` ni yolg'iz yozgan element uchun qatlam UMUMAN
+    yaratilmasdi va bosish maydoni kichikligicha qolardi.
+
+    Xato JIM edi: sinf yozilgan, ko'zga hammasi joyida ko'rinadi,
+    lekin barmoq uchun hech narsa o'zgarmagan. Loyihada uchta joy
+    shu tuzoqqa tushgan edi.
+
+    Endi ikkala sinf ham o'zi yetarli.
+  */
+  .tap-target,
+  .tap-target-y {
     position: relative;
   }
 
-  .tap-target::after {
+  .tap-target::after,
+  .tap-target-y::after {
     content: '';
     position: absolute;
     /*
@@ -648,10 +663,12 @@
     KESISHADI va ustidagisi pastdagisini yopib qo'yadi. Bunday
     joyda faqat BALANDLIK kengaytiriladi: qator ichida yuqoriga va
     pastga bo'sh joy bor, yon tomonda esa yo'q.
+
+    Yuqoridagi umumiy qoidadan KEYIN turadi — shuning uchun
+    `min-width` ni bekor qila oladi.
   */
   .tap-target-y::after {
     min-width: 0;
-    width: 100%;
   }
 }
 

@@ -78,7 +78,6 @@ export function RegisterForm() {
     */
     const referral = readPendingReferral();
 
-
     try {
       await apiRequest<RegisterResponse>('/api/v1/auth/register', {
         method: 'POST',
@@ -194,7 +193,7 @@ export function RegisterForm() {
 
       <p className="text-muted-foreground text-center text-sm">
         Hisobingiz bormi?{' '}
-        <Link href="/auth/login" className="text-primary font-medium hover:underline">
+        <Link href="/auth/login" className="text-primary tap-target-y font-medium hover:underline">
           Kirish
         </Link>
       </p>
@@ -211,6 +210,17 @@ export function RegisterForm() {
         shunchaki bir bosishga aylanardi. Bu yerda esa shart aniq
         yozilgan va hujjatlarning o'zi bir bosish narida — davom
         etish roziligini bildiradi.
+      */}
+      {/*
+        ── Bu ikki havolaga `tap-target` QO'YILMAYDI ─────────────────────
+        Ular gap ICHIDA turadi. Bosish maydonini kengaytirsak,
+        ko'rinmas qatlamlar qo'shni satrlar va bir-birining ustiga
+        chiqardi — va odam "maxfiylik siyosati" ni bosmoqchi bo'lib
+        "foydalanish shartlari" ni ochib yuborardi.
+
+        Ya'ni kengaytirish bu yerda yaxshilamaydi, buzadi. 44px
+        qoidasining o'zida ham matn ichidagi havolalar uchun
+        istisno bor.
       */}
       <p className="text-muted-foreground text-center text-xs leading-relaxed">
         Davom etish orqali siz{' '}
