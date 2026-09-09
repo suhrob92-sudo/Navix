@@ -105,6 +105,37 @@ export function useApiQuery<TData>(path: string | null, options: QueryOptions = 
   const [error, setError] = useState<string | null>(null);
   const [reloadCount, setReloadCount] = useState(0);
 
+  /*
+    ── HAQIQIY XATO: ESKI so'rovning javobi ekranda qolib ketardi ───────
+    Manzil o'zgarganda yangi so'rov yuboriladi, lekin javob kelguncha
+    `data` da AVVALGI so'rovning natijasi turardi. Uni tozalaydigan
+    joy umuman yo'q edi: xato bo'lganda ham faqat `error` yozilardi.
+
+    Pul o'tkazish ekranida bu shunday ko'rindi:
+      1. odam O'Z raqamini yozdi  -> {isSelf: true};
+      2. raqamni o'zgartirdi      -> yangi so'rov 404 qaytardi;
+      3. ekranda IKKALASI ham turdi: "foydalanuvchi topilmadi" VA
+         "bu sizning raqamingiz".
+
+    Undan ham xavflisi: raqam A dan B ga o'zgarganda, javob
+    kelgunicha ekranda A ODAMNING ISMI turardi. Odam ismni ko'rib
+    tasdiqlashi mumkin edi — pul esa boshqasiga ketardi.
+
+    Yechim: manzil o'zgarishi bilan eski javob TOZALANADI. Bu
+    `useEffect` da emas, chizish paytida qilinadi — React'ning
+    "ma'lumot o'zgarganda holatni to'g'rilash" usuli. Effektda
+    qilinsa, ekran bir marta ESKI ma'lumot bilan chizilib ulgurardi.
+  */
+  const [loadedPath, setLoadedPath] = useState(path);
+
+  if (loadedPath !== path) {
+    setLoadedPath(path);
+    setDataState(null);
+    setError(null);
+    /* Manzil `null` bo'lsa hech narsa so'ralmaydi — kutish ham yo'q. */
+    setIsLoading(path !== null);
+  }
+
   // Komponent yopilgandan keyin holat yangilanmasligi uchun.
   const isMountedRef = useRef(true);
 

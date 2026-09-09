@@ -158,28 +158,33 @@ export function TransferContent() {
           {/* Qabul qiluvchini tasdiqlash — xato raqamdan himoya */}
           {isPhoneComplete && (
             <div className="mt-3">
-              {isLookingUp && <Skeleton className="h-12 rounded-xl" />}
+              {/*
+                Uchta holat BIR-BIRINI istisno qiladi.
 
-              {!isLookingUp && lookupError && (
+                Ilgari uchtasi alohida shart edi va ikkitasi bir
+                vaqtda chiqib qolgandi: "foydalanuvchi topilmadi" VA
+                "bu sizning raqamingiz". Asosiy sabab `useApiQuery`
+                da tuzatildi, bu yerda esa ikkinchi qulf: PUL
+                ekranida ziddiyatli yozuv chiqishi mumkin emas.
+              */}
+              {isLookingUp ? (
+                <Skeleton className="h-12 rounded-xl" />
+              ) : lookupError ? (
                 <p className="text-destructive flex items-center gap-2 text-sm">
                   <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
                   Bu raqam bilan foydalanuvchi topilmadi
                 </p>
-              )}
-
-              {!isLookingUp && recipient && !recipient.isSelf && (
-                <div className="bg-success/10 text-success flex items-center gap-2 rounded-xl px-4 py-3 text-sm">
-                  <UserCheck className="size-4 shrink-0" aria-hidden="true" />
-                  <span className="font-medium">{recipient.name}</span>
-                </div>
-              )}
-
-              {!isLookingUp && recipient?.isSelf && (
+              ) : recipient?.isSelf ? (
                 <p className="text-destructive flex items-center gap-2 text-sm">
                   <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
                   Bu sizning raqamingiz
                 </p>
-              )}
+              ) : recipient ? (
+                <div className="bg-success/10 text-success flex items-center gap-2 rounded-xl px-4 py-3 text-sm">
+                  <UserCheck className="size-4 shrink-0" aria-hidden="true" />
+                  <span className="font-medium">{recipient.name}</span>
+                </div>
+              ) : null}
             </div>
           )}
         </Card>
