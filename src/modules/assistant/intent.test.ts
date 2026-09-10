@@ -638,3 +638,61 @@ describe('moliyaviy hisobot buyruqlari', () => {
     expect(parseMessage('narxlarni solishtir').intent).not.toBe(Intent.FINANCE_REPORT);
   });
 });
+
+describe('posilka buyruqlari', () => {
+  /**
+   * ── ENG MUHIM TEKSHIRUV: PUL o'tkazmasiga tushib ketmaslik ──────────
+   * "Posilka yubor" gapidagi "yubor" so'zi `TRANSFER` ro'yxatida
+   * turadi. Tuzatilmaguncha yordamchi "Kimga yuboramiz? Telefon
+   * raqamini yozing" deb PUL O'TKAZISH oqimini boshlardi.
+   *
+   * Odam posilka haqida gapirib turib, o'zi bilmagan holda pul
+   * yuborish yo'liga tushib qolardi.
+   */
+  it("jo'natish buyrug'i PUL o'tkazmasi deb tushunilmaydi", () => {
+    for (const command of ['posilka yubor', "posilka jo'nat", 'posilka yubormoqchiman', "yuk jo'nat"]) {
+      const parsed = parseMessage(command);
+
+      expect(parsed.intent, command).toBe(Intent.SEND_PARCEL);
+      expect(parsed.intent, command).not.toBe(Intent.TRANSFER);
+    }
+  });
+
+  it('holat savolini taniydi', () => {
+    for (const command of [
+      'posilkam qayerda',
+      'posilkam qani',
+      "jo'natmam qayerda",
+      'posilkalarim',
+      'posilka qachon keladi',
+    ]) {
+      expect(parseMessage(command).intent, command).toBe(Intent.PARCEL_STATUS);
+    }
+  });
+
+  /**
+   * "Posilka qachon keladi" gapida `FOOD_STATUS` ning "qachon
+   * keladi" iborasi ham bor — u ovqat buyurtmasi holatini ochardi.
+   */
+  it('holat savoli OVQAT holati deb tushunilmaydi', () => {
+    expect(parseMessage('posilka qachon keladi').intent).not.toBe(Intent.FOOD_STATUS);
+  });
+
+  /**
+   * Holat ro'yxati jo'natishdan OLDIN turadi: "posilkam qayerda"
+   * gapida ham "posilka" so'zi bor va aks holda holat so'ragan
+   * odamga yangi jo'natma formasi ochilardi.
+   */
+  it("holat savoli yangi jo'natma deb tushunilmaydi", () => {
+    expect(parseMessage('posilkam qayerda').intent).not.toBe(Intent.SEND_PARCEL);
+  });
+
+  it('MAVJUD buyruqlarga tegmaydi', () => {
+    /* Oddiy pul o'tkazmasi o'z joyida qolishi SHART. */
+    expect(parseMessage('901234567 ga 50 ming yubor').intent).toBe(Intent.TRANSFER);
+    expect(parseMessage("50 ming jo'nat").intent).toBe(Intent.TRANSFER);
+    expect(parseMessage('buyurtmam qayerda').intent).toBe(Intent.FOOD_STATUS);
+    expect(parseMessage('ovqat buyur').intent).toBe(Intent.FOOD_ORDER);
+    expect(parseMessage('uyga taksi').intent).toBe(Intent.BOOK_TAXI);
+  });
+});

@@ -5,6 +5,7 @@ import { Intent, normalize, parseMessage, type IntentName } from '@/modules/assi
 import { comingSoonReply, findPlannedModule } from '@/modules/assistant/assistant.modules';
 import { handleFinanceReport } from '@/modules/assistant/assistant.finance-flow';
 import { handleFoodOrder, handleFoodStatus } from '@/modules/assistant/assistant.food-flow';
+import { handleParcelStatus, handleSendParcel } from '@/modules/assistant/assistant.parcel-flow';
 import { handleMarketOrder, handleMarketStatus } from '@/modules/assistant/assistant.market-flow';
 import { handleTaxiOrder } from '@/modules/assistant/assistant.taxi-flow';
 import { findDishes } from '@/modules/assistant/assistant.food';
@@ -100,7 +101,8 @@ function handleHelp(): AssistantReply {
       '• Taksi chaqiraman — "uyga taksi"\n' +
       '• Buyurtmangiz qayerdaligini aytaman — "buyurtmam qayerda"\n' +
       '• Tarixni ko\'rsataman — "to\'lovlar tarixi"\n' +
-      '• Oylik hisobotni aytaman — "shu oyda qancha sarfladim"\n\n' +
+      '• Oylik hisobotni aytaman — "shu oyda qancha sarfladim"\n' +
+      '• Posilka jo\'nataman — "posilka yubor"\n\n' +
       'Shunchaki oddiy tilda yozing.',
     { suggestions: DEFAULT_SUGGESTIONS },
   );
@@ -397,6 +399,12 @@ export async function respond(
     case Intent.FINANCE_REPORT:
       return handleFinanceReport({ userId, month: parsed.financeMonth });
 
+    case Intent.SEND_PARCEL:
+      return handleSendParcel();
+
+    case Intent.PARCEL_STATUS:
+      return handleParcelStatus(userId);
+
     case Intent.TOPUP:
       return handleTopUp(slots);
 
@@ -504,9 +512,7 @@ async function handleShopping(
   if (isContinuing) {
     const inMarket = slots.productId !== undefined || (slots.productOptions?.length ?? 0) > 0;
 
-    return inMarket
-      ? handleMarketOrder({ ...common, query })
-      : handleFoodOrder({ ...common, foodQuery: query });
+    return inMarket ? handleMarketOrder({ ...common, query }) : handleFoodOrder({ ...common, foodQuery: query });
   }
 
   if (query === null) {

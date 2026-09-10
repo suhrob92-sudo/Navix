@@ -56,6 +56,21 @@ export const Intent = {
    * deyish javob emas.
    */
   FINANCE_REPORT: 'FINANCE_REPORT',
+  /**
+   * Posilka jo'natish.
+   *
+   * ── HAQIQIY XATO: pul o'tkazmasiga tushib ketardi ──────────────────
+   * "Posilka yubor" gapidagi "yubor" so'zi `TRANSFER` ro'yxatida
+   * turadi. Natijada yordamchi "Kimga yuboramiz? Telefon raqamini
+   * yozing" deb PUL O'TKAZISH oqimini boshlardi.
+   *
+   * Odam posilka haqida gapirib turib, o'zi bilmagan holda pul
+   * yuborish yo'liga tushib qolardi. Shuning uchun bu niyat
+   * `TRANSFER` dan OLDIN tekshiriladi.
+   */
+  SEND_PARCEL: 'SEND_PARCEL',
+  /** "Posilkam qayerda?" — jo'natma holati. */
+  PARCEL_STATUS: 'PARCEL_STATUS',
   /** Yordam — nima qila olasan. */
   HELP: 'HELP',
   /**
@@ -766,6 +781,35 @@ function detectFinanceMonth(text: string): 'CURRENT' | 'PREVIOUS' {
     : 'CURRENT';
 }
 
+/**
+ * Jo'natma HOLATI so'ralganini bildiruvchi so'zlar.
+ *
+ * ── Nima uchun bu ro'yxat JO'NATISHDAN oldin turadi ───────────────────
+ * "Posilkam qayerda" gapida ham "posilka" so'zi bor. Agar jo'natish
+ * ro'yxati oldin tekshirilsa, holat so'ragan odamga yangi jo'natma
+ * formasi ochilardi.
+ */
+const PARCEL_STATUS_WORDS = [
+  'posilkam',
+  'posilkalarim',
+  'jonatmam',
+  'jonatmalarim',
+  'posilka qayerda',
+  'posilka qani',
+  'posilka qachon',
+  'posilka holati',
+  'yukim qayerda',
+];
+
+/**
+ * Posilka JO'NATISH buyrug'i.
+ *
+ * "Yuk" so'zi yolg'iz yetarli emas: u boshqa ma'noda ham ishlatiladi
+ * ("yuklab ol"). Shuning uchun u faqat jo'natish fe'li bilan birga
+ * hisobga olinadi.
+ */
+const PARCEL_SEND_WORDS = ['posilka', 'yuk jonat', 'yuk yubor', 'yuk tashi'];
+
 const PHRASE_INTENTS: { intent: IntentName; words: string[] }[] = [
   /*
     FINANCE_REPORT eng BOSHIDA turadi.
@@ -777,6 +821,19 @@ const PHRASE_INTENTS: { intent: IntentName; words: string[] }[] = [
        lekin odam ro'yxatni emas, JAMI summani so'rayapti.
   */
   { intent: Intent.FINANCE_REPORT, words: FINANCE_WORDS },
+  /*
+    POSILKA — pul buyruqlaridan OLDIN.
+
+    "Posilka yubor" dagi "yubor" `TRANSFER` ro'yxatida, "posilka
+    qachon keladi" dagi "qachon keladi" esa `FOOD_STATUS` da turadi.
+    Ikkalasi ham noto'g'ri javob berardi — biri hatto PUL
+    o'tkazish oqimini ochardi.
+
+    Holat jo'natishdan OLDIN: "posilkam qayerda" da ham "posilka"
+    so'zi bor.
+  */
+  { intent: Intent.PARCEL_STATUS, words: PARCEL_STATUS_WORDS },
+  { intent: Intent.SEND_PARCEL, words: PARCEL_SEND_WORDS },
   { intent: Intent.HELP, words: ['yordam', 'nima qila olasan', 'nimalar qila', 'qanday ishlaysan'] },
   /**
    * FOOD_STATUS — FOOD_ORDER dan OLDIN: "buyurtmam qayerda" gapida
