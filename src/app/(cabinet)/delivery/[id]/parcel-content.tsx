@@ -1,6 +1,6 @@
 'use client';
 
-import { MapPin, Package, Phone, User } from 'lucide-react';
+import { Check, Copy, MapPin, Package, Phone, Share2, User } from 'lucide-react';
 import { useState } from 'react';
 
 import { AppHeader } from '@/components/app/app-header';
@@ -42,6 +42,10 @@ export function ParcelContent({ id }: ParcelContentProps) {
   const [isCancelling, setIsCancelling] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  const [trackUrl, setTrackUrl] = useState<string | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
   const parcel = data?.parcel ?? null;
 
   async function cancel() {
@@ -57,6 +61,62 @@ export function ParcelContent({ id }: ParcelContentProps) {
     } finally {
       setIsCancelling(false);
       setIsCancelOpen(false);
+    }
+  }
+
+  /**
+   * Qabul qiluvchi uchun kuzatish havolasini beradi.
+   *
+   * ── Nima uchun bu kerak ─────────────────────────────────────────────
+   * Posilkani kutayotgan odam ko'pincha ilovada YO'Q. Havolasiz u
+   * jo'natuvchiga qayta-qayta qo'ng'iroq qilaverardi: "keldimi?",
+   * "qayerda?". Endi u o'zi ko'radi.
+   *
+   * Havola ochadigan ma'lumot ataylab kambag'al: telefon ham, narx
+   * ham yo'q — sabab `parcel.types.ts` da.
+   */
+  async function share() {
+    setIsSharing(true);
+    setActionError(null);
+
+    try {
+      const result = await request<{ url: string }>(`/api/v1/parcels/${id}/track`, { method: 'POST' });
+
+      setTrackUrl(result.url);
+
+      /*
+        Telefonning O'Z ulashish oynasi ochiladi — u odamga tanish
+        va unda barcha ilovalar (Telegram, SMS) turadi.
+
+        Qo'llab-quvvatlanmasa, havola ekranda qoladi va uni
+        nusxalash mumkin.
+      */
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Navix — posilkani kuzating',
+            text: 'Sizga posilka yubordim. Uni shu havoladan kuzatishingiz mumkin:',
+            url: result.url,
+          });
+        } catch {
+          /* Odam ulashishni bekor qildi — bu xato emas. */
+        }
+      }
+    } catch (caught) {
+      setActionError(toUserMessage(caught));
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
+  async function copyLink() {
+    if (!trackUrl) return;
+
+    try {
+      await navigator.clipboard.writeText(trackUrl);
+      setIsCopied(true);
+    } catch {
+      setActionError("Nusxalash ishlamadi — havolani qo'lda belgilang.");
     }
   }
 
@@ -189,6 +249,51 @@ export function ParcelContent({ id }: ParcelContentProps) {
                 </a>
               </section>
             )}
+
+            {/*
+              Kuzatish havolasi — HAR DOIM ko'rsatiladi.
+
+              Bekor qilingan jo'natmada ham: qabul qiluvchi "nega
+              kelmadi?" degan savolga javob izlaydi va "bekor
+              qilingan" ham javob.
+            */}
+            <section className="border-border bg-card rounded-2xl border p-4">
+              <h2 className="text-sm font-semibold">Qabul qiluvchiga havola</h2>
+              <p className="text-muted-foreground mt-0.5 text-xs">
+                U ilovaga kirmasdan posilka holatini ko&apos;radi. Telefon raqami va narx ko&apos;rsatilmaydi.
+              </p>
+
+              <Button
+                variant="outline"
+                fullWidth
+                className="mt-3"
+                onClick={() => void share()}
+                isLoading={isSharing}
+                loadingText="Tayyorlanmoqda..."
+              >
+                <Share2 aria-hidden="true" />
+                Havolani ulashish
+              </Button>
+
+              {trackUrl && (
+                <div className="bg-secondary mt-3 flex items-center gap-2 rounded-xl p-2">
+                  <p className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-xs">{trackUrl}</p>
+
+                  <button
+                    type="button"
+                    onClick={() => void copyLink()}
+                    aria-label={isCopied ? 'Nusxalandi' : 'Havolani nusxalash'}
+                    className="tap-target text-muted-foreground hover:text-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-lg"
+                  >
+                    {isCopied ? (
+                      <Check className="text-success size-4" aria-hidden="true" />
+                    ) : (
+                      <Copy className="size-4" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
+              )}
+            </section>
 
             {canCancelParcel(parcel.status) && (
               <Button variant="outline" fullWidth onClick={() => setIsCancelOpen(true)} disabled={isCancelling}>

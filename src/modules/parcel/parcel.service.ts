@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { DeliveryStatus, Prisma } from '@/generated/prisma/client';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/api/errors';
 import { toPrismaPagination } from '@/lib/api/pagination';
@@ -15,7 +17,7 @@ import {
 } from '@/modules/wallet/wallet.service';
 import type { DeliveryStatusName } from '@/modules/courier/courier.types';
 import { calculateParcelPrice, isWeightAllowed } from '@/modules/parcel/parcel.pricing';
-import { canCancelParcel, type ParcelView } from '@/modules/parcel/parcel.types';
+import { canCancelParcel, type ParcelView, type SharedParcelView } from '@/modules/parcel/parcel.types';
 import type { CancelParcelInput, CreateParcelInput, ParcelQuery } from '@/modules/parcel/parcel.schemas';
 
 /**
@@ -126,9 +128,7 @@ function toParcelView(row: ParcelRow): ParcelView {
     cancelReason: row.cancelReason,
 
     // Kuryer topshiriqni olmaguncha uning raqami yo'q.
-    courier: delivery?.courier
-      ? { name: fullName(delivery.courier), phone: delivery.courier.phone }
-      : null,
+    courier: delivery?.courier ? { name: fullName(delivery.courier), phone: delivery.courier.phone } : null,
   };
 }
 
@@ -348,7 +348,7 @@ export async function getParcel(userId: string, parcelId: string): Promise<Parce
   });
 
   if (!row) {
-    throw new NotFoundError('Jo\'natma');
+    throw new NotFoundError("Jo'natma");
   }
 
   return toParcelView(row);
@@ -385,7 +385,7 @@ export async function cancelParcel(
   });
 
   if (!parcel) {
-    throw new NotFoundError('Jo\'natma');
+    throw new NotFoundError("Jo'natma");
   }
 
   const status = (parcel.delivery?.status ?? 'CANCELLED') as DeliveryStatusName;
@@ -394,7 +394,7 @@ export async function cancelParcel(
     throw new ConflictError(
       status === 'PICKED_UP'
         ? "Posilka kuryerning qo'lida — bekor qilib bo'lmaydi. Qo'llab-quvvatlashga murojaat qiling."
-        : 'Bu jo\'natma allaqachon yakunlangan.',
+        : "Bu jo'natma allaqachon yakunlangan.",
     );
   }
 
@@ -458,4 +458,106 @@ export async function cancelParcel(
   logger.info({ userId, parcelId: parcel.id }, 'Posilka bekor qilindi');
 
   return getParcel(userId, parcel.id);
+}
+
+/**
+ * Kuzatish havolasini yaratadi (yoki mavjudini qaytaradi).
+ *
+ * ── Nima uchun faqat JO'NATUVCHI ──────────────────────────────────────
+ * Havola posilka haqida ma'lumot ochadi. Uni kim ulashishini
+ * jo'natuvchi hal qiladi — pulni ham u to'lagan.
+ *
+ * ── Nima uchun BEKOR QILINGANDA ham ishlaydi ──────────────────────────
+ * Taksidan farqi shu. Safar tugagach uni kuzatishning ma'nosi yo'q:
+ * odam allaqachon yetib borgan. Posilkada esa qabul qiluvchi
+ * "nega kelmadi?" degan savolga javob izlaydi — va "bekor qilingan"
+ * degan javob ham javob.
+ */
+export async function createParcelTrack(userId: string, parcelId: string): Promise<{ token: string }> {
+  const row = await prisma.parcel.findFirst({
+    where: { id: parcelId, senderId: userId },
+    select: { id: true, trackToken: true },
+  });
+
+  if (!row) throw new NotFoundError("Jo'natma");
+
+  /* Kalit BIR MARTA yasaladi: havola almashtirilsa, eskisi ishlamay qolardi. */
+  if (row.trackToken) return { token: row.trackToken };
+
+  /*
+    Kalit TASODIFIY va uzun.
+
+    Qisqa kalit (masalan 6 belgi) havolani chiroyli qilardi, lekin
+    uni saralab topish mumkin bo'lardi: kimdir ketma-ket urinib,
+    begona odamning posilkasini ochib ko'rardi.
+  */
+  const token = randomBytes(24).toString('base64url');
+
+  await prisma.parcel.update({ where: { id: row.id }, data: { trackToken: token } });
+
+  logger.info({ userId, parcelId }, "Jo'natma kuzatish havolasi yaratildi");
+
+  return { token };
+}
+
+/**
+ * Havola orqali ochilgan posilka.
+ *
+ * ── Nima uchun bu funksiya AUTENTIFIKATSIYASIZ ishlaydi ───────────────
+ * Posilkani kutayotgan odam ilovada YO'Q bo'lishi mumkin — u
+ * shunchaki qarindosh yoki mijoz. Ro'yxatdan o'tishni talab
+ * qilsak, havolaning butun ma'nosi yo'qolardi.
+ *
+ * Himoya — KALITNING O'ZIDA: uni bilmagan odam hech narsa ko'rmaydi.
+ * Qaytariladigan ma'lumot esa ataylab kambag'al
+ * (`SharedParcelView`): telefon ham, narx ham, ichki ID ham yo'q.
+ */
+export async function getSharedParcel(token: string): Promise<SharedParcelView> {
+  const row = await prisma.parcel.findFirst({
+    where: { trackToken: token },
+    select: {
+      parcelNumber: true,
+      fromRegion: true,
+      toRegion: true,
+      description: true,
+      weightGrams: true,
+      createdAt: true,
+      cancelledAt: true,
+      delivery: {
+        select: {
+          status: true,
+          deliveredAt: true,
+          courier: { select: { firstName: true } },
+        },
+      },
+    },
+  });
+
+  if (!row) throw new NotFoundError("Jo'natma");
+
+  const delivery = row.delivery;
+
+  return {
+    parcelNumber: row.parcelNumber,
+    status: (delivery?.status ?? 'CANCELLED') as DeliveryStatusName,
+
+    fromRegion: row.fromRegion,
+    toRegion: row.toRegion,
+
+    description: row.description,
+    weightGrams: row.weightGrams,
+
+    /*
+      Faqat ISM — familiya ham yo'q.
+
+      Kuryerni tanish uchun ism yetarli. Familiya esa uni
+      ijtimoiy tarmoqlarda topish imkonini berardi va bu
+      havolani olgan begona odamga tegishli emas.
+    */
+    courierName: delivery?.courier?.firstName ?? null,
+
+    createdAt: row.createdAt.toISOString(),
+    deliveredAt: delivery?.deliveredAt?.toISOString() ?? null,
+    cancelledAt: row.cancelledAt?.toISOString() ?? null,
+  };
 }

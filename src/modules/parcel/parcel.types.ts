@@ -51,6 +51,63 @@ export interface ParcelView {
   courier: { name: string | null; phone: string } | null;
 }
 
+/**
+ * Kuzatish havolasi orqali ochilgan posilka.
+ *
+ * ── Nima uchun ALOHIDA va KAMBAG'AL tur ───────────────────────────────
+ * `ParcelView` ni qayta ishlatish mumkin edi va u kamroq kod bo'lardi.
+ * Lekin havola ISTALGAN odamning qo'liga tushishi mumkin: uni
+ * WhatsApp'da yuborishadi, u guruhga ko'chib o'tadi, keyin ekran
+ * suratiga tushadi.
+ *
+ * Shuning uchun bu yerda ATAYLAB yo'q:
+ *  · telefon raqamlari — na jo'natuvchining, na qabul qiluvchining;
+ *  · narx — bu ikki odam o'rtasidagi gap;
+ *  · posilkaning ichki ID'si — u bilan API'ga murojaat qilib
+ *    bo'lmasligi kerak;
+ *  · bekor qilish sababi — u shaxsiy izoh bo'lishi mumkin.
+ *
+ * Qoladigan narsa — savolning javobi: "posilkam qayerda va qachon
+ * yetadi?".
+ *
+ * Bu qoida `parcel-share.test.ts` bilan qulflangan: ro'yxatga yangi
+ * maydon qo'shilib qolmasligi uchun.
+ */
+export interface SharedParcelView {
+  parcelNumber: string;
+  status: DeliveryStatusName;
+
+  /** Faqat VILOYATLAR — aniq manzil emas. */
+  fromRegion: string;
+  toRegion: string;
+
+  /** Ichida nima borligi: qabul qiluvchi nimani kutishini biladi. */
+  description: string;
+  weightGrams: number;
+
+  /**
+   * Kuryer — FAQAT ismi.
+   *
+   * Telefon YO'Q: havolani olgan odam kuryerga to'g'ridan-to'g'ri
+   * qo'ng'iroq qilishi kerak emas. Zarur bo'lsa, u jo'natuvchi
+   * bilan gaplashadi — posilka ikkalasining kelishuvi.
+   */
+  courierName: string | null;
+
+  createdAt: string;
+  deliveredAt: string | null;
+  cancelledAt: string | null;
+}
+
+export interface SharedParcelResponse {
+  parcel: SharedParcelView;
+}
+
+export interface ParcelTrackResponse {
+  /** To'liq havola — ulashishga tayyor. */
+  url: string;
+}
+
 export interface ParcelQuote {
   priceTiyin: number;
   breakdown: {

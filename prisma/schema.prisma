@@ -2490,6 +2490,23 @@ model Parcel {
   /// Bekor qilish sababi — mijoz yoki kuryer ko'rsatadi.
   cancelReason String? @db.VarChar(255)
 
+  /// Qabul qiluvchi uchun KUZATISH kaliti.
+  ///
+  /// ── Nima uchun kerak ─────────────────────────────────────────────
+  /// Posilkani kutayotgan odam ko'pincha ilovada YO'Q: u shunchaki
+  /// qarindosh yoki mijoz. Uni ro'yxatdan o'tishga majburlash —
+  /// "posilkangiz qayerda?" degan savolga javob bermaslik bilan
+  /// barobar. U esa jo'natuvchiga qo'ng'iroq qilaveradi.
+  ///
+  /// Kalitni bilgan odam holatni ko'radi, bilmagan hech narsa
+  /// ko'rmaydi. Ochiladigan ma'lumot ataylab kambag'al —
+  /// `SharedParcelView` ga qarang.
+  ///
+  /// ── Nima uchun `null` bo'lishi mumkin ────────────────────────────
+  /// Har posilka ulashilmaydi. Har biriga kalit yasash — keraksiz
+  /// ish va keraksiz maxfiy qiymat.
+  trackToken String? @unique @db.VarChar(64)
+
   createdAt   DateTime  @default(now())
   cancelledAt DateTime?
 
