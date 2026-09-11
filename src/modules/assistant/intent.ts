@@ -622,6 +622,19 @@ export function extractOrdinal(rawText: string): number | null {
 const TAXI_VEHICLE_WORDS = ['taksi', 'taxi'];
 
 /**
+ * ZAIF transport so'zlari — MANZIL yoki harakat bilan birga.
+ *
+ * ── Nima uchun yolg'iz yetarli emas ───────────────────────────────────
+ * "Mashina" so'zi ikki ma'noda ishlatiladi: chaqiriladigan transport
+ * va SOTIB OLINADIGAN tovar. "Mashina sotib ol" — bu Marketplace
+ * qidiruvi, taksi emas.
+ *
+ * Manzil yoki harakat fe'li qo'shilganda esa boshqa ma'no qolmaydi:
+ * "ishga mashina yubor" — bu faqat taksi.
+ */
+const TAXI_WEAK_VEHICLE_WORDS = ['mashina', 'moshin', 'avtomobil'];
+
+/**
  * Harakat so'zlari — "borish" ma'nosini bildiradi.
  *
  * "Buyur", "sotib ol", "yetkazib ber" ATAYLAB yo'q: ular ovqat va
@@ -676,7 +689,16 @@ function isTaxiRequest(text: string): boolean {
   */
   const hasTariffName = matchWords(text, TAXI_TARIFF_WORDS);
 
-  return hasPlace && (hasMove || hasTariffName);
+  /*
+    Zaif transport so'zi MANZIL bilan birga kelsa — bu taksi.
+
+    "Ishga mashina yubor" ilgari hech qayerga tushmasdi va
+    yordamchi "tushunmadim" derdi (undan oldin esa PUL o'tkazish
+    oqimini ochardi).
+  */
+  const hasWeakVehicle = matchWords(text, TAXI_WEAK_VEHICLE_WORDS);
+
+  return hasPlace && (hasMove || hasTariffName || hasWeakVehicle);
 }
 
 /**
@@ -866,16 +888,63 @@ const PHRASE_INTENTS: { intent: IntentName; words: string[] }[] = [
  *  · "ovqat yetkazib yubor" — bu pul o'tkazma emas;
  *  · "ovqatga to'la"        — bu kommunal to'lov emas.
  */
-const COMMAND_INTENTS: { intent: IntentName; words: string[] }[] = [
+/**
+ * ── HAQIQIY XATO: PUL fe'llari hamma narsani o'ziga tortardi ──────────
+ * "Yubor", "jo'nat" va "to'la" so'zlari pul buyruqlari ro'yxatida
+ * turardi — GAPNING QOLGANIGA QARAMASDAN. Natijada:
+ *
+ *   "do'stimga xabar yubor"   -> pul o'tkazish
+ *   "rasm yubor"              -> pul o'tkazish
+ *   "rezyume yubor"           -> pul o'tkazish
+ *   "avtobus chiptasi yubor"  -> pul o'tkazish
+ *   "mehmonxonaga to'la"      -> kommunal to'lov
+ *   "posilka yubor"           -> pul o'tkazish
+ *
+ * Har birida yordamchi "Kimga yuboramiz? Telefon raqamini yozing"
+ * deb javob berardi va odam o'zi bilmagan holda PUL yuborish
+ * yo'liga tushib qolardi.
+ *
+ * Bittasi (posilka) alohida tuzatilgandi. Lekin xato BITTA
+ * buyruqda emas — QOIDADA edi: har safar yangi modul qo'shilganda
+ * u qaytadan paydo bo'lardi.
+ *
+ * ── Yechim: pul fe'li PUL BELGISI bilan birga kelishi kerak ───────────
+ * Haqiqiy pul buyrug'ida har doim biror belgi bo'ladi: summa,
+ * telefon raqami, provayder nomi yoki "pul" so'zining o'zi.
+ * "Xabar yubor" da ularning hech biri yo'q.
+ *
+ * ── Nima uchun IKKI ro'yxat ───────────────────────────────────────────
+ * "Hisobni to'ldir" va "perevod" — o'zi yetarli aniq, ularga
+ * qo'shimcha belgi kerak emas. "Yubor" esa yolg'iz hech narsani
+ * anglatmaydi.
+ */
+interface CommandEntry {
+  intent: IntentName;
+  /** Har doim ishlaydigan aniq iboralar. */
+  words: string[];
+  /** Faqat PUL BELGISI bo'lganda ishlaydigan umumiy fe'llar. */
+  moneyVerbs?: string[];
+}
+
+const COMMAND_INTENTS: CommandEntry[] = [
   { intent: Intent.FOOD_ORDER, words: FOOD_WORDS },
   { intent: Intent.MARKET_ORDER, words: MARKET_WORDS },
   {
     intent: Intent.TOPUP,
-    words: ['hisobni toldir', 'hisobimni toldir', 'balansni toldir', 'hamyonni toldir', 'pul sol', 'toldir'],
+    words: ['hisobni toldir', 'hisobimni toldir', 'balansni toldir', 'hamyonni toldir', 'pul sol'],
+    moneyVerbs: ['toldir'],
   },
-  { intent: Intent.TRANSFER, words: ['otkaz', 'yubor', 'jonat', 'pul ber', 'perevod'] },
+  {
+    intent: Intent.TRANSFER,
+    words: ['pul ber', 'pul yubor', 'pul jonat', 'pul otkaz', 'perevod'],
+    moneyVerbs: ['otkaz', 'yubor', 'jonat'],
+  },
   { intent: Intent.HISTORY, words: ['tarix', 'chek', 'oxirgi amal', 'harakatlar'] },
-  { intent: Intent.PAY_SERVICE, words: ['tola', 'tolov', 'tolash', 'oplata', 'oplatit'] },
+  {
+    intent: Intent.PAY_SERVICE,
+    words: ['oplata', 'oplatit'],
+    moneyVerbs: ['tola', 'tolov', 'tolash'],
+  },
 ];
 
 /**
@@ -919,7 +988,7 @@ export function parseMessage(rawText: string): ParsedMessage {
 
   const amountSom = extractAmount(amountText);
 
-  const intent = detectIntent(text);
+  const intent = detectIntent(text, { amountSom, phone, providerCode, category });
 
   // Xarid niyatida bo'lgandagina katalog so'zlarini ajratamiz — boshqa
   // buyruqlarda bu ortiqcha ish va noto'g'ri natija berardi.
@@ -961,7 +1030,31 @@ export function parseMessage(rawText: string): ParsedMessage {
  * Avval ro'yxatdagi iboralar (boshidan solishtiriladi), keyin taom
  * nomlari (to'liq so'z sifatida) tekshiriladi.
  */
-function detectIntent(text: string): IntentName {
+/**
+ * Gapda PUL belgisi bormi.
+ *
+ * Haqiqiy pul buyrug'ida har doim biror belgi bo'ladi: summa,
+ * telefon raqami, provayder nomi yoki "pul" so'zining o'zi.
+ * "Xabar yubor" da ularning hech biri yo'q.
+ */
+export interface MoneySignal {
+  amountSom: number | null;
+  phone: string | null;
+  providerCode: string | null;
+  category: string | null;
+}
+
+function hasMoneySignal(text: string, signal: MoneySignal): boolean {
+  if (signal.amountSom !== null) return true;
+  if (signal.phone !== null) return true;
+  if (signal.providerCode !== null) return true;
+  if (signal.category !== null) return true;
+
+  /* "Pulni o'tkaz" — summa aytilmagan, lekin ma'no aniq. */
+  return matchWords(text, ['pul', 'mablag', 'som']);
+}
+
+function detectIntent(text: string, signal: MoneySignal): IntentName {
   /**
    * ── Tartib MUHIM ────────────────────────────────────────────────────
    *
@@ -999,7 +1092,16 @@ function detectIntent(text: string): IntentName {
   if (matchExactWords(text, DISH_WORDS)) return Intent.FOOD_ORDER;
   if (matchExactWords(text, PRODUCT_WORDS)) return Intent.MARKET_ORDER;
 
-  const byCommand = COMMAND_INTENTS.find((entry) => matchWords(text, entry.words))?.intent;
+  const byCommand = COMMAND_INTENTS.find((entry) => {
+    if (matchWords(text, entry.words)) return true;
+
+    /*
+      Umumiy pul fe'li FAQAT pul belgisi bilan birga hisobga
+      olinadi — aks holda "xabar yubor" pul o'tkazishga aylanardi.
+    */
+    return entry.moneyVerbs !== undefined && hasMoneySignal(text, signal) && matchWords(text, entry.moneyVerbs);
+  })?.intent;
+
   if (byCommand) return byCommand;
 
   /**
