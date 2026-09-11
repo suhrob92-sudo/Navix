@@ -185,6 +185,31 @@ export interface NotificationEventData {
     parcelNumber: string;
     refundTiyin: number;
   };
+  /*
+    ── Nima uchun `delivery.*` hodisalari YETARLI EMAS ────────────────
+    Ular "buyurtmangizni yetkazadi" deb yozadi. Posilkada esa
+    buyurtma yo'q — jo'natma bor va uni odam O'ZI yuborgan.
+
+    "Buyurtmangiz yo'lda" degan xabar posilka jo'natgan odamni
+    chalkashtiradi: u hech narsa buyurtma qilmagan.
+  */
+  'parcel.courier_assigned': {
+    parcelId: string;
+    parcelNumber: string;
+    courierName: string;
+    courierPhone: string;
+  };
+  'parcel.picked_up': {
+    parcelId: string;
+    parcelNumber: string;
+    courierName: string;
+  };
+  'parcel.delivered': {
+    parcelId: string;
+    parcelNumber: string;
+    /** Kimga yetkazildi — jo'natuvchi buni ko'rishi kerak. */
+    recipientName: string;
+  };
   'hotel.booking_created': {
     bookingId: string;
     bookingNumber: string;
@@ -526,7 +551,7 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
    * u nima qilish kerakligini bilmasdi.
    */
   'market.return_rejected': ({ orderId, shopName, reason }) => ({
-    title: "Qaytarish rad etildi",
+    title: 'Qaytarish rad etildi',
     body: `${shopName} qaytarishni qabul qilmadi: ${reason}`,
     actionUrl: `/marketplace/orders/${orderId}`,
     sourceModule: 'market',
@@ -669,6 +694,33 @@ export const NOTIFICATION_TEMPLATES: TemplateBuilders = {
   'parcel.cancelled': ({ parcelId, parcelNumber, refundTiyin }) => ({
     title: "Jo'natma bekor qilindi",
     body: `${parcelNumber} bekor qilindi. ${formatTiyin(refundTiyin)} hamyoningizga qaytarildi.`,
+    actionUrl: `/delivery/${parcelId}`,
+    sourceModule: 'delivery',
+  }),
+
+  'parcel.courier_assigned': ({ parcelId, parcelNumber, courierName, courierPhone }) => ({
+    title: 'Kuryer topildi',
+    body: `${courierName} posilkangizni olib ketadi. Aloqa: ${courierPhone}. Raqam: ${parcelNumber}`,
+    actionUrl: `/delivery/${parcelId}`,
+    sourceModule: 'delivery',
+  }),
+
+  'parcel.picked_up': ({ parcelId, parcelNumber, courierName }) => ({
+    title: "Posilka yo'lda",
+    body: `${courierName} ${parcelNumber} posilkasini olib chiqdi. Qabul qiluvchiga havolani yuborishni unutmang.`,
+    actionUrl: `/delivery/${parcelId}`,
+    sourceModule: 'delivery',
+  }),
+
+  /*
+    Yetkazilganda KIMGA topshirilgani yoziladi.
+
+    Jo'natuvchi uchun eng muhim ma'lumot shu: posilka yetdimi va
+    to'g'ri odamgami. Bildirishnomani ochmasdan ham ko'rinadi.
+  */
+  'parcel.delivered': ({ parcelId, parcelNumber, recipientName }) => ({
+    title: 'Posilka yetkazildi',
+    body: `${parcelNumber} — ${recipientName} ga topshirildi.`,
     actionUrl: `/delivery/${parcelId}`,
     sourceModule: 'delivery',
   }),

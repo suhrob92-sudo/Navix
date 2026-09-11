@@ -163,6 +163,22 @@ const SAMPLES = {
     parcelNumber: 'NVX-P-20260806-A1B2C3',
     refundTiyin: 3_500_000,
   },
+  'parcel.courier_assigned': {
+    parcelId: '7c1f9a52-3e4b-4d8a-9f2c-6b5e1a3d7c94',
+    parcelNumber: 'NVX-P-20260806-A1B2C3',
+    courierName: 'Sardor Rahimov',
+    courierPhone: '+998 90 123 45 67',
+  },
+  'parcel.picked_up': {
+    parcelId: '7c1f9a52-3e4b-4d8a-9f2c-6b5e1a3d7c94',
+    parcelNumber: 'NVX-P-20260806-A1B2C3',
+    courierName: 'Sardor Rahimov',
+  },
+  'parcel.delivered': {
+    parcelId: '7c1f9a52-3e4b-4d8a-9f2c-6b5e1a3d7c94',
+    parcelNumber: 'NVX-P-20260806-A1B2C3',
+    recipientName: 'Dilnoza Yusupova',
+  },
   'hotel.booking_created': {
     bookingId: '4e8b1c37-9a2d-4f65-8b3e-7c1a5d9f2e48',
     bookingNumber: 'NVX-H-20260806-A1B2C3',
@@ -231,12 +247,12 @@ const SAMPLES = {
   'support.replied': {
     ticketId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93',
     ticketNumber: 'NVX-S-20260813-A1B2C3',
-    subject: "Buyurtma yetkazilmadi",
+    subject: 'Buyurtma yetkazilmadi',
   },
   'support.resolved': {
     ticketId: '4a2f8c1e-5b7d-4e3a-9f6c-1d8e2b5a7c93',
     ticketNumber: 'NVX-S-20260813-A1B2C3',
-    subject: "Buyurtma yetkazilmadi",
+    subject: 'Buyurtma yetkazilmadi',
   },
   'call.missed': {
     conversationId: '7f3a1c2e-8b4d-4e6a-9c1f-2d5e8a7b3c94',

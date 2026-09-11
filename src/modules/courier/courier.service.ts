@@ -310,9 +310,7 @@ function resolveSource(row: DeliveryRow): DeliverySource | null {
       kind: 'PARCEL',
       orderNumber: parcel.parcelNumber,
       pickup: { name: `Jo'natuvchi — ${parcel.fromRegion}`, color: 'pink' },
-      pickupAddress: parcel.fromNote
-        ? `${parcel.fromAddress} (${parcel.fromNote})`
-        : parcel.fromAddress,
+      pickupAddress: parcel.fromNote ? `${parcel.fromAddress} (${parcel.fromNote})` : parcel.fromAddress,
       dropoffAddress: `${parcel.toRegion}, ${parcel.toAddress}`,
       dropoffNote: parcel.toNote,
       customer: { name: parcel.recipientName, phone: parcel.recipientPhone },
@@ -390,7 +388,9 @@ export async function getDelivery(userId: string, deliveryId: string): Promise<D
 }
 
 /** Kabinetdagi raqamlar va hozir qo'lidagi topshiriqlar. */
-export async function getCourierOverview(userId: string): Promise<{ stats: CourierStats; active: DeliveryView[] }> {
+export async function getCourierOverview(
+  userId: string,
+): Promise<{ stats: CourierStats; active: DeliveryView[] }> {
   const todayStart = startOfTashkentDay();
   const weekStart = startOfTashkentDaysAgo(7);
 
@@ -732,7 +732,13 @@ async function releaseDelivery(
  */
 async function completeDelivery(
   userId: string,
-  row: { id: string; status: DeliveryStatus; feeTiyin: bigint; foodOrderId: string | null; marketOrderId: string | null },
+  row: {
+    id: string;
+    status: DeliveryStatus;
+    feeTiyin: bigint;
+    foodOrderId: string | null;
+    marketOrderId: string | null;
+  },
   meta: OperationMeta,
 ): Promise<DeliveryView> {
   // Hamyon tranzaksiyadan OLDIN tayyorlanadi: uni ichkarida yaratish
@@ -842,6 +848,19 @@ async function completeDelivery(
 // ── Bildirishnomalar ──────────────────────────────────────────────────
 
 /**
+ * Posilka ID'sini havoladan ajratadi: `/delivery/<id>` -> `<id>`.
+ *
+ * ── Nima uchun bazadan qayta o'qilmaydi ───────────────────────────────
+ * `DeliveryView` da posilkaning ID'si alohida maydon sifatida yo'q,
+ * lekin u `orderUrl` ichida allaqachon turibdi (u `/delivery/<id>`
+ * ko'rinishida yasaladi). Qo'shimcha so'rov yuborish — bir xil
+ * ma'lumot uchun ikkinchi marta bazaga borish.
+ */
+function parcelIdFromUrl(orderUrl: string): string {
+  return orderUrl.split('/').pop() ?? '';
+}
+
+/**
  * Buyurtma egasiga xabar yuboradi.
  *
  * Kuryer mijozning ID'sini bilmaydi (va bilishi ham shart emas) —
@@ -854,6 +873,35 @@ async function notifyCustomer(
 ): Promise<void> {
   const customerId = await findCustomerId(delivery.id);
   if (!customerId) return;
+
+  /*
+    Posilkaning O'Z matnlari bor.
+
+    Umumiy `delivery.*` xabarlari "buyurtmangizni yetkazadi" deb
+    yozadi. Posilka jo'natgan odam esa hech narsa buyurtma
+    qilmagan — u o'zi yuborgan. "Buyurtmangiz yo'lda" degan xabar
+    uni chalkashtirardi.
+  */
+  if (delivery.kind === 'PARCEL') {
+    if (event === 'delivery.courier_assigned') {
+      await notifyUser(customerId, 'parcel.courier_assigned', {
+        parcelId: parcelIdFromUrl(delivery.orderUrl),
+        parcelNumber: delivery.orderNumber,
+        courierName: data.courierName,
+        courierPhone: data.courierPhone ?? '',
+      });
+
+      return;
+    }
+
+    await notifyUser(customerId, 'parcel.picked_up', {
+      parcelId: parcelIdFromUrl(delivery.orderUrl),
+      parcelNumber: delivery.orderNumber,
+      courierName: data.courierName,
+    });
+
+    return;
+  }
 
   if (event === 'delivery.courier_assigned') {
     await notifyUser(customerId, event, {
@@ -880,6 +928,24 @@ async function notifyOrderDelivered(
   const customerId = await findCustomerId(delivery.id);
   if (!customerId) return;
 
+  /*
+    ── Posilka BIRINCHI tekshiriladi ───────────────────────────────
+    Quyidagi shart `row.foodOrderId` bo'sh bo'lsa, oxirida
+    MARKETPLACE xabarini yuborardi — `orderId: ''` bilan. Ya'ni
+    posilka jo'natgan odam "do'kondan buyurtmangiz yetkazildi"
+    degan yolg'on xabarni olardi va havola hech qayerga
+    olib bormasdi.
+  */
+  if (delivery.kind === 'PARCEL') {
+    await notifyUser(customerId, 'parcel.delivered', {
+      parcelId: parcelIdFromUrl(delivery.orderUrl),
+      parcelNumber: delivery.orderNumber,
+      recipientName: delivery.customer.name ?? 'qabul qiluvchi',
+    });
+
+    return;
+  }
+
   if (row.foodOrderId) {
     await notifyUser(customerId, 'food.order_status_changed', {
       orderId: row.foodOrderId,
@@ -899,14 +965,31 @@ async function notifyOrderDelivered(
   });
 }
 
+/**
+ * Kimga xabar berish kerak.
+ *
+ * ── HAQIQIY XATO: posilka jo'natuvchisi UNUTILGANDI ──────────────────
+ * Bu funksiya faqat ovqat va marketplace buyurtmalarini bilardi.
+ * Posilkada u `null` qaytarardi va `notifyUser` umuman
+ * chaqirilmasdi.
+ *
+ * Natijada posilka jo'natgan odam HECH QANDAY xabar olmasdi:
+ * na kuryer topilganda, na olib ketilganda, na yetkazilganda.
+ * U faqat sahifani ochib tekshirib turishi mumkin edi.
+ *
+ * Xato JIM edi — hech qayerda xato yozilmasdi, shunchaki
+ * bildirishnoma kelmasdi.
+ */
 async function findCustomerId(deliveryId: string): Promise<string | null> {
   const row = await prisma.delivery.findUnique({
     where: { id: deliveryId },
     select: {
       foodOrder: { select: { userId: true } },
       marketOrder: { select: { userId: true } },
+      /* Posilkada "mijoz" — JO'NATUVCHI: pulni u to'lagan. */
+      parcel: { select: { senderId: true } },
     },
   });
 
-  return row?.foodOrder?.userId ?? row?.marketOrder?.userId ?? null;
+  return row?.foodOrder?.userId ?? row?.marketOrder?.userId ?? row?.parcel?.senderId ?? null;
 }
