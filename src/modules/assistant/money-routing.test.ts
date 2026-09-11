@@ -110,6 +110,7 @@ describe('modul buyruqlari toʻgʻri manzilga boradi', () => {
     ['xarajatlarim', Intent.FINANCE_REPORT],
     ['reklama beraman', Intent.FIND_CREATOR],
     ['takliflarim', Intent.COLLAB_OFFERS],
+    ['buyurtmalarim', Intent.MY_ORDERS],
     ['balansim qancha', Intent.BALANCE],
     ["to'lovlar tarixi", Intent.HISTORY],
     ['nima qila olasan', Intent.HELP],

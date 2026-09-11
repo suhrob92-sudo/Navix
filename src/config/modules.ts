@@ -1,3 +1,4 @@
+import { toSearchText } from '@/lib/search';
 import type { LucideIcon } from 'lucide-react';
 import {
   Banknote,
@@ -299,7 +300,7 @@ export const APP_MODULES: readonly AppModule[] = [
     category: ModuleCategory.FINANCE,
     status: ModuleStatus.LIVE,
     color: 'green',
-    aiIntents: ['balansim qancha', "pul o'tkaz", 'hamyon och', "hisobni to'ldir", 'balans'],
+    aiIntents: ['balansim qancha', "pul o'tkaz", 'hamyon', "hisobni to'ldir", 'balans'],
   },
   {
     id: 'jobs',
@@ -312,7 +313,7 @@ export const APP_MODULES: readonly AppModule[] = [
     status: ModuleStatus.LIVE,
     color: 'green',
     quickOrder: 5,
-    aiIntents: ['ish top', 'vakansiya qidir', 'ishga joylash', 'rezyume'],
+    aiIntents: ['ish top', 'ish qidir', 'ish elon', 'vakansiya', 'ishga joylash', 'rezyume', 'arizalarim'],
     canDisable: true,
     apiPrefixes: ['jobs'],
   },
@@ -337,7 +338,7 @@ export const APP_MODULES: readonly AppModule[] = [
     status: ModuleStatus.LIVE,
     color: 'violet',
     quickOrder: 7,
-    aiIntents: ['mehmonxona band qil', 'xona top', 'nomer band qil'],
+    aiIntents: ['mehmonxona', 'xona top', 'xona kerak', 'nomer band qil', 'bandlovlarim', 'mehmonxona band qil'],
     canDisable: true,
     apiPrefixes: ['hotels'],
   },
@@ -355,7 +356,8 @@ export const APP_MODULES: readonly AppModule[] = [
     aiIntents: [
       'chipta ol',
       'chipta',
-      'sayohat rejalashtir',
+      'sayohat',
+      'safar',
       'aviachipta',
       'poyezd chiptasi',
       'avtobus chiptasi',
@@ -405,7 +407,7 @@ export const APP_MODULES: readonly AppModule[] = [
     category: ModuleCategory.PLATFORM,
     status: ModuleStatus.LIVE,
     color: 'sky',
-    aiIntents: ['chat och', 'xabar yoz', 'xabarlarim', 'suhbat och', "operator bilan bog'la"],
+    aiIntents: ['chat och', 'xabar yoz', 'xabarlarim', 'suhbat', "operator bilan bog'la", 'kim yozdi'],
   },
   {
     id: 'orders',
@@ -450,7 +452,7 @@ export const APP_MODULES: readonly AppModule[] = [
     category: ModuleCategory.PLATFORM,
     status: ModuleStatus.LIVE,
     color: 'rose',
-    aiIntents: ['xavfsizlik', "parolni o'zgartir", 'qurilmalarim'],
+    aiIntents: ['xavfsizlik', "parolni o'zgartir", 'parol', 'qurilmalarim', 'seanslarim'],
   },
 ] as const;
 
@@ -490,7 +492,25 @@ export function getModulesByCategory(category: ModuleCategoryValue): AppModule[]
  * Kelajakda LLM bilan almashtiriladi, hozircha kalit so'z bo'yicha ishlaydi.
  */
 export function matchModuleByIntent(userText: string): AppModule | undefined {
-  const normalized = userText.toLowerCase().trim();
+  /*
+    ── HAQIQIY XATO: APOSTROF hamma narsani buzardi ──────────────────
+    Ilgari bu yerda oddiy `toLowerCase()` turardi va ibora AYNAN
+    mos kelishi kerak edi. Reyestrda esa iboralar apostrof bilan
+    yozilgan: "kommunal to'la", "pul o'tkaz", "parolni
+    o'zgartir", "yo'l ko'rsat".
+
+    Telefon klaviaturasida apostrof qulay emas va odam uni
+    yozmaydi. Natijada reyestrning katta qismi JIM o'chiq turardi:
+    sakkizta tekshirilgan iboradan SAKKIZTASI apostrofsiz
+    ishlamasdi.
+
+    `toSearchText` apostrofni butunlay olib tashlaydi — ya'ni
+    "kommunal tola" ham, "kommunal to'la" ham bir xil qiymatga
+    keladi. Ayni funksiyani yordamchining o'z tahlilchisi ham
+    ishlatadi, shuning uchun ikkala tizim endi BIR XIL qoidaga
+    bo'ysunadi.
+  */
+  const normalized = toSearchText(userText);
   if (!normalized) return undefined;
 
   /**
@@ -501,6 +521,6 @@ export function matchModuleByIntent(userText: string): AppModule | undefined {
    * qilishning ma'nosi yo'q.
    */
   return getPublicModules().find((module) =>
-    module.aiIntents.some((intent) => normalized.includes(intent.toLowerCase())),
+    module.aiIntents.some((intent) => normalized.includes(toSearchText(intent))),
   );
 }

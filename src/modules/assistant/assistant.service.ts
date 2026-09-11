@@ -6,6 +6,7 @@ import { comingSoonReply, findPlannedModule } from '@/modules/assistant/assistan
 import { handleCollabOffers, handleFindCreator } from '@/modules/assistant/assistant.collab-flow';
 import { handleFinanceReport } from '@/modules/assistant/assistant.finance-flow';
 import { handleFoodOrder, handleFoodStatus } from '@/modules/assistant/assistant.food-flow';
+import { handleMyOrders } from '@/modules/assistant/assistant.orders-flow';
 import { handleParcelStatus, handleSendParcel } from '@/modules/assistant/assistant.parcel-flow';
 import { handleMarketOrder, handleMarketStatus } from '@/modules/assistant/assistant.market-flow';
 import { handleTaxiOrder } from '@/modules/assistant/assistant.taxi-flow';
@@ -104,7 +105,8 @@ function handleHelp(): AssistantReply {
       '• Tarixni ko\'rsataman — "to\'lovlar tarixi"\n' +
       '• Oylik hisobotni aytaman — "shu oyda qancha sarfladim"\n' +
       '• Posilka jo\'nataman — "posilka yubor"\n' +
-      '• Ijodkor topaman — "reklama beraman"\n\n' +
+      '• Ijodkor topaman — "reklama beraman"\n' +
+      '• Buyurtmalaringizni ko\'rsataman — "buyurtmalarim"\n\n' +
       'Shunchaki oddiy tilda yozing.',
     { suggestions: DEFAULT_SUGGESTIONS },
   );
@@ -406,6 +408,9 @@ export async function respond(
 
     case Intent.PARCEL_STATUS:
       return handleParcelStatus(userId);
+
+    case Intent.MY_ORDERS:
+      return handleMyOrders(userId);
 
     case Intent.FIND_CREATOR:
       return handleFindCreator();

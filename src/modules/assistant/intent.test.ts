@@ -724,3 +724,35 @@ describe('hamkorlik buyruqlari', () => {
     expect(parseMessage('ovqat buyur').intent).toBe(Intent.FOOD_ORDER);
   });
 });
+
+describe('buyurtmalar tarixi', () => {
+  /**
+   * ── HAQIQIY XATO: menyudan TAOM sifatida qidirilardi ────────────────
+   * "Buyurtmalarim" gapida "buyurtma" so'zi bor va u `FOOD_ORDER`
+   * ro'yxatida turadi. Yordamchi menyudan "buyurtmalarim" degan
+   * taomni qidirib, "Menyulardan 'buyurtmalarim' topilmadi" deb
+   * javob berardi va odamni restoranlarga yuborardi.
+   */
+  it('tarix ovqat buyurtmasi deb tushunilmaydi', () => {
+    for (const command of ['buyurtmalarim', 'buyurtma tarixi', 'nima buyurtma qilgandim']) {
+      const parsed = parseMessage(command);
+
+      expect(parsed.intent, command).toBe(Intent.MY_ORDERS);
+      expect(parsed.intent, command).not.toBe(Intent.FOOD_ORDER);
+    }
+  });
+
+  /**
+   * "Buyurtmam qayerda" — BOSHQA savol: odam bitta, hozirgi
+   * buyurtmaning holatini so'rayapti.
+   */
+  it('bitta buyurtma holati alohida qoladi', () => {
+    expect(parseMessage('buyurtmam qayerda').intent).toBe(Intent.FOOD_STATUS);
+    expect(parseMessage('ovqatim qani').intent).toBe(Intent.FOOD_STATUS);
+  });
+
+  it('yangi buyurtma berish buzilmagan', () => {
+    expect(parseMessage('2 ta lagmon buyur').intent).toBe(Intent.FOOD_ORDER);
+    expect(parseMessage('ovqat buyur').intent).toBe(Intent.FOOD_ORDER);
+  });
+});

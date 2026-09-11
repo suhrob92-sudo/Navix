@@ -82,6 +82,19 @@ export const Intent = {
   FIND_CREATOR: 'FIND_CREATOR',
   /** "Takliflarim" — kelgan hamkorlik takliflari. */
   COLLAB_OFFERS: 'COLLAB_OFFERS',
+  /**
+   * "Buyurtmalarim" — barcha buyurtmalar tarixi.
+   *
+   * ── HAQIQIY XATO: menyudan TAOM sifatida qidirilardi ──────────────
+   * "Buyurtmalarim" gapida "buyurtma" so'zi bor va u `FOOD_ORDER`
+   * ro'yxatida turadi. Natijada yordamchi menyudan "buyurtmalarim"
+   * degan TAOMNI qidirardi va "Menyulardan 'buyurtmalarim'
+   * topilmadi" deb javob berardi — keyin esa odamni
+   * restoranlarga yuborardi.
+   *
+   * Odam esa o'z buyurtmalari TARIXINI so'ragan edi.
+   */
+  MY_ORDERS: 'MY_ORDERS',
   /** Yordam — nima qila olasan. */
   HELP: 'HELP',
   /**
@@ -866,6 +879,22 @@ const COLLAB_OFFERS_WORDS = [
  */
 const COLLAB_FIND_WORDS = ['hamkorlik', 'hamkor top', 'ijodkor', 'bloger', 'blogger', 'reklama'];
 
+/**
+ * Buyurtmalar TARIXI so'ralganini bildiruvchi so'zlar.
+ *
+ * ── Nima uchun "buyurtmam" YO'Q ───────────────────────────────────────
+ * "Buyurtmam qayerda" — bu boshqa savol: odam BITTA, hozirgi
+ * buyurtmaning holatini so'rayapti (`FOOD_STATUS`). Bu yerdagi
+ * so'zlar esa KO'PLIKDA yoki tarixga ishora qiladi.
+ */
+const MY_ORDERS_WORDS = [
+  'buyurtmalarim',
+  'buyurtmalar tarixi',
+  'buyurtma tarixi',
+  'nima buyurtma qilgandim',
+  'oldingi buyurtmalar',
+];
+
 const PHRASE_INTENTS: { intent: IntentName; words: string[] }[] = [
   /*
     FINANCE_REPORT eng BOSHIDA turadi.
@@ -896,6 +925,13 @@ const PHRASE_INTENTS: { intent: IntentName; words: string[] }[] = [
     "Hamkorlik takliflarim" gapida ikkala ro'yxatning so'zi ham
     bor, lekin odam qidiruvni emas, o'z qutisini so'rayapti.
   */
+  /*
+    BUYURTMALAR TARIXI — `FOOD_ORDER` dan oldin.
+
+    "Buyurtmalarim" gapida "buyurtma" so'zi bor va u ovqat
+    buyurtmasi ro'yxatida turadi.
+  */
+  { intent: Intent.MY_ORDERS, words: MY_ORDERS_WORDS },
   { intent: Intent.COLLAB_OFFERS, words: COLLAB_OFFERS_WORDS },
   { intent: Intent.FIND_CREATOR, words: COLLAB_FIND_WORDS },
   { intent: Intent.HELP, words: ['yordam', 'nima qila olasan', 'nimalar qila', 'qanday ishlaysan'] },
