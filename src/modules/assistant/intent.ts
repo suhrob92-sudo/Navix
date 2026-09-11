@@ -71,6 +71,17 @@ export const Intent = {
   SEND_PARCEL: 'SEND_PARCEL',
   /** "Posilkam qayerda?" — jo'natma holati. */
   PARCEL_STATUS: 'PARCEL_STATUS',
+  /**
+   * Hamkorlik: ijodkor yoki bloger topish.
+   *
+   * ── Nima uchun yordamchiga kerak ──────────────────────────────────
+   * Modul FAQAT lenta ichidagi menyu orqali ochiladi. Ya'ni undan
+   * xabari bo'lmagan odam uni hech qachon topmaydi — yordamchidan
+   * so'raganda esa "tushunmadim" javobini olardi.
+   */
+  FIND_CREATOR: 'FIND_CREATOR',
+  /** "Takliflarim" — kelgan hamkorlik takliflari. */
+  COLLAB_OFFERS: 'COLLAB_OFFERS',
   /** Yordam — nima qila olasan. */
   HELP: 'HELP',
   /**
@@ -832,6 +843,29 @@ const PARCEL_STATUS_WORDS = [
  */
 const PARCEL_SEND_WORDS = ['posilka', 'yuk jonat', 'yuk yubor', 'yuk tashi'];
 
+/**
+ * Kelgan takliflar so'ralganini bildiruvchi so'zlar.
+ *
+ * Ijodkorni QIDIRISHDAN oldin tekshiriladi: "hamkorlik
+ * takliflarim" gapida ikkala ro'yxatning so'zi ham bor va odam
+ * qidiruvni emas, o'z qutisini so'rayapti.
+ */
+const COLLAB_OFFERS_WORDS = [
+  'takliflarim',
+  'hamkorlik takliflari',
+  'hamkorlik taklifi keldi',
+  'taklif keldimi',
+  'menga taklif',
+];
+
+/**
+ * Ijodkor QIDIRISH buyrug'i.
+ *
+ * "Reklama" ham shu yerda: biznes odatda "reklama beraman" deb
+ * o'ylaydi, "hamkorlik" so'zini emas.
+ */
+const COLLAB_FIND_WORDS = ['hamkorlik', 'hamkor top', 'ijodkor', 'bloger', 'blogger', 'reklama'];
+
 const PHRASE_INTENTS: { intent: IntentName; words: string[] }[] = [
   /*
     FINANCE_REPORT eng BOSHIDA turadi.
@@ -856,6 +890,14 @@ const PHRASE_INTENTS: { intent: IntentName; words: string[] }[] = [
   */
   { intent: Intent.PARCEL_STATUS, words: PARCEL_STATUS_WORDS },
   { intent: Intent.SEND_PARCEL, words: PARCEL_SEND_WORDS },
+  /*
+    HAMKORLIK — kelgan takliflar qidiruvdan OLDIN.
+
+    "Hamkorlik takliflarim" gapida ikkala ro'yxatning so'zi ham
+    bor, lekin odam qidiruvni emas, o'z qutisini so'rayapti.
+  */
+  { intent: Intent.COLLAB_OFFERS, words: COLLAB_OFFERS_WORDS },
+  { intent: Intent.FIND_CREATOR, words: COLLAB_FIND_WORDS },
   { intent: Intent.HELP, words: ['yordam', 'nima qila olasan', 'nimalar qila', 'qanday ishlaysan'] },
   /**
    * FOOD_STATUS — FOOD_ORDER dan OLDIN: "buyurtmam qayerda" gapida

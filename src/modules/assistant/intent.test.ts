@@ -696,3 +696,31 @@ describe('posilka buyruqlari', () => {
     expect(parseMessage('uyga taksi').intent).toBe(Intent.BOOK_TAXI);
   });
 });
+
+describe('hamkorlik buyruqlari', () => {
+  it('ijodkor qidirishni taniydi', () => {
+    for (const command of ['hamkorlik', 'ijodkor top', 'bloger qidir', 'reklama beraman']) {
+      expect(parseMessage(command).intent, command).toBe(Intent.FIND_CREATOR);
+    }
+  });
+
+  it('kelgan takliflarni taniydi', () => {
+    for (const command of ['takliflarim', 'hamkorlik takliflari', 'taklif keldimi']) {
+      expect(parseMessage(command).intent, command).toBe(Intent.COLLAB_OFFERS);
+    }
+  });
+
+  /**
+   * "Hamkorlik takliflarim" gapida ikkala ro'yxatning so'zi ham bor.
+   * Odam esa qidiruvni emas, O'Z QUTISINI so'rayapti.
+   */
+  it('taklif qutisi qidiruv deb tushunilmaydi', () => {
+    expect(parseMessage('hamkorlik takliflari').intent).not.toBe(Intent.FIND_CREATOR);
+  });
+
+  it('MAVJUD buyruqlarga tegmaydi', () => {
+    expect(parseMessage('901234567 ga 50 ming yubor').intent).toBe(Intent.TRANSFER);
+    expect(parseMessage('posilka yubor').intent).toBe(Intent.SEND_PARCEL);
+    expect(parseMessage('ovqat buyur').intent).toBe(Intent.FOOD_ORDER);
+  });
+});

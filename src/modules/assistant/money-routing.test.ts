@@ -55,6 +55,8 @@ const NOT_MONEY = [
   'avtobus chiptasi yubor',
   // Ish qidirish
   'rezyume yubor',
+  // Hamkorlik
+  'hamkorlik taklifini yubor',
   // Xabarlar va lenta
   "do'stimga xabar yubor",
   'rasm yubor',
@@ -106,6 +108,8 @@ describe('modul buyruqlari toʻgʻri manzilga boradi', () => {
     ['posilka yubor', Intent.SEND_PARCEL],
     ['posilkam qayerda', Intent.PARCEL_STATUS],
     ['xarajatlarim', Intent.FINANCE_REPORT],
+    ['reklama beraman', Intent.FIND_CREATOR],
+    ['takliflarim', Intent.COLLAB_OFFERS],
     ['balansim qancha', Intent.BALANCE],
     ["to'lovlar tarixi", Intent.HISTORY],
     ['nima qila olasan', Intent.HELP],

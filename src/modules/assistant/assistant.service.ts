@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { matchModuleByIntent, ModuleStatus } from '@/config/modules';
 import { Intent, normalize, parseMessage, type IntentName } from '@/modules/assistant/intent';
 import { comingSoonReply, findPlannedModule } from '@/modules/assistant/assistant.modules';
+import { handleCollabOffers, handleFindCreator } from '@/modules/assistant/assistant.collab-flow';
 import { handleFinanceReport } from '@/modules/assistant/assistant.finance-flow';
 import { handleFoodOrder, handleFoodStatus } from '@/modules/assistant/assistant.food-flow';
 import { handleParcelStatus, handleSendParcel } from '@/modules/assistant/assistant.parcel-flow';
@@ -102,7 +103,8 @@ function handleHelp(): AssistantReply {
       '• Buyurtmangiz qayerdaligini aytaman — "buyurtmam qayerda"\n' +
       '• Tarixni ko\'rsataman — "to\'lovlar tarixi"\n' +
       '• Oylik hisobotni aytaman — "shu oyda qancha sarfladim"\n' +
-      '• Posilka jo\'nataman — "posilka yubor"\n\n' +
+      '• Posilka jo\'nataman — "posilka yubor"\n' +
+      '• Ijodkor topaman — "reklama beraman"\n\n' +
       'Shunchaki oddiy tilda yozing.',
     { suggestions: DEFAULT_SUGGESTIONS },
   );
@@ -404,6 +406,12 @@ export async function respond(
 
     case Intent.PARCEL_STATUS:
       return handleParcelStatus(userId);
+
+    case Intent.FIND_CREATOR:
+      return handleFindCreator();
+
+    case Intent.COLLAB_OFFERS:
+      return handleCollabOffers(userId);
 
     case Intent.TOPUP:
       return handleTopUp(slots);
