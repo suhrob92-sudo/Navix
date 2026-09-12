@@ -109,7 +109,7 @@ export function ProfileContent() {
         )}
 
         {/* Foydalanuvchi kartochkasi — maketdagi gradientli blok */}
-        <div className="from-primary to-accent relative overflow-hidden rounded-2xl bg-gradient-to-br p-5">
+        <div className="brand-surface relative overflow-hidden rounded-2xl p-5">
           <span
             className="pointer-events-none absolute -top-10 -right-10 size-36 rounded-full bg-white/10"
             aria-hidden="true"

@@ -55,7 +55,7 @@ export function EmployerDashboardContent() {
         {/* Javob kutayotgan nomzodlar — eng muhimi */}
         <Link
           href="/employer/applications"
-          className="from-primary to-accent text-primary-foreground animate-fade-up flex items-center gap-4 rounded-2xl bg-gradient-to-br p-5 transition-transform active:scale-[0.99]"
+          className="brand-surface animate-fade-up flex items-center gap-4 rounded-2xl p-5 transition-transform active:scale-[0.99]"
         >
           <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/20">
             <Users className="size-6" aria-hidden="true" />

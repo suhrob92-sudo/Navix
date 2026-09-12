@@ -97,7 +97,7 @@ export function UserMenu({ onNavigate }: { onNavigate?: () => void }) {
         aria-haspopup="menu"
         className="hover:bg-secondary/60 focus-visible:ring-ring flex items-center gap-2 rounded-lg py-1.5 pr-3 pl-1.5 text-sm font-medium transition-colors focus-visible:ring-2"
       >
-        <span className="from-primary to-accent text-primary-foreground inline-flex size-8 items-center justify-center rounded-full bg-gradient-to-br text-xs font-semibold">
+        <span className="brand-surface inline-flex size-8 items-center justify-center rounded-full text-xs font-semibold">
           {initial}
         </span>
         <span className="hidden max-w-24 truncate sm:inline">{displayName}</span>

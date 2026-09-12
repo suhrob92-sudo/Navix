@@ -23,10 +23,7 @@ export function BalanceCard({ balance, reserved, className }: BalanceCardProps) 
 
   return (
     <div
-      className={cn(
-        'from-primary to-accent text-primary-foreground animate-fade-up relative overflow-hidden rounded-2xl bg-gradient-to-br p-5 shadow-lg',
-        className,
-      )}
+      className={cn('brand-surface animate-fade-up relative overflow-hidden rounded-2xl p-5 shadow-lg', className)}
     >
       {/* Bezak doira — kartaga hajm beradi */}
       <span

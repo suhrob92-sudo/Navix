@@ -44,7 +44,7 @@ export function PaymentsContent() {
         {/* Balans — to'lashdan oldin ko'rish kerak */}
         <Link
           href="/wallet"
-          className="from-primary to-accent text-primary-foreground animate-fade-up flex items-center justify-between rounded-2xl bg-gradient-to-br p-4 transition-transform active:scale-[0.99]"
+          className="brand-surface animate-fade-up flex items-center justify-between rounded-2xl p-4 transition-transform active:scale-[0.99]"
         >
           <div>
             <p className="text-xs opacity-90">Hamyon balansi</p>

@@ -11,7 +11,7 @@ export function AiBanner() {
   return (
     <Link
       href="/assistant"
-      className="from-primary to-accent shadow-primary/25 relative block overflow-hidden rounded-2xl bg-gradient-to-br p-5 shadow-lg transition-transform active:scale-[0.99]"
+      className="brand-surface shadow-primary/25 relative block overflow-hidden rounded-2xl p-5 shadow-lg transition-transform active:scale-[0.99]"
     >
       {/* Orqa fondagi bezak doiralari */}
       <span

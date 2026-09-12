@@ -539,7 +539,7 @@ function MessageBubble({ message, isBusy, onConfirm, onCancel, onNavigate }: Mes
   return (
     <div className={cn('flex gap-2.5', isUser && 'justify-end')}>
       {!isUser && (
-        <span className="from-primary to-accent mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br">
+        <span className="brand-surface mt-0.5 inline-flex size-8 shrink-0 items-center justify-center rounded-full">
           <Bot className="text-primary-foreground size-4" aria-hidden="true" />
         </span>
       )}
@@ -694,7 +694,7 @@ function ConfirmCard({ action, actionState, resultText, isBusy, onConfirm, onCan
 function ThinkingBubble() {
   return (
     <div className="flex gap-2.5">
-      <span className="from-primary to-accent inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br">
+      <span className="brand-surface inline-flex size-8 shrink-0 items-center justify-center rounded-full">
         <Bot className="text-primary-foreground size-4" aria-hidden="true" />
       </span>
 

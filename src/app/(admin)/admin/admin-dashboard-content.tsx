@@ -71,7 +71,7 @@ function DashboardBody() {
         )}
 
         {/* Moliyaviy holat — eng muhimi, shuning uchun eng yuqorida */}
-        <div className="from-primary to-accent text-primary-foreground animate-fade-up rounded-2xl bg-gradient-to-br p-5">
+        <div className="brand-surface animate-fade-up rounded-2xl p-5">
           <p className="text-xs opacity-90">Hamyonlardagi umumiy qoldiq</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">
             {isLoading ? '—' : formatTiyin(data?.wallet.totalBalance ?? 0)}

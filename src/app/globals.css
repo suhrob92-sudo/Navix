@@ -17,20 +17,38 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * ── NAVIX PALITRASI: ZUMRAD va OLTIN ──────────────────────────────────
+ * Ranglar namuna rasmdan O'LCHAB olingan (ko'z bilan taxmin qilinmagan):
+ * fon #0D2620, kartochka #16332B, oltin #C9A47C / #A5815F.
+ *
+ * ── Nima uchun ikki mavzuda ROLLAR ALMASHADI ──────────────────────────
+ * Namunada oltin kartochkalar to'q yashil fonda turadi. Uni yorug'
+ * mavzuga to'g'ridan-to'g'ri ko'chirib bo'lmaydi: fil suyagi fonda
+ * oltin matn 3.21:1 beradi, me'yor esa 4.5.
+ *
+ * Shuning uchun:
+ *   QORONG'I — fon zumrad, asosiy rang OLTIN (6.91:1);
+ *   YORUG'   — fon fil suyagi, asosiy rang ZUMRAD (11.58:1),
+ *              oltin esa urg'u va bezak sifatida.
+ *
+ * Ikkalasida ham bir xil ikki rang, faqat qaysi biri yetakchi ekani
+ * almashadi. Har bir juftlik o'lchangan — hisobot commit izohida.
+ */
 :root {
-  /* Asosiy fon va matn. Fon oq emas, sal kulrang — kartochkalar ajralib tursin. */
-  --background: oklch(0.975 0.003 262);
-  --foreground: oklch(0.17 0.012 265);
+  /* Fon — sovuq kulrang emas, ILIQ fil suyagi: oltin bilan bir oilada. */
+  --background: oklch(0.965 0.013 87);
+  --foreground: oklch(0.247 0.033 176);
 
   /* Kartochka va qalqib chiquvchi oynalar */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.01 260);
+  --card-foreground: oklch(0.247 0.033 176);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.01 260);
+  --popover-foreground: oklch(0.247 0.033 176);
 
-  /* Brend rangi — to'yingan indigo (maketdagi asosiy rang) */
-  --primary: oklch(0.52 0.25 268);
-  --primary-foreground: oklch(0.99 0.005 268);
+  /* Brend rangi — TO'Q ZUMRAD. Oq matn bilan 11.58:1. */
+  --primary: oklch(0.296 0.038 173);
+  --primary-foreground: oklch(0.965 0.013 87);
 
   /*
    * Brend BELGISI ranglari — mavzu bilan O'ZGARMAYDI.
@@ -45,19 +63,25 @@
    * Shu sababli faqat shu uch qiymat `.dark` blokida qayta e'lon
    * qilinmaydi — ular ikkala mavzuda ham bir xil qoladi.
    */
-  --brand-from: oklch(0.52 0.25 268);
-  --brand-to: oklch(0.62 0.19 305);
-  --brand-foreground: oklch(0.99 0.005 268);
+  --brand-from: oklch(0.629 0.065 65);
+  --brand-to: oklch(0.845 0.051 75);
+  --brand-foreground: oklch(0.223 0.032 177);
 
-  /* Ikkilamchi va sokin elementlar */
-  --secondary: oklch(0.96 0.008 260);
-  --secondary-foreground: oklch(0.25 0.015 260);
-  --muted: oklch(0.96 0.006 260);
-  --muted-foreground: oklch(0.52 0.015 260);
+  /* Ikkilamchi va sokin elementlar — iliq kulrang, oltinga yaqin tus */
+  --secondary: oklch(0.945 0.012 85);
+  --secondary-foreground: oklch(0.296 0.038 173);
+  --muted: oklch(0.945 0.01 85);
+  --muted-foreground: oklch(0.505 0.02 168);
 
-  /* Urg'u (accent) — binafsha-siyoh */
-  --accent: oklch(0.62 0.19 305);
-  --accent-foreground: oklch(0.99 0.005 305);
+  /*
+    Urg'u — OLTIN.
+
+    Yorug' mavzuda TO'QROQ oltin olinadi (#6F5439, 6.31:1). Namunadagi
+    ochiq oltin fil suyagi fonda 3.21:1 berardi — bezak uchun yetarli,
+    MATN uchun emas.
+  */
+  --accent: oklch(0.467 0.054 66);
+  --accent-foreground: oklch(0.965 0.013 87);
 
   /*
     Holat ranglari.
@@ -87,58 +111,88 @@
   --destructive-foreground: oklch(0.99 0.005 27);
 
   /* Chegara, ajratuvchi va fokus halqasi */
-  --border: oklch(0.91 0.006 260);
-  --input: oklch(0.91 0.006 260);
-  --ring: oklch(0.52 0.25 268);
+  --border: oklch(0.895 0.014 85);
+  --input: oklch(0.895 0.014 85);
+  --ring: oklch(0.296 0.038 173);
 
   /* Glassmorphism (shisha effekti) uchun qatlamlar */
-  --glass-bg: oklch(1 0 0 / 0.65);
-  --glass-border: oklch(1 0 0 / 0.5);
-  --glass-shadow: 0 8px 32px oklch(0.3 0.05 265 / 0.08);
+  --glass-bg: oklch(1 0 0 / 0.7);
+  --glass-border: oklch(0.845 0.051 75 / 0.35);
+  --glass-shadow: 0 8px 32px oklch(0.247 0.033 176 / 0.1);
 
   /* Yuqori panel va pastki menyu uchun — ular ustidan kontent suriladi,
      shuning uchun ancha qalinroq bo'lishi kerak (matn "sizib chiqmasligi" uchun) */
-  --glass-chrome-bg: oklch(0.995 0.002 262);
+  --glass-chrome-bg: oklch(0.985 0.008 86);
 
   /* Burchak radiusi — barcha komponentlar shundan hisoblanadi */
-  --radius: 0.875rem;
+  /* Namunadagi kartochkalar ancha yumaloq — 14px dan 20px ga. */
+  --radius: 1.25rem;
 }
 
+/*
+ * QORONG'I MAVZU — namunadagi asosiy ko'rinish.
+ *
+ * Fon zumrad, asosiy rang OLTIN. Aynan shu juftlik rasmda: to'q
+ * yashil fonda metall oltin kartochkalar.
+ *
+ * ── Nima uchun HOLAT ranglari ham iliqlashtirildi ─────────────────────
+ * Eski qiymatlar sovuq ko'k fon uchun tanlangan edi. Zumrad fonda
+ * sovuq yashil "muvaffaqiyat" rangi fon bilan qo'shilib ketardi —
+ * ya'ni belgi o'z vazifasini bajarmasdi. Yangi yashil to'yingroq va
+ * biroz sariqroq, fondan aniq ajraladi.
+ */
 .dark {
-  --background: oklch(0.15 0.012 265);
-  --foreground: oklch(0.96 0.004 260);
+  --background: oklch(0.247 0.033 176);
+  --foreground: oklch(0.965 0.013 87);
 
-  --card: oklch(0.19 0.014 265);
-  --card-foreground: oklch(0.96 0.004 260);
-  --popover: oklch(0.19 0.014 265);
-  --popover-foreground: oklch(0.96 0.004 260);
+  --card: oklch(0.296 0.038 173);
+  --card-foreground: oklch(0.965 0.013 87);
+  --popover: oklch(0.296 0.038 173);
+  --popover-foreground: oklch(0.965 0.013 87);
 
-  --primary: oklch(0.66 0.21 268);
-  --primary-foreground: oklch(0.14 0.015 268);
+  /* OLTIN — zumrad fonda 6.91:1, tugma matni to'q zumrad. */
+  --primary: oklch(0.742 0.069 69);
+  --primary-foreground: oklch(0.223 0.032 177);
 
-  --secondary: oklch(0.25 0.016 265);
-  --secondary-foreground: oklch(0.94 0.005 260);
-  --muted: oklch(0.24 0.014 265);
-  --muted-foreground: oklch(0.68 0.015 260);
+  --secondary: oklch(0.349 0.046 173);
+  --secondary-foreground: oklch(0.945 0.015 85);
+  --muted: oklch(0.335 0.042 173);
+  --muted-foreground: oklch(0.755 0.024 160);
 
-  --accent: oklch(0.7 0.17 305);
-  --accent-foreground: oklch(0.16 0.02 305);
+  /* Urg'u — YORUG' oltin: to'q fonda u yanada yorqin ko'rinadi. */
+  --accent: oklch(0.845 0.051 75);
+  --accent-foreground: oklch(0.223 0.032 177);
 
-  --success: oklch(0.7 0.15 155);
-  --success-foreground: oklch(0.15 0.02 155);
-  --warning: oklch(0.79 0.14 75);
-  --warning-foreground: oklch(0.2 0.03 75);
-  --destructive: oklch(0.65 0.2 27);
-  --destructive-foreground: oklch(0.14 0.02 27);
+  --success: oklch(0.76 0.16 148);
+  --success-foreground: oklch(0.2 0.03 150);
+  --warning: oklch(0.82 0.14 80);
+  --warning-foreground: oklch(0.22 0.03 75);
+  /*
+    Qizil YORUGROQ qilindi: 0.66 -> 0.70.
 
-  --border: oklch(0.3 0.014 265);
-  --input: oklch(0.3 0.014 265);
-  --ring: oklch(0.66 0.21 268);
+    Eski qiymat qora fon uchun tanlangandi. Zumrad kartochka undan
+    yorugroq va o'lchov ko'rsatdi: 3.99:1 — me'yor 4.5. Ya'ni
+    "Hisobni yopish" kabi ogohlantirishlar aynan kerak paytda
+    yomon o'qilardi.
+  */
+  --destructive: oklch(0.7 0.19 25);
+  --destructive-foreground: oklch(0.16 0.02 27);
 
-  --glass-bg: oklch(0.22 0.016 265 / 0.6);
-  --glass-border: oklch(1 0 0 / 0.08);
-  --glass-shadow: 0 8px 32px oklch(0 0 0 / 0.35);
-  --glass-chrome-bg: oklch(0.175 0.014 265);
+  --border: oklch(0.375 0.044 173);
+  --input: oklch(0.375 0.044 173);
+  --ring: oklch(0.742 0.069 69);
+
+  /*
+    Shisha qatlami OLTIN tusda.
+
+    Oq chegara zumrad fonda sovuq ko'rinardi va metall taassurotini
+    buzardi. Oltin chegara esa namunadagi kartochkalar chetidagi
+    yorug' chiziqni takrorlaydi.
+  */
+  --glass-bg: oklch(0.296 0.038 173 / 0.65);
+  --glass-border: oklch(0.845 0.051 75 / 0.18);
+  --glass-shadow: 0 8px 32px oklch(0.12 0.02 177 / 0.5);
+  --glass-chrome-bg: oklch(0.262 0.035 175);
 }
 
 /* Tailwind'ga tokenlarimizni tanishtiramiz.
@@ -548,14 +602,14 @@
 */
 @layer utilities {
   .chat-wallpaper-dots {
-    --chat-pattern: oklch(0.55 0.02 260 / 0.16);
+    --chat-pattern: oklch(0.55 0.02 85 / 0.16);
 
     background-image: radial-gradient(var(--chat-pattern) 1px, transparent 1px);
     background-size: 20px 20px;
   }
 
   .chat-wallpaper-grid {
-    --chat-pattern: oklch(0.55 0.02 260 / 0.1);
+    --chat-pattern: oklch(0.55 0.02 85 / 0.1);
 
     background-image:
       linear-gradient(var(--chat-pattern) 1px, transparent 1px),
@@ -564,7 +618,7 @@
   }
 
   .chat-wallpaper-waves {
-    --chat-pattern: oklch(0.62 0.09 265 / 0.18);
+    --chat-pattern: oklch(0.62 0.09 85 / 0.18);
 
     /*
       Ikkita katta, yumshoq dog' — ular takrorlanmaydi va ekranning
@@ -587,15 +641,15 @@
     tanlashning ma'nosi yo'qolardi.
   */
   .dark .chat-wallpaper-dots {
-    --chat-pattern: oklch(0.85 0.02 260 / 0.1);
+    --chat-pattern: oklch(0.86 0.03 85 / 0.1);
   }
 
   .dark .chat-wallpaper-grid {
-    --chat-pattern: oklch(0.85 0.02 260 / 0.07);
+    --chat-pattern: oklch(0.86 0.03 85 / 0.07);
   }
 
   .dark .chat-wallpaper-waves {
-    --chat-pattern: oklch(0.7 0.1 265 / 0.2);
+    --chat-pattern: oklch(0.75 0.06 75 / 0.2);
   }
 }
 
@@ -621,6 +675,30 @@
   kattaroq bo'lsa, qatlam uni KICHRAYTIRMAYDI.
 */
 @layer utilities {
+  /*
+    ── BREND YUZASI: oltin metall ────────────────────────────────────
+    Balans kartochkasi, AI banneri, savat paneli va avatar — hammasi
+    bitta ko'rinishga ega bo'lishi kerak.
+
+    ── Nima uchun alohida sinf, tokenning o'zi emas ────────────────────
+    Ilgari bu yerlarda `from-primary to-accent` turardi. Yangi
+    palitrada u YARAMAYDI: yorug' mavzuda `--primary` to'q zumrad,
+    `--accent` esa oltin — ikki xil tusdan gradient yasalganda
+    o'rtasi LOYQA jigarrangga aylanardi.
+
+    Tokenni o'zgartirib ham tuzatib bo'lmasdi: `--primary` tugmalar
+    uchun to'q qolishi SHART (oq matn bilan 11.58:1). Ya'ni muammo
+    tokenda emas, JUFTLIKDA edi.
+
+    Endi gradient bitta tusning ikki qadami — namunadagi metall
+    oltin kabi. Matn har ikkala uchida ham o'qiladi: 4.79:1 va
+    10.54:1.
+  */
+  .brand-surface {
+    background-image: linear-gradient(to bottom right, var(--brand-from), var(--brand-to));
+    color: var(--brand-foreground);
+  }
+
   /*
     ── HAQIQIY XATO: `tap-target-y` YOLG'IZ ishlatilsa, hech narsa
        qilmasdi ─────────────────────────────────────────────────────────

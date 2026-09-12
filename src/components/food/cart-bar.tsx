@@ -25,7 +25,7 @@ export function CartBar() {
     <div className="above-tabbar fixed inset-x-0 z-30 px-4">
       <Link
         href="/food/cart"
-        className="from-primary to-accent text-primary-foreground shadow-primary/30 mx-auto flex max-w-lg items-center gap-3 rounded-2xl bg-gradient-to-br p-3.5 shadow-lg transition-transform active:scale-[0.99]"
+        className="brand-surface shadow-primary/30 mx-auto flex max-w-lg items-center gap-3 rounded-2xl p-3.5 shadow-lg transition-transform active:scale-[0.99]"
       >
         <span className="relative inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/20">
           <ShoppingBag className="size-5" aria-hidden="true" />

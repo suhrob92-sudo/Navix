@@ -112,7 +112,7 @@ export function WaitlistContent() {
     return (
       <Container className="py-16 sm:py-24">
         <div className="animate-fade-up mx-auto max-w-md text-center">
-          <span className="from-primary to-accent shadow-primary/30 mx-auto inline-flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br shadow-lg">
+          <span className="brand-surface shadow-primary/30 mx-auto inline-flex size-16 items-center justify-center rounded-2xl shadow-lg">
             <PartyPopper className="text-brand-foreground size-8" aria-hidden="true" />
           </span>
 

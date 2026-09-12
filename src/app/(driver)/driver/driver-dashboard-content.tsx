@@ -1,15 +1,6 @@
 'use client';
 
-import {
-  Car,
-  CheckCircle2,
-  ChevronRight,
-  MapPin,
-  MessageCircle,
-  Navigation,
-  Phone,
-  Star,
-} from 'lucide-react';
+import { Car, CheckCircle2, ChevronRight, MapPin, MessageCircle, Navigation, Phone, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useState } from 'react';
@@ -89,10 +80,9 @@ export function DriverDashboardContent() {
       setActionError(null);
 
       try {
-        const result = await request<{ conversationId: string }>(
-          `/api/v1/taxi/rides/${rideId}/chat`,
-          { method: 'POST' },
-        );
+        const result = await request<{ conversationId: string }>(`/api/v1/taxi/rides/${rideId}/chat`, {
+          method: 'POST',
+        });
 
         router.push(`/messages/${result.conversationId}`);
       } catch (error) {
@@ -219,7 +209,7 @@ export function DriverDashboardContent() {
         ) : (
           <Link
             href="/driver/offers"
-            className="from-primary to-accent text-primary-foreground flex items-center gap-4 rounded-3xl bg-gradient-to-br p-5 transition-transform active:scale-[0.99]"
+            className="brand-surface flex items-center gap-4 rounded-3xl p-5 transition-transform active:scale-[0.99]"
           >
             <span className="inline-flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white/20">
               <Navigation className="size-6" aria-hidden="true" />
@@ -315,7 +305,7 @@ function OnlineCard({
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">{isOnline ? 'Ishdasiz' : 'Ish tugadi'}</p>
           <p className="text-muted-foreground mt-0.5 text-xs">
-            {isOnline ? 'Buyurtmalar sizga ko\'rinadi' : 'Buyurtmalar kelmaydi'}
+            {isOnline ? "Buyurtmalar sizga ko'rinadi" : 'Buyurtmalar kelmaydi'}
           </p>
         </div>
 
@@ -329,8 +319,7 @@ function OnlineCard({
 
       {isOnline && locationStatus !== 'SHARING' && (
         <Alert variant="warning" className="mt-3">
-          {locationError ??
-            "Joylashuv aniqlanmoqda. U yoqilmaguncha yaqin atrofdagi buyurtmalar sizga tushmaydi."}
+          {locationError ?? 'Joylashuv aniqlanmoqda. U yoqilmaguncha yaqin atrofdagi buyurtmalar sizga tushmaydi.'}
         </Alert>
       )}
     </section>
@@ -401,12 +390,8 @@ function ActiveRideCard({
         */}
         <div className="bg-secondary/60 flex items-center gap-3 rounded-2xl px-3.5 py-2.5">
           <span className="min-w-0 flex-1">
-            <span className="text-muted-foreground block text-[11px] tracking-wide uppercase">
-              Yo&apos;lovchi
-            </span>
-            <span className="block truncate text-sm font-medium">
-              {ride.rider.name ?? 'Mijoz'}
-            </span>
+            <span className="text-muted-foreground block text-[11px] tracking-wide uppercase">Yo&apos;lovchi</span>
+            <span className="block truncate text-sm font-medium">{ride.rider.name ?? 'Mijoz'}</span>
           </span>
 
           {/*
@@ -482,9 +467,7 @@ function Place({ label, text, accent }: { label: string; text: string; accent?: 
         aria-hidden="true"
       />
       <span className="min-w-0">
-        <span className="text-muted-foreground block text-[11px] tracking-wide uppercase">
-          {label}
-        </span>
+        <span className="text-muted-foreground block text-[11px] tracking-wide uppercase">{label}</span>
         <span className="block text-sm">{text}</span>
       </span>
     </div>
@@ -506,7 +489,7 @@ function DriverStats({
         <Star className="text-muted-foreground mx-auto size-4" aria-hidden="true" />
         <p className="text-muted-foreground mt-1.5 text-[11px] tracking-wide uppercase">Reyting</p>
         <p className="mt-0.5 text-sm font-semibold tabular-nums">
-          {rating === null ? 'Hali yo\'q' : `${rating} (${ratingCount})`}
+          {rating === null ? "Hali yo'q" : `${rating} (${ratingCount})`}
         </p>
       </div>
 
