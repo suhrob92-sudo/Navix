@@ -499,6 +499,14 @@
     */
     --tabbar-height: 3.5rem;
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+
+    /*
+      Menyu endi ekranga YOPISHMAYDI — u suzib turadigan kapsula.
+      Bu son uning ekran chetidan (past va yon) masofasi. Sahifa
+      oxiri va savat paneli ham shu songa qarab siljiydi, ya'ni
+      geometriya yana BITTA joyda.
+    */
+    --tabbar-gap: 0.75rem;
   }
 
   .dark {
@@ -569,6 +577,50 @@
     background-color: var(--glass-chrome-bg);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
+  }
+
+  /*
+   * ── PASTKI MENYU: suzib turadigan kapsula ────────────────────────────
+   *
+   * Avval menyu ekranning pastiga YOPISHIB turardi: butun kenglik,
+   * tepasida chiziq. U ishlardi, lekin ilovaning qolgan qismi
+   * yumaloq kartochkalardan iborat — menyu esa yagona to'g'ri burchakli
+   * to'siq bo'lib qolgandi.
+   *
+   * Endi u kartochkalar bilan bir oilada: chetdan uzilgan, to'liq
+   * yumaloq, o'z soyasi bilan sahifa USTIDA suzadi.
+   *
+   * ── Ikkita ehtiyotkorlik ──────────────────────────────────────────────
+   * 1. `pointer-events: none` — kapsula atrofidagi bo'sh joy endi
+   *    bosishni TO'SMAYDI. Aks holda ekranning pastki 90 pikseli
+   *    ko'rinmas devor bo'lib qolardi va ostidagi tugmalar ishlamasdi.
+   *    Kapsulaning o'zida u qayta yoqiladi.
+   *
+   * 2. Pastdagi soyabon (scrim) — kontent kapsula YONIDAN surilib
+   *    o'tadi. Usiz matn ekranning eng pastida yarim ko'rinib
+   *    qolardi. Soyabon uni fon rangiga singdirib yuboradi.
+   */
+  .tabbar-dock {
+    padding-inline: var(--tabbar-gap);
+    padding-bottom: calc(var(--safe-bottom) + var(--tabbar-gap));
+    pointer-events: none;
+  }
+
+  .tabbar-dock::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: calc(var(--tabbar-height) + var(--tabbar-gap) * 2 + var(--safe-bottom));
+    background-image: linear-gradient(to top, var(--background) 65%, transparent);
+    pointer-events: none;
+  }
+
+  .tabbar-pill {
+    position: relative;
+    pointer-events: auto;
+    border-radius: 9999px;
+    padding-inline: 0.25rem;
   }
 
   /*
@@ -780,12 +832,12 @@
 @layer utilities {
   /* Sahifa oxiri — oxirgi qator menyu ostida qolmasin. */
   .pb-tabbar {
-    padding-bottom: calc(var(--tabbar-height) + var(--safe-bottom) + 1.5rem);
+    padding-bottom: calc(var(--tabbar-height) + var(--tabbar-gap) + var(--safe-bottom) + 2rem);
   }
 
   /* Menyu USTIDA turadigan suzuvchi panel (savat kabi). */
   .above-tabbar {
-    bottom: calc(var(--tabbar-height) + var(--safe-bottom) + 0.75rem);
+    bottom: calc(var(--tabbar-height) + var(--tabbar-gap) * 2 + var(--safe-bottom));
   }
 
   /* Ekranning eng pastiga yopishgan element — faqat iyak qadar. */

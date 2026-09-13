@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { TabBarShell } from '@/components/app/tab-bar-shell';
 import { CABINET_NAV } from '@/config/cabinet-nav';
 import { cn } from '@/lib/utils';
 
@@ -60,34 +61,29 @@ export function CabinetTabBar() {
   const pathname = usePathname();
 
   return (
-    <nav
-      className="glass-chrome pb-safe fixed inset-x-0 bottom-0 z-40 lg:hidden"
-      aria-label="Kabinet navigatsiyasi"
-    >
-      <ul className="flex items-stretch justify-around">
-        {CABINET_NAV.map((item) => {
-          const Icon = item.icon;
-          const active = isActive(pathname, item.href, item.exact);
+    <TabBarShell label="Kabinet navigatsiyasi" className="lg:hidden">
+      {CABINET_NAV.map((item) => {
+        const Icon = item.icon;
+        const active = isActive(pathname, item.href, item.exact);
 
-          return (
-            <li key={item.href} className="flex-1">
-              <Link
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'flex flex-col items-center gap-1 px-1 py-2.5 transition-colors',
-                  active ? 'text-primary' : 'text-muted-foreground',
-                )}
-              >
-                <Icon className="size-5" aria-hidden="true" />
-                {/* Qisqa nom — bir qatorga sig'ishi uchun. To'liq nomi ekran o'quvchiga qoladi. */}
-                <span className="text-[0.625rem] leading-none font-medium">{item.shortLabel}</span>
-                <span className="sr-only">{item.label}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+        return (
+          <li key={item.href} className="flex-1">
+            <Link
+              href={item.href}
+              aria-current={active ? 'page' : undefined}
+              className={cn(
+                'flex flex-col items-center gap-1 px-1 py-2.5 transition-colors',
+                active ? 'text-primary' : 'text-muted-foreground',
+              )}
+            >
+              <Icon className="size-5" aria-hidden="true" />
+              {/* Qisqa nom — bir qatorga sig'ishi uchun. To'liq nomi ekran o'quvchiga qoladi. */}
+              <span className="text-[0.625rem] leading-none font-medium">{item.shortLabel}</span>
+              <span className="sr-only">{item.label}</span>
+            </Link>
+          </li>
+        );
+      })}
+    </TabBarShell>
   );
 }

@@ -5,6 +5,7 @@ import { ClipboardList, LayoutGrid, RotateCcw, Store } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { TabBarShell } from '@/components/app/tab-bar-shell';
 import { cn } from '@/lib/utils';
 
 /**
@@ -34,34 +35,29 @@ export function SellerTabBar() {
   const pathname = usePathname();
 
   return (
-    <nav
-      className="glass-chrome pb-safe fixed inset-x-0 bottom-0 z-40 border-t"
-      aria-label="Sotuvchi kabineti navigatsiyasi"
-    >
-      <ul className="mx-auto flex max-w-lg items-end justify-around px-2">
-        {SELLER_NAV.map((item) => {
-          const Icon = item.icon;
-          const active = item.exact
-            ? pathname === item.href
-            : pathname === item.href || pathname.startsWith(`${item.href}/`);
+    <TabBarShell label="Sotuvchi kabineti navigatsiyasi">
+      {SELLER_NAV.map((item) => {
+        const Icon = item.icon;
+        const active = item.exact
+          ? pathname === item.href
+          : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
-          return (
-            <li key={item.href} className="flex-1">
-              <Link
-                href={item.href}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'flex flex-col items-center gap-1 px-1 pt-2.5 pb-2 transition-colors',
-                  active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                <Icon className="size-5.5" aria-hidden="true" />
-                <span className="text-[0.625rem] leading-none font-medium">{item.label}</span>
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+        return (
+          <li key={item.href} className="flex-1">
+            <Link
+              href={item.href}
+              aria-current={active ? 'page' : undefined}
+              className={cn(
+                'flex flex-col items-center gap-1 px-1 pt-2.5 pb-2 transition-colors',
+                active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Icon className="size-5.5" aria-hidden="true" />
+              <span className="text-[0.625rem] leading-none font-medium">{item.label}</span>
+            </Link>
+          </li>
+        );
+      })}
+    </TabBarShell>
   );
 }

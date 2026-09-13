@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
+import { TabBarShell } from '@/components/app/tab-bar-shell';
 import { useFeedCreate } from '@/components/feed/feed-create-provider';
 import { FEED_NAV, isFeedNavActive, isFullScreenFeedPage } from '@/config/feed-nav';
 import { cn } from '@/lib/utils';
@@ -36,64 +37,57 @@ export function FeedTabBar() {
   if (isFullScreenFeedPage(pathname)) return null;
 
   return (
-    <nav
-      className="glass-chrome pb-safe fixed inset-x-0 bottom-0 z-40 border-t"
-      aria-label="Feed navigatsiyasi"
-    >
-      <ul className="mx-auto flex max-w-lg items-end justify-around px-2">
-        {FEED_NAV.map((item) => {
-          const Icon = item.icon;
-          const active = isFeedNavActive(pathname, item);
+    <TabBarShell label="Feed navigatsiyasi">
+      {FEED_NAV.map((item) => {
+        const Icon = item.icon;
+        const active = isFeedNavActive(pathname, item);
 
-          /*
+        /*
             Markazdagi "yaratish" — TUGMA, havola emas.
 
             U sahifa ochmaydi, oyna ochadi. Havola qilsak, brauzer
             tarixiga yozilib qolardi va "orqaga" bosgan odam bo'sh
             sahifaga tushardi.
           */
-          if (item.isCreate) {
-            return (
-              <li key={item.label} className="flex-1">
-                <button
-                  type="button"
-                  onClick={create.open}
-                  aria-label="Yaratish"
-                  className="flex w-full flex-col items-center"
-                >
-                  <span className="from-brand-from to-brand-to shadow-brand-from/35 -mt-5 inline-flex size-13 items-center justify-center rounded-full bg-gradient-to-br shadow-lg transition-transform active:scale-95">
-                    <Icon className="text-brand-foreground size-7" aria-hidden="true" />
-                  </span>
-
-                  <span className="text-muted-foreground pt-1 pb-2 text-[0.625rem] leading-none font-medium">
-                    {item.label}
-                  </span>
-                </button>
-              </li>
-            );
-          }
-
+        if (item.isCreate) {
           return (
             <li key={item.label} className="flex-1">
-              <Link
-                href={item.href ?? '/feed'}
-                aria-current={active ? 'page' : undefined}
-                /* To'liq nom ekran o'quvchiga boradi, qisqasi ko'zga. */
-                aria-label={item.label}
-                className={cn(
-                  'flex flex-col items-center gap-1 px-1 pt-2.5 pb-2 transition-colors',
-                  active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-                )}
+              <button
+                type="button"
+                onClick={create.open}
+                aria-label="Yaratish"
+                className="flex w-full flex-col items-center"
               >
-                <Icon className="size-5.5" aria-hidden="true" />
-                <span className="text-[0.625rem] leading-none font-medium">
-                  {item.shortLabel ?? item.label}
+                <span className="from-brand-from to-brand-to shadow-brand-from/35 -mt-5 inline-flex size-13 items-center justify-center rounded-full bg-gradient-to-br shadow-lg transition-transform active:scale-95">
+                  <Icon className="text-brand-foreground size-7" aria-hidden="true" />
                 </span>
-              </Link>
+
+                <span className="text-muted-foreground pt-1 pb-2 text-[0.625rem] leading-none font-medium">
+                  {item.label}
+                </span>
+              </button>
             </li>
           );
-        })}
-      </ul>
-    </nav>
+        }
+
+        return (
+          <li key={item.label} className="flex-1">
+            <Link
+              href={item.href ?? '/feed'}
+              aria-current={active ? 'page' : undefined}
+              /* To'liq nom ekran o'quvchiga boradi, qisqasi ko'zga. */
+              aria-label={item.label}
+              className={cn(
+                'flex flex-col items-center gap-1 px-1 pt-2.5 pb-2 transition-colors',
+                active ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Icon className="size-5.5" aria-hidden="true" />
+              <span className="text-[0.625rem] leading-none font-medium">{item.shortLabel ?? item.label}</span>
+            </Link>
+          </li>
+        );
+      })}
+    </TabBarShell>
   );
 }

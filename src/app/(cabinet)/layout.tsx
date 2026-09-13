@@ -30,11 +30,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <FavoritesProvider>
         <CallProvider>
           {/*
-          pb-28 — pastki menyu kontentni to'sib qolmasligi uchun.
-          Menyuning o'zi ~64px, markazdagi AI tugmasi esa undan ~20px yuqoriga
-          chiqib turadi. Shuning uchun bo'sh joy menyudan kattaroq olingan.
+          `pb-tabbar` — pastki menyu kontentni to'sib qolmasligi uchun.
+
+          Avval bu yerda `pb-28` (112px) QO'LDA yozilgandi va u telefon
+          "iyagi"ni hisobga olmasdi: iPhone'da oxirgi qator menyu ostida
+          qolardi. Endi son `globals.css` dagi yagona manbadan olinadi va
+          menyu shakli o'zgarsa, bu joy ham o'zi bilan birga siljiydi.
         */}
-          <div className="mx-auto w-full max-w-lg flex-1 pb-28">{children}</div>
+          <div className="pb-tabbar mx-auto w-full max-w-lg flex-1">{children}</div>
 
           <AppTabBar />
 
