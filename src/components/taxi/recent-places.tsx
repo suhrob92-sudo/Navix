@@ -68,7 +68,7 @@ export function RecentPlaces({ rides, onPick }: RecentPlacesProps) {
   if (places.length === 0) return null;
 
   return (
-    <section className="bg-card border-border overflow-hidden rounded-3xl border shadow-sm">
+    <section className="bg-card border-border overflow-hidden rounded-3xl border">
       <div className="flex items-center justify-between px-4 pt-3.5 pb-1">
         <h2 className="text-sm font-semibold">Oxirgi manzillar</h2>
 

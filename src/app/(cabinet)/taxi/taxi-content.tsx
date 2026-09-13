@@ -208,7 +208,7 @@ export function TaxiContent() {
 
       <div className="space-y-4 px-4 pb-6">
         {/* ── Manzillar ─────────────────────────────────────────── */}
-        <section className="bg-card border-border overflow-hidden rounded-3xl border shadow-sm">
+        <section className="bg-card border-border overflow-hidden rounded-3xl border">
           <h1 className="px-4 pt-4 pb-1 text-lg font-bold tracking-tight">Qayerga borasiz?</h1>
 
           <div className="p-1.5">

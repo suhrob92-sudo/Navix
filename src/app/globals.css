@@ -131,6 +131,22 @@
   --input: oklch(0.845 0.02 65);
   --ring: oklch(0.496 0.104 46);
 
+  /*
+    Kartochka soyasi — IKKI qatlam.
+
+    ── Nima uchun bitta emas ──────────────────────────────────────────
+    Haqiqiy narsa ikki xil soya beradi: yuza bilan TEGIB turgan joyda
+    qisqa va to'q ("kontakt"), atrofida esa keng va yumshoq ("muhit").
+    Bitta soya bilan chizilsa, kartochka qog'ozdek yopishib qolgandek
+    yoki suzib yurgandek ko'rinadi — o'rtasi bo'lmaydi.
+
+    ── Nima uchun soya KULRANG emas ───────────────────────────────────
+    Palitra iliq (krem va terrakota). Neytral kulrang soya undan
+    ajralib turadi va kartochka "iflos" ko'rinadi. Shuning uchun
+    soya matn rangidan olinadi — u ham iliq jigarrang.
+  */
+  --card-shadow: 0 1px 2px oklch(0.288 0.009 67 / 0.05), 0 10px 24px -14px oklch(0.288 0.009 67 / 0.18);
+
   /* Glassmorphism (shisha effekti) uchun qatlamlar */
   --glass-bg: oklch(0.977 0.006 75 / 0.78);
   --glass-border: oklch(0.99 0.004 75 / 0.6);
@@ -213,6 +229,18 @@
   --border: oklch(0.352 0.029 255);
   --input: oklch(0.352 0.029 255);
   --ring: oklch(0.732 0.097 50);
+
+  /*
+    Qorong'ida soya KUCHLIROQ.
+
+    To'q fonda soya deyarli ko'rinmaydi — shuning uchun uni yorug'
+    mavzudagidek qoldirib bo'lmaydi. Chuqurlikning asosiy qismi
+    baribir yuzaning O'ZIDAN keladi (kartochka fondan yorug'roq),
+    soya esa faqat chekkani ajratib turadi.
+  */
+  --card-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.045), 0 1px 2px oklch(0.12 0.015 250 / 0.4),
+    0 10px 24px -14px oklch(0.1 0.015 250 / 0.6);
 
   /* Shisha qatlami — sovuq tusda, fon bilan bir oilada. */
   --glass-bg: oklch(0.27 0.024 256 / 0.7);
@@ -663,6 +691,38 @@
     position: relative;
     pointer-events: auto;
     border-radius: 9999px;
+  }
+
+  /*
+   * ── KARTOCHKA CHUQURLIGI ─────────────────────────────────────────────
+   *
+   * Kartochkalar tekis edi: faqat chegara chizig'i bor edi, soya yo'q.
+   * Ekranda hamma narsa bir tekislikda turgandek ko'rinardi va ko'z
+   * "qaysi biri muhim?" degan savolga javob topolmasdi.
+   *
+   * ── Nima uchun 200 ta faylga QO'LDA yozilmadi ─────────────────────────
+   * Ilovada 233 joyda `bg-card` ishlatilgan. Har biriga soya sinfini
+   * qo'lda qo'shish — 200 ta tahrir va ulardan bittasini unutish
+   * demak. Shuning uchun qoida BITTA joyda.
+   *
+   * ── Nima uchun faqat `bg-card` YETARLI EMAS ───────────────────────────
+   * O'lchov ko'rsatdi: 233 tadan 32 tasi kartochka EMAS — xarita
+   * nuqtasi (14px!), saralash tugmasi, panel ichidagi qator. Ularga
+   * 24 pikselli soya berilsa, kulgili ko'rinardi.
+   *
+   * Kartochkani ajratadigan belgi — KATTA RADIUS. Chip va avatar
+   * `rounded-full`, qatorlar esa radiussiz. Shuning uchun qoida
+   * aynan uchta radius bilan cheklangan.
+   *
+   * ── Nima uchun `@layer components` ────────────────────────────────────
+   * Qatlam tartibi aniqlikdan (specificity) USTUN turadi. Ya'ni
+   * `shadow-lg` yoki `shadow-none` yozilgan element bu qoidani
+   * bemalol bekor qiladi — chiqish yo'li ochiq qoladi.
+   */
+  .bg-card.rounded-xl,
+  .bg-card.rounded-2xl,
+  .bg-card.rounded-3xl {
+    box-shadow: var(--card-shadow);
   }
 
   /*

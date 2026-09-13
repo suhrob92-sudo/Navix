@@ -110,7 +110,7 @@ export function DriverProfileContent() {
         {query.isLoading ? (
           <Skeleton className="h-72 rounded-3xl" />
         ) : (
-          <section className="bg-card border-border space-y-4 rounded-3xl border p-4 shadow-sm">
+          <section className="bg-card border-border space-y-4 rounded-3xl border p-4">
             <div className="flex items-center gap-3">
               <span className="bg-primary/12 text-primary flex size-11 shrink-0 items-center justify-center rounded-2xl">
                 <Car className="size-5" aria-hidden="true" />

@@ -52,7 +52,7 @@ export function PaymentRow({ balanceTiyin, priceTiyin }: PaymentRowProps) {
       className={
         isShort
           ? `${shared} border-warning/40 bg-warning/8 hover:bg-warning/12`
-          : `${shared} border-border bg-card hover:bg-secondary/50 shadow-sm`
+          : `${shared} border-border bg-card hover:bg-secondary/50`
       }
     >
       <span

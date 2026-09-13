@@ -111,7 +111,7 @@ function QuickCard({
   onPick: (place: ChosenPlace) => void;
 }) {
   const shared =
-    'bg-card border-border flex items-center gap-2.5 rounded-2xl border px-3.5 py-3 text-left shadow-sm transition-colors';
+    'bg-card border-border flex items-center gap-2.5 rounded-2xl border px-3.5 py-3 text-left transition-colors';
 
   if (!address) {
     return (

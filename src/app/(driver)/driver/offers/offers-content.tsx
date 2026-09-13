@@ -189,7 +189,7 @@ function OfferCard({
   onAccept: () => void;
 }) {
   return (
-    <section className="bg-card border-border space-y-3 rounded-3xl border p-4 shadow-sm">
+    <section className="bg-card border-border space-y-3 rounded-3xl border p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-muted-foreground text-[11px] tracking-wide uppercase">Sizga tegadi</p>

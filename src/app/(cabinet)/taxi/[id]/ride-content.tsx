@@ -190,7 +190,7 @@ export function RideContent({ rideId }: { rideId: string }) {
           <DriverCard ride={ride} onChat={openChat} isChatOpening={isChatOpening} />
         ) : (
           isRideActive(ride.status) && (
-            <section className="bg-card border-border rounded-3xl border p-5 text-center shadow-sm">
+            <section className="bg-card border-border rounded-3xl border p-5 text-center">
               <span className="bg-primary/12 text-primary mx-auto flex size-12 animate-pulse items-center justify-center rounded-2xl">
                 <Timer className="size-6" aria-hidden="true" />
               </span>
@@ -311,7 +311,7 @@ function DriverCard({
   if (!driver) return null;
 
   return (
-    <section className="bg-card border-border rounded-3xl border p-4 shadow-sm">
+    <section className="bg-card border-border rounded-3xl border p-4">
       <div className="flex items-center gap-3">
         <span className="bg-primary/12 text-primary flex size-12 shrink-0 items-center justify-center rounded-2xl text-lg font-bold">
           {(driver.name ?? 'H').slice(0, 1).toUpperCase()}
@@ -390,7 +390,7 @@ function DriverCard({
  */
 function RideFacts({ ride }: { ride: RideView }) {
   return (
-    <section className="bg-card border-border rounded-3xl border p-4 shadow-sm">
+    <section className="bg-card border-border rounded-3xl border p-4">
       <div className="grid grid-cols-3 gap-2 text-center">
         <Fact icon={Route} label="Masofa" value={formatDistance(ride.distanceKm)} />
         <Fact icon={Wallet} label="Narx" value={formatTiyin(ride.priceTiyin)} />
@@ -461,7 +461,7 @@ function RateBox({ disabled, onRate }: { disabled: boolean; onRate: (rating: num
   const [hovered, setHovered] = useState(0);
 
   return (
-    <section className="bg-card border-border rounded-3xl border p-4 text-center shadow-sm">
+    <section className="bg-card border-border rounded-3xl border p-4 text-center">
       <p className="text-sm font-semibold">Safar qanday o&apos;tdi?</p>
 
       <div className="mt-3 flex items-center justify-center gap-1.5">

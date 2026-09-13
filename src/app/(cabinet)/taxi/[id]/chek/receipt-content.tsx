@@ -65,7 +65,7 @@ function Receipt({ ride }: { ride: RideView }) {
 
   return (
     <>
-      <section className="bg-card border-border rounded-3xl border p-5 text-center shadow-sm">
+      <section className="bg-card border-border rounded-3xl border p-5 text-center">
         <span
           className={
             cancelled
@@ -112,7 +112,7 @@ function Receipt({ ride }: { ride: RideView }) {
         </dl>
       </section>
 
-      <section className="bg-card border-border space-y-2.5 rounded-3xl border p-4 shadow-sm">
+      <section className="bg-card border-border space-y-2.5 rounded-3xl border p-4">
         <Place label="Qayerdan" text={ride.from.address} />
         <Place label="Qayerga" text={ride.to.address} accent />
       </section>

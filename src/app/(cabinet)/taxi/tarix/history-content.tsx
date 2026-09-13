@@ -105,7 +105,7 @@ function RideRow({ ride }: { ride: RideView }) {
     */
     <Link
       href={isRideActive(ride.status) ? `/taxi/${ride.id}` : `/taxi/${ride.id}/chek`}
-      className="bg-card border-border hover:bg-secondary/40 block rounded-3xl border p-4 shadow-sm transition-colors"
+      className="bg-card border-border hover:bg-secondary/40 block rounded-3xl border p-4 transition-colors"
     >
       <div className="flex items-start gap-3">
         <span className="bg-secondary text-muted-foreground flex size-11 shrink-0 items-center justify-center rounded-2xl">

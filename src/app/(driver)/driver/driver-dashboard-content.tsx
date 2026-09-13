@@ -290,7 +290,7 @@ function OnlineCard({
   onToggle: (next: boolean) => void;
 }) {
   return (
-    <section className="bg-card border-border rounded-3xl border p-4 shadow-sm">
+    <section className="bg-card border-border rounded-3xl border p-4">
       <div className="flex items-center gap-3">
         <span
           className={
@@ -365,7 +365,7 @@ function ActiveRideCard({
   const Icon = next?.icon ?? Car;
 
   return (
-    <section className="bg-card border-border overflow-hidden rounded-3xl border shadow-sm">
+    <section className="bg-card border-border overflow-hidden rounded-3xl border">
       <RideMap
         from={ride.from}
         to={ride.to}
@@ -484,7 +484,7 @@ function DriverStats({
   completedRides: number;
 }) {
   return (
-    <section className="bg-card border-border grid grid-cols-2 gap-2 rounded-3xl border p-4 text-center shadow-sm">
+    <section className="bg-card border-border grid grid-cols-2 gap-2 rounded-3xl border p-4 text-center">
       <div>
         <Star className="text-muted-foreground mx-auto size-4" aria-hidden="true" />
         <p className="text-muted-foreground mt-1.5 text-[11px] tracking-wide uppercase">Reyting</p>

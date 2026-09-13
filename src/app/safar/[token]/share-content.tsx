@@ -112,7 +112,7 @@ export function ShareContent({ token }: { token: string }) {
           </div>
 
           {ride.driver && (
-            <section className="bg-card border-border rounded-3xl border p-4 shadow-sm">
+            <section className="bg-card border-border rounded-3xl border p-4">
               <div className="flex items-center gap-3">
                 <span className="bg-secondary text-muted-foreground flex size-11 shrink-0 items-center justify-center rounded-2xl">
                   <Car className="size-5" aria-hidden="true" />
@@ -128,7 +128,7 @@ export function ShareContent({ token }: { token: string }) {
             </section>
           )}
 
-          <section className="bg-card border-border space-y-2.5 rounded-3xl border p-4 shadow-sm">
+          <section className="bg-card border-border space-y-2.5 rounded-3xl border p-4">
             <Place label="Qayerdan" text={ride.from.address} />
             <Place label="Qayerga" text={ride.to.address} accent />
           </section>
