@@ -18,37 +18,54 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * ── NAVIX PALITRASI: ZUMRAD va OLTIN ──────────────────────────────────
+ * ── NAVIX PALITRASI: KREM va TERRAKOTA ────────────────────────────────
  * Ranglar namuna rasmdan O'LCHAB olingan (ko'z bilan taxmin qilinmagan):
- * fon #0D2620, kartochka #16332B, oltin #C9A47C / #A5815F.
+ * fon #E7DDD5, kartochka #FAF7F3, terrakota #A85A33, matn #2E2A26.
  *
- * ── Nima uchun ikki mavzuda ROLLAR ALMASHADI ──────────────────────────
- * Namunada oltin kartochkalar to'q yashil fonda turadi. Uni yorug'
- * mavzuga to'g'ridan-to'g'ri ko'chirib bo'lmaydi: fil suyagi fonda
- * oltin matn 3.21:1 beradi, me'yor esa 4.5.
+ * ── Qorong'i mavzu — teskarisi EMAS, davomi ───────────────────────────
+ * Namuna yorug' dizayn. Qorong'i mavzu uchun sovuq qora fon olish
+ * mumkin edi, lekin unda iliq terrakota begona ko'rinardi: ikki
+ * rang bir oiladan bo'lishi kerak.
  *
- * Shuning uchun:
- *   QORONG'I — fon zumrad, asosiy rang OLTIN (6.91:1);
- *   YORUG'   — fon fil suyagi, asosiy rang ZUMRAD (11.58:1),
- *              oltin esa urg'u va bezak sifatida.
+ * Shuning uchun qorong'i fon ham ILIQ — to'q jigarrang tusda.
  *
- * Ikkalasida ham bir xil ikki rang, faqat qaysi biri yetakchi ekani
- * almashadi. Har bir juftlik o'lchangan — hisobot commit izohida.
+ * ── MATN uchun boshqa, TUGMA uchun boshqa terrakota ───────────────────
+ * O'lchov: #A85A33 krem fonda 3.76:1 beradi — me'yor 4.5. Ya'ni u
+ * tugma to'ldirmasi sifatida yaxshi (oq matn bilan 5.03:1), lekin
+ * MATN sifatida yaramaydi.
+ *
+ * Shuning uchun ikki qadam: `--primary` to'ldirma uchun, `--accent`
+ * esa matn uchun to'qroq (#8A4726, 5.22:1).
  */
 :root {
-  /* Fon — sovuq kulrang emas, ILIQ fil suyagi: oltin bilan bir oilada. */
-  --background: oklch(0.965 0.013 87);
-  --foreground: oklch(0.247 0.033 176);
+  /* Fon — ILIQ krem. Namunadagi asosiy yuza. */
+  --background: oklch(0.903 0.015 61);
+  --foreground: oklch(0.288 0.009 67);
 
   /* Kartochka va qalqib chiquvchi oynalar */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.247 0.033 176);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.247 0.033 176);
+  --card: oklch(0.977 0.006 75);
+  --card-foreground: oklch(0.288 0.009 67);
+  --popover: oklch(0.977 0.006 75);
+  --popover-foreground: oklch(0.288 0.009 67);
 
-  /* Brend rangi — TO'Q ZUMRAD. Oq matn bilan 11.58:1. */
-  --primary: oklch(0.296 0.038 173);
-  --primary-foreground: oklch(0.965 0.013 87);
+  /*
+    Brend rangi — TERRAKOTA.
+
+    ── Nima uchun namunadagidan TO'QROQ ────────────────────────────────
+    Rasmdagi terrakota #A85A33. Lekin ilovada bu rang faqat tugma
+    to'ldirmasi emas, MATN ham bo'ladi: "Barchasi", "Parolni
+    unutdingizmi?", saralash tugmalari — hammasi `text-primary`.
+
+    O'lchov: #A85A33 krem fonda 3.76:1 beradi, me'yor 4.5. Ya'ni
+    havolalar quyoshli kunda yomon o'qilardi.
+
+    #914D2A esa uchala vazifani ham bajaradi:
+      krem fonda      4.76:1
+      kartochkada     5.96:1
+      oq matn ustida  6.37:1
+  */
+  --primary: oklch(0.496 0.104 46);
+  --primary-foreground: oklch(0.99 0.004 75);
 
   /*
    * Brend BELGISI ranglari — mavzu bilan O'ZGARMAYDI.
@@ -63,25 +80,24 @@
    * Shu sababli faqat shu uch qiymat `.dark` blokida qayta e'lon
    * qilinmaydi — ular ikkala mavzuda ham bir xil qoladi.
    */
-  --brand-from: oklch(0.629 0.065 65);
-  --brand-to: oklch(0.845 0.051 75);
-  --brand-foreground: oklch(0.223 0.032 177);
+  --brand-from: oklch(0.475 0.102 45);
+  --brand-to: oklch(0.676 0.099 48);
+  --brand-foreground: oklch(0.99 0.004 75);
 
-  /* Ikkilamchi va sokin elementlar — iliq kulrang, oltinga yaqin tus */
-  --secondary: oklch(0.945 0.012 85);
-  --secondary-foreground: oklch(0.296 0.038 173);
-  --muted: oklch(0.945 0.01 85);
-  --muted-foreground: oklch(0.505 0.02 168);
+  /* Ikkilamchi va sokin elementlar — krem fondan bir qadam to'qroq */
+  --secondary: oklch(0.873 0.018 65);
+  --secondary-foreground: oklch(0.288 0.009 67);
+  --muted: oklch(0.873 0.016 65);
+  --muted-foreground: oklch(0.488 0.018 67);
 
   /*
-    Urg'u — OLTIN.
+    Urg'u — TO'Q terrakota, MATN uchun.
 
-    Yorug' mavzuda TO'QROQ oltin olinadi (#6F5439, 6.31:1). Namunadagi
-    ochiq oltin fil suyagi fonda 3.21:1 berardi — bezak uchun yetarli,
-    MATN uchun emas.
+    Ochiq terrakota (#A85A33) krem fonda 3.76:1 berardi — tugma
+    to'ldirmasi uchun yetarli, matn uchun emas.
   */
-  --accent: oklch(0.467 0.054 66);
-  --accent-foreground: oklch(0.965 0.013 87);
+  --accent: oklch(0.475 0.102 45);
+  --accent-foreground: oklch(0.99 0.004 75);
 
   /*
     Holat ranglari.
@@ -107,22 +123,22 @@
   --success-foreground: oklch(0.99 0.005 155);
   --warning: oklch(0.52 0.15 75);
   --warning-foreground: oklch(0.99 0.005 75);
-  --destructive: oklch(0.58 0.22 27);
+  --destructive: oklch(0.505 0.149 31);
   --destructive-foreground: oklch(0.99 0.005 27);
 
   /* Chegara, ajratuvchi va fokus halqasi */
-  --border: oklch(0.895 0.014 85);
-  --input: oklch(0.895 0.014 85);
-  --ring: oklch(0.296 0.038 173);
+  --border: oklch(0.845 0.02 65);
+  --input: oklch(0.845 0.02 65);
+  --ring: oklch(0.496 0.104 46);
 
   /* Glassmorphism (shisha effekti) uchun qatlamlar */
-  --glass-bg: oklch(1 0 0 / 0.7);
-  --glass-border: oklch(0.845 0.051 75 / 0.35);
-  --glass-shadow: 0 8px 32px oklch(0.247 0.033 176 / 0.1);
+  --glass-bg: oklch(0.977 0.006 75 / 0.78);
+  --glass-border: oklch(0.99 0.004 75 / 0.6);
+  --glass-shadow: 0 8px 32px oklch(0.288 0.009 67 / 0.12);
 
   /* Yuqori panel va pastki menyu uchun — ular ustidan kontent suriladi,
      shuning uchun ancha qalinroq bo'lishi kerak (matn "sizib chiqmasligi" uchun) */
-  --glass-chrome-bg: oklch(0.985 0.008 86);
+  --glass-chrome-bg: oklch(0.945 0.012 68);
 
   /* Burchak radiusi — barcha komponentlar shundan hisoblanadi */
   /* Namunadagi kartochkalar ancha yumaloq — 14px dan 20px ga. */
@@ -130,38 +146,37 @@
 }
 
 /*
- * QORONG'I MAVZU — namunadagi asosiy ko'rinish.
+ * QORONG'I MAVZU — iliq to'q jigarrang.
  *
- * Fon zumrad, asosiy rang OLTIN. Aynan shu juftlik rasmda: to'q
- * yashil fonda metall oltin kartochkalar.
+ * Namuna yorug' dizayn, shuning uchun bu yerda uni TESKARI qilib
+ * emas, DAVOM ettirib qurdik: fon sovuq qora emas, iliq jigarrang.
+ * Sovuq qorada terrakota begona ko'rinardi.
  *
- * ── Nima uchun HOLAT ranglari ham iliqlashtirildi ─────────────────────
- * Eski qiymatlar sovuq ko'k fon uchun tanlangan edi. Zumrad fonda
- * sovuq yashil "muvaffaqiyat" rangi fon bilan qo'shilib ketardi —
- * ya'ni belgi o'z vazifasini bajarmasdi. Yangi yashil to'yingroq va
- * biroz sariqroq, fondan aniq ajraladi.
+ * ── Nima uchun HOLAT ranglari iliqlashtirildi ─────────────────────────
+ * Eski qiymatlar sovuq ko'k fon uchun tanlangan edi va iliq fonda
+ * ular begona tus berardi.
  */
 .dark {
-  --background: oklch(0.247 0.033 176);
-  --foreground: oklch(0.965 0.013 87);
+  --background: oklch(0.242 0.01 67);
+  --foreground: oklch(0.93 0.008 72);
 
-  --card: oklch(0.296 0.038 173);
-  --card-foreground: oklch(0.965 0.013 87);
-  --popover: oklch(0.296 0.038 173);
-  --popover-foreground: oklch(0.965 0.013 87);
+  --card: oklch(0.288 0.011 73);
+  --card-foreground: oklch(0.93 0.008 72);
+  --popover: oklch(0.288 0.011 73);
+  --popover-foreground: oklch(0.93 0.008 72);
 
-  /* OLTIN — zumrad fonda 6.91:1, tugma matni to'q zumrad. */
-  --primary: oklch(0.742 0.069 69);
-  --primary-foreground: oklch(0.223 0.032 177);
+  /* TERRAKOTA yorug'roq: to'q fonda 5.42:1, tugma matni to'q. */
+  --primary: oklch(0.676 0.099 48);
+  --primary-foreground: oklch(0.221 0.009 59);
 
-  --secondary: oklch(0.349 0.046 173);
-  --secondary-foreground: oklch(0.945 0.015 85);
-  --muted: oklch(0.335 0.042 173);
-  --muted-foreground: oklch(0.755 0.024 160);
+  --secondary: oklch(0.333 0.013 67);
+  --secondary-foreground: oklch(0.93 0.008 72);
+  --muted: oklch(0.325 0.012 67);
+  --muted-foreground: oklch(0.735 0.014 70);
 
-  /* Urg'u — YORUG' oltin: to'q fonda u yanada yorqin ko'rinadi. */
-  --accent: oklch(0.845 0.051 75);
-  --accent-foreground: oklch(0.223 0.032 177);
+  /* Urg'u — yanada yorug' terrakota: to'q fonda yaxshi ajraladi. */
+  --accent: oklch(0.73 0.09 50);
+  --accent-foreground: oklch(0.221 0.009 59);
 
   --success: oklch(0.76 0.16 148);
   --success-foreground: oklch(0.2 0.03 150);
@@ -178,21 +193,15 @@
   --destructive: oklch(0.7 0.19 25);
   --destructive-foreground: oklch(0.16 0.02 27);
 
-  --border: oklch(0.375 0.044 173);
-  --input: oklch(0.375 0.044 173);
-  --ring: oklch(0.742 0.069 69);
+  --border: oklch(0.365 0.014 67);
+  --input: oklch(0.365 0.014 67);
+  --ring: oklch(0.676 0.099 48);
 
-  /*
-    Shisha qatlami OLTIN tusda.
-
-    Oq chegara zumrad fonda sovuq ko'rinardi va metall taassurotini
-    buzardi. Oltin chegara esa namunadagi kartochkalar chetidagi
-    yorug' chiziqni takrorlaydi.
-  */
-  --glass-bg: oklch(0.296 0.038 173 / 0.65);
-  --glass-border: oklch(0.845 0.051 75 / 0.18);
-  --glass-shadow: 0 8px 32px oklch(0.12 0.02 177 / 0.5);
-  --glass-chrome-bg: oklch(0.262 0.035 175);
+  /* Shisha qatlami — iliq tusda, fon bilan bir oilada. */
+  --glass-bg: oklch(0.288 0.011 73 / 0.68);
+  --glass-border: oklch(0.93 0.008 72 / 0.1);
+  --glass-shadow: 0 8px 32px oklch(0.12 0.01 60 / 0.5);
+  --glass-chrome-bg: oklch(0.262 0.011 70);
 }
 
 /* Tailwind'ga tokenlarimizni tanishtiramiz.
@@ -676,23 +685,18 @@
 */
 @layer utilities {
   /*
-    ── BREND YUZASI: oltin metall ────────────────────────────────────
+    ── BREND YUZASI: terrakota ───────────────────────────────────────
     Balans kartochkasi, AI banneri, savat paneli va avatar — hammasi
     bitta ko'rinishga ega bo'lishi kerak.
 
     ── Nima uchun alohida sinf, tokenning o'zi emas ────────────────────
     Ilgari bu yerlarda `from-primary to-accent` turardi. Yangi
-    palitrada u YARAMAYDI: yorug' mavzuda `--primary` to'q zumrad,
-    `--accent` esa oltin — ikki xil tusdan gradient yasalganda
-    o'rtasi LOYQA jigarrangga aylanardi.
+    palitrada u YARAMAYDI: `--accent` MATN uchun to'q, `--primary`
+    esa to'ldirma uchun ochiqroq — ikkalasidan gradient yasalganda
+    o'rtasi loyqa chiqardi.
 
-    Tokenni o'zgartirib ham tuzatib bo'lmasdi: `--primary` tugmalar
-    uchun to'q qolishi SHART (oq matn bilan 11.58:1). Ya'ni muammo
-    tokenda emas, JUFTLIKDA edi.
-
-    Endi gradient bitta tusning ikki qadami — namunadagi metall
-    oltin kabi. Matn har ikkala uchida ham o'qiladi: 4.79:1 va
-    10.54:1.
+    Endi gradient bitta tusning ikki qadami: to'q terrakotadan
+    ochig'iga. Oq matn har ikkala uchida ham o'qiladi.
   */
   .brand-surface {
     background-image: linear-gradient(to bottom right, var(--brand-from), var(--brand-to));
