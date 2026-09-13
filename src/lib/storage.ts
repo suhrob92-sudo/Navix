@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 
 import { del, put } from '@vercel/blob';
 
+import { ServiceUnavailableError } from '@/lib/api/errors';
 import { serverEnv } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
@@ -29,6 +30,22 @@ const LOCAL_ROOT = resolve(process.cwd(), '.uploads');
 
 export function isBlobConfigured(): boolean {
   return Boolean(serverEnv().BLOB_READ_WRITE_TOKEN);
+}
+
+/**
+ * Serversiz muhitdamizmi (Vercel).
+ *
+ * ── Nima uchun `NODE_ENV=production` EMAS ─────────────────────────────
+ * Ilovani o'z serverida `next start` bilan ishga tushirish ham
+ * "production" hisoblanadi — lekin u yerda disk BOR va mahalliy
+ * papka mukammal ishlaydi. `NODE_ENV` ga qarasak, o'sha to'g'ri
+ * sozlamani ham xato deb rad etardik.
+ *
+ * `VERCEL` o'zgaruvchisini platformaning O'ZI qo'yadi va u aynan
+ * "disk yo'q" degan holatni bildiradi.
+ */
+function isServerlessRuntime(): boolean {
+  return process.env.VERCEL === '1';
 }
 
 /**
@@ -76,10 +93,44 @@ export async function putObject(key: string, data: Buffer, contentType: string):
     return { url: result.url, key };
   }
 
+  /*
+    ── HAQIQIY XATO: production'da rasm YUKLANMASDI ──────────────────
+    Kalit sozlanmaganda kod mahalliy papkaga yozishga o'tardi. Bu
+    ishlab chiqishda to'g'ri, LEKIN Vercel'da disk faqat o'qish
+    uchun: yozish `EROFS` xatosi bilan yiqilardi.
+
+    Foydalanuvchi esa "Nimadir xato ketdi" degan umumiy javobni
+    ko'rardi va nima qilishni bilmasdi. Jurnalda ham faqat operatsion
+    tizimning xatosi turardi — sababi (kalit yo'qligi) hech qayerda
+    aytilmasdi.
+
+    Endi holat DARHOL va ANIQ aytiladi: ham foydalanuvchiga, ham
+    jurnalga.
+  */
+  if (isServerlessRuntime()) {
+    logger.error(
+      { key },
+      "BLOB_READ_WRITE_TOKEN sozlanmagan: serversiz muhitda diskka yozib bo'lmaydi. " +
+        "Vercel loyihasiga Blob ombori ulanishi va kalit qo'shilishi kerak.",
+    );
+
+    throw new ServiceUnavailableError('Rasm saqlash hali sozlanmagan. Administrator fayl omborini ulashi kerak.');
+  }
+
   const path = join(LOCAL_ROOT, key);
 
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, data);
+  try {
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, data);
+  } catch (error) {
+    /*
+      Disk to'lgan yoki ruxsat yo'q. Bu holatda ham odam umumiy
+      "xato" emas, tushunarli javob olishi kerak.
+    */
+    logger.error({ err: error, key }, "Faylni diskka yozib bo'lmadi");
+
+    throw new ServiceUnavailableError("Rasmni saqlab bo'lmadi. Birozdan keyin urinib ko'ring.");
+  }
 
   logger.debug({ key }, 'Fayl mahalliy papkaga saqlandi');
 

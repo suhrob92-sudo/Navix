@@ -108,8 +108,25 @@ export function ProfileContent() {
           </Alert>
         )}
 
-        {/* Foydalanuvchi kartochkasi — maketdagi gradientli blok */}
-        <div className="brand-surface relative overflow-hidden rounded-2xl p-5">
+        {/*
+          Foydalanuvchi kartochkasi — SOZLAMALARGA kiradi.
+
+          ── Nima uchun butun kartochka ──────────────────────────────
+          Odam o'z ismini yoki rasmini o'zgartirmoqchi bo'lganda
+          avval AYNAN shu kartochkani bosadi — u yerda o'z ismi va
+          rasmi turibdi. Ilgari u bosilmasdi va odam sozlamalarni
+          menyu ichidan izlashga majbur bo'lardi.
+
+          ── Nima uchun `<Link>` ichiga o'ralmadi ─────────────────────
+          Kartochka ichida `@nom` havolasi bor (ommaviy profil).
+          Havola ichiga havola qo'yish HTML da xato: brauzer qaysi
+          birini ochishni bilmaydi.
+
+          Shuning uchun sozlamalar havolasi kartochkani USTIDAN
+          qoplaydi (`absolute inset-0`), `@nom` esa undan yuqori
+          qatlamda turadi — ikkalasi ham ishlaydi.
+        */}
+        <div className="brand-surface relative overflow-hidden rounded-2xl p-5 transition-transform active:scale-[0.99]">
           <span
             className="pointer-events-none absolute -top-10 -right-10 size-36 rounded-full bg-white/10"
             aria-hidden="true"
@@ -149,7 +166,7 @@ export function ProfileContent() {
                   {data?.username && (
                     <Link
                       href={`/u/${data.username}`}
-                      className="text-primary-foreground/90 mt-1 inline-flex items-center gap-1 text-sm hover:underline"
+                      className="text-primary-foreground/90 relative z-20 mt-1 inline-flex items-center gap-1 text-sm hover:underline"
                     >
                       {`@${data.username}`}
                       <ExternalLink className="size-3.5 shrink-0" aria-hidden="true" />
@@ -164,7 +181,24 @@ export function ProfileContent() {
                 </>
               )}
             </div>
+
+            {/*
+              Belgi — kartochka bosilishini KO'RSATADI.
+              Menyudagi qatorlarda ham aynan shu belgi turadi.
+            */}
+            <ChevronRight className="text-primary-foreground/70 size-5 shrink-0" aria-hidden="true" />
           </div>
+
+          {/*
+            Qoplama OXIRIDA: shunda u matn va rasm USTIDA turadi va
+            kartochkaning istalgan joyi bosiladi. `@nom` esa `z-20`
+            bilan undan ham yuqorida.
+          */}
+          <Link
+            href="/profile/settings"
+            aria-label="Profil sozlamalari"
+            className="absolute inset-0 z-10 rounded-2xl"
+          />
         </div>
 
         {/* Hamyon */}
