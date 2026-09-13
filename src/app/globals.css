@@ -501,12 +501,17 @@
     --safe-bottom: env(safe-area-inset-bottom, 0px);
 
     /*
-      Menyu endi ekranga YOPISHMAYDI — u suzib turadigan kapsula.
-      Bu son uning ekran chetidan (past va yon) masofasi. Sahifa
-      oxiri va savat paneli ham shu songa qarab siljiydi, ya'ni
-      geometriya yana BITTA joyda.
+      Suzib turadigan panellar ekran chetidan shu masofada turadi.
+
+      Yuqori panel ham, pastki menyu ham endi ekranga YOPISHMAYDI —
+      ikkalasi ham kapsula. Masofa BITTA son bo'lishi shart: aks
+      holda tepada 12px, pastda 16px bo'lib qolardi va ekran
+      qiyshiq ko'rinardi.
+
+      Sahifa oxiri (`pb-tabbar`) va savat paneli (`above-tabbar`)
+      ham shu songa qarab siljiydi.
     */
-    --tabbar-gap: 0.75rem;
+    --chrome-gap: 0.75rem;
   }
 
   .dark {
@@ -601,8 +606,8 @@
    *    qolardi. Soyabon uni fon rangiga singdirib yuboradi.
    */
   .tabbar-dock {
-    padding-inline: var(--tabbar-gap);
-    padding-bottom: calc(var(--safe-bottom) + var(--tabbar-gap));
+    padding-inline: var(--chrome-gap);
+    padding-bottom: calc(var(--safe-bottom) + var(--chrome-gap));
     pointer-events: none;
   }
 
@@ -611,7 +616,7 @@
     position: absolute;
     inset-inline: 0;
     bottom: 0;
-    height: calc(var(--tabbar-height) + var(--tabbar-gap) * 2 + var(--safe-bottom));
+    height: calc(var(--tabbar-height) + var(--chrome-gap) * 2 + var(--safe-bottom));
     background-image: linear-gradient(to top, var(--background) 65%, transparent);
     pointer-events: none;
   }
@@ -621,6 +626,43 @@
     pointer-events: auto;
     border-radius: 9999px;
     padding-inline: 0.25rem;
+  }
+
+  /*
+   * ── YUQORI PANEL: u ham kapsula ──────────────────────────────────────
+   *
+   * Pastki menyu suzib turgani holda yuqori panel ekranga yopishib
+   * qolsa, ekran QIYSHIQ ko'rinardi: pastda havo bor, tepada yo'q.
+   * Shuning uchun ikkalasi bir xil masofada — `--chrome-gap`.
+   *
+   * ── Nima uchun `fixed` emas, `sticky` ─────────────────────────────────
+   * Panel oqimda o'z joyini EGALLAB turadi (`sticky`), shuning uchun
+   * sahifaga qo'shimcha `padding-top` kerak emas — kontent o'zi
+   * pastdan boshlanadi. `fixed` bo'lsa, har bir sahifada bo'sh joyni
+   * qo'lda hisoblash kerak bo'lardi va bittasi unutilardi.
+   *
+   * ── Soyabon (scrim) ───────────────────────────────────────────────────
+   * Kapsula tepasida va yonida 12px bo'sh joy bor. Kontent aynan shu
+   * tirqishdan surilib o'tadi va matnning uchi ko'rinib qolardi.
+   * Soyabon uni fon rangiga singdiradi.
+   */
+  .header-dock {
+    padding: var(--chrome-gap);
+    pointer-events: none;
+  }
+
+  .header-dock::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(to bottom, var(--background) 65%, transparent);
+    pointer-events: none;
+  }
+
+  .header-pill {
+    position: relative;
+    pointer-events: auto;
+    border-radius: 9999px;
   }
 
   /*
@@ -832,12 +874,12 @@
 @layer utilities {
   /* Sahifa oxiri — oxirgi qator menyu ostida qolmasin. */
   .pb-tabbar {
-    padding-bottom: calc(var(--tabbar-height) + var(--tabbar-gap) + var(--safe-bottom) + 2rem);
+    padding-bottom: calc(var(--tabbar-height) + var(--chrome-gap) + var(--safe-bottom) + 2rem);
   }
 
   /* Menyu USTIDA turadigan suzuvchi panel (savat kabi). */
   .above-tabbar {
-    bottom: calc(var(--tabbar-height) + var(--tabbar-gap) * 2 + var(--safe-bottom));
+    bottom: calc(var(--tabbar-height) + var(--chrome-gap) * 2 + var(--safe-bottom));
   }
 
   /* Ekranning eng pastiga yopishgan element — faqat iyak qadar. */

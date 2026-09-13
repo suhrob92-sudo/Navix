@@ -74,15 +74,15 @@ describe('pastki menyu geometriyasi', () => {
   const CSS = readFileSync('src/app/globals.css', 'utf8');
 
   it("kapsula masofasi o'zgaruvchida", () => {
-    expect(CSS).toMatch(/--tabbar-gap:\s*[\d.]+rem;/);
+    expect(CSS).toMatch(/--chrome-gap:\s*[\d.]+rem;/);
   });
 
   it('sahifa oxiri kapsula masofasini hisobga oladi', () => {
-    expect(CSS).toMatch(/\.pb-tabbar\s*\{[^}]*var\(--tabbar-gap\)/);
+    expect(CSS).toMatch(/\.pb-tabbar\s*\{[^}]*var\(--chrome-gap\)/);
   });
 
   it('suzuvchi panel kapsula masofasini hisobga oladi', () => {
-    expect(CSS).toMatch(/\.above-tabbar\s*\{[^}]*var\(--tabbar-gap\)/);
+    expect(CSS).toMatch(/\.above-tabbar\s*\{[^}]*var\(--chrome-gap\)/);
   });
 
   it("kapsula atrofidagi bo'sh joy bosishni to'smaydi", () => {

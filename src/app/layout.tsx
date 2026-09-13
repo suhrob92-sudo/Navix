@@ -7,7 +7,7 @@ import { OfflineBanner } from '@/components/app/offline-banner';
 import { PwaSetup } from '@/components/app/pwa-setup';
 import { ThemeProvider } from '@/components/providers/theme-provider';
 import { WebVitals } from '@/components/providers/web-vitals';
-import { PWA_SHORT_NAME } from '@/config/pwa';
+import { PWA_SHORT_NAME, THEME_COLOR_DARK, THEME_COLOR_LIGHT } from '@/config/pwa';
 import { siteConfig } from '@/config/site';
 import { AuthProvider } from '@/modules/auth/auth-context';
 
@@ -113,9 +113,14 @@ export const viewport: Viewport = {
    * ya'ni klaviatura USTIDA turadi.
    */
   interactiveWidget: 'resizes-content',
+  /*
+    Ranglar QO'LDA yozilmaydi — ular `globals.css` dagi fon bilan
+    bir xil bo'lishi shart va buni sinov o'lchab tekshiradi
+    (`src/config/pwa-theme.test.ts`).
+  */
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fbfbfd' },
-    { media: '(prefers-color-scheme: dark)', color: '#0d0e14' },
+    { media: '(prefers-color-scheme: light)', color: THEME_COLOR_LIGHT },
+    { media: '(prefers-color-scheme: dark)', color: THEME_COLOR_DARK },
   ],
 };
 

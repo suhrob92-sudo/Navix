@@ -47,21 +47,52 @@ export const PWA_NAME = `${siteConfig.name} — ${siteConfig.tagline}`;
  */
 export const PWA_START_URL = '/dashboard';
 
+/*
+ * ── HAQIQIY XATO: brauzer sarlavhasi ILOVAGA MOS EMAS EDI ─────────────
+ *
+ * Bu ranglar Android va iOS da ilovaning "chekkasini" bo'yaydi:
+ * manzil qatori, holat paneli, vazifalar ro'yxatidagi kartochka.
+ *
+ * Palitra ikki marta butunlay almashtirildi (ko'k-binafsha ->
+ * zumrad -> krem/terrakota), lekin bu ikki son ESKI palitradan
+ * qolib ketdi: `#0d0e14` — deyarli qora.
+ *
+ * Natijada ilova ochilganda ekran tepasida ILOVAGA BEGONA qora
+ * chiziq turardi. Sinov bor edi, lekin u faqat "ikki joyda bir xil
+ * yozilganmi" deb tekshirardi — ikkalasi ham BIR XIL DARAJADA
+ * eskirgan bo'lsa, u "toza" deb chiqardi.
+ *
+ * Endi sinov `globals.css` dagi HAQIQIY `--background` qiymatini
+ * OKLCH dan hex ga o'girib solishtiradi (`pwa-theme.test.ts`).
+ * Ya'ni palitra o'zgarsa — sinov yiqiladi.
+ */
+
+/** Yorug' mavzu foni — `globals.css` dagi `:root { --background }`. */
+export const THEME_COLOR_LIGHT = '#e7ddd5';
+
+/** Qorong'i mavzu foni — `globals.css` dagi `.dark { --background }`. */
+export const THEME_COLOR_DARK = '#171e26';
+
 /**
  * Interfeys rangi (brauzer sarlavhasi va tizim panellari).
  *
  * `layout.tsx` dagi `themeColor` bilan BIR XIL bo'lishi kerak —
  * aks holda ilova ochilganda rang sakrab o'zgaradi.
+ *
+ * Manifestda mavzuga qarab tanlash imkoni YO'Q — bitta son bo'ladi.
+ * Shuning uchun yorug' mavzu olindi: tizim odatda shu holatda.
  */
-export const PWA_THEME_COLOR = '#0d0e14';
+export const PWA_THEME_COLOR = THEME_COLOR_LIGHT;
 
 /**
  * Ochilish paytidagi fon.
  *
  * Ilova yuklanguncha brauzer shu rangda bo'sh ekran ko'rsatadi.
- * Qorong'i mavzu foniga teng: yorug' oq ekran ko'zni qamashtirardi.
+ * Ilova foniga TENG bo'lishi shart: aks holda yuklanish tugagan
+ * zahoti rang sakrab o'zgaradi va ilova "sirg'anib" ketgandek
+ * ko'rinadi.
  */
-export const PWA_BACKGROUND_COLOR = '#0d0e14';
+export const PWA_BACKGROUND_COLOR = THEME_COLOR_LIGHT;
 
 /**
  * Belgini uzoq bosganda chiqadigan tezkor yo'llar.

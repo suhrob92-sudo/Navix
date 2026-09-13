@@ -76,7 +76,7 @@ describe('kesh xavfsizligi', () => {
     expect(serviceWorker).toContain("url.pathname.startsWith('/api/')");
   });
 
-  it('faqat O\'QISH so\'rovlari keshlanadi', () => {
+  it("faqat O'QISH so'rovlari keshlanadi", () => {
     // `POST`/`DELETE` ma'lumotni o'zgartiradi — ularni keshlab bo'lmaydi.
     expect(serviceWorker).toContain("request.method !== 'GET'");
   });
@@ -113,7 +113,7 @@ describe('kesh xavfsizligi', () => {
   });
 });
 
-describe('ma\'lumotnoma (manifest)', () => {
+describe("ma'lumotnoma (manifest)", () => {
   it('ochilish sahifasi tanishtiruv EMAS', () => {
     /*
       `/` — yangi mehmon uchun tanishtiruv sahifasi. Ilovani
@@ -123,7 +123,7 @@ describe('ma\'lumotnoma (manifest)', () => {
     expect(PWA_START_URL.startsWith('/')).toBe(true);
   });
 
-  it('qisqa nom belgi ostiga sig\'adi', () => {
+  it("qisqa nom belgi ostiga sig'adi", () => {
     // 12 belgidan ko'pi "..." bilan kesiladi.
     expect(PWA_SHORT_NAME.length).toBeLessThanOrEqual(12);
   });
@@ -133,17 +133,26 @@ describe('ma\'lumotnoma (manifest)', () => {
     expect(PWA_BACKGROUND_COLOR).toMatch(/^#[0-9a-f]{6}$/);
   });
 
-  it('interfeys rangi qorong\'i mavzu foniga teng', () => {
+  it("interfeys rangi QO'LDA yozilmaydi", () => {
     /*
-      Ular ajralib qolsa, ilova ochilganda rang bir zumga
-      sakrab o'zgarardi.
-    */
-    const css = readFileSync('src/app/layout.tsx', 'utf8');
+      ── Nima uchun sinov o'zgardi ─────────────────────────────────────
+      Avval bu yerda `layout.tsx` ichida AYNAN SHU son bormi deb
+      qaralardi. Lekin ikkala joy ham bir xil darajada eskirgan
+      bo'lsa, tekshiruv "toza" deb chiqaverardi — va aynan shunday
+      bo'ldi: palitra ikki marta almashtirilgach, ranglar eski
+      ko'k-binafsha palitradan qolib ketdi.
 
-    expect(css).toContain(PWA_THEME_COLOR);
+      Endi rang HISOBLAB tekshiriladi (`pwa-theme.test.ts`), bu yerda
+      esa faqat qo'lda yozilgan son qaytib kelmasligini qo'riqlaymiz.
+    */
+    const layout = readFileSync('src/app/layout.tsx', 'utf8');
+
+    expect(layout).toContain('THEME_COLOR_LIGHT');
+    expect(layout).toContain('THEME_COLOR_DARK');
+    expect(layout.match(/color:\s*'#[0-9a-f]{6}'/g)).toBeNull();
   });
 
-  it('tezkor yo\'llar to\'rttadan oshmaydi', () => {
+  it("tezkor yo'llar to'rttadan oshmaydi", () => {
     /*
       Android odatda faqat to'rttasini ko'rsatadi. Uzun ro'yxat
       hech qayerda to'liq ko'rinmaydi.
@@ -151,7 +160,7 @@ describe('ma\'lumotnoma (manifest)', () => {
     expect(PWA_SHORTCUTS.length).toBeLessThanOrEqual(4);
   });
 
-  it('har bir tezkor yo\'lda nom, manzil va izoh bor', () => {
+  it("har bir tezkor yo'lda nom, manzil va izoh bor", () => {
     for (const shortcut of PWA_SHORTCUTS) {
       expect(shortcut.name.trim().length).toBeGreaterThan(0);
       expect(shortcut.url.startsWith('/')).toBe(true);
