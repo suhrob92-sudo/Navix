@@ -146,41 +146,58 @@
 }
 
 /*
- * QORONG'I MAVZU — iliq to'q jigarrang.
+ * QORONG'I MAVZU — SOVUQ to'q ko'k-kulrang.
  *
- * Namuna yorug' dizayn, shuning uchun bu yerda uni TESKARI qilib
- * emas, DAVOM ettirib qurdik: fon sovuq qora emas, iliq jigarrang.
- * Sovuq qorada terrakota begona ko'rinardi.
+ * Ranglar alohida namunadan o'lchab olingan:
+ *   fon #171E26 · kartochka #1F2732 · chip #2B3541
  *
- * ── Nima uchun HOLAT ranglari iliqlashtirildi ─────────────────────────
- * Eski qiymatlar sovuq ko'k fon uchun tanlangan edi va iliq fonda
- * ular begona tus berardi.
+ * ── Nima uchun yorug' mavzu bilan bir xil emas ────────────────────────
+ * Yorug' mavzu iliq (krem va terrakota), bu esa sovuq. Odatda bunday
+ * qilinmaydi, lekin bu ATAYLAB: ikkala mavzu ham o'z namunasidan
+ * olingan.
+ *
+ * Ularni bog'lab turadigan narsa — URG'U RANGI. Terrakota ikkalasida
+ * ham qoladi, faqat to'q fonda yorishadi. Sovuq ko'k fonda iliq
+ * terrakota bir-birini to'ldiradi (kechki osmon va quyosh botishi
+ * kabi), shuning uchun ular yonma-yon g'alati ko'rinmaydi.
+ *
+ * ── Nima uchun to'ldirma OQ emas ──────────────────────────────────────
+ * Namunada asosiy tugma ko'k (#4B98E8). Uni olsak, ilova YORUG'
+ * mavzuda terrakota, qorong'ida ko'k bo'lardi — ya'ni brend rangi
+ * mavzuga qarab o'zgarardi va odam ikki xil ilovani ko'rgandek
+ * bo'lardi.
  */
 .dark {
-  --background: oklch(0.242 0.01 67);
-  --foreground: oklch(0.93 0.008 72);
+  --background: oklch(0.232 0.019 252);
+  --foreground: oklch(0.944 0.009 248);
 
-  --card: oklch(0.288 0.011 73);
-  --card-foreground: oklch(0.93 0.008 72);
-  --popover: oklch(0.288 0.011 73);
-  --popover-foreground: oklch(0.93 0.008 72);
+  --card: oklch(0.27 0.024 256);
+  --card-foreground: oklch(0.944 0.009 248);
+  --popover: oklch(0.27 0.024 256);
+  --popover-foreground: oklch(0.944 0.009 248);
 
-  /* TERRAKOTA yorug'roq: to'q fonda 5.42:1, tugma matni to'q. */
-  --primary: oklch(0.676 0.099 48);
-  --primary-foreground: oklch(0.221 0.009 59);
+  /*
+    TERRAKOTA — sovuq fonda YANADA yorug'roq.
 
-  --secondary: oklch(0.333 0.013 67);
-  --secondary-foreground: oklch(0.93 0.008 72);
-  --muted: oklch(0.325 0.012 67);
-  --muted-foreground: oklch(0.735 0.014 70);
+    O'lchov: #DA9670 fonda 6.86:1, kartochkada 6.15:1, chipda
+    5.08:1. Uchala yuzada ham me'yordan yuqori — chip eng qiyin
+    holat, chunki u eng ochiq yuza.
+  */
+  --primary: oklch(0.732 0.097 50);
+  --primary-foreground: oklch(0.232 0.019 252);
 
-  /* Urg'u — yanada yorug' terrakota: to'q fonda yaxshi ajraladi. */
-  --accent: oklch(0.73 0.09 50);
-  --accent-foreground: oklch(0.221 0.009 59);
+  --secondary: oklch(0.325 0.025 253);
+  --secondary-foreground: oklch(0.944 0.009 248);
+  --muted: oklch(0.315 0.024 253);
+  --muted-foreground: oklch(0.695 0.024 254);
 
-  --success: oklch(0.76 0.16 148);
+  /* Urg'u — bir qadam yorug'roq terrakota. */
+  --accent: oklch(0.758 0.094 53);
+  --accent-foreground: oklch(0.232 0.019 252);
+
+  --success: oklch(0.76 0.15 152);
   --success-foreground: oklch(0.2 0.03 150);
-  --warning: oklch(0.82 0.14 80);
+  --warning: oklch(0.82 0.13 82);
   --warning-foreground: oklch(0.22 0.03 75);
   /*
     Qizil YORUGROQ qilindi: 0.66 -> 0.70.
@@ -190,18 +207,18 @@
     "Hisobni yopish" kabi ogohlantirishlar aynan kerak paytda
     yomon o'qilardi.
   */
-  --destructive: oklch(0.7 0.19 25);
+  --destructive: oklch(0.7 0.17 25);
   --destructive-foreground: oklch(0.16 0.02 27);
 
-  --border: oklch(0.365 0.014 67);
-  --input: oklch(0.365 0.014 67);
-  --ring: oklch(0.676 0.099 48);
+  --border: oklch(0.352 0.029 255);
+  --input: oklch(0.352 0.029 255);
+  --ring: oklch(0.732 0.097 50);
 
-  /* Shisha qatlami — iliq tusda, fon bilan bir oilada. */
-  --glass-bg: oklch(0.288 0.011 73 / 0.68);
-  --glass-border: oklch(0.93 0.008 72 / 0.1);
-  --glass-shadow: 0 8px 32px oklch(0.12 0.01 60 / 0.5);
-  --glass-chrome-bg: oklch(0.262 0.011 70);
+  /* Shisha qatlami — sovuq tusda, fon bilan bir oilada. */
+  --glass-bg: oklch(0.27 0.024 256 / 0.7);
+  --glass-border: oklch(0.944 0.009 248 / 0.09);
+  --glass-shadow: 0 8px 32px oklch(0.1 0.015 250 / 0.55);
+  --glass-chrome-bg: oklch(0.248 0.021 253);
 }
 
 /* Tailwind'ga tokenlarimizni tanishtiramiz.
