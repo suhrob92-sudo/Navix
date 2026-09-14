@@ -319,10 +319,11 @@ describe.skipIf(!BAZA_BOR)("ketma-ket kelgan ikki so'rov", () => {
       KETMA-KET kelgan ikkinchi so'rov rad etilishini tekshiradi.
       Bu ham kerakli xususiyat, lekin qulf himoyasi emas.
 
-      Qulfni isbotlash uchun alohida yuklama harnessi kerak (ochiq
-      tranzaksiyalarni to'xtatib turadigan). U alohida bosqichda
-      yoziladi — soxta ishonch berishdan ko'ra, bu yerda rostini
-      yozib qo'ygan ma'qul.
+      Qulf endi ALOHIDA faylda isbotlangan:
+      `wallet.lock.int.test.ts`. U bariyer ishlatadi — ikkala
+      tranzaksiya ochilib, bir joyda uchrashadi va faqat shundan
+      keyin qulf so'raydi. O'sha sinov `FOR UPDATE` olib tashlanganda
+      YIQILADI (o'lchab tekshirilgan).
     */
     const yuboruvchi = await sinovOdam();
     const oluvchi = await sinovOdam();
