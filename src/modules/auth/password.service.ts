@@ -1,5 +1,7 @@
 import bcrypt from 'bcryptjs';
 
+import { logger } from '@/lib/logger';
+
 /**
  * Parollar bilan ishlash.
  *
@@ -33,7 +35,41 @@ export async function verifyPassword(plainPassword: string, hash: string | null)
     return false;
   }
 
-  return bcrypt.compare(plainPassword, hash);
+  /*
+    ── HAQIQIY XATO: buzuq hash SERVERNI YIQITARDI ────────────────────
+    `bcrypt.compare` saqlangan hash noto'g'ri shaklda bo'lsa XATO
+    TASHLAYDI ("Invalid salt version"). Bunday yozuv bazaga bir necha
+    yo'l bilan tushishi mumkin: eski tizimdan ko'chirish, sinov
+    ma'lumoti, qo'lda tahrirlangan qator.
+
+    Natijasi ikki xil va ikkalasi ham yomon edi:
+
+     1. Odam kirolmasdi va "Parol noto'g'ri" emas, "Serverda
+        kutilmagan xatolik" degan javob olardi — ya'ni nima
+        qilishni bilmasdi.
+
+     2. Bu javob HUJUMCHIGA BELGI berardi. Oddiy hisobda 401,
+        buzuq hashli hisobda 500 qaytardi — ya'ni javob kodiga
+        qarab bunday hisoblarni ajratib olish mumkin edi.
+
+    Endi buzuq hash "parol mos kelmadi" deb qaraladi: javob
+    boshqalarnikiga to'liq o'xshaydi.
+  */
+  try {
+    return await bcrypt.compare(plainPassword, hash);
+  } catch (error) {
+    /*
+      Hash JURNALGA YOZILMAYDI — u parolning izi. Faqat xatoning
+      o'zi yoziladi, chunki bunday yozuv bazada borligini
+      administrator bilishi kerak.
+    */
+    logger.error({ err: error }, "Saqlangan parol hash'i buzuq — kirish rad etildi");
+
+    // Vaqtni tenglashtiramiz: javob tezligi boshqa holatlar bilan bir xil bo'lsin.
+    await bcrypt.compare(plainPassword, DUMMY_HASH);
+
+    return false;
+  }
 }
 
 /**
