@@ -8,6 +8,42 @@
  * Bazani talab qiladigan testlar alohida yoziladi va ular integratsion
  * testlar deb ataladi.
  */
+/*
+ * Haqiqiy `DATABASE_URL` — FAQAT integratsion sinovlar uchun.
+ *
+ * ── Nima uchun kerak ──────────────────────────────────────────────────
+ * Sinovlarning aksariyati bazaga umuman tegmaydi va ularga soxta
+ * qiymat yetarli. Lekin pul harakati (hamyon, to'lov) HAQIQIY bazada
+ * tekshirilishi shart: u yerda tekshirilayotgan narsaning o'zi —
+ * qator qulfi (`FOR UPDATE`) va yagona indeks — bazada yashaydi.
+ * Soxta baza yozsak, Postgres'ni qaytadan yozgan bo'lardik.
+ *
+ * ── Nima uchun faqat SHU o'zgaruvchi ──────────────────────────────────
+ * `.env` ni butunlay yuklasak, boshqa sinovlar ham kutilmaganda
+ * haqiqiy kalitlar bilan ishlab ketardi. Shuning uchun bitta qiymat
+ * olinadi, qolgani soxta holicha qoladi.
+ *
+ * Fayl bo'lmasa — hech narsa o'zgarmaydi va baza talab qiladigan
+ * sinovlar o'zini o'tkazib yuboradi.
+ */
+if (!process.env.DATABASE_URL) {
+  try {
+    const { readFileSync } = await import('node:fs');
+    const line = readFileSync('.env', 'utf8')
+      .split('\n')
+      .find((row) => row.startsWith('DATABASE_URL='));
+
+    if (line) {
+      process.env.DATABASE_URL = line
+        .slice('DATABASE_URL='.length)
+        .trim()
+        .replace(/^["']|["']$/g, '');
+    }
+  } catch {
+    /* `.env` yo'q — soxta qiymat ishlatiladi. */
+  }
+}
+
 process.env.DATABASE_URL ??= 'postgresql://navix:navix@localhost:5432/navix_test?schema=public';
 process.env.REDIS_URL ??= 'redis://localhost:6379';
 process.env.JWT_ACCESS_SECRET ??= 'test-access-secret-kamida-o-ttiz-ikki-belgi';
