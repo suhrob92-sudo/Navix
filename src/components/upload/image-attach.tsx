@@ -47,9 +47,20 @@ export function ImageAttach({
         /*
           `accept` telefonda darhol galereyani ochadi — odam fayl
           menejeridan rasm izlab yurmaydi.
+
+          ── Nima uchun ro'yxat emas, `image/*` ──────────────────────
+          Avval bu yerda aniq ro'yxat turardi (jpeg, png, webp, gif).
+          Telefon galereyasi esa rasmni ko'pincha BOSHQA tur bilan
+          e'lon qiladi: iPhone `image/heic`, ayrim Androidlar
+          `image/heif`. Natijada galereyada odamning o'z rasmlari
+          KULRANG bo'lib qolardi va ularni umuman tanlab bo'lmasdi.
+
+          Xavfsizlik bundan zaiflashmaydi: `accept` shunchaki
+          maslahat, haqiqiy tekshiruv serverda faylning o'z
+          baytlari bo'yicha bajariladi.
         */
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        className="hidden"
+        accept="image/*"
+        className="sr-only"
         onChange={(event) => {
           const file = event.target.files?.[0];
 

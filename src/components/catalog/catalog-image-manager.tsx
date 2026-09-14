@@ -174,9 +174,7 @@ export function CatalogImageManager({
     <div className={cn('space-y-3', className)}>
       <div className="flex items-center justify-between gap-2">
         <p className="text-sm font-medium">{title}</p>
-        <p className="text-muted-foreground text-xs tabular-nums">
-          {`${images.length}/${MAX_CATALOG_IMAGES}`}
-        </p>
+        <p className="text-muted-foreground text-xs tabular-nums">{`${images.length}/${MAX_CATALOG_IMAGES}`}</p>
       </div>
 
       {(error ?? uploadError) && <Alert variant="error">{error ?? uploadError}</Alert>}
@@ -185,8 +183,8 @@ export function CatalogImageManager({
         ref={inputRef}
         id={inputId}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        className="hidden"
+        accept="image/*"
+        className="sr-only"
         onChange={(event) => {
           const file = event.target.files?.[0];
 
@@ -271,8 +269,7 @@ export function CatalogImageManager({
 
       {showHint && (
         <p className="text-muted-foreground text-xs">
-          Birinchi rasm ro&apos;yxatlarda ko&apos;rinadi. Tartibni o&apos;q tugmalari bilan
-          o&apos;zgartiring.
+          Birinchi rasm ro&apos;yxatlarda ko&apos;rinadi. Tartibni o&apos;q tugmalari bilan o&apos;zgartiring.
         </p>
       )}
     </div>

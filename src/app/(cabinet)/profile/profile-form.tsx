@@ -279,12 +279,24 @@ export function ProfileForm({ profile, onSaved }: ProfileFormProps) {
               Fayl maydoni YASHIRIN: brauzerning o'z tugmasi har
               qurilmada boshqacha ko'rinadi va uni loyihaning uslubiga
               moslab bo'lmaydi.
+
+              ── Nima uchun `hidden` EMAS, `sr-only` ──────────────────
+              `hidden` — bu `display: none`, ya'ni element umuman
+              chizilmaydi. Kompyuter brauzerida bunday maydonni
+              dastur orqali bosish ishlayveradi, LEKIN ayrim mobil
+              brauzerlar chizilmagan elementning bosilishini
+              e'tiborsiz qoldiradi: odam tugmani bosadi, galereya
+              esa ochilmaydi va HECH QANDAY xato ham chiqmaydi.
+
+              `sr-only` esa elementni chizadi — faqat 1 piksel qilib
+              yashiradi. Ko'zga ko'rinmaydi, lekin brauzer uchun u
+              mavjud va bosiladi.
             */}
             <input
               ref={avatarInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              className="hidden"
+              accept="image/*"
+              className="sr-only"
               onChange={(event) => {
                 const file = event.target.files?.[0];
 

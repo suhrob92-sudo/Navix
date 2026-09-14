@@ -66,8 +66,8 @@ export function GroupImagePicker({
         <input
           ref={inputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,image/gif"
-          className="hidden"
+          accept="image/*"
+          className="sr-only"
           onChange={(event) => {
             const file = event.target.files?.[0];
 
