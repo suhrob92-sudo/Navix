@@ -1,5 +1,7 @@
 import type { NextRequest } from 'next/server';
 
+import { consumeRateLimit, PUBLIC_RATE_LIMITS } from '@/lib/rate-limit';
+import { getRequestContext } from '@/lib/request-context';
 import { isBlobConfigured, readLocalObject } from '@/lib/storage';
 
 /**
@@ -43,9 +45,42 @@ function contentTypeFor(key: string): string {
   return 'image/jpeg';
 }
 
-export async function GET(_request: NextRequest, context: { params: Promise<Params> }) {
+export async function GET(request: NextRequest, context: { params: Promise<Params> }) {
   if (isBlobConfigured()) {
     return new Response('Not found', { status: 404 });
+  }
+
+  /*
+    ── Nima uchun bu yerda ham chegara bor ───────────────────────────
+    Manzil kirish talab qilmaydi: rasm `<img>` orqali yuklanadi va u
+    token yubormaydi. Chegarasiz robot manzilni ketma-ket so'rab,
+    serverni faylni diskdan o'qish bilan band qilib qo'yishi mumkin.
+
+    Chegara YUQORI (daqiqasiga 300) — bitta katalog ekranida o'nlab
+    rasm bo'ladi va oddiy odam unga hech qachon yetmaydi.
+
+    ── HAQIQIY XATO: chegara 500 qaytarardi ──────────────────────────
+    Avval bu yerda `enforcePublicRateLimit` ishlatilgandi. U chegaraga
+    yetganda XATO TASHLAYDI va uni `withApiHandler` tutib, 429 ga
+    aylantiradi. Bu manzil esa `withApiHandler` bilan o'ralmagan —
+    u JSON emas, RASMNI o'zini qaytaradi.
+
+    Natijada tashlangan xato hech kim tutmagan holda chiqib ketardi:
+    brauzer 429 emas, 500 olardi VA har bir so'rov xatolar jadvaliga
+    yozilardi. Ya'ni himoya o'rniga yangi muammo paydo bo'lardi.
+    O'lchab topildi: 340 ta so'rovning HAMMASI 500 qaytardi.
+
+    Shuning uchun bu yerda xato tashlamaydigan `consumeRateLimit`
+    ishlatiladi va javob qo'lda yasaladi.
+  */
+  const { ipAddress } = getRequestContext(request);
+  const limit = await consumeRateLimit('fileRead', ipAddress ?? 'unknown', PUBLIC_RATE_LIMITS.fileRead);
+
+  if (!limit.allowed) {
+    return new Response('Too many requests', {
+      status: 429,
+      headers: { 'retry-after': String(limit.retryAfterSeconds) },
+    });
   }
 
   const { key } = await context.params;

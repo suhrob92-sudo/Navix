@@ -3,6 +3,8 @@ import { z } from 'zod';
 
 import { withApiHandler } from '@/lib/api/handler';
 import { apiSuccess } from '@/lib/api/response';
+import { enforcePublicRateLimit } from '@/lib/rate-limit';
+import { getRequestContext } from '@/lib/request-context';
 import { getSharedRide } from '@/modules/taxi/taxi.service';
 
 /**
@@ -35,7 +37,22 @@ const paramsSchema = z.object({
 
 type Params = { token: string };
 
-export const GET = withApiHandler<Params>(async (_request: NextRequest, { requestId, params }) => {
+export const GET = withApiHandler<Params>(async (request: NextRequest, { requestId, params }) => {
+  /*
+    ── Nima uchun chegara kerak ──────────────────────────────────────
+    Manzil kirish talab qilmaydi — havolani olgan HAR KIM ochadi.
+    Kalit uzun va tasodifiy (24 bayt), shuning uchun uni saralab
+    topish amalda imkonsiz. Lekin "amalda imkonsiz" degani "urinib
+    ko'rib bo'lmaydi" degani emas: chegarasiz robot soatiga
+    millionlab urinish yuborib, serverni band qilib turishi mumkin.
+
+    Daqiqasiga 60 — havolani ochib qo'ygan odam uchun bemalol
+    (sahifa holatni yangilab turadi), robot uchun esa darhol to'siq.
+  */
+  const { ipAddress } = getRequestContext(request);
+
+  await enforcePublicRateLimit('rideShareView', ipAddress ?? 'unknown', "Juda ko'p so'rov. Biroz kuting.");
+
   const { token } = paramsSchema.parse(await params);
 
   const ride = await getSharedRide(token);

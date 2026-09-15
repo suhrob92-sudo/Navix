@@ -1,7 +1,7 @@
 import { isReferralCode } from '@/config/referral';
 import { z } from 'zod';
 
-import { normalizeUzPhone } from '@/lib/phone';
+import { normalizeUzPhone, uzPhoneProblem } from '@/lib/phone';
 
 /**
  * Autentifikatsiya uchun barcha kirish ma'lumotlari sxemalari.
@@ -19,9 +19,19 @@ export const phoneSchema = z
     const normalized = normalizeUzPhone(value);
 
     if (!normalized) {
+      /*
+        Sabab AJRATILADI: shakl buzuqmi yoki operator kodi
+        ro'yxatda yo'qmi. Izohi `lib/phone.ts` dagi
+        `uzPhoneProblem` da — qisqasi: raqamini to'g'ri kiritgan
+        odamga "noto'g'ri" deyish uni chalkashtiradi va u ilovani
+        tashlab ketadi.
+      */
       ctx.addIssue({
         code: 'custom',
-        message: "Telefon raqami noto'g'ri. Namuna: +998 90 123 45 67",
+        message:
+          uzPhoneProblem(value) === 'operator'
+            ? "Bu operator kodi hali qo'llab-quvvatlanmaydi. Boshqa raqamingiz bo'lsa kiriting yoki yordam xizmatiga yozing."
+            : "Telefon raqami noto'g'ri. Namuna: +998 90 123 45 67",
       });
       return z.NEVER;
     }
@@ -73,12 +83,7 @@ export const registerSchema = z.object({
    * mavjudmi degan savolga xizmat javob beradi va topilmasa
    * jimgina e'tiborsiz qoldiradi.
    */
-  referralCode: z
-    .string()
-    .trim()
-    .toUpperCase()
-    .refine(isReferralCode, "Taklif kodi noto'g'ri")
-    .optional(),
+  referralCode: z.string().trim().toUpperCase().refine(isReferralCode, "Taklif kodi noto'g'ri").optional(),
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;

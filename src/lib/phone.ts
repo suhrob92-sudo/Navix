@@ -58,6 +58,44 @@ export function normalizeUzPhone(input: string): string | null {
   return `+${withCountryCode}`;
 }
 
+/** Raqam nima uchun qabul qilinmadi. */
+export type UzPhoneProblem = 'shape' | 'operator';
+
+/**
+ * Raqam nima uchun rad etilganini aytadi.
+ *
+ * ── HAQIQIY MUAMMO: to'g'ri raqam "noto'g'ri" deb rad etilardi ────────
+ * Operator kodlari QO'LDA yozilgan ro'yxatda turadi. O'zbekistonda
+ * yangi kod paydo bo'lsa (yoki mavjud operator yangi kod olsa), o'sha
+ * raqamli odam ro'yxatdan umuman o'ta olmaydi.
+ *
+ * Eng yomoni — unga "Telefon raqami noto'g'ri. Namuna: +998 90 123 45 67"
+ * deb aytilardi. Odam esa raqamini TO'G'RI kiritgan bo'ladi: u qayta-qayta
+ * tekshiradi, boshqa raqam yozib ko'radi va oxiri ilovani tashlab
+ * ketadi. Sabab unga hech qachon aytilmasdi.
+ *
+ * Endi ikki holat ajratiladi:
+ *  · `shape`    — raqam shakli buzuq (kam/ko'p raqam, boshqa mamlakat);
+ *  · `operator` — shakli to'g'ri, lekin kod ro'yxatda yo'q.
+ *
+ * Ikkinchisida odamga "bu kod hali qo'llab-quvvatlanmaydi" deyiladi —
+ * ya'ni muammo unda emasligi aniq bo'ladi.
+ *
+ * @returns Muammo turi, yoki `null` — raqam to'g'ri bo'lsa.
+ */
+export function uzPhoneProblem(input: string): UzPhoneProblem | null {
+  if (normalizeUzPhone(input) !== null) return null;
+
+  const digits = input.replace(/\D/g, '');
+  const withCountryCode = digits.length === 9 ? `${UZ_COUNTRY_CODE}${digits}` : digits;
+
+  if (withCountryCode.length !== 12 || !withCountryCode.startsWith(UZ_COUNTRY_CODE)) {
+    return 'shape';
+  }
+
+  return 'operator';
+}
+
 /** Raqamni ekranda chiroyli ko'rsatadi: `+998 90 123 45 67`. */
 export function formatUzPhone(e164: string): string {
   const digits = e164.replace(/\D/g, '');

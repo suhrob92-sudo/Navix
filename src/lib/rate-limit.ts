@@ -500,6 +500,28 @@ export const PUBLIC_RATE_LIMITS = {
    */
   cspReport: { limit: 120, windowSeconds: 60 },
   referralLookup: { limit: 20, windowSeconds: 60 },
+  /**
+   * Mahalliy saqlangan rasmni berish: bitta manzildan daqiqasiga 300 marta.
+   *
+   * ── Nima uchun chegara YUQORI ───────────────────────────────────────
+   * Bitta ekranda o'nlab rasm bo'lishi mumkin (katalog, lenta) va
+   * ularning hammasi ketma-ket so'raladi. Past chegara oddiy
+   * foydalanuvchining sahifasini sindirardi.
+   *
+   * ── Nima uchun umuman kerak ─────────────────────────────────────────
+   * Bu manzil kirish talab qilmaydi. Chegarasiz robot uni ketma-ket
+   * so'rab, serverni faylni diskdan o'qish bilan band qilib qo'yishi
+   * mumkin edi.
+   */
+  fileRead: { limit: 300, windowSeconds: 60 },
+  /**
+   * Ulashilgan safarni ko'rish: bitta manzildan daqiqasiga 60 marta.
+   *
+   * Havolani olgan odam sahifani ochiq qoldiradi va u holatni
+   * yangilab turadi — shuning uchun chegara bemalol. Lekin kalitni
+   * saralab topishga urinayotgan robot uchun bu darhol to'siq.
+   */
+  rideShareView: { limit: 60, windowSeconds: 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 export type PublicRateLimitScope = keyof typeof PUBLIC_RATE_LIMITS;
