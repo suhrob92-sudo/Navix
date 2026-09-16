@@ -175,6 +175,18 @@ export async function tozala(): Promise<void> {
   const wallets = await prisma.wallet.findMany({ where: { userId: id }, select: { id: true } });
   const walletId = { in: wallets.map((w) => w.id) };
 
+  /*
+    Safar IKKI odamga bog'langan: yo'lovchi va haydovchi. Faqat
+    yo'lovchi bo'yicha tozalasak, haydovchi tomonidagi safarlar
+    qolib ketardi va ular bilan birga foydalanuvchi ham o'chmasdi.
+  */
+  const drivers = await prisma.taxiDriver.findMany({ where: { userId: id }, select: { id: true } });
+
+  await prisma.taxiRide.deleteMany({
+    where: { OR: [{ riderId: id }, { driverId: { in: drivers.map((d) => d.id) } }] },
+  });
+  await prisma.taxiDriver.deleteMany({ where: { userId: id } });
+
   await prisma.foodOrder.deleteMany({ where: { userId: id } });
   await prisma.marketOrder.deleteMany({ where: { userId: id } });
   await prisma.parcel.deleteMany({ where: { senderId: id } });

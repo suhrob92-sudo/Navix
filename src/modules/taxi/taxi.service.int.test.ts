@@ -88,7 +88,7 @@ async function haydovchi(): Promise<string> {
       userId: odam,
       carModel: 'Cobalt',
       carColor: 'Oq',
-      plateNumber: `01${Math.floor(100 + Math.random() * 899)}SIN`,
+      plateNumber: `TXI${randomUUID().slice(0, 12).toUpperCase()}`,
       tariff: TARIF,
     },
   });
