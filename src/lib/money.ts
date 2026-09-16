@@ -37,10 +37,33 @@ export const MAX_TRANSFER_SOM = 10_000_000;
  *
  * Kirish butun son bo'lishi shart — biz tiyinlik kiritishni qabul qilmaymiz
  * (interfeysda ham faqat so'm so'raladi). Shuning uchun kasr bo'lsa xatolik.
+ *
+ * ── Nima uchun MANFIY son ham rad etiladi (haqiqiy xato) ──────────────
+ * Ilgari manfiy son bemalol o'tardi. Sinov shuni ko'rsatdi:
+ * `topUp(userId, { amount: -50_000 })` chaqirilsa, balans KAMAYARDI —
+ * ya'ni "hisobni to'ldirish" amali pulni olib qo'yardi.
+ *
+ * Yagona to'siq Zod sxemasi edi. Sxema esa faqat BITTA yo'lni
+ * qo'riqlaydi: xizmat funksiyasi boshqa joydan (admin vositasi,
+ * to'lov tizimi javobi, kelajakdagi fon vazifasi) chaqirilsa,
+ * hech qanday himoya qolmasdi.
+ *
+ * Tekshiruv shu yerga qo'yildi, chunki pul kiradigan HAMMA yo'l
+ * shu funksiyadan o'tadi: to'ldirish, o'tkazma, to'lov, narx
+ * belgilash. Bu yerdagi bitta qator o'sha yo'llarning barchasini
+ * yopadi.
+ *
+ * Yo'nalish (kirim yoki chiqim) alohida saqlanadi
+ * (`TransactionDirection`), shuning uchun summaning o'zi hech
+ * qachon manfiy bo'lmasligi kerak.
  */
 export function somToTiyin(som: number): bigint {
   if (!Number.isInteger(som)) {
     throw new TypeError("Summa butun so'mda bo'lishi kerak");
+  }
+
+  if (som < 0) {
+    throw new TypeError("Summa manfiy bo'lishi mumkin emas");
   }
 
   return BigInt(som) * TIYIN_IN_SOM;

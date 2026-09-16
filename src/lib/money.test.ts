@@ -24,6 +24,21 @@ describe('somToTiyin', () => {
     expect(() => somToTiyin(10.5)).toThrow(TypeError);
   });
 
+  it('MANFIY summani qabul qilmaydi', () => {
+    /*
+      ── Nima uchun bu sinov bor ─────────────────────────────────────
+      Manfiy son ilgari bemalol o'tardi va `topUp(userId, { amount:
+      -50_000 })` balansni KAMAYTIRARDI — "to'ldirish" amali pulni
+      olib qo'yardi.
+
+      Yagona to'siq Zod sxemasi edi, ya'ni faqat bitta yo'l
+      qo'riqlangan edi. Xizmat boshqa joydan chaqirilsa, himoya
+      qolmasdi.
+    */
+    expect(() => somToTiyin(-1)).toThrow(TypeError);
+    expect(() => somToTiyin(-50_000)).toThrow(TypeError);
+  });
+
   it("juda katta summada ham aniqlikni yo'qotmaydi", () => {
     // 90 mlrd so'm — `Number` bilan hisoblanganda xato bo'lishi mumkin edi.
     expect(somToTiyin(90_000_000_000)).toBe(9_000_000_000_000n);
