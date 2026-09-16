@@ -194,6 +194,7 @@ export async function tozala(): Promise<void> {
   await prisma.hotelBooking.deleteMany({ where: { userId: id } });
   await prisma.walletTransaction.deleteMany({ where: { walletId } });
   await prisma.wallet.deleteMany({ where: { userId: id } });
+  await prisma.userRoleAssignment.deleteMany({ where: { userId: id } });
   await prisma.address.deleteMany({ where: { userId: id } });
   await prisma.notification.deleteMany({ where: { userId: id } });
   await prisma.auditLog.deleteMany({ where: { actorId: id } });
