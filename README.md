@@ -2463,3 +2463,20 @@ ko'taradi. Agar `npm run dev` allaqachon ishlab tursa, o'shani ishlatadi.
   ```bash
   E2E_CHROMIUM=/yo'l/chrome npm run test:e2e
   ```
+
+## `overrides` nima uchun kerak
+
+`package.json` dagi `overrides` bo'limi — bog'liqliklarning ichidagi
+paketlarni majburan xavfsiz versiyaga ko'taradi. Ular tasodifiy
+qo'shilmagan, har birining sababi bor:
+
+| Paket                        | Sabab                                                                                                                                                                                  |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `deepmerge-ts`               | Prisma CLI orqali keladi. Eski versiyada rekursiv obyektda stek to'lib ketadi.                                                                                                         |
+| `fast-uri`                   | Prisma CLI orqali keladi. Eski versiyada manzilni noto'g'ri tushunish (SSRF) xavfi bor.                                                                                                |
+| `mysql2`                     | Prisma CLI ichida bor, lekin loyiha PostgreSQL ishlatadi. Eski versiyada parol ochiq uzatilishi mumkin edi.                                                                            |
+| `js-yaml`                    | ESLint orqali keladi. Eski versiyada protsessorni band qilib qo'yish mumkin edi.                                                                                                       |
+| `@vitest/browser-playwright` | Xavfsizlik uchun emas. Playwright o'rnatilgandan keyin npm bu paketning 5-versiyasini tortmoqchi bo'lib, `npm install` ni umuman buzadi. Versiya Vitest bilan bir xil ushlab turiladi. |
+
+Ularni olib tashlash `npm audit` da yana ogohlantirish chiqaradi, oxirgisini
+olib tashlash esa `npm install` ni buzadi — shuning uchun tegmang.
