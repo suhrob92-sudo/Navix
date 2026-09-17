@@ -66,3 +66,9 @@ dump.rdb
 # Mahalliy fayl saqlash (BLOB_READ_WRITE_TOKEN berilmaganda ishlatiladi).
 # Bu foydalanuvchilar yuklagan rasmlar — kodga aloqasi yo'q.
 /.uploads
+
+# Playwright (E2E) natijalari — ular yaratiladigan fayllar, saqlanmaydi.
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

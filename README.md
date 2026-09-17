@@ -118,6 +118,7 @@ YUBORMASLIK kerakligi (kalitlar, parollar).
 | `npm run lint`              | Kod uslubini tekshiradi                                            |
 | `npm run test`              | Testlarni bir marta ishga tushiradi                                |
 | `npm run test:watch`        | Testlarni kuzatuv rejimida ishlatadi                               |
+| `npm run test:e2e`          | Brauzerdagi sinovlar (serverni o'zi ko'taradi)                     |
 | `npm run format`            | Kodni avtomatik formatlaydi                                        |
 | `npm run db:generate`       | Prisma klientini sxemadan yaratadi (dev/build o'zi ham chaqiradi)  |
 | `npm run db:studio`         | Bazani brauzerda ko'rish oynasini ochadi                           |
@@ -461,7 +462,7 @@ Ekranda kulrang to'rtburchaklar turadi, hech narsa yuklanmaydi va
 hech qanday xabar ham yo'q.
 
 **Bu xato TUZATILDI.** Endi bunday holatda ilova aniq ekran
-ko'rsatadi: *"Serverga ulanib bo'lmadi"* va ikkita tugma. Agar
+ko'rsatadi: _"Serverga ulanib bo'lmadi"_ va ikkita tugma. Agar
 sizda hali eski versiya bo'lsa, `npm run update` bajaring.
 
 Quyida sabab yozilgan — chunki u ikki xil bo'lgan va ikkalasi ham
@@ -494,12 +495,12 @@ ilova esa buni "sessiya yo'q" deb tushunardi.
 
 #### To'rt qatlamli yechim
 
-| Qatlam | Nima qiladi |
-| ------ | ----------- |
-| So'rov muddati | Har bir so'rov eng ko'pi bilan **20 soniya** kutadi, keyin xato beradi. Abadiy kutish endi mumkin emas |
+| Qatlam           | Nima qiladi                                                                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| So'rov muddati   | Har bir so'rov eng ko'pi bilan **20 soniya** kutadi, keyin xato beradi. Abadiy kutish endi mumkin emas                                             |
 | Holatni ajratish | `refresh()` uch xil javob beradi: `ok`, `guest` (sessiya yo'q), `offline` (serverga yetib bo'lmadi). Faqat `guest` da kirish sahifasiga yuboriladi |
-| Cookie tozalash | Server 401 qaytarganda cookie ham o'chiriladi — proxy endi qaytarib urmaydi. Aylanishning ildizi shu yerda uziladi |
-| Oxirgi himoya | 15 soniyadan keyin ham skelet tursa, u avtomatik "aloqa yo'q" ekraniga aylanadi |
+| Cookie tozalash  | Server 401 qaytarganda cookie ham o'chiriladi — proxy endi qaytarib urmaydi. Aylanishning ildizi shu yerda uziladi                                 |
+| Oxirgi himoya    | 15 soniyadan keyin ham skelet tursa, u avtomatik "aloqa yo'q" ekraniga aylanadi                                                                    |
 
 Aloqa tiklanganda sahifa **o'zi ochiladi**: ilova 3, 6, 12 va 30
 soniyada qayta urinib ko'radi (oraliq atayin o'sib boradi — har
@@ -1464,48 +1465,48 @@ Uni Postman yoki Insomnia'ga import qilib, endpointlarni sinash mumkin.
 
 **Ish qidirish** (`/api/v1/jobs/...`)
 
-| Metod | Manzil                        | Tavsif                                       |
-| ----- | ----------------------------- | -------------------------------------------- |
-| GET   | `/categories`                 | Yo'nalishlar (har birida nechta vakansiya)   |
-| GET   | `/cities`                     | Vakansiya bor shaharlar (filtr uchun)        |
-| GET   | `/vacancies`                  | Qidiruv, filtrlar va saralash                |
-| GET   | `/vacancies/{slug}`           | Bitta vakansiya va o'xshash e'lonlar         |
+| Metod | Manzil                        | Tavsif                                                      |
+| ----- | ----------------------------- | ----------------------------------------------------------- |
+| GET   | `/categories`                 | Yo'nalishlar (har birida nechta vakansiya)                  |
+| GET   | `/cities`                     | Vakansiya bor shaharlar (filtr uchun)                       |
+| GET   | `/vacancies`                  | Qidiruv, filtrlar va saralash                               |
+| GET   | `/vacancies/{slug}`           | Bitta vakansiya va o'xshash e'lonlar                        |
 | GET   | `/applications`               | Mening arizalarim (`status=ACTIVE` — javob kutilayotganlar) |
-| POST  | `/applications`               | Ariza yuborish (telefon profildan olinadi)   |
-| POST  | `/applications/{id}/withdraw` | Arizani qaytarib olish                       |
+| POST  | `/applications`               | Ariza yuborish (telefon profildan olinadi)                  |
+| POST  | `/applications/{id}/withdraw` | Arizani qaytarib olish                                      |
 
 **Yetkazib berish** (`/api/v1/parcels/...`)
 
-| Metod | Manzil          | Tavsif                                          |
-| ----- | --------------- | ----------------------------------------------- |
-| GET   | `/quote`        | Narxni oldindan hisoblash (hech narsa saqlanmaydi) |
-| GET   | `/`             | Mening jo'natmalarim                            |
-| POST  | `/`             | Yangi jo'natma — pul darhol yechiladi           |
-| GET   | `/{id}`         | Bitta jo'natma va holati                        |
-| POST  | `/{id}/cancel`  | Bekor qilish va pulni qaytarish                 |
+| Metod | Manzil         | Tavsif                                             |
+| ----- | -------------- | -------------------------------------------------- |
+| GET   | `/quote`       | Narxni oldindan hisoblash (hech narsa saqlanmaydi) |
+| GET   | `/`            | Mening jo'natmalarim                               |
+| POST  | `/`            | Yangi jo'natma — pul darhol yechiladi              |
+| GET   | `/{id}`        | Bitta jo'natma va holati                           |
+| POST  | `/{id}/cancel` | Bekor qilish va pulni qaytarish                    |
 
 **Mehmonxona** (`/api/v1/hotels/...`)
 
-| Metod | Manzil                    | Tavsif                                              |
-| ----- | ------------------------- | --------------------------------------------------- |
-| GET   | `/`                       | Mehmonxonalar, qidiruv va saralash                  |
-| GET   | `/{slug}`                 | Xonalar; sana berilsa BO'SH JOY ham hisoblanadi     |
-| GET   | `/bookings`               | Mening bandlovlarim                                 |
-| POST  | `/bookings`               | Xona band qilish — pul darhol yechiladi             |
-| GET   | `/bookings/{id}`          | Bitta bandlov                                       |
-| POST  | `/bookings/{id}/cancel`   | Bekor qilish va pulni qaytarish                     |
+| Metod | Manzil                  | Tavsif                                          |
+| ----- | ----------------------- | ----------------------------------------------- |
+| GET   | `/`                     | Mehmonxonalar, qidiruv va saralash              |
+| GET   | `/{slug}`               | Xonalar; sana berilsa BO'SH JOY ham hisoblanadi |
+| GET   | `/bookings`             | Mening bandlovlarim                             |
+| POST  | `/bookings`             | Xona band qilish — pul darhol yechiladi         |
+| GET   | `/bookings/{id}`        | Bitta bandlov                                   |
+| POST  | `/bookings/{id}/cancel` | Bekor qilish va pulni qaytarish                 |
 
 **Ish beruvchi kabineti** (`/api/v1/employer/...`)
 
-| Metod | Manzil               | Tavsif                                              |
-| ----- | -------------------- | --------------------------------------------------- |
-| GET   | `/companies`         | Mening kompaniyalarim va ko'rsatkichlar             |
-| GET   | `/vacancies`         | Mening e'lonlarim (ochiq va yopiq)                  |
-| POST  | `/vacancies`         | Yangi e'lon joylash                                 |
-| GET   | `/vacancies/{id}`    | Bitta e'lon                                         |
-| PATCH | `/vacancies/{id}`    | Tahrirlash, yopish yoki qayta ochish                |
+| Metod | Manzil               | Tavsif                                                   |
+| ----- | -------------------- | -------------------------------------------------------- |
+| GET   | `/companies`         | Mening kompaniyalarim va ko'rsatkichlar                  |
+| GET   | `/vacancies`         | Mening e'lonlarim (ochiq va yopiq)                       |
+| POST  | `/vacancies`         | Yangi e'lon joylash                                      |
+| GET   | `/vacancies/{id}`    | Bitta e'lon                                              |
+| PATCH | `/vacancies/{id}`    | Tahrirlash, yopish yoki qayta ochish                     |
 | GET   | `/applications`      | Kelgan arizalar (`status=PENDING` — javob kutayotganlar) |
-| PATCH | `/applications/{id}` | Qaror: ko'rildi, suhbatga taklif yoki rad etish     |
+| PATCH | `/applications/{id}` | Qaror: ko'rildi, suhbatga taklif yoki rad etish          |
 
 ---
 
@@ -1874,12 +1875,12 @@ qancha to'lanadi. Shuning uchun maosh kartochkada eng katta yozilgan.
 
 To'rtta holat bor va har biri boshqacha o'qiladi:
 
-| Bazadagi qiymat            | Ekranda                       |
-| -------------------------- | ----------------------------- |
-| `salaryMin` va `salaryMax` | `3 000 000 – 5 000 000 so'm`  |
-| faqat `salaryMin`          | `3 000 000 so'mdan`           |
-| faqat `salaryMax`          | `5 000 000 so'mgacha`         |
-| ikkalasi ham `null`        | `Kelishilgan`                 |
+| Bazadagi qiymat            | Ekranda                      |
+| -------------------------- | ---------------------------- |
+| `salaryMin` va `salaryMax` | `3 000 000 – 5 000 000 so'm` |
+| faqat `salaryMin`          | `3 000 000 so'mdan`          |
+| faqat `salaryMax`          | `5 000 000 so'mgacha`        |
+| ikkalasi ham `null`        | `Kelishilgan`                |
 
 Oxirgi qator eng muhimi. Agar `null` o'rniga nol chizilsa, ekranda
 "0 so'm" paydo bo'lardi — ya'ni "bepul ishlang". Shuning uchun buni
@@ -1907,8 +1908,8 @@ Shuning uchun qoidani **baza** qo'riqlaydi:
 ```
 
 Ikkinchi yozuv UNIQUE xatosiga uchraydi va biz uni tushunarli
-xabarga aylantiramiz: *"Siz bu vakansiyaga allaqachon ariza
-yuborgansiz"*. Bu — hamyondagi idempotentlik kaliti bilan bir xil
+xabarga aylantiramiz: _"Siz bu vakansiyaga allaqachon ariza
+yuborgansiz"_. Bu — hamyondagi idempotentlik kaliti bilan bir xil
 naqsh.
 
 Arizani qaytarib olganda yozuv **o'chirilmaydi**, holati
@@ -1934,13 +1935,13 @@ ulashayotganini bilib turishi kerak.
 
 ### Ariza holatlari
 
-| Holat       | Ma'nosi              | Kimning amali |
-| ----------- | -------------------- | ------------- |
-| `SENT`      | Yuborildi            | nomzod        |
-| `VIEWED`    | Ko'rib chiqilmoqda   | ish beruvchi  |
-| `INVITED`   | Suhbatga taklif      | ish beruvchi  |
-| `REJECTED`  | Rad etildi           | ish beruvchi  |
-| `WITHDRAWN` | Qaytarib olindi      | nomzod        |
+| Holat       | Ma'nosi            | Kimning amali |
+| ----------- | ------------------ | ------------- |
+| `SENT`      | Yuborildi          | nomzod        |
+| `VIEWED`    | Ko'rib chiqilmoqda | ish beruvchi  |
+| `INVITED`   | Suhbatga taklif    | ish beruvchi  |
+| `REJECTED`  | Rad etildi         | ish beruvchi  |
+| `WITHDRAWN` | Qaytarib olindi    | nomzod        |
 
 Oxirgi uchtasi — **yakuniy**. Ulardan hech qayerga chiqib
 bo'lmaydi: aks holda ish beruvchi "suhbatga taklif" ni jimgina "rad
@@ -2068,10 +2069,10 @@ bosqichi umuman kerak emas.
 Aniq masofani bilish uchun xarita API kaliti kerak va u pullik.
 Shuning uchun narx masofaga emas, ikkita oddiy savolga tayanadi:
 
-| Savol | Ta'siri |
-| ----- | ------- |
-| Bir hudud ichidami yoki hududlararomi? | 15 000 yoki 35 000 so'm |
-| Og'irligi qancha? | 1 kg gacha bepul, keyin har kg uchun +5 000 so'm |
+| Savol                                  | Ta'siri                                          |
+| -------------------------------------- | ------------------------------------------------ |
+| Bir hudud ichidami yoki hududlararomi? | 15 000 yoki 35 000 so'm                          |
+| Og'irligi qancha?                      | 1 kg gacha bepul, keyin har kg uchun +5 000 so'm |
 
 **Nima uchun zona jadvali emas.** "Har hududga zona raqami berib,
 farqiga qarab hisoblash" degan vasvasa bor edi. Lekin u **yolg'on
@@ -2190,11 +2191,11 @@ kecha**, garchi sanalar uchtaga tegsa ham.
 
 ### Bo'sh joy `null` va `0` — boshqa-boshqa narsa
 
-| Qiymat | Ma'nosi              | Ekranda            |
-| ------ | -------------------- | ------------------ |
-| `null` | sana hali tanlanmagan | "Sana tanlang"     |
-| `0`    | joy tugagan          | "Bo'sh xona yo'q"  |
-| `3`    | uchta bo'sh          | "3 ta bo'sh"       |
+| Qiymat | Ma'nosi               | Ekranda           |
+| ------ | --------------------- | ----------------- |
+| `null` | sana hali tanlanmagan | "Sana tanlang"    |
+| `0`    | joy tugagan           | "Bo'sh xona yo'q" |
+| `3`    | uchta bo'sh           | "3 ta bo'sh"      |
 
 Ikkalasini bir xil ko'rsatish foydalanuvchini chalg'itardi.
 
@@ -2317,11 +2318,11 @@ birlashtira olmaydi.
 Shuning uchun serverda **qisqa muhlat** bor: bir oldingi token
 almashtirilgandan keyin **30 soniya** davomida qabul qilinadi.
 
-| Taqdim etilgan token          | Qaror     | Nima bo'ladi                          |
-| ----------------------------- | --------- | ------------------------------------- |
-| joriy token                   | `current` | oddiy almashtirish, cookie yangilanadi |
+| Taqdim etilgan token          | Qaror     | Nima bo'ladi                                    |
+| ----------------------------- | --------- | ----------------------------------------------- |
+| joriy token                   | `current` | oddiy almashtirish, cookie yangilanadi          |
 | bir oldingi, 30 soniya ichida | `grace`   | access token beriladi, **cookie'ga tegilmaydi** |
-| notanish yoki eskiroq         | `unknown` | sessiya darhol yopiladi               |
+| notanish yoki eskiroq         | `unknown` | sessiya darhol yopiladi                         |
 
 `grace` holatida cookie ataylab o'zgartirilmaydi: ikkita javob
 bir-birining cookie'sini bosib ketsa, oxirida qaysi token qolgani
@@ -2429,3 +2430,36 @@ Barcha ranglar, radiuslar va animatsiyalar `src/app/globals.css` faylida
 - [ ] **21-bosqich** — SMS xizmati (Eskiz.uz) — busiz begona odam ro'yxatdan o'ta olmaydi
 - [ ] **22-bosqich** — Taksi moduli (xarita API kaliti kerak)
 - [ ] **23-bosqich** — Real to'lov integratsiyasi (Payme / Click)
+
+## Brauzerdagi sinovlar (E2E)
+
+`npm test` — tez sinovlar: ular serverni ko'tarmaydi va brauzer ochmaydi.
+`npm run test:e2e` — haqiqiy brauzerda haqiqiy foydalanuvchi yo'lini
+tekshiradi: kirish, hamyon balansi, himoyalangan sahifalar.
+
+**Birinchi marta** brauzerni bir marta yuklab olish kerak:
+
+```bash
+npx playwright install chromium
+```
+
+Keyin:
+
+```bash
+npm run test:e2e
+```
+
+Serverni alohida ishga tushirish shart emas — Playwright uni o'zi
+ko'taradi. Agar `npm run dev` allaqachon ishlab tursa, o'shani ishlatadi.
+
+### Bilib qo'yish kerak
+
+- Sinov ikki o'lchamda ishlaydi: kompyuter va telefon ekrani.
+- Kirish bir IP dan **soatiga 30 marta** cheklangan. Sinovni ketma-ket
+  ko'p marta ishlatsangiz, chegara tugaydi va sinov buni ochiq aytadi.
+- Brauzerni yuklab bo'lmaydigan muhitda mavjud brauzer manzilini berish
+  mumkin:
+
+  ```bash
+  E2E_CHROMIUM=/yo'l/chrome npm run test:e2e
+  ```
