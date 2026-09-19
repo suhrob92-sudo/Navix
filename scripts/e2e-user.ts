@@ -109,10 +109,72 @@ async function create(sumSom: number): Promise<void> {
   console.log(JSON.stringify({ userId: user.id, phone, password }));
 }
 
+/**
+ * Sinov restorani — SUTKA BO'YI ochiq.
+ *
+ * ── Nima uchun tayyor restoran ishlatilmaydi ──────────────────────────
+ * Tayyor restoranlarning ish vaqti bor va "Buyurtma berish" tugmasi
+ * yopiq paytda o'chiriladi — bu to'g'ri xulq. Lekin sinov o'sha
+ * tugmani bosadi va kechqurun 23:00 dan keyin yiqilardi.
+ *
+ * Aynan shunday bo'ldi: sinov kunduzi o'tdi, kechqurun yiqildi.
+ * Ilova to'g'ri edi, sinov esa soatga bog'liq edi.
+ *
+ * O'z restorani bilan bunday bog'liqlik umuman yo'q.
+ */
+async function createRestaurant(): Promise<void> {
+  const belgi = randomUUID().slice(0, 8);
+
+  const restaurant = await prisma.restaurant.create({
+    data: {
+      slug: `sinov-restoran-${belgi}`,
+      name: `Sinov Oshxona ${belgi}`,
+      description: "E2E sinovi uchun — sutka bo'yi ochiq",
+      cuisine: 'Milliy',
+      searchName: `sinov oshxona ${belgi}`,
+      deliveryFee: 10_000_00n,
+      minOrder: 0n,
+      deliveryMinutes: 30,
+      color: '#f97316',
+      /* Haftaning HAR kuni, 00:00 dan 23:59 gacha. */
+      hours: {
+        /* Hafta kuni 0 dan 6 gacha — bazada shunday cheklov bor. */
+        create: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, opensAt: 0, closesAt: 1439 })),
+      },
+    },
+    select: { id: true, slug: true },
+  });
+
+  const category = await prisma.menuCategory.create({
+    data: { restaurantId: restaurant.id, name: 'Issiq taomlar' },
+    select: { id: true },
+  });
+
+  await prisma.menuItem.create({
+    data: {
+      restaurantId: restaurant.id,
+      categoryId: category.id,
+      name: 'Sinov taomi',
+      searchName: 'sinov taomi',
+      price: 45_000_00n,
+    },
+  });
+
+  console.log(JSON.stringify({ restaurantId: restaurant.id, slug: restaurant.slug }));
+}
+
+async function cleanupRestaurant(restaurantId: string): Promise<void> {
+  /* Menyu, turkum va ish vaqti kaskad bilan ketadi. */
+  await prisma.restaurant.deleteMany({ where: { id: restaurantId } });
+
+  console.log(JSON.stringify({ deleted: restaurantId }));
+}
+
 async function cleanup(userId: string): Promise<void> {
   const wallets = await prisma.wallet.findMany({ where: { userId }, select: { id: true } });
 
   await prisma.userRoleAssignment.deleteMany({ where: { userId } });
+  await prisma.tripBooking.deleteMany({ where: { userId } });
   await prisma.hotelBooking.deleteMany({ where: { userId } });
   await prisma.foodOrder.deleteMany({ where: { userId } });
   await prisma.marketOrder.deleteMany({ where: { userId } });
@@ -136,9 +198,13 @@ async function main(): Promise<void> {
 
   try {
     if (buyruq === 'create') await create(argument ? Number(argument) : STANDART_SUMMA);
+    else if (buyruq === 'restaurant') await createRestaurant();
+    else if (buyruq === 'cleanup-restaurant' && argument) await cleanupRestaurant(argument);
     else if (buyruq === 'cleanup' && argument) await cleanup(argument);
     else {
-      console.error('Ishlatish: tsx scripts/e2e-user.ts create | cleanup <userId>');
+      console.error(
+        'Ishlatish: tsx scripts/e2e-user.ts create [summa] | cleanup <userId> | restaurant | cleanup-restaurant <id>',
+      );
       process.exitCode = 1;
     }
   } finally {

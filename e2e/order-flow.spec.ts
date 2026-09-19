@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test';
 
-import { odamOchir, odamYarat, type SinovOdam } from './helpers';
+import { TRIP_RULES } from '@/config/travel';
+
+import { odamOchir, odamYarat, restoranOchir, restoranYarat, type SinovOdam, type SinovRestoran } from './helpers';
 
 /**
  * XARID YO'LI — savatdan to'lovgacha, brauzerda.
@@ -31,17 +33,39 @@ import { odamOchir, odamYarat, type SinovOdam } from './helpers';
  */
 const MAHSULOT = '/marketplace/p/sariq-devni-minib';
 
-/** Sinov restorani — eng kam buyurtma summasi past. */
-const RESTORAN = '/food/milliy-taomlar';
+/**
+ * Sinov restorani sinovning O'ZI yaratadi — sutka bo'yi ochiq.
+ *
+ * ── Nima uchun (haqiqiy xato) ─────────────────────────────────────────
+ * Avval tayyor restoran (`milliy-taomlar`) ishlatilardi. U 23:00 da
+ * yopiladi va yopiq paytda "Buyurtma berish" tugmasi o'chiriladi —
+ * bu TO'G'RI xulq.
+ *
+ * Natijada sinov kunduzi o'tdi, kechqurun 23:22 da yiqildi. Ilova
+ * to'g'ri edi, sinov esa soatga bog'liq edi.
+ */
+let restoran: SinovRestoran;
+
+/**
+ * Sinov reysi — Urganch->Xiva avtobusi.
+ *
+ * Ataylab shu reys: narxi past (25 000 so'm) va HAR KUNI qatnaydi.
+ * Haftaning ayrim kunlarida yuradigan reys tanlansa, sinov qaysi
+ * kuni ishga tushganiga qarab goh o'tib, goh yiqilardi.
+ */
+const REYS_ID = '27900c35-b9b7-4253-85c5-9cf14f5267fa';
+const CHIPTA_NARXI = 25_000;
 
 let odam: SinovOdam;
 
 test.beforeAll(() => {
   odam = odamYarat();
+  restoran = restoranYarat();
 });
 
 test.afterAll(() => {
   odamOchir(odam.userId);
+  restoranOchir(restoran.restaurantId);
 });
 
 /** Matndan so'mdagi sonni ajratib oladi: "77 000 so'm" -> 77000 */
@@ -172,7 +196,7 @@ test('OVQAT: taomni savatga qo\u2018shib, buyurtma berish', async ({ page }) => 
     SEVIMLILARGA qo'shish tugmasini bosgan edi — savat esa bo'sh
     qolaverardi. Ikkala tugmaning nomida ham "qo'shish" bor.
   */
-  await page.goto(RESTORAN);
+  await page.goto(`/food/${restoran.slug}`);
   await page
     .getByRole('button', { name: /savatga qo.shish/i })
     .first()
@@ -274,5 +298,80 @@ test('MEHMONXONA: xona band qilish va hamyondan pul yechilishi', async ({ page }
     expect(balansOldin - balansKeyin).toBe(380_000);
   } finally {
     odamOchir(mehmon.userId);
+  }
+});
+
+test('SAYOHAT: chipta olish va hamyondan pul yechilishi', async ({ page }) => {
+  /*
+    ── To'rtinchi naqsh: O'RIN TANLASH ─────────────────────────────────
+    Boshqa modullardan farqi — bu yerda o'rin raqami ham yuboriladi
+    (`seatNumbers`). Ya'ni so'rov tanasi yana boshqacha yasaladi.
+  */
+  const yolovchi = odamYarat();
+
+  try {
+    await kirOdam(page, yolovchi);
+
+    await page.goto('/wallet');
+    const balansOldin = somOqi(
+      await page
+        .getByText(/^\d[\d\s]*\s*so/)
+        .first()
+        .innerText(),
+    );
+
+    /*
+      Sana tasodifiy: o'rinlar HAR JO'NASH uchun alohida sanaladi.
+      Bir xil sana ishlatilsa, sinov qayta-qayta ishlaganda birinchi
+      o'rin band bo'lib qolardi.
+
+      ── Chegara qoidadan OLINADI, qo'lda yozilmaydi (haqiqiy xato) ───
+      Avval oraliq +15..+135 kun edi. Chipta esa eng ko'pi bilan
+      `maxDaysAhead` (90) kun oldin olinadi, ya'ni uchdan bir ish
+      chegaradan chiqib, reys sahifasi bo'sh kelardi va sinov
+      "tugma topilmadi" deb yiqilardi.
+
+      Yolg'iz ishlaganda o'tib, to'liq ishda yiqilgani shundan edi —
+      tasodifga bog'liq.
+    */
+    const eng_uzoq = Math.min(TRIP_RULES.maxDaysAhead - 10, 80);
+    const kun = new Date();
+    kun.setUTCDate(kun.getUTCDate() + 15 + Math.floor(Math.random() * (eng_uzoq - 15)));
+
+    await page.goto(`/travel/${REYS_ID}?date=${kun.toISOString().slice(0, 10)}`);
+
+    await page.getByRole('button', { name: 'Chipta olish' }).first().click();
+
+    /* Bo'sh o'rinlardan birinchisi tanlanadi. */
+    await page
+      .getByRole('button', { name: /o.rin tanlash/i })
+      .first()
+      .click();
+
+    await page.locator('#passengerName').fill("Sinov Yo'lovchi");
+    await page.locator('#passengerPhone').fill('901112233');
+
+    const javob = page.waitForResponse(
+      (r) => r.url().includes('/api/v1/travel/tickets') && r.request().method() === 'POST',
+    );
+
+    await page.getByRole('button', { name: 'Tasdiqlash' }).click();
+
+    expect((await javob).status(), 'chipta yaratilmadi').toBe(201);
+
+    await expect(page.getByText(/chipta olindi/i).first()).toBeVisible({ timeout: 15_000 });
+
+    await page.goto('/wallet');
+
+    const balansKeyin = somOqi(
+      await page
+        .getByText(/^\d[\d\s]*\s*so/)
+        .first()
+        .innerText(),
+    );
+
+    expect(balansOldin - balansKeyin, 'yechilgan summa chipta narxidan farq qildi').toBe(CHIPTA_NARXI);
+  } finally {
+    odamOchir(yolovchi.userId);
   }
 });

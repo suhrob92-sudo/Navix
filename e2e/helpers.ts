@@ -50,3 +50,23 @@ export function odamYarat(sumSom?: number): SinovOdam {
 export function odamOchir(userId: string): void {
   skript('cleanup', userId);
 }
+
+/** Sutka bo'yi ochiq sinov restorani. */
+export interface SinovRestoran {
+  restaurantId: string;
+  slug: string;
+}
+
+/**
+ * Sinov uchun restoran yaratadi.
+ *
+ * Nima uchun tayyor restoran ishlatilmasligi `scripts/e2e-user.ts`
+ * da yozilgan: ularning ish vaqti bor va sinov kechqurun yiqilardi.
+ */
+export function restoranYarat(): SinovRestoran {
+  return skript('restaurant') as SinovRestoran;
+}
+
+export function restoranOchir(restaurantId: string): void {
+  skript('cleanup-restaurant', restaurantId);
+}
