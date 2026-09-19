@@ -36,9 +36,14 @@ function skript(...args: string[]): unknown {
   return jsonAjrat(chiqish);
 }
 
-/** Parol o'rnatilgan, hamyoni to'ldirilgan foydalanuvchi yaratadi. */
-export function odamYarat(): SinovOdam {
-  return skript('create') as SinovOdam;
+/**
+ * Parol o'rnatilgan, hamyoni to'ldirilgan foydalanuvchi yaratadi.
+ *
+ * `sumSom` — hamyondagi summa. Qimmatroq narsa sotib oladigan
+ * sinovlar (masalan mehmonxona) ko'proq so'raydi.
+ */
+export function odamYarat(sumSom?: number): SinovOdam {
+  return (sumSom === undefined ? skript('create') : skript('create', String(sumSom))) as SinovOdam;
 }
 
 /** Foydalanuvchini va u bilan bog'liq hamma narsani o'chiradi. */

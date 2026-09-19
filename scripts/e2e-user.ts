@@ -32,7 +32,18 @@ import { topUp } from '@/modules/wallet/wallet.service';
 /** Sinov foydalanuvchilarini ajratib turadigan belgi. */
 const FAMILIYA = 'E2E';
 
-async function create(): Promise<void> {
+/**
+ * Hamyonga qo'yiladigan summa — SO'MDA.
+ *
+ * Ba'zi sinovlar qimmatroq narsani sotib oladi (mehmonxona bandlovi
+ * bir kechada 190 000 so'mdan boshlanadi), shuning uchun summa
+ * buyruq satridan berilishi mumkin:
+ *
+ *   tsx scripts/e2e-user.ts create 1000000
+ */
+const STANDART_SUMMA = 250_000;
+
+async function create(sumSom: number): Promise<void> {
   const phone = `+99893${Math.floor(1_000_000 + Math.random() * 8_999_999)}`;
   const password = `Sinov-${randomUUID().slice(0, 8)}!`;
 
@@ -74,7 +85,7 @@ async function create(): Promise<void> {
   await prisma.userRoleAssignment.create({ data: { userId: user.id, roleId: customerRole.id } });
 
   /* Hamyonda pul bo'lsin: balans ekranda ko'rinishini tekshiramiz. */
-  await topUp(user.id, { amount: 250_000, method: 'CARD', idempotencyKey: `e2e-${randomUUID()}` });
+  await topUp(user.id, { amount: sumSom, method: 'CARD', idempotencyKey: `e2e-${randomUUID()}` });
 
   /*
     Yetkazish manzili.
@@ -102,6 +113,8 @@ async function cleanup(userId: string): Promise<void> {
   const wallets = await prisma.wallet.findMany({ where: { userId }, select: { id: true } });
 
   await prisma.userRoleAssignment.deleteMany({ where: { userId } });
+  await prisma.hotelBooking.deleteMany({ where: { userId } });
+  await prisma.foodOrder.deleteMany({ where: { userId } });
   await prisma.marketOrder.deleteMany({ where: { userId } });
   await prisma.address.deleteMany({ where: { userId } });
   await prisma.walletTransaction.deleteMany({ where: { walletId: { in: wallets.map((w) => w.id) } } });
@@ -122,7 +135,7 @@ async function main(): Promise<void> {
   const [buyruq, argument] = process.argv.slice(2);
 
   try {
-    if (buyruq === 'create') await create();
+    if (buyruq === 'create') await create(argument ? Number(argument) : STANDART_SUMMA);
     else if (buyruq === 'cleanup' && argument) await cleanup(argument);
     else {
       console.error('Ishlatish: tsx scripts/e2e-user.ts create | cleanup <userId>');
