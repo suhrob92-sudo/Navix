@@ -41,6 +41,29 @@ describe('createMarketOrderSchema', () => {
     expect(parsed.items[0]).not.toHaveProperty('price');
   });
 
+  it('variantsiz mahsulot uchun `variantId: null` ni QABUL QILADI', () => {
+    /*
+      ── Haqiqiy xato, brauzerdagi sinov topdi ───────────────────────
+      Savat brauzerda saqlanadi va varianti yo'q mahsulot uchun
+      `variantId: null` yozadi. Sxemada esa `.optional()` turardi —
+      u faqat `undefined` ni qabul qiladi.
+
+      Natijada katalogdagi 23 ta mahsulotning HAMMASI (birortasining
+      ham varianti yo'q) sotib olinmasdi: "buyurtma berish" tugmasi
+      400 qaytarardi.
+
+      API sinovlari buni ko'rmagan edi, chunki ular maydonni umuman
+      yubormasdi. Faqat haqiqiy brauzer haqiqiy savat bilan ochib
+      berdi.
+    */
+    const parsed = createMarketOrderSchema.parse({
+      ...validOrder(),
+      items: [{ productId: PRODUCT_ID, variantId: null, quantity: 1 }],
+    });
+
+    expect(parsed.items[0]?.variantId).toBeNull();
+  });
+
   it("bo'sh savatni rad etadi", () => {
     expect(() => createMarketOrderSchema.parse({ ...validOrder(), items: [] })).toThrow();
   });
@@ -81,13 +104,13 @@ describe('createMarketOrderSchema', () => {
     expect(() => createMarketOrderSchema.parse({ ...validOrder(), shopId: 'texnomart' })).toThrow();
   });
 
-  it('idempotentlik kalitisiz o\'tkazmaydi', () => {
+  it("idempotentlik kalitisiz o'tkazmaydi", () => {
     const { idempotencyKey: _unused, ...withoutKey } = validOrder();
 
     expect(() => createMarketOrderSchema.parse(withoutKey)).toThrow();
   });
 
-  it("kalitda begona belgilarni rad etadi", () => {
+  it('kalitda begona belgilarni rad etadi', () => {
     expect(() =>
       createMarketOrderSchema.parse({ ...validOrder(), idempotencyKey: "kalit'; DROP TABLE--" }),
     ).toThrow();

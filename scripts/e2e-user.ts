@@ -56,8 +56,44 @@ async function create(): Promise<void> {
     select: { id: true },
   });
 
+  /*
+    CUSTOMER roli — haqiqiy ro'yxatdan o'tish ham aynan shuni beradi
+    (`auth.service.ts`, SMS kodi tasdiqlangan payt).
+
+    Busiz foydalanuvchida `ORDER_CREATE` ruxsati bo'lmaydi va
+    buyurtma berishda 403 chiqadi. Sinov birinchi ishga tushganda
+    aynan shunday bo'ldi: ilova to'g'ri ishlayotgan edi, seed esa
+    haqiqiy foydalanuvchiga o'xshamagan edi.
+  */
+  const customerRole = await prisma.role.findUnique({ where: { name: 'CUSTOMER' }, select: { id: true } });
+
+  if (!customerRole) {
+    throw new Error('CUSTOMER roli bazada yo\'q. Avval "npm run db:seed" bajaring.');
+  }
+
+  await prisma.userRoleAssignment.create({ data: { userId: user.id, roleId: customerRole.id } });
+
   /* Hamyonda pul bo'lsin: balans ekranda ko'rinishini tekshiramiz. */
   await topUp(user.id, { amount: 250_000, method: 'CARD', idempotencyKey: `e2e-${randomUUID()}` });
+
+  /*
+    Yetkazish manzili.
+
+    Busiz savatda "Buyurtma berish uchun avval manzil qo'shing" chiqadi
+    va tugma ishlamaydi — ya'ni buyurtma yo'lini umuman sinab
+    bo'lmasdi.
+  */
+  await prisma.address.create({
+    data: {
+      userId: user.id,
+      label: 'Uy',
+      city: 'Toshkent',
+      street: "Amir Temur ko'chasi, 12-uy",
+      latitude: 41.3111,
+      longitude: 69.2797,
+      isDefault: true,
+    },
+  });
 
   console.log(JSON.stringify({ userId: user.id, phone, password }));
 }
@@ -65,6 +101,9 @@ async function create(): Promise<void> {
 async function cleanup(userId: string): Promise<void> {
   const wallets = await prisma.wallet.findMany({ where: { userId }, select: { id: true } });
 
+  await prisma.userRoleAssignment.deleteMany({ where: { userId } });
+  await prisma.marketOrder.deleteMany({ where: { userId } });
+  await prisma.address.deleteMany({ where: { userId } });
   await prisma.walletTransaction.deleteMany({ where: { walletId: { in: wallets.map((w) => w.id) } } });
   await prisma.wallet.deleteMany({ where: { userId } });
   await prisma.notification.deleteMany({ where: { userId } });

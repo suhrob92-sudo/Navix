@@ -43,8 +43,21 @@ export const cartLineSchema = z.object({
    * Variantli mahsulotda esa u MAJBURIY bo'ladi — buni server
    * tekshiradi, chunki savat brauzerda saqlanadi va unga ishonib
    * bo'lmaydi.
+   *
+   * ── Nima uchun `nullish`, `optional` emas (HAQIQIY XATO) ────────────
+   * Savat brauzerda saqlanadi va u varianti yo'q mahsulot uchun
+   * `variantId: null` yozadi — bu mantiqan to'g'ri: "variant yo'q".
+   *
+   * `optional()` esa faqat `undefined` ni qabul qiladi, `null` ni
+   * emas. Natijada varianti yo'q HAR QANDAY mahsulotni sotib olishda
+   * 400 chiqardi va buyurtma umuman berilmasdi.
+   *
+   * Xizmat qatlami `null` ni allaqachon to'g'ri tushunardi
+   * (`if (!line.variantId)`), ya'ni yagona to'siq shu tekshiruv edi.
+   * Buni brauzerdagi E2E sinovi topdi: API sinovlari `undefined`
+   * yuborardi va shuning uchun xatoni ko'rmasdi.
    */
-  variantId: z.uuid({ message: "Variant noto'g'ri tanlangan" }).optional(),
+  variantId: z.uuid({ message: "Variant noto'g'ri tanlangan" }).nullish(),
   quantity: z
     .number({ message: 'Sonini kiriting' })
     .int("Son butun bo'lishi kerak")
